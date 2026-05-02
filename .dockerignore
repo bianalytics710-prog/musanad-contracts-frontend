@@ -1,0 +1,14 @@
+node_modules
+dist
+.output
+.vinxi
+.tanstack
+.wrangler
+.cache
+.git
+.env
+.env.local
+.env.*.local
+coverage
+README.md
+*.log

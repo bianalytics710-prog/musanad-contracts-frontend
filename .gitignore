@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+.output/
+.vinxi/
+.tanstack/
+.wrangler/
+.cache/
+
+# Generated TanStack Router file (regenerated on dev/build)
+src/routeTree.gen.ts
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# Tests / coverage
+coverage/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
