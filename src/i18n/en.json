@@ -612,7 +612,177 @@
     "sourceImported": "Imported",
     "sourceAmended": "Amended",
     "sourceRenewed": "Renewed",
-    "importedBadge": "Imported"
+    "importedBadge": "Imported",
+    "languageOptions": {
+      "en": "English",
+      "ar": "Arabic",
+      "bilingual": "Bilingual"
+    },
+    "governingLawOptions": {
+      "uae_federal": "UAE federal",
+      "dubai": "Dubai",
+      "abu_dhabi": "Abu Dhabi",
+      "sharjah": "Sharjah",
+      "difc": "DIFC",
+      "adgm": "ADGM",
+      "english": "English law",
+      "other": "Other"
+    },
+    "relationshipTypeOptions": {
+      "amendment": "Amendment",
+      "renewal": "Renewal",
+      "extension": "Extension",
+      "superseded": "Superseded",
+      "sow_under_msa": "SOW under MSA"
+    },
+    "fields": {
+      "titleEn": "Title (English)",
+      "titleAr": "Title (Arabic)",
+      "contractType": "Contract type",
+      "language": "Language",
+      "valueAed": "Value",
+      "currency": "Currency",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "signedAt": "Signed at",
+      "expiryNoticeDays": "Expiry notice (days)",
+      "emirate": "Emirate",
+      "governingLaw": "Governing law",
+      "jurisdictionCourt": "Jurisdiction court",
+      "parentContractId": "Parent contract ID",
+      "relationshipType": "Relationship type",
+      "bodyEn": "Body (English)",
+      "bodyAr": "Body (Arabic)",
+      "bodyHelp": "Sensitive — contract body never appears in logs.",
+      "attachmentCount": "Attachments",
+      "commentCount": "Comments",
+      "notSet": "Not set"
+    },
+    "form": {
+      "errors": {
+        "titleEnRequired": "Title (English) is required.",
+        "contractTypeRequired": "Contract type is required.",
+        "valueNonNegative": "Value must be greater than or equal to zero.",
+        "endDateBeforeStart": "End date must be on or after start date."
+      }
+    },
+    "create": {
+      "title": "New contract",
+      "subtitle": "Capture the basic details. The five-step Compose Wizard ships in the next release.",
+      "formTitle": "Contract details",
+      "submit": "Create contract"
+    },
+    "edit": {
+      "formTitle": "Edit contract"
+    },
+    "detail": {
+      "tabsLabel": "Contract sections",
+      "tabs": {
+        "overview": "Overview",
+        "edit": "Edit",
+        "versions": "Versions",
+        "activity": "Activity",
+        "tree": "Related"
+      },
+      "summaryTitle": "Summary",
+      "bodyTitle": "Body",
+      "peopleTitle": "People",
+      "draftedBy": "Drafted by",
+      "reviewedBy": "Reviewed by",
+      "approvedBy": "Approved by",
+      "unassigned": "Not assigned",
+      "updatedAt": "Last updated {{when}}",
+      "notFound": "Contract not found",
+      "forbidden": "You don't have access to this contract.",
+      "backToList": "Back to contracts"
+    },
+    "delete": {
+      "title": "Delete contract",
+      "description": "You're about to soft-delete contract {{number}} — \"{{title}}\". History is preserved, but the contract will no longer appear in the list.",
+      "ariaLabel": "Delete {{number}}",
+      "confirmLabel": "Type {{number}} to confirm",
+      "confirmHelp": "This action soft-deletes the contract. Active children will block deletion.",
+      "confirmButton": "Delete contract"
+    },
+    "status": {
+      "title": "Update status",
+      "action": "Update status",
+      "description": "Change the lifecycle status of contract {{number}}.",
+      "current": "Current",
+      "newStatus": "New status",
+      "reason": "Reason (optional)",
+      "reasonHelp": "Stored on the activity timeline; helpful for audit trails.",
+      "submit": "Update status",
+      "m1aNote": "M1a accepts any status from any state. Workflow rules ship in the next release."
+    },
+    "tags": {
+      "title": "Tags",
+      "save": "Save tags",
+      "placeholder": "Add a tag…",
+      "inputLabel": "Add a tag",
+      "removeAria": "Remove tag {{tag}}",
+      "empty": "No tags yet.",
+      "errors": {
+        "length": "Each tag must be 1 to 64 characters.",
+        "control": "Tag must not contain control characters."
+      }
+    },
+    "tree": {
+      "title": "Related contracts",
+      "current": "Current",
+      "empty": "No related contracts.",
+      "truncatedNote": "The hierarchy is deeper than the 20-level cap; some descendants are hidden."
+    },
+    "versions": {
+      "title": "Versions",
+      "create": "New version",
+      "empty": "No version history yet.",
+      "versionNumber": "Version {{number}}",
+      "byActor": "by {{actor}}",
+      "unknownActor": "(Removed user)",
+      "diffSummary": "Diff summary",
+      "dialogTitle": "Save as new version",
+      "dialogDescription": "Save the current body as a new immutable version.",
+      "changeNoteLabel": "Change note",
+      "diffSummaryLabel": "Diff summary (optional)",
+      "submit": "Save version",
+      "errors": {
+        "changeNoteRequired": "Change note is required.",
+        "bodyRequired": "Provide at least one of body (English) or body (Arabic)."
+      }
+    },
+    "activity": {
+      "title": "Activity",
+      "filterLabel": "Filter activity",
+      "empty": "No activity recorded yet.",
+      "byActor": "by {{actor}}",
+      "unknownActor": "(Removed user)",
+      "tagsAdded": "added",
+      "tagsRemoved": "removed",
+      "types": {
+        "created": "Created",
+        "updated": "Updated",
+        "status_changed": "Status changed",
+        "version_created": "New version",
+        "tagged": "Tags changed",
+        "soft_deleted": "Soft-deleted",
+        "restored": "Restored"
+      }
+    },
+    "toasts": {
+      "createSuccess": "Contract created.",
+      "createError": "Could not create the contract.",
+      "updateSuccess": "Contract updated.",
+      "updateError": "Could not update the contract.",
+      "deleteSuccess": "Contract deleted.",
+      "deleteError": "Could not delete the contract.",
+      "statusSuccess": "Status updated.",
+      "statusError": "Could not update the status.",
+      "tagsSuccess": "Tags saved.",
+      "tagsError": "Could not save tags.",
+      "versionSuccess": "New version saved.",
+      "versionError": "Could not save the version."
+    }
   },
   "contractDetail": {
     "breadcrumbHome": "Home",
@@ -3378,6 +3548,31 @@
       "title": "Something went wrong",
       "subtitle": "We've logged the error. Reload the page to continue.",
       "reload": "Reload page"
+    },
+    "generic": "Something went wrong. Please try again.",
+    "network": "Unable to reach the server. Check your connection.",
+    "timeout": "The request took too long to complete.",
+    "unauthorized": "You need to sign in again to continue.",
+    "forbidden": "You don't have permission to perform that action.",
+    "notFound": "We couldn't find what you were looking for.",
+    "validation": "Some fields need attention before you can continue.",
+    "conflict": "That change conflicts with a more recent update. Refresh and try again.",
+    "unprocessable": "We couldn't process that request. Please review and try again.",
+    "server": "The server ran into a problem. Please try again shortly.",
+    "fields": {
+      "titleEn": "Title (English) is invalid.",
+      "titleAr": "Title (Arabic) is invalid.",
+      "contractType": "Contract type is invalid.",
+      "valueAed": "Value is invalid.",
+      "currency": "Currency is invalid.",
+      "startDate": "Start date is invalid.",
+      "endDate": "End date is invalid.",
+      "expiryNoticeDays": "Expiry notice days is invalid.",
+      "parentContractId": "Parent contract is invalid.",
+      "relationshipType": "Relationship type is invalid.",
+      "changeNote": "Change note is invalid.",
+      "tags": "Tags are invalid.",
+      "status": "Status is invalid."
     }
   },
   "filterBar": {

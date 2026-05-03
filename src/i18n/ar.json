@@ -612,7 +612,177 @@
     "sourceImported": "مستورد",
     "sourceAmended": "معدّل",
     "sourceRenewed": "مجدّد",
-    "importedBadge": "مستورد"
+    "importedBadge": "مستورد",
+    "languageOptions": {
+      "en": "الإنجليزية",
+      "ar": "العربية",
+      "bilingual": "ثنائي اللغة"
+    },
+    "governingLawOptions": {
+      "uae_federal": "اتحادي إماراتي",
+      "dubai": "دبي",
+      "abu_dhabi": "أبوظبي",
+      "sharjah": "الشارقة",
+      "difc": "مركز دبي المالي العالمي",
+      "adgm": "سوق أبوظبي العالمي",
+      "english": "القانون الإنجليزي",
+      "other": "أخرى"
+    },
+    "relationshipTypeOptions": {
+      "amendment": "تعديل",
+      "renewal": "تجديد",
+      "extension": "تمديد",
+      "superseded": "ملغى ومستبدل",
+      "sow_under_msa": "بيان عمل تحت اتفاقية إطارية"
+    },
+    "fields": {
+      "titleEn": "العنوان (الإنجليزية)",
+      "titleAr": "العنوان (العربية)",
+      "contractType": "نوع العقد",
+      "language": "اللغة",
+      "valueAed": "القيمة",
+      "currency": "العملة",
+      "startDate": "تاريخ البدء",
+      "endDate": "تاريخ الانتهاء",
+      "signedAt": "تاريخ التوقيع",
+      "expiryNoticeDays": "أيام إشعار الانتهاء",
+      "emirate": "الإمارة",
+      "governingLaw": "القانون المختص",
+      "jurisdictionCourt": "محكمة الاختصاص",
+      "parentContractId": "معرّف العقد الأصل",
+      "relationshipType": "نوع العلاقة",
+      "bodyEn": "النص (الإنجليزية)",
+      "bodyAr": "النص (العربية)",
+      "bodyHelp": "حساس — لا يظهر نص العقد في السجلات.",
+      "attachmentCount": "المرفقات",
+      "commentCount": "التعليقات",
+      "notSet": "غير محدد"
+    },
+    "form": {
+      "errors": {
+        "titleEnRequired": "العنوان (الإنجليزية) مطلوب.",
+        "contractTypeRequired": "نوع العقد مطلوب.",
+        "valueNonNegative": "يجب أن تكون القيمة صفراً أو أكثر.",
+        "endDateBeforeStart": "يجب أن يكون تاريخ الانتهاء في تاريخ البدء أو بعده."
+      }
+    },
+    "create": {
+      "title": "عقد جديد",
+      "subtitle": "أدخل التفاصيل الأساسية. سيتوفر معالج الإنشاء بخمس خطوات في الإصدار التالي.",
+      "formTitle": "تفاصيل العقد",
+      "submit": "إنشاء العقد"
+    },
+    "edit": {
+      "formTitle": "تعديل العقد"
+    },
+    "detail": {
+      "tabsLabel": "أقسام العقد",
+      "tabs": {
+        "overview": "نظرة عامة",
+        "edit": "تعديل",
+        "versions": "الإصدارات",
+        "activity": "النشاط",
+        "tree": "ذو صلة"
+      },
+      "summaryTitle": "ملخص",
+      "bodyTitle": "النص",
+      "peopleTitle": "الأشخاص",
+      "draftedBy": "صياغة بواسطة",
+      "reviewedBy": "مراجعة بواسطة",
+      "approvedBy": "اعتماد بواسطة",
+      "unassigned": "غير محدد",
+      "updatedAt": "آخر تحديث {{when}}",
+      "notFound": "العقد غير موجود",
+      "forbidden": "ليس لديك صلاحية الوصول إلى هذا العقد.",
+      "backToList": "العودة إلى العقود"
+    },
+    "delete": {
+      "title": "حذف العقد",
+      "description": "أنت على وشك حذف العقد {{number}} — \"{{title}}\" حذفاً ناعماً. سيتم الاحتفاظ بالسجل، لكن لن يظهر العقد في القائمة.",
+      "ariaLabel": "حذف {{number}}",
+      "confirmLabel": "اكتب {{number}} للتأكيد",
+      "confirmHelp": "هذا الإجراء يحذف العقد حذفاً ناعماً. وجود عقود فرعية نشطة سيمنع الحذف.",
+      "confirmButton": "حذف العقد"
+    },
+    "status": {
+      "title": "تحديث الحالة",
+      "action": "تحديث الحالة",
+      "description": "تغيير حالة دورة حياة العقد {{number}}.",
+      "current": "الحالي",
+      "newStatus": "الحالة الجديدة",
+      "reason": "السبب (اختياري)",
+      "reasonHelp": "يُحفظ في سجل النشاط؛ مفيد للتدقيق.",
+      "submit": "تحديث الحالة",
+      "m1aNote": "M1a يقبل أي حالة من أي حالة. قواعد سير العمل في الإصدار التالي."
+    },
+    "tags": {
+      "title": "الوسوم",
+      "save": "حفظ الوسوم",
+      "placeholder": "أضف وسماً…",
+      "inputLabel": "إضافة وسم",
+      "removeAria": "إزالة الوسم {{tag}}",
+      "empty": "لا توجد وسوم بعد.",
+      "errors": {
+        "length": "يجب أن يكون كل وسم من 1 إلى 64 حرفاً.",
+        "control": "لا يجوز أن يحتوي الوسم على أحرف تحكم."
+      }
+    },
+    "tree": {
+      "title": "العقود ذات الصلة",
+      "current": "الحالي",
+      "empty": "لا توجد عقود ذات صلة.",
+      "truncatedNote": "الهيكل أعمق من الحد الأقصى البالغ 20 مستوى؛ بعض الفروع مخفية."
+    },
+    "versions": {
+      "title": "الإصدارات",
+      "create": "إصدار جديد",
+      "empty": "لا يوجد سجل إصدارات بعد.",
+      "versionNumber": "الإصدار {{number}}",
+      "byActor": "بواسطة {{actor}}",
+      "unknownActor": "(مستخدم محذوف)",
+      "diffSummary": "ملخص الفروقات",
+      "dialogTitle": "حفظ كإصدار جديد",
+      "dialogDescription": "احفظ النص الحالي كإصدار جديد لا يمكن تعديله.",
+      "changeNoteLabel": "ملاحظة التغيير",
+      "diffSummaryLabel": "ملخص الفروقات (اختياري)",
+      "submit": "حفظ الإصدار",
+      "errors": {
+        "changeNoteRequired": "ملاحظة التغيير مطلوبة.",
+        "bodyRequired": "زوّد النص بالإنجليزية أو العربية على الأقل."
+      }
+    },
+    "activity": {
+      "title": "النشاط",
+      "filterLabel": "تصفية النشاط",
+      "empty": "لم يتم تسجيل أي نشاط بعد.",
+      "byActor": "بواسطة {{actor}}",
+      "unknownActor": "(مستخدم محذوف)",
+      "tagsAdded": "أُضيفت",
+      "tagsRemoved": "حُذفت",
+      "types": {
+        "created": "تم الإنشاء",
+        "updated": "تم التحديث",
+        "status_changed": "تغيرت الحالة",
+        "version_created": "إصدار جديد",
+        "tagged": "تغيرت الوسوم",
+        "soft_deleted": "حُذف ناعماً",
+        "restored": "استُعيد"
+      }
+    },
+    "toasts": {
+      "createSuccess": "تم إنشاء العقد.",
+      "createError": "تعذر إنشاء العقد.",
+      "updateSuccess": "تم تحديث العقد.",
+      "updateError": "تعذر تحديث العقد.",
+      "deleteSuccess": "تم حذف العقد.",
+      "deleteError": "تعذر حذف العقد.",
+      "statusSuccess": "تم تحديث الحالة.",
+      "statusError": "تعذر تحديث الحالة.",
+      "tagsSuccess": "تم حفظ الوسوم.",
+      "tagsError": "تعذر حفظ الوسوم.",
+      "versionSuccess": "تم حفظ الإصدار الجديد.",
+      "versionError": "تعذر حفظ الإصدار."
+    }
   },
   "contractDetail": {
     "breadcrumbHome": "الرئيسية",
@@ -3378,6 +3548,31 @@
       "title": "حدث خطأ غير متوقع",
       "subtitle": "تم تسجيل الخطأ. أعد تحميل الصفحة للمتابعة.",
       "reload": "إعادة تحميل الصفحة"
+    },
+    "generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+    "network": "تعذّر الوصول إلى الخادم. يرجى التحقق من الاتصال.",
+    "timeout": "استغرق الطلب وقتًا أطول من اللازم.",
+    "unauthorized": "يلزمك تسجيل الدخول من جديد للمتابعة.",
+    "forbidden": "ليست لديك صلاحية لتنفيذ هذا الإجراء.",
+    "notFound": "تعذّر العثور على ما تبحث عنه.",
+    "validation": "بعض الحقول تحتاج إلى مراجعة قبل المتابعة.",
+    "conflict": "يتعارض هذا التغيير مع تحديث أحدث. يرجى التحديث ثم المحاولة مرة أخرى.",
+    "unprocessable": "تعذّرت معالجة هذا الطلب. يرجى المراجعة والمحاولة مرة أخرى.",
+    "server": "واجه الخادم مشكلة. يرجى المحاولة بعد قليل.",
+    "fields": {
+      "titleEn": "العنوان (الإنجليزية) غير صالح.",
+      "titleAr": "العنوان (العربية) غير صالح.",
+      "contractType": "نوع العقد غير صالح.",
+      "valueAed": "القيمة غير صالحة.",
+      "currency": "العملة غير صالحة.",
+      "startDate": "تاريخ البدء غير صالح.",
+      "endDate": "تاريخ الانتهاء غير صالح.",
+      "expiryNoticeDays": "أيام إشعار الانتهاء غير صالحة.",
+      "parentContractId": "العقد الأصلي غير صالح.",
+      "relationshipType": "نوع العلاقة غير صالح.",
+      "changeNote": "ملاحظة التغيير غير صالحة.",
+      "tags": "الوسوم غير صالحة.",
+      "status": "الحالة غير صالحة."
     }
   },
   "filterBar": {

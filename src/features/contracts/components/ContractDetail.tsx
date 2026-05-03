@@ -1,0 +1,445 @@
+/**
+ * ContractDetail (S2) — single-contract detail surface with tabbed sections.
+ *
+ * Mode: harden — adapted from the Lovable contracts.$id.tsx + ContractCenterTabs
+ * components. The Lovable implementation shipped 2,900+ combined lines of
+ * supabase-coupled UI; this M1a version preserves the same visual idiom
+ * (header card + status badge + tag chips + tabbed content) but routes every
+ * data call through the M1a service layer.
+ *
+ * Tabs:
+ *   - Overview      — read-only summary + tags editor (S8)
+ *   - Edit          — ContractEditForm (S4)
+ *   - Versions      — ContractVersionList (S9, S10)
+ *   - Activity      — ContractActivityLog (S11)
+ *   - Tree          — ContractTreeTimeline (S7)
+ *
+ * Header actions:
+ *   - "Update status" → ContractStatusDialog (S6)
+ *   - "Delete"        → ContractDeleteDialog (S5)
+ *
+ * AC mapping:
+ *   AC-S2-01 — full Contract object via fn_contract_get_by_id.
+ *   AC-S2-02 — 404 surfaced via the data-state branches.
+ *   AC-S2-03 — 403 surfaced via the data-state branches.
+ *   AC-S2-04 — bodyEn/bodyAr displayed but never console.logged (T13).
+ *   AC-S2-05 — drafted_by/reviewed_by/approved_by null when user soft-deleted.
+ */
+import { useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  GitBranch,
+  History,
+  PencilLine,
+  Trash2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useContract } from "@/features/contracts/hooks/useContracts";
+import { formatDate, formatDateTime } from "@/utils/datetime";
+import { cn } from "@/lib/utils";
+import { translateApiError } from "@/lib/translate-api-error";
+import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { ContractStatusBadge } from "./ContractStatusBadge";
+import { ContractStatusDialog } from "./ContractStatusDialog";
+import { ContractDeleteDialog } from "./ContractDeleteDialog";
+import { ContractEditForm } from "./ContractEditForm";
+import { ContractTagsEditor } from "./ContractTagsEditor";
+import { ContractVersionList } from "./ContractVersionList";
+import { ContractActivityLog } from "./ContractActivityLog";
+import { ContractTreeTimeline } from "./ContractTreeTimeline";
+import type { Contract, UserRef } from "@/types/entities/contract.types";
+
+type Tab = "overview" | "edit" | "versions" | "activity" | "tree";
+
+interface ContractDetailProps {
+  contractId: number;
+}
+
+export function ContractDetail({ contractId }: ContractDetailProps) {
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<Tab>("overview");
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // FE-C3 — defense-in-depth RBAC gating. BE returns 403 if a user without
+  // a permission still hits the endpoint; these flags simply hide actions.
+  const canEdit = useAuthStore(selectHasPermission("contract.edit"));
+  const canDelete = useAuthStore(selectHasPermission("contract.delete"));
+  const canChangeStatus = useAuthStore(selectHasPermission("contract.status.update"));
+  const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
+
+  const { data, isLoading, isError, error, refetch } = useContract(contractId);
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto w-full max-w-[1280px] space-y-4 p-6">
+        <div
+          className="h-24 animate-pulse rounded-lg bg-surface"
+          aria-busy="true"
+          aria-label={t("common.loading")}
+        />
+        <div className="h-64 animate-pulse rounded-lg bg-surface" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    const status = error?.status;
+    const messageKey =
+      status === 404
+        ? "contracts.detail.notFound"
+        : status === 403
+          ? "contracts.detail.forbidden"
+          : "common.error";
+    return (
+      <div className="mx-auto w-full max-w-md p-12 text-center">
+        <h1 className="text-base font-semibold text-ink">{t(messageKey)}</h1>
+        {error && status !== 404 && status !== 403 && (
+          <p className="mt-2 text-sm text-destructive">{translateApiError(error, t)}</p>
+        )}
+        <div className="mt-4 flex justify-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void navigate({ to: "/app/contracts" })}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("contracts.detail.backToList")}
+          </Button>
+          {status !== 404 && status !== 403 && (
+            <Button type="button" size="sm" onClick={() => void refetch()}>
+              {t("common.retry")}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const contract = data;
+  const isAr = i18n.language?.startsWith("ar");
+  const displayTitle = isAr && contract.titleAr ? contract.titleAr : contract.titleEn;
+
+  return (
+    <div className="mx-auto w-full max-w-[1280px] space-y-4 p-6">
+      <Breadcrumb contractNumber={contract.contractNumber} />
+
+      {/* Header card */}
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs text-ink-subtle">{contract.contractNumber}</span>
+              <ContractStatusBadge status={contract.status} />
+              <span className="text-[11px] text-ink-subtle">v{contract.currentVersion}</span>
+            </div>
+            <CardTitle className="mt-1 text-xl tracking-tight text-ink">{displayTitle}</CardTitle>
+            <p className="mt-1 text-xs text-ink-subtle">
+              {t("contracts.detail.updatedAt", {
+                when: formatDateTime(contract.updatedAt),
+              })}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canChangeStatus && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setStatusOpen(true)}>
+                <History className="h-3.5 w-3.5" />
+                {t("contracts.status.action")}
+              </Button>
+            )}
+            {canEdit && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setTab("edit")}>
+                <PencilLine className="h-3.5 w-3.5" />
+                {t("common.edit")}
+              </Button>
+            )}
+            {canDelete && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setDeleteOpen(true)}>
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                {t("common.delete")}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Tabs */}
+      <div
+        role="tablist"
+        aria-label={t("contracts.detail.tabsLabel")}
+        className="flex flex-wrap gap-1 border-b border-border"
+      >
+        <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>
+          {t("contracts.detail.tabs.overview")}
+        </TabButton>
+        <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
+          {t("contracts.detail.tabs.edit")}
+        </TabButton>
+        <TabButton active={tab === "versions"} onClick={() => setTab("versions")}>
+          {t("contracts.detail.tabs.versions")}
+        </TabButton>
+        <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
+          {t("contracts.detail.tabs.activity")}
+        </TabButton>
+        <TabButton active={tab === "tree"} onClick={() => setTab("tree")}>
+          <GitBranch className="h-3.5 w-3.5" />
+          {t("contracts.detail.tabs.tree")}
+        </TabButton>
+      </div>
+
+      {/* Tab panels */}
+      {tab === "overview" && <OverviewPanel contract={contract} canManageTags={canManageTags} />}
+      {tab === "edit" && (
+        <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />
+      )}
+      {tab === "versions" && <ContractVersionList contractId={contract.id} canCreate={canEdit} />}
+      {tab === "activity" && <ContractActivityLog contractId={contract.id} />}
+      {tab === "tree" && <ContractTreeTimeline contractId={contract.id} />}
+
+      {/* Modals */}
+      {statusOpen && (
+        <ContractStatusDialog
+          contractId={contract.id}
+          contractNumber={contract.contractNumber}
+          currentStatus={contract.status}
+          open={statusOpen}
+          onClose={() => setStatusOpen(false)}
+        />
+      )}
+      {deleteOpen && (
+        <ContractDeleteDialog
+          contractId={contract.id}
+          contractNumber={contract.contractNumber}
+          contractTitle={displayTitle}
+          open={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+          redirectOnSuccess
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+interface BreadcrumbProps {
+  contractNumber: string;
+}
+
+function Breadcrumb({ contractNumber }: BreadcrumbProps) {
+  const { t, i18n } = useTranslation();
+  // FE-C6 — locale-aware chevron: in RTL the visual flow is right-to-left,
+  // so the separator should point left.
+  const isRtl = i18n.language?.startsWith("ar");
+  const Chevron = isRtl ? ChevronLeft : ChevronRight;
+  return (
+    <nav className="flex items-center gap-1 text-xs text-ink-muted">
+      <Link to="/app/contracts" className="hover:text-ink">
+        {t("contracts.title")}
+      </Link>
+      <Chevron className="h-3 w-3 text-ink-subtle" aria-hidden="true" />
+      <span className="font-mono text-ink">{contractNumber}</span>
+    </nav>
+  );
+}
+
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function TabButton({ active, onClick, children }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        active ? "border-gold text-ink" : "border-transparent text-ink-muted hover:text-ink",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+interface OverviewPanelProps {
+  contract: Contract;
+  /** Defense-in-depth flag — when false, tags render read-only. */
+  canManageTags: boolean;
+}
+
+function OverviewPanel({ contract, canManageTags }: OverviewPanelProps) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <div className="lg:col-span-2 space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("contracts.detail.summaryTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+              <Detail label={t("contracts.fields.contractType")} value={contract.contractType} />
+              <Detail
+                label={t("contracts.fields.language")}
+                value={t(`contracts.languageOptions.${contract.language}`, {
+                  defaultValue: contract.language,
+                })}
+              />
+              <Detail
+                label={t("contracts.fields.valueAed")}
+                value={
+                  contract.valueAed === null
+                    ? "—"
+                    : `${contract.currency} ${contract.valueAed.toLocaleString()}`
+                }
+              />
+              <Detail
+                label={t("contracts.fields.startDate")}
+                value={formatDate(contract.startDate)}
+              />
+              <Detail label={t("contracts.fields.endDate")} value={formatDate(contract.endDate)} />
+              <Detail
+                label={t("contracts.fields.signedAt")}
+                value={formatDateTime(contract.signedAt)}
+              />
+              <Detail
+                label={t("contracts.fields.expiryNoticeDays")}
+                value={String(contract.expiryNoticeDays)}
+              />
+              <Detail label={t("contracts.fields.emirate")} value={contract.emirate ?? "—"} />
+              <Detail
+                label={t("contracts.fields.governingLaw")}
+                value={
+                  contract.governingLaw
+                    ? t(`contracts.governingLawOptions.${contract.governingLaw}`, {
+                        defaultValue: contract.governingLaw,
+                      })
+                    : "—"
+                }
+              />
+              <Detail
+                label={t("contracts.fields.jurisdictionCourt")}
+                value={contract.jurisdictionCourt ?? "—"}
+              />
+              <Detail
+                label={t("contracts.fields.attachmentCount")}
+                value={String(contract.attachmentCount)}
+              />
+              <Detail
+                label={t("contracts.fields.commentCount")}
+                value={String(contract.commentCount)}
+              />
+            </dl>
+          </CardContent>
+        </Card>
+
+        {(contract.bodyEn || contract.bodyAr) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("contracts.detail.bodyTitle")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {contract.bodyEn && (
+                <BodyBlock label={t("contracts.fields.bodyEn")} body={contract.bodyEn} />
+              )}
+              {contract.bodyAr && (
+                <BodyBlock label={t("contracts.fields.bodyAr")} body={contract.bodyAr} rtl />
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("contracts.detail.peopleTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Person label={t("contracts.detail.draftedBy")} user={contract.draftedBy} />
+            <Person label={t("contracts.detail.reviewedBy")} user={contract.reviewedBy} />
+            <Person label={t("contracts.detail.approvedBy")} user={contract.approvedBy} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("contracts.tags.title")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ContractTagsEditor
+              contractId={contract.id}
+              initialTags={contract.tags}
+              editable={canManageTags}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+interface DetailProps {
+  label: string;
+  value: string;
+}
+
+function Detail({ label, value }: DetailProps) {
+  return (
+    <div>
+      <dt className="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">{label}</dt>
+      <dd className="mt-0.5 text-sm text-ink">{value}</dd>
+    </div>
+  );
+}
+
+interface PersonProps {
+  label: string;
+  user: UserRef | null;
+}
+
+function Person({ label, user }: PersonProps) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">{label}</p>
+      <p className="mt-0.5 text-sm text-ink">
+        {user ? `${user.firstName} ${user.lastName}` : t("contracts.detail.unassigned")}
+      </p>
+    </div>
+  );
+}
+
+interface BodyBlockProps {
+  label: string;
+  body: string;
+  rtl?: boolean;
+}
+
+function BodyBlock({ label, body, rtl }: BodyBlockProps) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-wider text-ink-subtle">{label}</p>
+      <pre
+        className="mt-1 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-surface p-3 text-sm text-ink"
+        dir={rtl ? "rtl" : "ltr"}
+      >
+        {body}
+      </pre>
+    </div>
+  );
+}
+
+export default ContractDetail;
