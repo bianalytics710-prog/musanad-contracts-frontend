@@ -46,6 +46,8 @@ import {
 import { useContractList } from "@/features/contracts/hooks/useContracts";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { ContractDeleteDialog } from "./ContractDeleteDialog";
+import { ExportXlsxButton } from "./ExportXlsxButton";
+import type { ContractExportXlsxQueryParams } from "@/types/entities/payment-schedule.types";
 
 const PAGE_SIZE = 20;
 
@@ -76,6 +78,16 @@ export function ContractListView() {
   );
 
   const { data, isLoading, isError, error, refetch, isFetching } = useContractList(query);
+
+  // M1b — XLSX export takes the same filter set, sans page/limit (the BE
+  // does not paginate exports — see api-contracts.json _routeOrderingNote).
+  const exportFilter: ContractExportXlsxQueryParams = useMemo(
+    () => ({
+      status: statusFilter || undefined,
+      search: debouncedSearch.trim() || undefined,
+    }),
+    [statusFilter, debouncedSearch],
+  );
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchInput(e.target.value);
@@ -131,14 +143,15 @@ export function ContractListView() {
             <RefreshCw className="h-4 w-4" />
             {t("common.retry")}
           </Button>
+          <ExportXlsxButton filter={exportFilter} disabled={isLoading} />
           {canCreate && (
             <Button
               type="button"
               size="sm"
-              onClick={() => void navigate({ to: "/app/contracts/new" })}
+              onClick={() => void navigate({ to: "/app/contracts/compose" })}
             >
               <Plus className="h-4 w-4" />
-              {t("contracts.newContract")}
+              {t("contracts.compose.newCta")}
             </Button>
           )}
         </div>
@@ -222,10 +235,10 @@ export function ContractListView() {
                 type="button"
                 size="sm"
                 className="mt-2"
-                onClick={() => void navigate({ to: "/app/contracts/new" })}
+                onClick={() => void navigate({ to: "/app/contracts/compose" })}
               >
                 <Plus className="h-4 w-4" />
-                {t("contracts.newContract")}
+                {t("contracts.compose.newCta")}
               </Button>
             )}
           </CardContent>

@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFocusTrap } from "@/components/common/useFocusTrap";
 import { useDeleteContract } from "@/features/contracts/hooks/useContracts";
 
 interface ContractDeleteDialogProps {
@@ -45,7 +46,13 @@ export function ContractDeleteDialog({
   const inputId = useId();
   const titleId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  // M1b — FE-C4: focus-trap container ref. The trap only attaches when
+  // `open` flips true, and detaches on close. See useFocusTrap.ts.
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [confirmText, setConfirmText] = useState("");
+
+  // M1b — apply shared focus-trap (FE-C4 deferred from M1a).
+  useFocusTrap(dialogRef, open);
 
   const deleteMutation = useDeleteContract({
     onSuccess: () => {
@@ -93,9 +100,11 @@ export function ContractDeleteDialog({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl"
       >
         <div className="flex items-start justify-between gap-3">

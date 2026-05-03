@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFocusTrap } from "@/components/common/useFocusTrap";
 import { useCreateContractVersion } from "@/features/contracts/hooks/useContracts";
 import { cn } from "@/lib/utils";
 
@@ -36,12 +37,17 @@ export function ContractVersionCreateDialog({
   const bodyEnId = useId();
   const bodyArId = useId();
   const noteRef = useRef<HTMLInputElement>(null);
+  // M1b — FE-C4 focus-trap container ref.
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const [changeNote, setChangeNote] = useState("");
   const [diffSummary, setDiffSummary] = useState("");
   const [bodyEn, setBodyEn] = useState("");
   const [bodyAr, setBodyAr] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // M1b — apply shared focus-trap (FE-C4 deferred from M1a).
+  useFocusTrap(dialogRef, open);
 
   const mutation = useCreateContractVersion({
     onSuccess: () => onClose(),
@@ -127,9 +133,11 @@ export function ContractVersionCreateDialog({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-xl"
       >
         <div className="flex items-start justify-between gap-3">

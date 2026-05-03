@@ -34,6 +34,8 @@ const CODE_TO_KEY: Record<string, string> = {
   NETWORK_ERROR: "errors.network",
   NO_REFRESH_TOKEN: "errors.unauthorized",
   HTTP_ERROR: "errors.generic",
+  RATE_LIMITED: "errors.rate_limited",
+  TOO_MANY_REQUESTS: "errors.rate_limited",
 };
 
 /**
@@ -65,6 +67,45 @@ function hasTranslation(t: TFunction, key: string): boolean {
  * @param fallbackKey Optional override for the generic fallback key.
  *                Defaults to `errors.generic`.
  */
+/**
+ * Map an HTTP status to the per-namespace suffix we look up before the
+ * generic `errors.<code>` table. Lets a caller pass
+ * `fallbackKey="errors.export.failed"` and have us check
+ * `errors.export.unauthorized` (401), `errors.export.forbidden` (403),
+ * `errors.export.rate_limited` (429) before falling back. F-FE-M2.
+ */
+function statusToNamespacedSuffix(status: number): string | null {
+  switch (status) {
+    case 401:
+      return "unauthorized";
+    case 403:
+      return "forbidden";
+    case 404:
+      return "not_found";
+    case 409:
+      return "conflict";
+    case 422:
+      return "unprocessable";
+    case 429:
+      return "rate_limited";
+    default:
+      return status >= 500 ? "server" : null;
+  }
+}
+
+/**
+ * If `fallbackKey` looks like `errors.<feature>.<x>` (e.g.
+ * `errors.export.failed`), derive the namespaced lookup root
+ * (`errors.export`) so we can try `errors.export.<suffix>` for the
+ * status-specific message before the generic table.
+ */
+function deriveNamespacePrefix(fallbackKey: string): string | null {
+  const parts = fallbackKey.split(".");
+  if (parts.length < 3) return null;
+  // `errors.export.failed` → `errors.export`
+  return parts.slice(0, -1).join(".");
+}
+
 export function translateApiError(
   err: unknown,
   t: TFunction,
@@ -79,6 +120,19 @@ export function translateApiError(
         if (hasTranslation(t, fieldKey)) return t(fieldKey);
       }
       return t("errors.validation");
+    }
+
+    // F-FE-M2: per-namespace lookup. When the caller passes a
+    // namespaced fallback like `errors.export.failed`, prefer
+    // `errors.export.<suffix>` keyed off the HTTP status. Falls
+    // through to the generic CODE_TO_KEY map otherwise.
+    const namespacePrefix = deriveNamespacePrefix(fallbackKey);
+    if (namespacePrefix) {
+      const suffix = statusToNamespacedSuffix(err.status);
+      if (suffix) {
+        const namespacedKey = `${namespacePrefix}.${suffix}`;
+        if (hasTranslation(t, namespacedKey)) return t(namespacedKey);
+      }
     }
 
     // 401/403/404/409/422/500 mapped via the code table.

@@ -32,10 +32,12 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Download,
   GitBranch,
   History,
   PencilLine,
   Trash2,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,9 +54,11 @@ import { ContractTagsEditor } from "./ContractTagsEditor";
 import { ContractVersionList } from "./ContractVersionList";
 import { ContractActivityLog } from "./ContractActivityLog";
 import { ContractTreeTimeline } from "./ContractTreeTimeline";
+import { PaymentScheduleTab } from "./PaymentScheduleTab";
+import { ExportPdfDialog } from "./ExportPdfDialog";
 import type { Contract, UserRef } from "@/types/entities/contract.types";
 
-type Tab = "overview" | "edit" | "versions" | "activity" | "tree";
+type Tab = "overview" | "edit" | "payments" | "versions" | "activity" | "tree";
 
 interface ContractDetailProps {
   contractId: number;
@@ -66,6 +70,8 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // M1b — Export PDF dialog state.
+  const [exportPdfOpen, setExportPdfOpen] = useState(false);
 
   // FE-C3 — defense-in-depth RBAC gating. BE returns 403 if a user without
   // a permission still hits the endpoint; these flags simply hide actions.
@@ -73,6 +79,8 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const canDelete = useAuthStore(selectHasPermission("contract.delete"));
   const canChangeStatus = useAuthStore(selectHasPermission("contract.status.update"));
   const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
+  // M1b — gate the Export PDF action by the contract.export permission.
+  const canExport = useAuthStore(selectHasPermission("contract.export"));
 
   const { data, isLoading, isError, error, refetch } = useContract(contractId);
 
@@ -148,6 +156,17 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canExport && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setExportPdfOpen(true)}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {t("contracts.export.pdf.action")}
+              </Button>
+            )}
             {canChangeStatus && (
               <Button type="button" variant="outline" size="sm" onClick={() => setStatusOpen(true)}>
                 <History className="h-3.5 w-3.5" />
@@ -182,6 +201,10 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
           {t("contracts.detail.tabs.edit")}
         </TabButton>
+        <TabButton active={tab === "payments"} onClick={() => setTab("payments")}>
+          <Wallet className="h-3.5 w-3.5" />
+          {t("contracts.detail.tabs.payments")}
+        </TabButton>
         <TabButton active={tab === "versions"} onClick={() => setTab("versions")}>
           {t("contracts.detail.tabs.versions")}
         </TabButton>
@@ -199,6 +222,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       {tab === "edit" && (
         <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />
       )}
+      {tab === "payments" && <PaymentScheduleTab contractId={contract.id} canEdit={canEdit} />}
       {tab === "versions" && <ContractVersionList contractId={contract.id} canCreate={canEdit} />}
       {tab === "activity" && <ContractActivityLog contractId={contract.id} />}
       {tab === "tree" && <ContractTreeTimeline contractId={contract.id} />}
@@ -221,6 +245,14 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           open={deleteOpen}
           onClose={() => setDeleteOpen(false)}
           redirectOnSuccess
+        />
+      )}
+      {exportPdfOpen && (
+        <ExportPdfDialog
+          contractId={contract.id}
+          contractNumber={contract.contractNumber}
+          open={exportPdfOpen}
+          onClose={() => setExportPdfOpen(false)}
         />
       )}
     </div>

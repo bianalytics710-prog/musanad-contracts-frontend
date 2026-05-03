@@ -680,6 +680,7 @@
       "tabs": {
         "overview": "Overview",
         "edit": "Edit",
+        "payments": "Payments",
         "versions": "Versions",
         "activity": "Activity",
         "tree": "Related"
@@ -782,6 +783,145 @@
       "tagsError": "Could not save tags.",
       "versionSuccess": "New version saved.",
       "versionError": "Could not save the version."
+    },
+    "compose": {
+      "title": "Compose contract",
+      "subtitle": "Walk through five steps to draft a new contract with milestones.",
+      "newCta": "Compose contract",
+      "submit": "Create contract",
+      "discardDraft": "Discard draft",
+      "progressLabel": "Compose wizard progress",
+      "stepIndex": "Step {{n}} of {{total}}",
+      "forbiddenSubtitle": "You don't have permission to draft contracts.",
+      "fields": {
+        "ourPartyName": "Our party (name)",
+        "counterpartyName": "Counterparty (name)",
+        "partyDeferredHelp": "Free text — full party records arrive with the Parties module.",
+        "partyDeferredValue": "Pending Parties module",
+        "template": "Template",
+        "templateEmpty": "No templates available",
+        "templateDeferredHelp": "Templates arrive with the Templates module."
+      },
+      "steps": {
+        "step1": {
+          "tabLabel": "Setup",
+          "title": "Step 1 — Setup",
+          "subtitle": "Pick the contract type and language. Party and template pickers will arrive with their modules."
+        },
+        "step2": {
+          "tabLabel": "Key terms",
+          "title": "Step 2 — Key terms",
+          "subtitle": "Capture the headline fields plus your milestone schedule."
+        },
+        "step3": {
+          "tabLabel": "Clauses",
+          "aiPanelTitle": "AI drafting",
+          "aiDeferredHelp": "AI drafting lands with the AI Features module.",
+          "clausesTitle": "Clause library",
+          "clausesDeferredHelp": "Clause library lands with the Clauses module.",
+          "bodyTitle": "Body",
+          "bodySubtitle": "Type or paste the contract body in either or both languages."
+        },
+        "step5": {
+          "tabLabel": "Review",
+          "setupSection": "Setup",
+          "keyTermsSection": "Key terms",
+          "bodySection": "Body",
+          "paymentScheduleEmpty": "No milestones — you can add them later from the Payments tab.",
+          "attachmentsDeferred": "Attachments will appear here once the Attachments module is enabled."
+        }
+      },
+      "phases": {
+        "creatingContract": "Creating contract…",
+        "savingSchedule": "Saving milestones…"
+      },
+      "toasts": {
+        "submitSuccess": "Contract {{number}} created.",
+        "contractError": "Could not create the contract.",
+        "scheduleError": "Could not save the payment schedule."
+      },
+      "errors": {
+        "scheduleFailedTitle": "Contract created — milestones did not save",
+        "scheduleFailedDescription": "Contract {{number}} was created. The payment schedule could not be saved. Retry just the milestones, or visit the contract and use the Payments tab.",
+        "retrySchedule": "Retry milestones"
+      }
+    },
+    "paymentSchedule": {
+      "title": "Payment schedule",
+      "subtitle": "Define the milestones for this contract.",
+      "tabSubtitle": "{{count}} milestone(s) on file.",
+      "addRow": "Add row",
+      "removeRow": "Remove row {{n}}",
+      "rowLabel": "Milestone {{n}}",
+      "empty": "No milestones added.",
+      "emptyTitle": "No milestones yet",
+      "emptyDescription": "Add a milestone to start tracking payment dates.",
+      "addFirst": "Add a milestone",
+      "editButton": "Edit milestones",
+      "saveButton": "Save milestones",
+      "editorTitle": "Edit payment schedule",
+      "editorSubtitle": "Saving replaces the entire schedule for this contract.",
+      "editorHint": "Currently editing {{count}} milestone(s).",
+      "fields": {
+        "milestoneLabelEn": "Label (English)",
+        "milestoneLabelAr": "Label (Arabic)",
+        "milestoneNameEn": "Description (English)",
+        "milestoneNameAr": "Description (Arabic)",
+        "amountAed": "Amount (AED)",
+        "dueDate": "Due date",
+        "paidAt": "Paid at",
+        "status": "Status",
+        "recurrence": "Recurrence",
+        "invoiceRef": "Invoice reference"
+      },
+      "statusOptions": {
+        "pending": "Pending",
+        "due": "Due",
+        "paid": "Paid",
+        "overdue": "Overdue",
+        "waived": "Waived",
+        "cancelled": "Cancelled"
+      },
+      "recurrenceOptions": {
+        "once": "Once",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "annually": "Annually"
+      },
+      "errors": {
+        "milestoneLabelEnRequired": "Milestone label is required.",
+        "milestoneLabelEnTooLong": "Milestone label must be 255 characters or fewer.",
+        "amountInvalid": "Amount must be a number.",
+        "amountNonNegative": "Amount must be greater than or equal to zero.",
+        "atLeastOneRow": "Add at least one milestone.",
+        "tooManyRows": "Maximum 100 milestones per batch."
+      },
+      "toasts": {
+        "replaceSuccess": "Saved {{inserted}} milestones, removed {{softDeleted}}.",
+        "replaceError": "Could not save the payment schedule."
+      }
+    },
+    "export": {
+      "pdf": {
+        "action": "Export PDF",
+        "title": "Export contract to PDF",
+        "description": "Generate a PDF copy of contract {{number}}.",
+        "languageLabel": "Language",
+        "includeAttachmentsLabel": "Include attachments",
+        "includeAttachmentsDeferred": "Attachments will appear once the Attachments module is enabled.",
+        "submit": "Download PDF",
+        "exporting": "Exporting…",
+        "successToast": "PDF download started.",
+        "errorToast": "Could not export the PDF."
+      },
+      "xlsx": {
+        "button": "Export Excel",
+        "ariaLabel": "Export contract list to Excel",
+        "exporting": "Exporting…",
+        "successToast": "Excel download started.",
+        "truncatedToast": "Export truncated — refine your filters to capture the remaining rows.",
+        "errorToast": "Could not export to Excel."
+      }
     }
   },
   "contractDetail": {
@@ -3559,6 +3699,13 @@
     "conflict": "That change conflicts with a more recent update. Refresh and try again.",
     "unprocessable": "We couldn't process that request. Please review and try again.",
     "server": "The server ran into a problem. Please try again shortly.",
+    "rate_limited": "Too many requests right now. Please wait a moment and try again.",
+    "export": {
+      "unauthorized": "Your session has expired. Please refresh and try again.",
+      "forbidden": "You don't have permission to export this data.",
+      "rate_limited": "Too many exports right now. Please wait a moment and try again.",
+      "failed": "Could not complete the export. Please try again."
+    },
     "fields": {
       "titleEn": "Title (English) is invalid.",
       "titleAr": "Title (Arabic) is invalid.",

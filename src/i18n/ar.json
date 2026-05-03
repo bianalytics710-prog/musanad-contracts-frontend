@@ -680,6 +680,7 @@
       "tabs": {
         "overview": "نظرة عامة",
         "edit": "تعديل",
+        "payments": "المدفوعات",
         "versions": "الإصدارات",
         "activity": "النشاط",
         "tree": "ذو صلة"
@@ -782,6 +783,145 @@
       "tagsError": "تعذر حفظ الوسوم.",
       "versionSuccess": "تم حفظ الإصدار الجديد.",
       "versionError": "تعذر حفظ الإصدار."
+    },
+    "compose": {
+      "title": "تأليف عقد",
+      "subtitle": "اتبع خمس خطوات لصياغة عقد جديد مع المعالم.",
+      "newCta": "تأليف عقد",
+      "submit": "إنشاء العقد",
+      "discardDraft": "تجاهل المسودة",
+      "progressLabel": "تقدّم معالج التأليف",
+      "stepIndex": "الخطوة {{n}} من {{total}}",
+      "forbiddenSubtitle": "ليس لديك صلاحية صياغة العقود.",
+      "fields": {
+        "ourPartyName": "طرفنا (الاسم)",
+        "counterpartyName": "الطرف المقابل (الاسم)",
+        "partyDeferredHelp": "نص حر — سجلات الأطراف الكاملة ستصل مع وحدة الأطراف.",
+        "partyDeferredValue": "قيد وحدة الأطراف",
+        "template": "القالب",
+        "templateEmpty": "لا توجد قوالب متاحة",
+        "templateDeferredHelp": "ستصل القوالب مع وحدة القوالب."
+      },
+      "steps": {
+        "step1": {
+          "tabLabel": "الإعداد",
+          "title": "الخطوة 1 — الإعداد",
+          "subtitle": "اختر نوع العقد ولغته. ستتوفر منتقيات الأطراف والقوالب مع وحداتها."
+        },
+        "step2": {
+          "tabLabel": "البنود الأساسية",
+          "title": "الخطوة 2 — البنود الأساسية",
+          "subtitle": "سجّل الحقول الرئيسية وجدول المعالم."
+        },
+        "step3": {
+          "tabLabel": "البنود",
+          "aiPanelTitle": "صياغة بالذكاء الاصطناعي",
+          "aiDeferredHelp": "ستصل صياغة الذكاء الاصطناعي مع وحدة ميزات الذكاء الاصطناعي.",
+          "clausesTitle": "مكتبة البنود",
+          "clausesDeferredHelp": "ستصل مكتبة البنود مع وحدة البنود.",
+          "bodyTitle": "النص",
+          "bodySubtitle": "اكتب أو الصق نص العقد بأي من اللغتين أو كلتيهما."
+        },
+        "step5": {
+          "tabLabel": "المراجعة",
+          "setupSection": "الإعداد",
+          "keyTermsSection": "البنود الأساسية",
+          "bodySection": "النص",
+          "paymentScheduleEmpty": "لا توجد معالم — يمكن إضافتها لاحقاً من تبويب المدفوعات.",
+          "attachmentsDeferred": "ستظهر المرفقات هنا عند تفعيل وحدة المرفقات."
+        }
+      },
+      "phases": {
+        "creatingContract": "جارٍ إنشاء العقد…",
+        "savingSchedule": "جارٍ حفظ المعالم…"
+      },
+      "toasts": {
+        "submitSuccess": "تم إنشاء العقد {{number}}.",
+        "contractError": "تعذر إنشاء العقد.",
+        "scheduleError": "تعذر حفظ جدول المدفوعات."
+      },
+      "errors": {
+        "scheduleFailedTitle": "تم إنشاء العقد — تعذر حفظ المعالم",
+        "scheduleFailedDescription": "تم إنشاء العقد {{number}}. تعذر حفظ جدول المدفوعات. أعد محاولة المعالم فقط، أو افتح العقد واستخدم تبويب المدفوعات.",
+        "retrySchedule": "إعادة محاولة المعالم"
+      }
+    },
+    "paymentSchedule": {
+      "title": "جدول المدفوعات",
+      "subtitle": "حدد معالم هذا العقد.",
+      "tabSubtitle": "{{count}} معلم(معالم) مسجل.",
+      "addRow": "إضافة صف",
+      "removeRow": "إزالة الصف {{n}}",
+      "rowLabel": "المعلم {{n}}",
+      "empty": "لم تُضف أي معالم.",
+      "emptyTitle": "لا توجد معالم بعد",
+      "emptyDescription": "أضف معلمًا لبدء تتبع تواريخ الدفع.",
+      "addFirst": "إضافة معلم",
+      "editButton": "تعديل المعالم",
+      "saveButton": "حفظ المعالم",
+      "editorTitle": "تعديل جدول المدفوعات",
+      "editorSubtitle": "الحفظ يستبدل الجدول بالكامل لهذا العقد.",
+      "editorHint": "تعديل {{count}} معلم(معالم) حالياً.",
+      "fields": {
+        "milestoneLabelEn": "التسمية (إنجليزية)",
+        "milestoneLabelAr": "التسمية (عربية)",
+        "milestoneNameEn": "الوصف (إنجليزية)",
+        "milestoneNameAr": "الوصف (عربية)",
+        "amountAed": "المبلغ (درهم)",
+        "dueDate": "تاريخ الاستحقاق",
+        "paidAt": "تاريخ الدفع",
+        "status": "الحالة",
+        "recurrence": "التكرار",
+        "invoiceRef": "مرجع الفاتورة"
+      },
+      "statusOptions": {
+        "pending": "قيد الانتظار",
+        "due": "مستحق",
+        "paid": "مدفوع",
+        "overdue": "متأخر",
+        "waived": "متنازل عنه",
+        "cancelled": "ملغى"
+      },
+      "recurrenceOptions": {
+        "once": "مرة واحدة",
+        "monthly": "شهري",
+        "quarterly": "ربع سنوي",
+        "annually": "سنوي"
+      },
+      "errors": {
+        "milestoneLabelEnRequired": "تسمية المعلم مطلوبة.",
+        "milestoneLabelEnTooLong": "يجب أن تكون التسمية 255 حرفاً أو أقل.",
+        "amountInvalid": "يجب أن يكون المبلغ رقماً.",
+        "amountNonNegative": "يجب أن يكون المبلغ أكبر من أو يساوي صفر.",
+        "atLeastOneRow": "أضف معلماً واحداً على الأقل.",
+        "tooManyRows": "الحد الأقصى 100 معلم لكل دفعة."
+      },
+      "toasts": {
+        "replaceSuccess": "تم حفظ {{inserted}} معلم(معالم) وإزالة {{softDeleted}}.",
+        "replaceError": "تعذر حفظ جدول المدفوعات."
+      }
+    },
+    "export": {
+      "pdf": {
+        "action": "تصدير PDF",
+        "title": "تصدير العقد إلى PDF",
+        "description": "إنشاء نسخة PDF من العقد {{number}}.",
+        "languageLabel": "اللغة",
+        "includeAttachmentsLabel": "تضمين المرفقات",
+        "includeAttachmentsDeferred": "ستظهر المرفقات عند تفعيل وحدة المرفقات.",
+        "submit": "تنزيل PDF",
+        "exporting": "جارٍ التصدير…",
+        "successToast": "بدأ تنزيل PDF.",
+        "errorToast": "تعذر تصدير PDF."
+      },
+      "xlsx": {
+        "button": "تصدير Excel",
+        "ariaLabel": "تصدير قائمة العقود إلى Excel",
+        "exporting": "جارٍ التصدير…",
+        "successToast": "بدأ تنزيل Excel.",
+        "truncatedToast": "تم اقتطاع التصدير — حسّن الفلاتر لالتقاط الصفوف المتبقية.",
+        "errorToast": "تعذر التصدير إلى Excel."
+      }
     }
   },
   "contractDetail": {
@@ -3559,6 +3699,13 @@
     "conflict": "يتعارض هذا التغيير مع تحديث أحدث. يرجى التحديث ثم المحاولة مرة أخرى.",
     "unprocessable": "تعذّرت معالجة هذا الطلب. يرجى المراجعة والمحاولة مرة أخرى.",
     "server": "واجه الخادم مشكلة. يرجى المحاولة بعد قليل.",
+    "rate_limited": "هناك طلبات كثيرة الآن. يرجى الانتظار قليلًا والمحاولة مرة أخرى.",
+    "export": {
+      "unauthorized": "انتهت صلاحية جلستك. يرجى التحديث والمحاولة مرة أخرى.",
+      "forbidden": "ليست لديك صلاحية لتصدير هذه البيانات.",
+      "rate_limited": "هناك عمليات تصدير كثيرة الآن. يرجى الانتظار قليلًا والمحاولة مرة أخرى.",
+      "failed": "تعذّر إكمال التصدير. يرجى المحاولة مرة أخرى."
+    },
     "fields": {
       "titleEn": "العنوان (الإنجليزية) غير صالح.",
       "titleAr": "العنوان (العربية) غير صالح.",

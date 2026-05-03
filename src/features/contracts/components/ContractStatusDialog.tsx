@@ -15,6 +15,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useFocusTrap } from "@/components/common/useFocusTrap";
 import { useUpdateContractStatus } from "@/features/contracts/hooks/useContracts";
 import { CONTRACT_STATUS_VALUES, type ContractStatus } from "@/types/entities/contract.types";
 import { ContractStatusBadge } from "./ContractStatusBadge";
@@ -40,9 +41,14 @@ export function ContractStatusDialog({
   const statusId = useId();
   const reasonId = useId();
   const firstFocusRef = useRef<HTMLSelectElement>(null);
+  // M1b — FE-C4 focus-trap container ref.
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const [newStatus, setNewStatus] = useState<ContractStatus>(currentStatus);
   const [reason, setReason] = useState("");
+
+  // M1b — apply shared focus-trap (FE-C4 deferred from M1a).
+  useFocusTrap(dialogRef, open);
 
   const mutation = useUpdateContractStatus({
     onSuccess: () => onClose(),
@@ -89,9 +95,11 @@ export function ContractStatusDialog({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl"
       >
         <div className="flex items-start justify-between gap-3">
