@@ -3362,6 +3362,98 @@
       "confirmPauseTitle": "Pause this batch?",
       "confirmResumeTitle": "Resume this batch?",
       "confirmTransitionDescription": "Transition batch #{{id}} to status {{status}}?"
+    },
+    "ai": {
+      "requests": {
+        "title": "AI requests log",
+        "totalCount": "{{count}} request",
+        "totalCount_other": "{{count}} requests",
+        "empty": "No AI requests recorded for this filter combination.",
+        "forbidden": "You don't have permission to view AI observability.",
+        "noActor": "(public)",
+        "pageOf": "Page {{page}} of {{total}}",
+        "filters": {
+          "actor": "User ID",
+          "actorPlaceholder": "e.g. 42",
+          "prompt": "Prompt",
+          "outcome": "Outcome",
+          "fromDate": "From",
+          "toDate": "To"
+        },
+        "outcome": {
+          "success": "Success",
+          "error": "Error",
+          "timeout": "Timeout",
+          "rate_limited": "Rate limited",
+          "cancelled": "Cancelled"
+        },
+        "col": {
+          "createdAt": "When",
+          "prompt": "Prompt",
+          "actor": "User",
+          "outcome": "Outcome",
+          "cache": "Cache hit",
+          "tokens": "Tokens (in/out)",
+          "latency": "Latency"
+        }
+      },
+      "cost": {
+        "title": "AI cost report",
+        "subtitle": "Spend, tokens, cache hit ratio per prompt. Date range capped at {{max}} days.",
+        "apply": "Apply",
+        "empty": "No AI usage in this date range.",
+        "forbidden": "You don't have permission to view AI cost reports.",
+        "noActor": "(all users)",
+        "filters": {
+          "fromDate": "From",
+          "toDate": "To",
+          "groupByUser": "Group by user"
+        },
+        "summary": {
+          "totalSpend": "Total spend",
+          "totalSuccess": "Total successes",
+          "totalError": "Total errors"
+        },
+        "col": {
+          "prompt": "Prompt",
+          "actor": "User",
+          "cost": "Cost (USD)",
+          "tokensIn": "Tokens in",
+          "tokensOut": "Tokens out",
+          "success": "Successes",
+          "error": "Errors",
+          "cacheHit": "Cache hit",
+          "avgLatency": "Avg latency"
+        },
+        "errors": {
+          "rangeTooLong": "Date range must not exceed {{max}} days.",
+          "invalidRange": "Pick a valid date range with From on or before To.",
+          "adjustRange": "Adjust the date range — must be ISO yyyy-mm-dd and ≤{{max}} days."
+        }
+      },
+      "prompts": {
+        "title": "AI prompts",
+        "subtitle": "Registered AI prompts with default model, rate limits, and feature flags. Read-only in this release.",
+        "empty": "No prompts registered.",
+        "forbidden": "You don't have permission to view AI prompts.",
+        "includeInactive": "Include inactive",
+        "field": {
+          "defaultModel": "Default model",
+          "defaultTemperature": "Temperature",
+          "defaultMaxTokens": "Max tokens",
+          "defaultTtlSeconds": "Cache TTL (s)",
+          "rateLimitHour": "Rate limit (hour)",
+          "rateLimitDay": "Rate limit (day)",
+          "promptFile": "Prompt file"
+        },
+        "flag": {
+          "active": "Active",
+          "inactive": "Inactive",
+          "streaming": "Streaming",
+          "toolCall": "Tool-call",
+          "public": "Public"
+        }
+      }
     }
   },
   "permissions": {
@@ -4399,6 +4491,130 @@
     },
     "usage": {
       "placeholder": "Usage analytics will appear here once updates flow through this category."
+    }
+  },
+  "ai": {
+    "errors": {
+      "streamFailed": "AI streaming failed. Please try again.",
+      "rateLimitedRetryIn": "Rate limited. Try again in {{seconds}}s."
+    },
+    "insights": {
+      "title": "AI insights",
+      "tabsAriaLabel": "AI insights tabs",
+      "regenerate": "Regenerate",
+      "disclaimer": "AI-generated — verify before use.",
+      "tabs": {
+        "summary": "Summary",
+        "keyTerms": "Key terms",
+        "risks": "Risks",
+        "obligations": "Obligations",
+        "regulatory": "Regulatory"
+      },
+      "summary": {
+        "empty": "No summary available yet."
+      },
+      "keyTerms": {
+        "empty": "No key terms detected."
+      },
+      "risks": {
+        "empty": "No risks detected."
+      },
+      "obligations": {
+        "empty": "No obligations detected."
+      },
+      "regulatory": {
+        "empty": "No regulatory citations detected."
+      },
+      "severity": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
+    },
+    "drafting": {
+      "title": "AI drafting assistant",
+      "modesAriaLabel": "Drafting modes",
+      "modes": {
+        "chat": "Chat",
+        "suggest": "Suggest",
+        "explain": "Explain",
+        "rewrite": "Rewrite"
+      },
+      "chat": {
+        "empty": "Ask the assistant about clauses, structure, or compliance.",
+        "placeholder": "Ask the assistant…",
+        "inputLabel": "Message",
+        "send": "Send",
+        "stop": "Stop"
+      },
+      "suggest": {
+        "run": "Suggest improvements",
+        "loading": "Thinking…",
+        "empty": "No suggestions returned.",
+        "kind": {
+          "missing_clause": "Missing clause",
+          "weak_clause": "Weak clause",
+          "regulatory": "Regulatory"
+        }
+      },
+      "explain": {
+        "run": "Explain selection"
+      },
+      "rewrite": {
+        "run": "Rewrite selection"
+      },
+      "selectedText": {
+        "label": "Selected text",
+        "placeholder": "Paste the clause to explain or rewrite…",
+        "required": "Selected text is required."
+      },
+      "tone": {
+        "label": "Tone",
+        "values": {
+          "simpler": "Simpler",
+          "formal": "Formal",
+          "stronger": "Stronger",
+          "balanced": "Balanced"
+        }
+      },
+      "output": {
+        "empty": "AI output will appear here."
+      }
+    },
+    "executive": {
+      "title": "AI anomalies",
+      "regenerate": "Regenerate",
+      "empty": "No anomalies detected.",
+      "notRunYet": "Anomaly detection has not been run yet.",
+      "generatedAt": "Generated"
+    },
+    "regulatory": {
+      "title": "Regulatory impact",
+      "deferredNote": "Stateless mode — paste regulatory text to get an AI explanation. Full regulator-update integration ships with M5.",
+      "modeAriaLabel": "Mode",
+      "modes": {
+        "explain": "Explain",
+        "amendment": "Amendment"
+      },
+      "fields": {
+        "regulator": "Regulator",
+        "titleEn": "Regulation title",
+        "referenceNumber": "Reference number",
+        "summary": "Regulation text",
+        "summaryPlaceholder": "Paste the regulation text or summary here…"
+      },
+      "run": "Analyse impact",
+      "stop": "Stop",
+      "requiredFields": "Regulator and title are required.",
+      "output": {
+        "empty": "AI analysis will stream here."
+      }
+    },
+    "versionDiff": {
+      "title": "AI diff summary",
+      "regenerate": "Regenerate",
+      "notRunYet": "Generate an AI summary of the differences between these versions.",
+      "cacheHit": "Loaded from cache."
     }
   },
   "approval": {
