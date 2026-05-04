@@ -110,10 +110,12 @@ export const RELATIONSHIP_TYPE_VALUES: readonly RelationshipType[] = [
 ];
 
 /**
- * Contract activity type union — M1a 7 + M1b 2 + M2 5 = 14 values.
+ * Contract activity type union — M1a 7 + M1b 2 + M2 5 + M3 6 = 20 values.
  *
  * M2 migration 027 extends the fn_contract_activity_create whitelist with
  * 5 namespace-prefixed approval activity types (per OI-3).
+ * M3 migration 032 extends the whitelist with 6 signature-namespace types
+ * (AC-S14-01 / collision-report AE-1).
  */
 export type ActivityType =
   | "created"
@@ -131,7 +133,14 @@ export type ActivityType =
   | "approval_decided"
   | "approval_reassigned"
   | "approval_escalated"
-  | "approval_delegated";
+  | "approval_delegated"
+  // M3 additive extensions (signature lifecycle)
+  | "sent_for_signature"
+  | "signer_viewed"
+  | "signer_signed"
+  | "signer_declined"
+  | "fully_executed"
+  | "signature_invalidated";
 
 export const ACTIVITY_TYPE_VALUES: readonly ActivityType[] = [
   "created",
@@ -148,6 +157,12 @@ export const ACTIVITY_TYPE_VALUES: readonly ActivityType[] = [
   "approval_reassigned",
   "approval_escalated",
   "approval_delegated",
+  "sent_for_signature",
+  "signer_viewed",
+  "signer_signed",
+  "signer_declined",
+  "fully_executed",
+  "signature_invalidated",
 ];
 
 export const M2_ACTIVITY_TYPE_EXTENSIONS = [
@@ -156,6 +171,15 @@ export const M2_ACTIVITY_TYPE_EXTENSIONS = [
   "approval_reassigned",
   "approval_escalated",
   "approval_delegated",
+] as const;
+
+export const M3_ACTIVITY_TYPE_EXTENSIONS = [
+  "sent_for_signature",
+  "signer_viewed",
+  "signer_signed",
+  "signer_declined",
+  "fully_executed",
+  "signature_invalidated",
 ] as const;
 
 export type ContractRoleKey =

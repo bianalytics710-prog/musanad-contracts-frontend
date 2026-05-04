@@ -56,9 +56,17 @@ import { ContractActivityLog } from "./ContractActivityLog";
 import { ContractTreeTimeline } from "./ContractTreeTimeline";
 import { PaymentScheduleTab } from "./PaymentScheduleTab";
 import { ExportPdfDialog } from "./ExportPdfDialog";
+import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import type { Contract, UserRef } from "@/types/entities/contract.types";
 
-type Tab = "overview" | "edit" | "payments" | "versions" | "activity" | "tree";
+type Tab =
+  | "overview"
+  | "edit"
+  | "payments"
+  | "versions"
+  | "activity"
+  | "tree"
+  | "signatures";
 
 interface ContractDetailProps {
   contractId: number;
@@ -211,6 +219,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
           {t("contracts.detail.tabs.activity")}
         </TabButton>
+        <TabButton active={tab === "signatures"} onClick={() => setTab("signatures")}>
+          {t("contracts.detail.tabs.signatures")}
+        </TabButton>
         <TabButton active={tab === "tree"} onClick={() => setTab("tree")}>
           <GitBranch className="h-3.5 w-3.5" />
           {t("contracts.detail.tabs.tree")}
@@ -225,6 +236,12 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       {tab === "payments" && <PaymentScheduleTab contractId={contract.id} canEdit={canEdit} />}
       {tab === "versions" && <ContractVersionList contractId={contract.id} canCreate={canEdit} />}
       {tab === "activity" && <ContractActivityLog contractId={contract.id} />}
+      {tab === "signatures" && (
+        <ContractSignaturesTab
+          contractId={contract.id}
+          contractNumber={contract.contractNumber}
+        />
+      )}
       {tab === "tree" && <ContractTreeTimeline contractId={contract.id} />}
 
       {/* Modals */}

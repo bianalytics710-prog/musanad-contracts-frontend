@@ -15,9 +15,14 @@ import { useTranslation } from "react-i18next";
 import {
   Activity,
   CheckCircle2,
+  Eye,
   FilePlus2,
+  FileSignature,
   PencilLine,
+  PenLine,
   RefreshCw,
+  ShieldOff,
+  Sparkles,
   Tag,
   Trash2,
   Undo2,
@@ -26,6 +31,7 @@ import {
   Send,
   ShieldCheck,
   UserCheck,
+  UserX,
   TimerReset,
   ArrowRightLeft,
 } from "lucide-react";
@@ -68,6 +74,13 @@ const ICONS: Record<
   approval_reassigned: ArrowRightLeft,
   approval_escalated: TimerReset,
   approval_delegated: UserCheck,
+  // M3 additive — signature lifecycle events.
+  sent_for_signature: FileSignature,
+  signer_viewed: Eye,
+  signer_signed: PenLine,
+  signer_declined: UserX,
+  fully_executed: Sparkles,
+  signature_invalidated: ShieldOff,
 };
 
 const ICON_TONE: Record<ActivityType, string> = {
@@ -87,6 +100,13 @@ const ICON_TONE: Record<ActivityType, string> = {
   approval_reassigned: "bg-amber-tint text-amber-ink",
   approval_escalated: "bg-amber-tint text-amber-ink",
   approval_delegated: "bg-plum-tint text-plum-ink",
+  // M3 additive
+  sent_for_signature: "bg-slate-tint text-slate-ink",
+  signer_viewed: "bg-amber-tint text-amber-ink",
+  signer_signed: "bg-sage-tint text-sage-ink",
+  signer_declined: "bg-terracotta-tint text-terracotta-ink",
+  fully_executed: "bg-sage-tint text-sage-ink",
+  signature_invalidated: "bg-terracotta-tint text-terracotta-ink",
 };
 
 export function ContractActivityLog({ contractId }: ContractActivityLogProps) {

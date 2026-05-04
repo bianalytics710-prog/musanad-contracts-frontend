@@ -64,7 +64,9 @@
     "phone": "Phone",
     "saved": "Saved",
     "error": "Something went wrong",
-    "total": "total"
+    "total": "total",
+    "done": "Done",
+    "continue": "Continue"
   },
   "notifications": {
     "title": "Notifications",
@@ -683,7 +685,8 @@
         "payments": "Payments",
         "versions": "Versions",
         "activity": "Activity",
-        "tree": "Related"
+        "tree": "Related",
+        "signatures": "Signatures"
       },
       "summaryTitle": "Summary",
       "bodyTitle": "Body",
@@ -767,7 +770,13 @@
         "version_created": "New version",
         "tagged": "Tags changed",
         "soft_deleted": "Soft-deleted",
-        "restored": "Restored"
+        "restored": "Restored",
+        "sent_for_signature": "Sent for signature",
+        "signer_viewed": "Signer viewed",
+        "signer_signed": "Signer signed",
+        "signer_declined": "Signer declined",
+        "fully_executed": "Fully executed",
+        "signature_invalidated": "Signature invalidated"
       }
     },
     "toasts": {
@@ -2087,6 +2096,146 @@
       "phase4ViewContract": "View contract",
       "phase4DownloadPdf": "Download signed PDF",
       "phase4DownloadStub": "Signed-PDF download lands in P15.3."
+    },
+    "m3": {
+      "heading": "Sign contract",
+      "footer": "Powered by Musanad — secured by token-bearer authentication.",
+      "toasts": {
+        "signed": "Signature recorded.",
+        "declined": "Decline recorded."
+      },
+      "error": {
+        "expiredTitle": "This signing link is no longer valid",
+        "expiredBody": "The link may have expired, been cancelled, or already been used. Contact the sender for a new invitation.",
+        "genericTitle": "We couldn't load this contract"
+      },
+      "contract": {
+        "regionLabel": "Contract details",
+        "type": {
+          "employment": "Employment contract",
+          "vendor": "Vendor agreement",
+          "nda": "Non-disclosure agreement",
+          "service": "Service agreement",
+          "consultancy": "Consultancy agreement"
+        },
+        "ourParty": "Sent by",
+        "counterparty": "Counterparty",
+        "value": "Contract value",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "summary": "Summary",
+        "showBody": "Show contract body",
+        "hideBody": "Hide contract body"
+      },
+      "signer": {
+        "regionLabel": "Signer details",
+        "heading": "Signing as",
+        "expiresAt": "Expires {{when}}",
+        "viewCount": "Viewed {{n}} time(s)"
+      },
+      "actions": {
+        "askQuestions": "I have questions",
+        "decline": "Decline this contract"
+      },
+      "gate": {
+        "title": "Verify your identity",
+        "description": "Confirm your name and email to continue. We'll match against the invitation.",
+        "nameLabel": "Full name",
+        "emailLabel": "Email address",
+        "emailHint": "We'll match against {{masked}}.",
+        "verify": "Verify",
+        "uaePassStepUp": "Verify with UAE Pass",
+        "verified": "Identity confirmed.",
+        "error": {
+          "mismatch": "Those details don't match the invitation."
+        },
+        "attemptsRemaining": "{{n}} attempt(s) remaining.",
+        "locked": {
+          "title": "Verification locked",
+          "body": "Too many failed attempts. Contact the sender to reissue the invitation."
+        }
+      },
+      "method": {
+        "legend": "Choose how to sign",
+        "submit": "Sign contract",
+        "submitting": "Recording signature…",
+        "typed": {
+          "label": "Type your name",
+          "help": "We'll record your typed signature exactly as entered.",
+          "inputLabel": "Your full name",
+          "placeholder": "Type your full name…"
+        },
+        "drawn": {
+          "label": "Draw your signature",
+          "help": "Use mouse, finger, or stylus.",
+          "canvasLabel": "Signature drawing pad",
+          "clear": "Clear"
+        },
+        "uae_pass": {
+          "label": "UAE Pass",
+          "help": "Verify your identity with the federal UAE Pass app.",
+          "levelLabel": "Verification level",
+          "verify": "Verify with UAE Pass",
+          "verifying": "Verifying with UAE Pass…",
+          "verified": "UAE Pass verification confirmed.",
+          "level": {
+            "basic": "Basic",
+            "verified": "Verified",
+            "premium": "Premium"
+          }
+        },
+        "ds_otp": {
+          "label": "OTP code",
+          "help": "Enter the 6-digit code sent to your phone."
+        }
+      },
+      "qa": {
+        "title": "Ask about this contract",
+        "subtitle": "I can explain clauses and answer factual questions.",
+        "disclaimer": "I'm an AI assistant — I can't give legal advice or tell you whether to sign. For that, please speak with a qualified lawyer.",
+        "messagesLabel": "Conversation",
+        "inputLabel": "Your question",
+        "placeholder": "Ask anything about this contract…",
+        "send": "Send",
+        "openingSession": "Opening question session…",
+        "empty": "Ask the assistant anything about the contract.",
+        "thinking": "Thinking…",
+        "remaining": "{{n}} message(s) remaining this hour.",
+        "errors": {
+          "rateLimit": "You've reached the question limit for this session. Try again in {{minutes}} minute(s).",
+          "sessionExpired": "Your question session has expired. Reload the page to start over.",
+          "generic": "Something went wrong. Please try again."
+        }
+      },
+      "decline": {
+        "title": "Decline this contract",
+        "description": "Tell the sender why you're declining. They will be notified and the workflow will halt.",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "I'm declining because…",
+        "minChars": "Minimum {{min}} characters.",
+        "tooShort": "Reason must be at least {{min}} characters.",
+        "tooLong": "Reason cannot exceed {{max}} characters.",
+        "warning": "Declining halts the contract for ALL signers. This cannot be undone from this page.",
+        "confirm": "Decline contract"
+      },
+      "terminal": {
+        "signed": {
+          "title": "Thank you — signature recorded.",
+          "body": "A copy of the signed contract will be sent to your email shortly."
+        },
+        "declined": {
+          "title": "You declined this contract.",
+          "body": "The sender has been notified."
+        },
+        "expired": {
+          "title": "This signing link has expired.",
+          "body": "Contact the sender for a new invitation."
+        },
+        "cancelled": {
+          "title": "This invitation was cancelled.",
+          "body": "Contact the sender for more information."
+        }
+      }
     }
   },
   "obligations": {
@@ -3914,6 +4063,17 @@
       "matrixSaveFailed": "Could not save the matrix rule. Please review and try again.",
       "chainsListFailed": "Failed to load approval chains",
       "reassignFailed": "Could not reassign this step."
+    },
+    "signatures": {
+      "partiesCreateFailed": "Could not configure signers. Please try again.",
+      "sendFailed": "Could not send for signature. Please try again.",
+      "resendFailed": "Could not resend the invitation. Please try again.",
+      "cancelFailed": "Could not cancel the invitation. Please try again.",
+      "signFailed": "Could not record your signature. Please try again.",
+      "declineFailed": "Could not record the decline. Please try again.",
+      "qaSessionFailed": "Could not open the question session. Please try again.",
+      "publicViewFailed": "Could not load the contract. Please try again.",
+      "listFailed": "Could not load the signature roster. Please try again."
     }
   },
   "filterBar": {
@@ -4438,6 +4598,110 @@
       "submitted": "Contract submitted for approval",
       "matrixSaved": "Matrix rule saved",
       "reassigned": "Step reassigned"
+    }
+  },
+  "signatures": {
+    "toasts": {
+      "partiesCreated": "Signers configured.",
+      "sentForSignature": "Contract sent for signature.",
+      "resent": "Invitation resent.",
+      "cancelled": "Invitation cancelled."
+    },
+    "signerSide": {
+      "employer": "Employer",
+      "counterparty": "Counterparty",
+      "witness": "Witness"
+    },
+    "status": {
+      "notIssued": "Not issued",
+      "pending": "Pending",
+      "viewed": "Viewed",
+      "signed": "Signed",
+      "declined": "Declined",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "list": {
+      "title": "Signatures",
+      "configure": "Configure signers",
+      "sendForSignature": "Send for signature",
+      "empty": "No signers configured yet.",
+      "required": "Required",
+      "sentAt": "Sent {{when}}",
+      "signedAt": "Signed {{when}}",
+      "declinedAt": "Declined {{when}}",
+      "resend": "Resend",
+      "cancel": "Cancel invitation",
+      "resendForSigner": "Resend invitation to {{signer}}",
+      "cancelForSigner": "Cancel invitation for {{signer}}"
+    },
+    "progress": {
+      "step": "Step {{n}}",
+      "pending": "{{n}} pending",
+      "signed": "{{n}} signed",
+      "declined": "{{n}} declined"
+    },
+    "config": {
+      "title": "Configure signers",
+      "description": "Add the people who will sign this contract. The employer signs first; counterparty and witnesses follow.",
+      "addSigner": "Add signer",
+      "removeSigner": "Remove signer",
+      "signerN": "Signer {{n}}",
+      "confirm": "Save signers",
+      "fields": {
+        "signerSide": "Side",
+        "stepOrder": "Step order",
+        "signerNameEn": "Full name (English)",
+        "signerNameAr": "Full name (Arabic)",
+        "signerEmail": "Email",
+        "isRequired": "Required to sign"
+      },
+      "errors": {
+        "required": "Required",
+        "invalidEmail": "Enter a valid email address.",
+        "stepOrder": "Step order must be a positive number.",
+        "employerRequired": "At least one employer signer is required.",
+        "tooMany": "A maximum of {{max}} signers is supported."
+      }
+    },
+    "send": {
+      "title": "Send for signature?",
+      "description": "Issue invitations to the lowest-step signers. The contract will move to 'Awaiting employer signature'.",
+      "body": "After sending, you'll see a unique signing link for each signer. The link can only be retrieved once — copy it and send via your usual channel (email, secure message, etc.).",
+      "confirm": "Send",
+      "successTitle": "Invitations issued",
+      "successDescription": "Copy each signing link below and send to the signer via your usual channel. The links cannot be retrieved later.",
+      "issuedCount": "{{n}} invitation(s) issued",
+      "noInvitations": "No invitations were issued at this step.",
+      "signerN": "Signer #{{n}}"
+    },
+    "resend": {
+      "title": "Resend invitation",
+      "description": "Issue a new invitation link. The previous link will be deactivated.",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "Explain why you're resending (e.g. signer didn't receive the email)…",
+      "confirm": "Resend",
+      "successTitle": "Invitation resent",
+      "successDescription": "Copy the new signing link below and send via your usual channel."
+    },
+    "cancel": {
+      "title": "Cancel invitation",
+      "description": "This will cancel the active invitation for this signer.",
+      "descriptionWithSigner": "Cancel the active invitation for {{signer}}? They will no longer be able to sign.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Why are you cancelling this invitation?",
+      "confirmLabel": "Type {{word}} to confirm",
+      "confirmHelp": "Type {{word}} (case-insensitive) to enable the cancel button.",
+      "confirm": "Cancel invitation"
+    },
+    "tokenOnce": {
+      "warning": "This signing link is shown ONCE. Copy it now — it cannot be retrieved later.",
+      "linkLabel": "Signing link",
+      "reveal": "Show link",
+      "hide": "Hide link",
+      "copy": "Copy",
+      "copied": "Copied",
+      "hint": "Send via your usual channel — email, secure messaging, or in person."
     }
   }
 }
