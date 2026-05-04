@@ -1813,7 +1813,116 @@
     "savedSuccess": "Contract imported successfully",
     "savedDescription": "Saved as {{number}}.",
     "viewContract": "View contract",
-    "saveFailed": "Failed to save contract"
+    "saveFailed": "Failed to save contract",
+    "bulk": {
+      "title": "Bulk import",
+      "kicker": "Migrate historical contracts in one operation",
+      "switchManual": "Switch to manual entry",
+      "dropTitle": "Drop your contract files here",
+      "dropSubtitle": "Supports PDF and DOCX · up to {{max}} files",
+      "chooseFiles": "Choose files",
+      "removeFile": "Remove {{name}}",
+      "filesSelected": "{{count}} files selected · {{size}} MB total",
+      "configTitle": "Pre-flight configuration",
+      "statusMode": "Status mode",
+      "statusAuto": "Auto-detect from AI",
+      "statusActive": "Active (already signed)",
+      "statusDraft": "Draft (in negotiation)",
+      "defaultType": "Default contract type",
+      "defaultTypePlaceholder": "Optional · e.g. employment",
+      "defaultCounterpartyId": "Default counterparty id",
+      "defaultCounterpartyHint": "Optional. Used when AI cannot detect a counterparty.",
+      "thresholdsTitle": "Confidence thresholds",
+      "thresholdsExplain": "Above {{high}}% auto-saves; {{medium}}-{{high}}% goes to review queue; below {{medium}}% routes to manual entry",
+      "start": "Start import",
+      "confirmStartTitle": "Start bulk import?",
+      "confirmStartDescription": "Process {{count}} files now?",
+      "confirmCancelTitle": "Cancel import?",
+      "confirmCancelDescription": "{{processed}} of {{total}} already processed will be kept; pending files will be discarded.",
+      "confirmCancelYes": "Yes, cancel",
+      "processingTitle": "Importing {{count}} contracts",
+      "progress": "{{done}} of {{total}}",
+      "autoSaved": "Auto-saved",
+      "inReview": "In review",
+      "manualEntry": "Manual entry",
+      "skipped": "Skipped",
+      "errored": "Errored",
+      "serverCounters": "Server: auto {{auto}} · review {{review}} · manual {{manual}} · skipped {{skipped}} · errored {{errored}}",
+      "nowProcessing": "Now processing",
+      "recentlyCompleted": "Recently completed",
+      "pause": "Pause",
+      "resume": "Resume",
+      "paused": "Paused",
+      "completeTitle": "Import complete",
+      "completeDescription": "{{count}} files processed",
+      "perFileResults": "Per-file results",
+      "viewBatch": "View batch detail",
+      "openReviewQueue": "Open review queue",
+      "toasts": {
+        "paused": "Import paused",
+        "resumed": "Import resumed",
+        "completed": "Import {{status}} · {{auto}} auto-saved · {{review}} for review"
+      },
+      "errors": {
+        "unsupportedFile": "{{name}}: unsupported file type",
+        "tooLarge": "{{name}}: exceeds size limit",
+        "maxFiles": "Maximum {{count}} files allowed per batch",
+        "terminalUpdateFailed": "Failed to mark batch as completed; per-file outcomes are still saved."
+      },
+      "forbiddenTitle": "You don't have permission to run imports",
+      "forbiddenDescription": "Contact a platform administrator to request the import.run permission.",
+      "backToContracts": "Back to contracts",
+      "resumeHint": "An interrupted import was detected for batch #{{batchId}}. Re-select the same files to continue."
+    },
+    "review": {
+      "title": "Review queue",
+      "totalCount": "{{count}} contracts pending review",
+      "searchPlaceholder": "Search by contract number or title",
+      "filterByBatch": "Filter by batch id",
+      "filterByBatchPlaceholder": "Batch id",
+      "bulkApprove": "Approve all ({{count}})",
+      "col": {
+        "contract": "Contract",
+        "type": "Type",
+        "confidence": "Confidence",
+        "warnings": "Warnings",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Edit",
+        "approve": "Approve",
+        "reject": "Reject",
+        "approveAria": "Approve {{title}}",
+        "rejectAria": "Reject {{title}}"
+      },
+      "rejectTitle": "Reject this contract?",
+      "rejectDescription": "{{title}} ({{number}}) will be soft-deleted. This can be undone by an administrator.",
+      "rejectConfirm": "Reject",
+      "bulkApprovedToast": "Approved {{ok}} of {{total}}",
+      "bulkPartialFailToast": "{{fail}} could not be approved",
+      "showingRange": "Showing {{from}}-{{to}} of {{total}}",
+      "emptyTitle": "Review queue is empty",
+      "emptyDescription": "All imported contracts have been reviewed or had high enough confidence to auto-save."
+    },
+    "manual": {
+      "title": "Manual entries",
+      "kicker": "Imported drafts where AI confidence was too low to extract automatically",
+      "searchPlaceholder": "Search by contract number or title",
+      "newEntry": "New manual entry",
+      "col": {
+        "contract": "Contract",
+        "confidence": "Confidence",
+        "batch": "Batch",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "actions": {
+        "complete": "Complete"
+      },
+      "showingRange": "Showing {{from}}-{{to}} of {{total}}",
+      "emptyTitle": "Nothing requires manual entry",
+      "emptyDescription": "All imports were extracted with sufficient confidence."
+    }
   },
   "aiAssistant": {
     "title": "AI Drafting Assistant",
@@ -3039,6 +3148,71 @@
         "deleteBlocked": "Cannot delete — {{count}} members are still assigned. Reassign them first.",
         "memberMoved": "Member's role updated"
       }
+    },
+    "imports": {
+      "title": "Import batches",
+      "totalCount": "{{count}} batches",
+      "filterAll": "All statuses",
+      "filterStatus": "Filter by status",
+      "filterInitiator": "Filter by initiator",
+      "filterInitiatorPlaceholder": "User id",
+      "col": {
+        "id": "Id",
+        "initiatedBy": "Initiated by",
+        "startedAt": "Started",
+        "totalFiles": "Files",
+        "counters": "Outcomes",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "counterSummary": "auto {{auto}} · rev {{review}} · man {{manual}} · skip {{skipped}} · err {{errored}}",
+      "actions": {
+        "view": "View",
+        "pause": "Pause",
+        "resume": "Resume",
+        "cancel": "Cancel"
+      },
+      "showingRange": "Showing {{from}}-{{to}} of {{total}}",
+      "emptyTitle": "No import batches yet",
+      "emptyDescription": "Bulk imports will appear here as they run.",
+      "backToList": "Back to imports",
+      "batchTitle": "Batch #{{id}}",
+      "initiatedByLabel": "Initiated by",
+      "status": {
+        "in_progress": "In progress",
+        "paused": "Paused",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "detail": {
+        "status": "Status",
+        "totalFiles": "Total files",
+        "startedAt": "Started at",
+        "completedAt": "Completed at",
+        "statusMode": "Status mode",
+        "contractType": "Contract type",
+        "countersTitle": "Counters",
+        "autoSaved": "Auto-saved",
+        "reviewQueue": "Review queue",
+        "manualEntry": "Manual entry",
+        "duplicatesSkipped": "Duplicates skipped",
+        "errored": "Errored",
+        "contractsTitle": "Contracts in this batch",
+        "contractsCount": "{{count}} contracts",
+        "contractsEmpty": "No contracts saved against this batch yet.",
+        "col": {
+          "contract": "Contract",
+          "status": "Status",
+          "confidence": "Confidence",
+          "actions": "Actions"
+        },
+        "showingRange": "Showing {{from}}-{{to}} of {{total}}"
+      },
+      "confirmCancelTitle": "Cancel this batch?",
+      "confirmCancelYes": "Yes, cancel",
+      "confirmPauseTitle": "Pause this batch?",
+      "confirmResumeTitle": "Resume this batch?",
+      "confirmTransitionDescription": "Transition batch #{{id}} to status {{status}}?"
     }
   },
   "permissions": {
@@ -3720,6 +3894,15 @@
       "changeNote": "Change note is invalid.",
       "tags": "Tags are invalid.",
       "status": "Status is invalid."
+    },
+    "import": {
+      "batchCreateFailed": "Failed to create import batch",
+      "batchUpdateFailed": "Failed to update import batch",
+      "batchNotFound": "Import batch not found",
+      "adminListFailed": "Failed to load import batches",
+      "reviewListFailed": "Failed to load review queue",
+      "manualListFailed": "Failed to load manual entries",
+      "contractsFailed": "Failed to load contracts in this batch"
     }
   },
   "filterBar": {
@@ -4048,4 +4231,3 @@
     }
   }
 }
-

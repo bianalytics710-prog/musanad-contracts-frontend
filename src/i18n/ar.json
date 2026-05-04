@@ -1813,7 +1813,116 @@
     "savedSuccess": "تم استيراد العقد بنجاح",
     "savedDescription": "تم الحفظ كـ {{number}}.",
     "viewContract": "عرض العقد",
-    "saveFailed": "فشل حفظ العقد"
+    "saveFailed": "فشل حفظ العقد",
+    "bulk": {
+      "title": "الاستيراد المجمّع",
+      "kicker": "ترحيل العقود التاريخية في عملية واحدة",
+      "switchManual": "التبديل إلى الإدخال اليدوي",
+      "dropTitle": "أفلِت ملفات العقود هنا",
+      "dropSubtitle": "يدعم PDF و DOCX · حتى {{max}} ملف",
+      "chooseFiles": "اختر الملفات",
+      "removeFile": "إزالة {{name}}",
+      "filesSelected": "{{count}} ملف محدد · إجمالي {{size}} ميغابايت",
+      "configTitle": "إعدادات ما قبل الاستيراد",
+      "statusMode": "وضع الحالة",
+      "statusAuto": "اكتشاف تلقائي من الذكاء الاصطناعي",
+      "statusActive": "نشط (موقّع بالفعل)",
+      "statusDraft": "مسودة (قيد التفاوض)",
+      "defaultType": "نوع العقد الافتراضي",
+      "defaultTypePlaceholder": "اختياري · مثال: توظيف",
+      "defaultCounterpartyId": "معرّف الطرف المقابل الافتراضي",
+      "defaultCounterpartyHint": "اختياري. يُستخدم عند تعذّر اكتشاف الطرف المقابل.",
+      "thresholdsTitle": "عتبات الثقة",
+      "thresholdsExplain": "فوق {{high}}% يُحفظ تلقائياً؛ {{medium}}-{{high}}% ينتقل إلى قائمة المراجعة؛ أقل من {{medium}}% يُحوَّل إلى الإدخال اليدوي",
+      "start": "بدء الاستيراد",
+      "confirmStartTitle": "بدء الاستيراد المجمّع؟",
+      "confirmStartDescription": "معالجة {{count}} ملف الآن؟",
+      "confirmCancelTitle": "إلغاء الاستيراد؟",
+      "confirmCancelDescription": "{{processed}} من أصل {{total}} تمت معالجتها وسيتم الاحتفاظ بها؛ سيتم تجاهل الملفات المعلّقة.",
+      "confirmCancelYes": "نعم، إلغاء",
+      "processingTitle": "جارٍ استيراد {{count}} عقد",
+      "progress": "{{done}} من أصل {{total}}",
+      "autoSaved": "حفظ تلقائي",
+      "inReview": "قيد المراجعة",
+      "manualEntry": "إدخال يدوي",
+      "skipped": "تم تخطيه",
+      "errored": "خطأ",
+      "serverCounters": "الخادم: تلقائي {{auto}} · مراجعة {{review}} · يدوي {{manual}} · مُتخطّى {{skipped}} · خطأ {{errored}}",
+      "nowProcessing": "قيد المعالجة الآن",
+      "recentlyCompleted": "اكتملت مؤخراً",
+      "pause": "إيقاف مؤقت",
+      "resume": "استئناف",
+      "paused": "متوقف مؤقتاً",
+      "completeTitle": "اكتمل الاستيراد",
+      "completeDescription": "تمت معالجة {{count}} ملف",
+      "perFileResults": "النتائج لكل ملف",
+      "viewBatch": "عرض تفاصيل الدفعة",
+      "openReviewQueue": "فتح قائمة المراجعة",
+      "toasts": {
+        "paused": "تم إيقاف الاستيراد مؤقتاً",
+        "resumed": "تم استئناف الاستيراد",
+        "completed": "اكتمل الاستيراد بحالة {{status}} · {{auto}} حفظ تلقائي · {{review}} للمراجعة"
+      },
+      "errors": {
+        "unsupportedFile": "{{name}}: نوع ملف غير مدعوم",
+        "tooLarge": "{{name}}: يتجاوز الحد الأقصى للحجم",
+        "maxFiles": "الحد الأقصى {{count}} ملف لكل دفعة",
+        "terminalUpdateFailed": "تعذّر تحديد الدفعة كمكتملة؛ تم حفظ نتائج الملفات الفردية."
+      },
+      "forbiddenTitle": "ليست لديك صلاحية لتشغيل الاستيراد",
+      "forbiddenDescription": "اتصل بمسؤول المنصّة لطلب صلاحية import.run.",
+      "backToContracts": "العودة إلى العقود",
+      "resumeHint": "تم اكتشاف استيراد معلّق للدفعة #{{batchId}}. أعد اختيار نفس الملفات للمتابعة."
+    },
+    "review": {
+      "title": "قائمة المراجعة",
+      "totalCount": "{{count}} عقد قيد المراجعة",
+      "searchPlaceholder": "ابحث برقم العقد أو العنوان",
+      "filterByBatch": "تصفية حسب معرّف الدفعة",
+      "filterByBatchPlaceholder": "معرّف الدفعة",
+      "bulkApprove": "الموافقة على الكل ({{count}})",
+      "col": {
+        "contract": "العقد",
+        "type": "النوع",
+        "confidence": "الثقة",
+        "warnings": "التحذيرات",
+        "actions": "الإجراءات"
+      },
+      "actions": {
+        "edit": "تحرير",
+        "approve": "موافقة",
+        "reject": "رفض",
+        "approveAria": "الموافقة على {{title}}",
+        "rejectAria": "رفض {{title}}"
+      },
+      "rejectTitle": "هل تريد رفض هذا العقد؟",
+      "rejectDescription": "{{title}} ({{number}}) سيتم حذفه مؤقتاً. يمكن للمسؤول التراجع عن هذا الإجراء.",
+      "rejectConfirm": "رفض",
+      "bulkApprovedToast": "تمت الموافقة على {{ok}} من {{total}}",
+      "bulkPartialFailToast": "تعذّرت الموافقة على {{fail}}",
+      "showingRange": "عرض {{from}}-{{to}} من {{total}}",
+      "emptyTitle": "قائمة المراجعة فارغة",
+      "emptyDescription": "تمت مراجعة جميع العقود المستوردة، أو كانت ثقتها كافية للحفظ التلقائي."
+    },
+    "manual": {
+      "title": "الإدخال اليدوي",
+      "kicker": "مسودات مستوردة كانت ثقة الذكاء الاصطناعي فيها أقل من أن تستخرج تلقائياً",
+      "searchPlaceholder": "ابحث برقم العقد أو العنوان",
+      "newEntry": "إدخال يدوي جديد",
+      "col": {
+        "contract": "العقد",
+        "confidence": "الثقة",
+        "batch": "الدفعة",
+        "created": "تاريخ الإنشاء",
+        "actions": "الإجراءات"
+      },
+      "actions": {
+        "complete": "استكمال"
+      },
+      "showingRange": "عرض {{from}}-{{to}} من {{total}}",
+      "emptyTitle": "لا شيء يتطلب إدخالاً يدوياً",
+      "emptyDescription": "تم استخراج جميع العمليات بثقة كافية."
+    }
   },
   "aiAssistant": {
     "title": "مساعد الصياغة بالذكاء الاصطناعي",
@@ -3039,6 +3148,71 @@
         "deleteBlocked": "لا يمكن الحذف — لا يزال {{count}} عضوًا مُسندًا. أعِد إسنادهم أولاً.",
         "memberMoved": "تم تحديث دور العضو"
       }
+    },
+    "imports": {
+      "title": "دفعات الاستيراد",
+      "totalCount": "{{count}} دفعة",
+      "filterAll": "جميع الحالات",
+      "filterStatus": "تصفية حسب الحالة",
+      "filterInitiator": "تصفية حسب المبادر",
+      "filterInitiatorPlaceholder": "معرّف المستخدم",
+      "col": {
+        "id": "المعرّف",
+        "initiatedBy": "بدأها",
+        "startedAt": "تاريخ البدء",
+        "totalFiles": "الملفات",
+        "counters": "النتائج",
+        "status": "الحالة",
+        "actions": "الإجراءات"
+      },
+      "counterSummary": "تلقائي {{auto}} · مراجعة {{review}} · يدوي {{manual}} · تخطّي {{skipped}} · خطأ {{errored}}",
+      "actions": {
+        "view": "عرض",
+        "pause": "إيقاف مؤقت",
+        "resume": "استئناف",
+        "cancel": "إلغاء"
+      },
+      "showingRange": "عرض {{from}}-{{to}} من {{total}}",
+      "emptyTitle": "لا توجد دفعات استيراد بعد",
+      "emptyDescription": "ستظهر عمليات الاستيراد المجمّعة هنا عند تشغيلها.",
+      "backToList": "العودة إلى الاستيراد",
+      "batchTitle": "الدفعة #{{id}}",
+      "initiatedByLabel": "بدأها",
+      "status": {
+        "in_progress": "قيد التنفيذ",
+        "paused": "متوقف مؤقتاً",
+        "completed": "مكتملة",
+        "cancelled": "ملغية"
+      },
+      "detail": {
+        "status": "الحالة",
+        "totalFiles": "إجمالي الملفات",
+        "startedAt": "بدأت في",
+        "completedAt": "اكتملت في",
+        "statusMode": "وضع الحالة",
+        "contractType": "نوع العقد",
+        "countersTitle": "العدّادات",
+        "autoSaved": "حفظ تلقائي",
+        "reviewQueue": "قائمة المراجعة",
+        "manualEntry": "إدخال يدوي",
+        "duplicatesSkipped": "نسخ مكرّرة تم تخطّيها",
+        "errored": "بها أخطاء",
+        "contractsTitle": "العقود ضمن هذه الدفعة",
+        "contractsCount": "{{count}} عقد",
+        "contractsEmpty": "لم يتم حفظ أي عقود لهذه الدفعة بعد.",
+        "col": {
+          "contract": "العقد",
+          "status": "الحالة",
+          "confidence": "الثقة",
+          "actions": "الإجراءات"
+        },
+        "showingRange": "عرض {{from}}-{{to}} من {{total}}"
+      },
+      "confirmCancelTitle": "إلغاء هذه الدفعة؟",
+      "confirmCancelYes": "نعم، إلغاء",
+      "confirmPauseTitle": "إيقاف هذه الدفعة مؤقتاً؟",
+      "confirmResumeTitle": "استئناف هذه الدفعة؟",
+      "confirmTransitionDescription": "تحويل الدفعة #{{id}} إلى حالة {{status}}?"
     }
   },
   "permissions": {
@@ -3720,6 +3894,15 @@
       "changeNote": "ملاحظة التغيير غير صالحة.",
       "tags": "الوسوم غير صالحة.",
       "status": "الحالة غير صالحة."
+    },
+    "import": {
+      "batchCreateFailed": "تعذّر إنشاء دفعة الاستيراد",
+      "batchUpdateFailed": "تعذّر تحديث دفعة الاستيراد",
+      "batchNotFound": "دفعة الاستيراد غير موجودة",
+      "adminListFailed": "تعذّر تحميل دفعات الاستيراد",
+      "reviewListFailed": "تعذّر تحميل قائمة المراجعة",
+      "manualListFailed": "تعذّر تحميل الإدخالات اليدوية",
+      "contractsFailed": "تعذّر تحميل عقود هذه الدفعة"
     }
   },
   "filterBar": {
@@ -4048,4 +4231,3 @@
     }
   }
 }
-

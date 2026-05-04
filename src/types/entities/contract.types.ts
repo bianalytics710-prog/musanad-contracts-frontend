@@ -203,6 +203,14 @@ export interface ContractListItem {
   currentVersion: number;
   createdAt: string;
   updatedAt: string;
+  // ─── M1c additive extension (AE-1 / AE-2) ──────────────────────────────
+  // Always present; null when the contract was not bulk-imported.
+  /** import_batch.id this contract was created against. */
+  importBatchId: number | null;
+  /** 0..100 AI extraction confidence. Null when not extracted. */
+  importConfidence: number | null;
+  /** Human-readable AI warnings array. Null when none. */
+  importWarnings: string[] | null;
 }
 
 export interface ContractTag {
@@ -283,6 +291,15 @@ export interface CreateContractDto {
   bodyEn?: string | null;
   bodyAr?: string | null;
   tags?: string[];
+  // ─── M1c additive extension (OI-2 / AC-S5-08 / AC-S7-04) ───────────────
+  /** import_batch.id this contract was created against. */
+  importBatchId?: number;
+  /** Original uploaded filename — captured on contract.import_filename. */
+  importFilename?: string;
+  /** 0..100 AI extraction confidence. */
+  importConfidence?: number;
+  /** AI extraction warnings (string array). */
+  importWarnings?: string[];
 }
 
 export interface UpdateContractDto {
@@ -344,6 +361,13 @@ export interface ContractListQuery {
   /** AND-semantics — all tags must match. */
   tags?: string[];
   search?: string;
+  // ─── M1c additive extension (AE-1) ────────────────────────────────────
+  /** Filter to a single import_batch — S4 admin drill-down (AC-S4-05). */
+  importBatchId?: number;
+  /** Lower bound on contract.import_confidence. Range [0, 100]. AC-S6-01. */
+  importConfidenceMin?: number;
+  /** Upper bound on contract.import_confidence. Range [0, 100]. AC-S6-01. */
+  importConfidenceMax?: number;
 }
 
 export interface ContractVersionListQuery {
