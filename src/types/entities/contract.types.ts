@@ -22,10 +22,17 @@ export type SensitiveFieldName = M0SensitiveFieldName | M1aSensitiveFieldName;
 // 2. Enum union types
 // ------------------------------------------------------------
 
-/** 14-state workflow per requirements-analysis.json. M1a only sets/reads. */
+/**
+ * Contract status union — M1a 14 values + M2 2 additions (AE-3).
+ *
+ * M2 migration 023 widens contract_status_check from 14 → 16:
+ *   - 'in_approval' — chain in flight (set by fn_approval_route_init).
+ *   - 'cancelled'   — drafter / admin abort (set by fn_contract_status_update_user).
+ */
 export type ContractStatus =
   | "draft"
   | "in_review"
+  | "in_approval"
   | "approved"
   | "awaiting_signature_employer"
   | "awaiting_signature_counterparty"
@@ -37,11 +44,13 @@ export type ContractStatus =
   | "renewed"
   | "terminated"
   | "rejected"
-  | "resubmission_requested";
+  | "resubmission_requested"
+  | "cancelled";
 
 export const CONTRACT_STATUS_VALUES: readonly ContractStatus[] = [
   "draft",
   "in_review",
+  "in_approval",
   "approved",
   "awaiting_signature_employer",
   "awaiting_signature_counterparty",
@@ -54,7 +63,11 @@ export const CONTRACT_STATUS_VALUES: readonly ContractStatus[] = [
   "terminated",
   "rejected",
   "resubmission_requested",
+  "cancelled",
 ];
+
+/** M2 / AE-3 new statuses — surfaced separately for narrow-transition logic. */
+export const M2_CONTRACT_STATUS_EXTENSIONS = ["in_approval", "cancelled"] as const;
 
 export type ContractLanguage = "en" | "ar" | "bilingual";
 
@@ -96,6 +109,12 @@ export const RELATIONSHIP_TYPE_VALUES: readonly RelationshipType[] = [
   "sow_under_msa",
 ];
 
+/**
+ * Contract activity type union — M1a 7 + M1b 2 + M2 5 = 14 values.
+ *
+ * M2 migration 027 extends the fn_contract_activity_create whitelist with
+ * 5 namespace-prefixed approval activity types (per OI-3).
+ */
 export type ActivityType =
   | "created"
   | "updated"
@@ -103,7 +122,16 @@ export type ActivityType =
   | "version_created"
   | "tagged"
   | "soft_deleted"
-  | "restored";
+  | "restored"
+  // M1b additive extensions
+  | "import_batch_started"
+  | "import_batch_completed"
+  // M2 additive extensions (AE-1)
+  | "submitted_for_approval"
+  | "approval_decided"
+  | "approval_reassigned"
+  | "approval_escalated"
+  | "approval_delegated";
 
 export const ACTIVITY_TYPE_VALUES: readonly ActivityType[] = [
   "created",
@@ -113,7 +141,22 @@ export const ACTIVITY_TYPE_VALUES: readonly ActivityType[] = [
   "tagged",
   "soft_deleted",
   "restored",
+  "import_batch_started",
+  "import_batch_completed",
+  "submitted_for_approval",
+  "approval_decided",
+  "approval_reassigned",
+  "approval_escalated",
+  "approval_delegated",
 ];
+
+export const M2_ACTIVITY_TYPE_EXTENSIONS = [
+  "submitted_for_approval",
+  "approval_decided",
+  "approval_reassigned",
+  "approval_escalated",
+  "approval_delegated",
+] as const;
 
 export type ContractRoleKey =
   | "platform_admin"
@@ -330,6 +373,44 @@ export interface UpdateContractStatusDto {
   newStatus: ContractStatus;
   reason?: string | null;
 }
+
+/**
+ * M2 / AE-2 — supersedes M1a UpdateContractStatusDto on the wire.
+ *
+ * Same fields. Narrower transition matrix enforced server-side by
+ * fn_contract_status_update_user. The FE additionally limits the visible
+ * targets (see UPDATE_CONTRACT_STATUS_USER_TARGETS) to keep the UX in
+ * sync with the BE allowed set.
+ *
+ * Allowed transitions (server-enforced):
+ *   draft        → in_review                (approval.submit_for_review)
+ *   in_review    → in_approval              (atomic — internally calls fn_approval_route_init)
+ *   in_review    → draft                    (own + approval.submit_for_review OR contract.delete)
+ *   approved     → active                   (contract.edit)
+ *   <non-terminal> → cancelled              (contract.delete OR own + contract.draft)
+ *   rejected     → draft                    (resubmission — drafter)
+ *
+ * REJECTED at this endpoint:
+ *   in_approval  → approved | rejected | resubmission_requested
+ *     → 409 with hint "Use fn_approval_decide for in_approval transitions".
+ */
+export type UpdateContractStatusUserDto = UpdateContractStatusDto;
+
+/**
+ * Whitelist of narrow targets the FE will surface for PATCH /contracts/:id/status.
+ * Each entry maps a source status → list of targets allowed via this endpoint.
+ * Source statuses absent from the map are NOT user-transitionable via the
+ * FE status menu (only via /submit-for-approval, /decide, etc.).
+ */
+export const UPDATE_CONTRACT_STATUS_USER_TARGETS: Readonly<
+  Partial<Record<ContractStatus, readonly ContractStatus[]>>
+> = {
+  draft: ["in_review", "cancelled"],
+  in_review: ["draft", "in_approval", "cancelled"],
+  approved: ["active", "cancelled"],
+  rejected: ["draft", "cancelled"],
+  resubmission_requested: ["draft", "cancelled"],
+};
 
 export interface SetContractTagsDto {
   tags: string[];

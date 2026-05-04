@@ -27,6 +27,7 @@ import type {
   CreateContractDto,
   UpdateContractDto,
   UpdateContractStatusDto,
+  UpdateContractStatusUserDto,
   SetContractTagsDto,
   CreateContractVersionDto,
   // Write response DTOs
@@ -94,9 +95,30 @@ export const contractsService = {
   },
 
   // S6 — PATCH /api/v1/contracts/:id/status
+  // NOTE (M2 / AE-2): the BE now delegates to fn_contract_status_update_user
+  // with a narrowed transition matrix. The wire shape is unchanged
+  // (UpdateContractStatusDto and UpdateContractStatusUserDto are field-
+  // identical aliases). Callers SHOULD prefer `updateStatusUser` below.
   updateStatus: async (
     id: number,
     payload: UpdateContractStatusDto,
+  ): Promise<UpdateContractStatusResponse> => {
+    const { data } = await apiClient.patch<UpdateContractStatusResponse>(
+      `${BASE}/${id}/status`,
+      payload,
+    );
+    return data;
+  },
+
+  /**
+   * M2 / AE-2 — same wire endpoint, typed against UpdateContractStatusUserDto.
+   * Use this for any new caller post-M2; the BE narrows allowed transitions
+   * via fn_contract_status_update_user (in_approval terminal targets are
+   * rejected here — use approvalService.decide instead).
+   */
+  updateStatusUser: async (
+    id: number,
+    payload: UpdateContractStatusUserDto,
   ): Promise<UpdateContractStatusResponse> => {
     const { data } = await apiClient.patch<UpdateContractStatusResponse>(
       `${BASE}/${id}/status`,

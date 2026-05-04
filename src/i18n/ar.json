@@ -3903,6 +3903,17 @@
       "reviewListFailed": "تعذّر تحميل قائمة المراجعة",
       "manualListFailed": "تعذّر تحميل الإدخالات اليدوية",
       "contractsFailed": "تعذّر تحميل عقود هذه الدفعة"
+    },
+    "approval": {
+      "listFailed": "تعذّر تحميل الموافقات المعلقة",
+      "decideFailed": "تعذّر تسجيل قرارك. يرجى المحاولة مرة أخرى.",
+      "delegateFailed": "تعذّر تفويض هذه الموافقة.",
+      "previewFailed": "تعذّر معاينة سلسلة الموافقات.",
+      "submitFailed": "تعذّر إرسال هذا العقد للموافقة.",
+      "matrixListFailed": "تعذّر تحميل مصفوفة الموافقات",
+      "matrixSaveFailed": "تعذّر حفظ قاعدة المصفوفة. يرجى المراجعة والمحاولة مرة أخرى.",
+      "chainsListFailed": "تعذّر تحميل سلاسل الموافقات",
+      "reassignFailed": "تعذّر إعادة تعيين هذه الخطوة."
     }
   },
   "filterBar": {
@@ -4228,6 +4239,205 @@
     },
     "usage": {
       "placeholder": "ستظهر تحليلات الاستخدام هنا بمجرد تدفق التحديثات عبر هذه الفئة."
+    }
+  },
+  "approval": {
+    "list": {
+      "title": "موافقاتي المعلقة",
+      "totalCount": "{{count}} موافقة معلقة",
+      "totalCount_other": "{{count}} موافقات معلقة",
+      "emptyTitle": "لا توجد موافقات معلقة",
+      "emptyDescription": "عندما يحتاج عقد إلى قرارك، سيظهر هنا.",
+      "sort": "الترتيب",
+      "sortOption": {
+        "oldest": "الأقدم أولاً",
+        "newest": "الأحدث أولاً",
+        "highest_value": "الأعلى قيمة"
+      },
+      "col": {
+        "contract": "العقد",
+        "requester": "مقدّم الطلب",
+        "value": "القيمة",
+        "step": "الخطوة",
+        "pending": "معلّق منذ",
+        "actions": "الإجراءات"
+      },
+      "stepLabel": "الخطوة {{order}}",
+      "valueAed": "{{value}} درهم",
+      "unknownRequester": "—",
+      "actAction": "اتخاذ إجراء",
+      "hoursAgo": "منذ {{count}} ساعة",
+      "daysAgo": "منذ {{count}} يوم",
+      "showingRange": "عرض {{from}}–{{to}} من {{total}}"
+    },
+    "decide": {
+      "title": "اتخذ إجراءً بشأن هذه الموافقة",
+      "approveTitle": "هل تعتمد هذا العقد؟",
+      "rejectTitle": "هل ترفض هذا العقد؟",
+      "resubmitTitle": "طلب إعادة التقديم",
+      "legend": "اختر إجراءً",
+      "actionLabel": {
+        "approve": "اعتماد",
+        "reject": "رفض",
+        "request_resubmission": "إعادة تقديم",
+        "delegate": "تفويض"
+      },
+      "approve": "اعتماد",
+      "reject": "رفض",
+      "requestResubmission": "طلب إعادة التقديم",
+      "noteOptional": "ملاحظة اختيارية",
+      "rejectReason": "سبب الرفض",
+      "resubmitReason": "ما المعلومات التي تحتاجها؟",
+      "notePlaceholderApprove": "أضف تعليقًا اختياريًا للسجل…",
+      "notePlaceholderReject": "اشرح سبب رفض هذا العقد (10 أحرف كحد أدنى)…",
+      "notePlaceholderResubmit": "حدد بدقّة ما يلزم على المحرر تقديمه (20 حرفًا كحد أدنى)…",
+      "rejectWarning": "يؤدي ذلك إلى إيقاف سير الاعتماد. سيحتاج المحرر إلى البدء من جديد للمتابعة.",
+      "resubmitWarning": "سيُعاد العقد إلى المحرر للمراجعة. سيتم إعادة تعيين خطوات الاعتماد عند إعادة التقديم.",
+      "minChars": "الحد الأدنى {{n}} حرفًا"
+    },
+    "delegate": {
+      "title": "تفويض هذه الموافقة",
+      "submit": "تفويض",
+      "targetUser": "تفويض إلى معرّف المستخدم",
+      "targetUserPlaceholder": "مثال: 42",
+      "targetUserHelp": "يجب أن يحمل المستخدم دور معتمِد متوافق.",
+      "noteOptional": "مبرّر اختياري",
+      "notePlaceholder": "أضف مبرّرًا اختياريًا لسجل التدقيق…",
+      "invalidUser": "أدخل معرّف مستخدم موجبًا.",
+      "cannotSelf": "لا يمكنك التفويض لنفسك."
+    },
+    "submit": {
+      "title": "إرسال للموافقة",
+      "description": "راجع سلسلة الاعتماد المُحدّدة وأكّد.",
+      "chainPreviewHeading": "معاينة سلسلة الاعتماد",
+      "previewFailed": "تعذّرت معاينة سلسلة الاعتماد. حاول مجددًا.",
+      "confirm": "إرسال"
+    },
+    "reassign": {
+      "title": "إعادة تعيين هذه الخطوة",
+      "description": "خطوة على العقد {{number}}",
+      "warning": "يتجاوز هذا الإجراء المعتمِد المسند أصلاً. استخدمه فقط عند تعذّر وصول المسند.",
+      "targetUser": "إعادة التعيين إلى معرّف المستخدم",
+      "targetUserPlaceholder": "مثال: 42",
+      "targetUserHelp": "يجب أن يحمل المستخدم دور معتمِد متوافق لهذه الخطوة.",
+      "noteOptional": "مبرّر اختياري",
+      "notePlaceholder": "أضف مبرّرًا اختياريًا لسجل التدقيق…",
+      "confirm": "إعادة التعيين"
+    },
+    "matrix": {
+      "title": "مصفوفة الاعتمادات",
+      "intro": "عيّن من يجب أن يعتمد كل نوع عقد عند كل نطاق قيمة.",
+      "addRule": "إضافة قاعدة",
+      "filterContractType": "نوع العقد",
+      "filterAll": "كل أنواع العقود",
+      "emptyTitle": "لا توجد قواعد مكوَّنة في المصفوفة",
+      "emptyDescription": "أضف قاعدة لبدء توجيه الاعتمادات تلقائيًا.",
+      "range": {
+        "any": "أي قيمة",
+        "under": "أقل من {{max}} درهم",
+        "over": "أكثر من {{min}} درهم",
+        "between": "{{min}} – {{max}} درهم"
+      },
+      "editor": {
+        "createTitle": "إضافة قاعدة مصفوفة",
+        "editTitle": "تعديل قاعدة المصفوفة",
+        "contractType": "نوع العقد",
+        "valueMin": "الحد الأدنى للقيمة (درهم)",
+        "valueMax": "الحد الأقصى للقيمة (درهم)",
+        "valueMaxPlaceholder": "اتركه فارغًا لعدم وجود حد أعلى",
+        "stepsHeading": "خطوات الاعتماد",
+        "addStep": "إضافة خطوة",
+        "approverRole": "دور المعتمِد",
+        "selectRole": "اختر دورًا…",
+        "moveUp": "تحريك للأعلى",
+        "moveDown": "تحريك للأسفل",
+        "removeStep": "حذف الخطوة",
+        "parallel": "متوازية مع الأشقاء",
+        "required": "مطلوبة",
+        "escalationRole": "تصعيد إلى",
+        "escalationRoleNone": "لا يوجد تصعيد",
+        "escalationAfterHours": "تصعيد بعد (ساعات)",
+        "errors": {
+          "valueMinInvalid": "يجب أن يكون الحد الأدنى صفرًا أو أكبر.",
+          "valueMaxInvalid": "يجب أن يكون الحد الأقصى أكبر من أو يساوي الحد الأدنى.",
+          "stepsInvalid": "يجب أن تحتوي كل خطوة على دور؛ ساعات التصعيد، عند تعيينها، يجب أن تكون أكبر من صفر."
+        }
+      }
+    },
+    "chains": {
+      "title": "سلاسل الاعتماد",
+      "totalCount": "{{count}} سلسلة",
+      "totalCount_other": "{{count}} سلاسل",
+      "filterStatus": "الحالة",
+      "filterAll": "كل الحالات",
+      "filterContractId": "معرّف العقد",
+      "filterContractIdPlaceholder": "تصفية حسب معرّف العقد",
+      "emptyTitle": "لا توجد سلاسل اعتماد",
+      "emptyDescription": "ستظهر سلاسل الاعتماد التي تم إنشاؤها عبر الإرسال هنا.",
+      "col": {
+        "contract": "العقد",
+        "submittedBy": "أرسل بواسطة",
+        "submittedAt": "تاريخ الإرسال",
+        "progress": "التقدم",
+        "status": "الحالة",
+        "hoursPending": "معلّق (ساعات)",
+        "actions": "الإجراءات"
+      },
+      "progress": "الخطوة {{current}} من {{total}}",
+      "showingRange": "عرض {{from}}–{{to}} من {{total}}",
+      "actions": {
+        "reassign": "إعادة تعيين",
+        "reassignTooltip": "إعادة تعيين الخطوة الحالية إلى معتمِد آخر"
+      }
+    },
+    "chain": {
+      "ariaList": "خطوات سلسلة الاعتماد",
+      "stepsCount": "{{count}} خطوة",
+      "stepsCount_other": "{{count}} خطوات",
+      "previewValue": "{{value}} درهم",
+      "submittedAt": "أُرسل في {{when}}",
+      "parallelBadge": "متوازي",
+      "optional": "اختيارية",
+      "escalation": "يصعَّد إلى {{role}} بعد {{hours}} س",
+      "delegatedTo": "مفوَّض إلى {{name}}",
+      "reassignedTo": "أُعيد تعيينه إلى {{name}}",
+      "decidedBy": "بواسطة {{name}} · {{when}}",
+      "noRuleTitle": "لا توجد قاعدة اعتماد مكوَّنة",
+      "noRuleBody": "لا توجد قاعدة مصفوفة مطبَّقة على {{contractType}} عند هذه القيمة. كوِّن المصفوفة أولاً.",
+      "status": {
+        "in_progress": "قيد التنفيذ",
+        "approved": "معتمَد",
+        "rejected": "مرفوض",
+        "resubmission_requested": "طُلبت إعادة تقديم",
+        "cancelled": "ملغى"
+      },
+      "stepStatus": {
+        "pending": "معلّق",
+        "approved": "معتمَد",
+        "rejected": "مرفوض",
+        "resubmission_requested": "طُلبت إعادة تقديم",
+        "escalated": "مصعَّد",
+        "reassigned": "أُعيد تعيينه",
+        "delegated": "مفوَّض",
+        "skipped": "متخطّى"
+      },
+      "decision": {
+        "approve": "اعتماد",
+        "reject": "رفض",
+        "request_resubmission": "طلب إعادة تقديم",
+        "delegate": "تفويض",
+        "reassign": "إعادة تعيين",
+        "escalate": "تصعيد"
+      }
+    },
+    "toasts": {
+      "approved": "تم تسجيل الاعتماد",
+      "rejected": "تم تسجيل الرفض",
+      "resubmissionRequested": "طُلبت إعادة التقديم",
+      "delegated": "تم تفويض الموافقة",
+      "submitted": "أُرسل العقد للموافقة",
+      "matrixSaved": "حُفظت قاعدة المصفوفة",
+      "reassigned": "أُعيد تعيين الخطوة"
     }
   }
 }

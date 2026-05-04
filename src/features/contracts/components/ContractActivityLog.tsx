@@ -21,6 +21,13 @@ import {
   Tag,
   Trash2,
   Undo2,
+  Upload,
+  Inbox,
+  Send,
+  ShieldCheck,
+  UserCheck,
+  TimerReset,
+  ArrowRightLeft,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useContractActivity } from "@/features/contracts/hooks/useContracts";
@@ -52,6 +59,15 @@ const ICONS: Record<
   tagged: Tag,
   soft_deleted: Trash2,
   restored: Undo2,
+  // M1b additive — import lifecycle events.
+  import_batch_started: Upload,
+  import_batch_completed: Inbox,
+  // M2 additive — approval lifecycle events.
+  submitted_for_approval: Send,
+  approval_decided: ShieldCheck,
+  approval_reassigned: ArrowRightLeft,
+  approval_escalated: TimerReset,
+  approval_delegated: UserCheck,
 };
 
 const ICON_TONE: Record<ActivityType, string> = {
@@ -62,6 +78,15 @@ const ICON_TONE: Record<ActivityType, string> = {
   tagged: "bg-amber-tint text-amber-ink",
   soft_deleted: "bg-terracotta-tint text-terracotta-ink",
   restored: "bg-sage-tint text-sage-ink",
+  // M1b additive
+  import_batch_started: "bg-slate-tint text-slate-ink",
+  import_batch_completed: "bg-sage-tint text-sage-ink",
+  // M2 additive
+  submitted_for_approval: "bg-slate-tint text-slate-ink",
+  approval_decided: "bg-sage-tint text-sage-ink",
+  approval_reassigned: "bg-amber-tint text-amber-ink",
+  approval_escalated: "bg-amber-tint text-amber-ink",
+  approval_delegated: "bg-plum-tint text-plum-ink",
 };
 
 export function ContractActivityLog({ contractId }: ContractActivityLogProps) {

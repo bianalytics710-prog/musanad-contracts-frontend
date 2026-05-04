@@ -1,23 +1,33 @@
 /**
- * ContractStatusDialog (S6) — placeholder status update modal.
+ * ContractStatusDialog (S6 + M2 S12) — narrowed-transition status update modal.
  *
- * Mode: regenerate-light — full approval/state-machine UX is M2 territory.
- * M1a accepts any of the 14 enum values from any starting state and lets
- * the BE record the transition (AC-S6-07 documents the limitation).
+ * M2 / AE-2 update: the BE now enforces a narrow per-transition matrix via
+ * fn_contract_status_update_user. The FE mirrors the matrix in
+ * UPDATE_CONTRACT_STATUS_USER_TARGETS so the dropdown only surfaces valid
+ * targets — keeping the UI in sync with what the server will accept.
+ * Transitions out of `in_approval` (approve / reject / resubmit) MUST go
+ * through fn_approval_decide via the Approvals page; this dialog hides
+ * those targets entirely.
  *
  * AC mapping:
- *   AC-S6-01 — PATCH /api/v1/contracts/:id/status with newStatus + optional reason.
- *   AC-S6-03 — Zod schema enforces enum membership client-side.
- *   AC-S6-04 — disable submit when newStatus === current status.
- *   AC-S6-05..06 — server returns 404/403; toast surfaces ApiError.message.
+ *   AC-S6-01     — PATCH /api/v1/contracts/:id/status with newStatus + reason.
+ *   AC-S12-01..03 — narrowed transition list shown to the user.
+ *   AC-S12-09    — previously-permissive M1a transitions (e.g. draft →
+ *                   approved) are no longer offered.
+ *   AC-S6-04     — submit disabled when no valid target selected.
+ *   AC-S6-05..06 — server 404/403; translateApiError surfaces a localized
+ *                   message via the mutation's onError path.
  */
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/components/common/useFocusTrap";
 import { useUpdateContractStatus } from "@/features/contracts/hooks/useContracts";
-import { CONTRACT_STATUS_VALUES, type ContractStatus } from "@/types/entities/contract.types";
+import {
+  UPDATE_CONTRACT_STATUS_USER_TARGETS,
+  type ContractStatus,
+} from "@/types/entities/contract.types";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +54,17 @@ export function ContractStatusDialog({
   // M1b — FE-C4 focus-trap container ref.
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  const [newStatus, setNewStatus] = useState<ContractStatus>(currentStatus);
+  // M2 — narrow targets per the AE-2 transition matrix; show empty when
+  // the contract is in a state that has no user-driven targets (e.g.
+  // in_approval — only fn_approval_decide can leave that state).
+  const narrowedTargets = useMemo<readonly ContractStatus[]>(
+    () => UPDATE_CONTRACT_STATUS_USER_TARGETS[currentStatus] ?? [],
+    [currentStatus],
+  );
+
+  const [newStatus, setNewStatus] = useState<ContractStatus>(
+    narrowedTargets[0] ?? currentStatus,
+  );
   const [reason, setReason] = useState("");
 
   // M1b — apply shared focus-trap (FE-C4 deferred from M1a).
@@ -56,11 +76,11 @@ export function ContractStatusDialog({
 
   useEffect(() => {
     if (!open) return;
-    setNewStatus(currentStatus);
+    setNewStatus(narrowedTargets[0] ?? currentStatus);
     setReason("");
     const handle = window.setTimeout(() => firstFocusRef.current?.focus(), 0);
     return () => window.clearTimeout(handle);
-  }, [open, currentStatus]);
+  }, [open, currentStatus, narrowedTargets]);
 
   useEffect(() => {
     if (!open) return;
@@ -73,11 +93,13 @@ export function ContractStatusDialog({
 
   if (!open) return null;
 
+  const noTargets = narrowedTargets.length === 0;
   const noChange = newStatus === currentStatus;
+  const targetInvalid = !narrowedTargets.includes(newStatus);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (noChange || mutation.isPending) return;
+    if (noChange || targetInvalid || mutation.isPending) return;
     mutation.mutate({
       id: contractId,
       data: {
@@ -140,19 +162,27 @@ export function ContractStatusDialog({
               ref={firstFocusRef}
               value={newStatus}
               onChange={(e) => setNewStatus(e.target.value as ContractStatus)}
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || noTargets}
               className={cn(
                 "mt-1 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors",
                 "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 "disabled:cursor-not-allowed disabled:opacity-50",
               )}
             >
-              {CONTRACT_STATUS_VALUES.map((s) => (
+              {narrowedTargets.map((s) => (
                 <option key={s} value={s}>
                   {t(`contractStatus.${s}`, { defaultValue: s })}
                 </option>
               ))}
             </select>
+            {noTargets && (
+              <p className="mt-1 text-[11px] text-ink-subtle">
+                {t("contracts.status.noUserTargets", {
+                  defaultValue:
+                    "This status can only be changed via the approval workflow.",
+                })}
+              </p>
+            )}
           </div>
 
           <div>
@@ -174,15 +204,14 @@ export function ContractStatusDialog({
             <p className="mt-1 text-[11px] text-ink-subtle">{t("contracts.status.reasonHelp")}</p>
           </div>
 
-          <p className="rounded-md border border-amber/40 bg-amber-tint/40 px-3 py-2 text-[11px] text-amber-ink">
-            {t("contracts.status.m1aNote")}
-          </p>
-
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
               {t("common.cancel")}
             </Button>
-            <Button type="submit" disabled={noChange || mutation.isPending}>
+            <Button
+              type="submit"
+              disabled={noChange || targetInvalid || noTargets || mutation.isPending}
+            >
               {mutation.isPending ? t("common.saving") : t("contracts.status.submit")}
             </Button>
           </div>

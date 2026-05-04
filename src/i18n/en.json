@@ -3903,6 +3903,17 @@
       "reviewListFailed": "Failed to load review queue",
       "manualListFailed": "Failed to load manual entries",
       "contractsFailed": "Failed to load contracts in this batch"
+    },
+    "approval": {
+      "listFailed": "Failed to load pending approvals",
+      "decideFailed": "Could not record your decision. Please try again.",
+      "delegateFailed": "Could not delegate this approval.",
+      "previewFailed": "Could not preview the approval chain.",
+      "submitFailed": "Could not submit this contract for approval.",
+      "matrixListFailed": "Failed to load approval matrix",
+      "matrixSaveFailed": "Could not save the matrix rule. Please review and try again.",
+      "chainsListFailed": "Failed to load approval chains",
+      "reassignFailed": "Could not reassign this step."
     }
   },
   "filterBar": {
@@ -4228,6 +4239,205 @@
     },
     "usage": {
       "placeholder": "Usage analytics will appear here once updates flow through this category."
+    }
+  },
+  "approval": {
+    "list": {
+      "title": "My pending approvals",
+      "totalCount": "{{count}} pending approval",
+      "totalCount_other": "{{count}} pending approvals",
+      "emptyTitle": "No pending approvals",
+      "emptyDescription": "When a contract needs your decision it will appear here.",
+      "sort": "Sort",
+      "sortOption": {
+        "oldest": "Oldest first",
+        "newest": "Newest first",
+        "highest_value": "Highest value"
+      },
+      "col": {
+        "contract": "Contract",
+        "requester": "Requester",
+        "value": "Value",
+        "step": "Step",
+        "pending": "Pending",
+        "actions": "Actions"
+      },
+      "stepLabel": "Step {{order}}",
+      "valueAed": "AED {{value}}",
+      "unknownRequester": "—",
+      "actAction": "Act",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago",
+      "showingRange": "Showing {{from}}–{{to}} of {{total}}"
+    },
+    "decide": {
+      "title": "Act on this approval",
+      "approveTitle": "Approve this contract?",
+      "rejectTitle": "Reject this contract?",
+      "resubmitTitle": "Request resubmission",
+      "legend": "Choose an action",
+      "actionLabel": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "request_resubmission": "Resubmit",
+        "delegate": "Delegate"
+      },
+      "approve": "Approve",
+      "reject": "Reject",
+      "requestResubmission": "Request resubmission",
+      "noteOptional": "Optional comment",
+      "rejectReason": "Rejection reason",
+      "resubmitReason": "What information do you need?",
+      "notePlaceholderApprove": "Add an optional comment for the record…",
+      "notePlaceholderReject": "Explain why this contract is being rejected (min. 10 characters)…",
+      "notePlaceholderResubmit": "Be specific about what the drafter needs to provide (min. 20 characters)…",
+      "rejectWarning": "This halts the approval workflow. The drafter will need to start over to proceed.",
+      "resubmitWarning": "The contract will return to the drafter for revision. Approval steps reset on resubmission.",
+      "minChars": "Minimum {{n}} characters"
+    },
+    "delegate": {
+      "title": "Delegate this approval",
+      "submit": "Delegate",
+      "targetUser": "Delegate to user ID",
+      "targetUserPlaceholder": "e.g. 42",
+      "targetUserHelp": "User must hold a compatible approver role.",
+      "noteOptional": "Optional rationale",
+      "notePlaceholder": "Add an optional rationale for the audit log…",
+      "invalidUser": "Enter a positive user ID.",
+      "cannotSelf": "You cannot delegate to yourself."
+    },
+    "submit": {
+      "title": "Submit for approval",
+      "description": "Review the routed approval chain and confirm.",
+      "chainPreviewHeading": "Approval chain preview",
+      "previewFailed": "Couldn't preview the approval chain. Try again.",
+      "confirm": "Submit"
+    },
+    "reassign": {
+      "title": "Reassign this step",
+      "description": "Step on contract {{number}}",
+      "warning": "This overrides the originally-assigned approver. Use only when the assignee is unavailable.",
+      "targetUser": "Reassign to user ID",
+      "targetUserPlaceholder": "e.g. 42",
+      "targetUserHelp": "User must hold a compatible approver role for this step.",
+      "noteOptional": "Optional rationale",
+      "notePlaceholder": "Add an optional rationale for the audit log…",
+      "confirm": "Reassign"
+    },
+    "matrix": {
+      "title": "Approval matrix",
+      "intro": "Configure who must approve which contract types at each value range.",
+      "addRule": "Add rule",
+      "filterContractType": "Contract type",
+      "filterAll": "All contract types",
+      "emptyTitle": "No matrix rules configured",
+      "emptyDescription": "Add a rule to start routing approvals automatically.",
+      "range": {
+        "any": "Any value",
+        "under": "Under AED {{max}}",
+        "over": "Over AED {{min}}",
+        "between": "AED {{min}} – {{max}}"
+      },
+      "editor": {
+        "createTitle": "Add matrix rule",
+        "editTitle": "Edit matrix rule",
+        "contractType": "Contract type",
+        "valueMin": "Min value (AED)",
+        "valueMax": "Max value (AED)",
+        "valueMaxPlaceholder": "Leave blank for no upper bound",
+        "stepsHeading": "Approval steps",
+        "addStep": "Add step",
+        "approverRole": "Approver role",
+        "selectRole": "Select role…",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "removeStep": "Remove step",
+        "parallel": "Parallel with siblings",
+        "required": "Required",
+        "escalationRole": "Escalate to",
+        "escalationRoleNone": "No escalation",
+        "escalationAfterHours": "Escalate after (hours)",
+        "errors": {
+          "valueMinInvalid": "Min value must be 0 or greater.",
+          "valueMaxInvalid": "Max value must be greater than or equal to min value.",
+          "stepsInvalid": "Every step must have a role; escalation hours, when set, must be > 0."
+        }
+      }
+    },
+    "chains": {
+      "title": "Approval chains",
+      "totalCount": "{{count}} chain",
+      "totalCount_other": "{{count}} chains",
+      "filterStatus": "Status",
+      "filterAll": "All statuses",
+      "filterContractId": "Contract ID",
+      "filterContractIdPlaceholder": "Filter by contract ID",
+      "emptyTitle": "No approval chains",
+      "emptyDescription": "Approval chains created via Submit will appear here.",
+      "col": {
+        "contract": "Contract",
+        "submittedBy": "Submitted by",
+        "submittedAt": "Submitted",
+        "progress": "Progress",
+        "status": "Status",
+        "hoursPending": "Pending (hrs)",
+        "actions": "Actions"
+      },
+      "progress": "Step {{current}} of {{total}}",
+      "showingRange": "Showing {{from}}–{{to}} of {{total}}",
+      "actions": {
+        "reassign": "Reassign",
+        "reassignTooltip": "Reassign the current step to another approver"
+      }
+    },
+    "chain": {
+      "ariaList": "Approval chain steps",
+      "stepsCount": "{{count}} step",
+      "stepsCount_other": "{{count}} steps",
+      "previewValue": "AED {{value}}",
+      "submittedAt": "Submitted {{when}}",
+      "parallelBadge": "Parallel",
+      "optional": "Optional",
+      "escalation": "Escalates to {{role}} after {{hours}}h",
+      "delegatedTo": "Delegated to {{name}}",
+      "reassignedTo": "Reassigned to {{name}}",
+      "decidedBy": "by {{name}} · {{when}}",
+      "noRuleTitle": "No approval rule configured",
+      "noRuleBody": "No matrix rule applies for {{contractType}} at this value. Configure the matrix first.",
+      "status": {
+        "in_progress": "In progress",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "resubmission_requested": "Resubmission requested",
+        "cancelled": "Cancelled"
+      },
+      "stepStatus": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "resubmission_requested": "Resubmission requested",
+        "escalated": "Escalated",
+        "reassigned": "Reassigned",
+        "delegated": "Delegated",
+        "skipped": "Skipped"
+      },
+      "decision": {
+        "approve": "Approved",
+        "reject": "Rejected",
+        "request_resubmission": "Requested resubmission",
+        "delegate": "Delegated",
+        "reassign": "Reassigned",
+        "escalate": "Escalated"
+      }
+    },
+    "toasts": {
+      "approved": "Approval recorded",
+      "rejected": "Rejection recorded",
+      "resubmissionRequested": "Resubmission requested",
+      "delegated": "Approval delegated",
+      "submitted": "Contract submitted for approval",
+      "matrixSaved": "Matrix rule saved",
+      "reassigned": "Step reassigned"
     }
   }
 }

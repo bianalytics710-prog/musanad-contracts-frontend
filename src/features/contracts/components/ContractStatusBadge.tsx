@@ -26,6 +26,10 @@ function toneFor(status: ContractStatus): Tone {
     case "draft":
     case "in_review":
       return "slate";
+    case "in_approval":
+      // M2 / AE-3 — chain in flight; treated like in_review tonally with a
+      // gold accent to signal "more to do".
+      return "gold";
     case "approved":
     case "fully_signed":
     case "active":
@@ -37,6 +41,8 @@ function toneFor(status: ContractStatus): Tone {
     case "expired":
     case "rejected":
     case "terminated":
+    case "cancelled":
+      // M2 / AE-3 — drafter / admin abort; tonally aligned with terminated.
       return "terracotta";
     case "amended":
     case "renewed":
