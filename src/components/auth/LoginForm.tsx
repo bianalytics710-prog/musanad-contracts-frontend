@@ -117,6 +117,24 @@ export function LoginForm() {
     mutation.mutate(values);
   };
 
+  // Dev convenience — one-click sign-in for each seeded persona.
+  // All seeded users share the bootstrap admin's bcrypt hash (ChangeMe@123).
+  // Hidden in production builds via import.meta.env.PROD guard.
+  const personas: Array<{ key: string; label: string; sub: string; email: string }> = [
+    { key: "super",     label: "Super Admin",      sub: "All access",                      email: "admin@musanad.local"     },
+    { key: "platform",  label: "Platform Admin",   sub: "Admin observability",             email: "platform@musanad.local"  },
+    { key: "legal",     label: "Legal Counsel",    sub: "Regulatory + audit",              email: "legal@musanad.local"     },
+    { key: "drafter",   label: "Drafter",          sub: "Author contracts",                email: "drafter@musanad.local"   },
+    { key: "approver",  label: "Approver",         sub: "Approval queue",                  email: "approver@musanad.local"  },
+    { key: "recipient", label: "Recipient",        sub: "Sign assigned contracts",         email: "recipient@musanad.local" },
+    { key: "executive", label: "Executive",        sub: "KPIs + AI anomalies",             email: "executive@musanad.local" },
+  ];
+
+  const signInAs = (email: string) => {
+    setFormError(null);
+    mutation.mutate({ email, password: "ChangeMe@123" });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex max-w-[1280px] items-center justify-between px-6 py-5">
@@ -262,6 +280,37 @@ export function LoginForm() {
                       : t("auth.signInWithEmail", { defaultValue: "Sign in" })}
                   </Button>
                 </form>
+
+                {!import.meta.env.PROD && (
+                  <div className="mt-6 border-t border-border pt-4">
+                    <div className="mb-3 flex items-center gap-3">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                        Dev quick sign-in
+                      </span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {personas.map((p) => (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => signInAs(p.email)}
+                          disabled={mutation.isPending}
+                          aria-label={`Sign in as ${p.label}`}
+                          className="group flex flex-col items-start gap-0.5 rounded-md border border-border bg-card px-3 py-2 text-start transition hover:border-gold hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <span className="text-xs font-medium text-ink group-hover:text-ink">
+                            {p.label}
+                          </span>
+                          <span className="text-[10px] text-ink-subtle">{p.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] text-ink-subtle">
+                      All personas share password <span className="font-mono">ChangeMe@123</span> — dev only.
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
