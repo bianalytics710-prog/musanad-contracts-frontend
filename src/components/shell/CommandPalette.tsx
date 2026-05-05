@@ -16,7 +16,8 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import {
   PenLine,
   Sun,
@@ -109,6 +110,11 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
       {children}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-lg overflow-hidden rounded-xl border border-border bg-card p-0">
+          <VisuallyHidden>
+            <DialogTitle>
+              {t("commandPalette.title", { defaultValue: "Command palette" })}
+            </DialogTitle>
+          </VisuallyHidden>
           <Command>
             <CommandInput
               placeholder={t("commandPalette.placeholder", {
@@ -143,7 +149,9 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
               >
                 <CommandItem onSelect={() => go("/app/contracts/compose")}>
                   <PenLine className="me-2 h-4 w-4" />
-                  {t("nav.compose", { defaultValue: "New contract" })}
+                  {t("commandPalette.actions.newContract", {
+                    defaultValue: "New contract",
+                  })}
                   <span className="ms-auto font-mono text-xs text-ink-subtle">⌘N</span>
                 </CommandItem>
                 <CommandItem
@@ -153,12 +161,16 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
                   }}
                 >
                   <Sun className="me-2 h-4 w-4" />
-                  {t("common.theme", { defaultValue: "Toggle theme" })}
+                  {t("commandPalette.actions.toggleTheme", {
+                    defaultValue: "Toggle theme",
+                  })}
                 </CommandItem>
                 <CommandItem onSelect={handleToggleLang}>
                   <Languages className="me-2 h-4 w-4" />
-                  {t("common.language", { defaultValue: "Toggle language" })} (
-                  {locale === "ar" ? "ع" : "EN"})
+                  {t("commandPalette.actions.toggleLanguage", {
+                    defaultValue: "Toggle language",
+                  })}{" "}
+                  ({locale === "ar" ? "ع" : "EN"})
                 </CommandItem>
                 {user && (
                   <CommandItem
@@ -168,7 +180,9 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
                     className="text-terracotta data-[selected=true]:bg-terracotta/10 data-[selected=true]:text-terracotta"
                   >
                     <LogOut className="me-2 h-4 w-4" />
-                    {t("common.signOut", { defaultValue: "Sign out" })}
+                    {t("commandPalette.actions.signOut", {
+                      defaultValue: "Sign out",
+                    })}
                   </CommandItem>
                 )}
               </CommandGroup>
