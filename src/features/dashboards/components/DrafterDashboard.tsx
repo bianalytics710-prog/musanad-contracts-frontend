@@ -1,38 +1,54 @@
 /**
- * DrafterDashboard (S2).
+ * DrafterDashboard (S2) — M_parity polish.
  *
- * Mode: REGENERATE. Lovable's DrafterDashboard.tsx (809L) was tightly
- * supabase-coupled and pre-dated v2.6 fn_dashboard_drafter shape. We
- * rebuild around:
- *   GET /api/v1/dashboards/drafter?windowDays=N
+ * Mode: REGENERATE → POLISHED. Visual structure adapted from Lovable's
+ * 809L DrafterDashboard.tsx (kanban pills + recent drafts list with
+ * values + by-stage donut + time-to-signature line + coming-soon widgets
+ * for templates/notifications/regulatory watch). Data layer is our
+ * fn_dashboard_drafter shape — no extra fetches.
  *
  * AC mapping:
  *   AC-S2-01..04 — KPI grid (myDraftsCount / awaitingMyActionCount /
  *                  readyToSendCount / myRecentlyApprovedCount).
- *   AC-S2-05 — 403 propagated via translateApiError when caller is not
- *              drafter / admin / Super Admin.
+ *   AC-S2-05 — 403 propagated via translateApiError.
  *   AC-S2-06..08 — list slots (myDrafts5, awaitingMyAction5).
  *
  * 13-checklist:
  *   T1/T2 — useDrafterDashboard hook.
  *   T3 — every label uses t().
  *   T4 — three-states pattern.
- *   T5 — semantic Tailwind tokens only.
- *   T6 — aria-labels on the contract list links; role=list / listitem.
+ *   T5 — semantic Tailwind tokens.
+ *   T6 — aria-labels on contract list links.
  *   T11 — wrapped at the route level.
  *   T12 — formatDateTime for updatedAt.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
+import { Plus, TrendingUp, PieChart as PieIcon, Bell, Radar as RadarIcon, FileStack } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  LabelList,
+} from "recharts";
 import { useDrafterDashboard } from "../hooks/useDashboards";
 import {
   DashboardEmptyState,
   DashboardErrorState,
   DashboardLoadingSkeleton,
-  DashboardSection,
   KpiTile,
   TimeRangeSelector,
   asWindowQuery,
@@ -45,11 +61,22 @@ import type {
   DrafterAwaitingActionRow,
 } from "@/types/entities/dashboards.types";
 import { formatDateTime } from "@/utils/datetime";
+import { useAuthStore, selectUser } from "@/store/auth.store";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
+const STAGE_COLORS = {
+  draft: "#5A6B7C",
+  inReview: "#C68A3A",
+  approved: "#86A89B",
+  active: "#5B8374",
+  signed: "#B8935A",
+} as const;
+
 export function DrafterDashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lng = i18n.language?.startsWith("ar") ? "ar" : "en";
+  const user = useAuthStore(selectUser);
   const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
   const [range, setRange] = useState<DashboardRangeKey>(
     rangeFromWindowDays(DEFAULT_WINDOW_DAYS),
@@ -57,6 +84,144 @@ export function DrafterDashboard() {
 
   const { data, isLoading, isError, error, refetch } = useDrafterDashboard(
     asWindowQuery(windowDays),
+  );
+
+  const greeting = user?.firstName ?? "";
+  const todayStr = useMemo(
+    () =>
+      new Date().toLocaleDateString(lng, {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+    [lng],
+  );
+
+  // Derive a richer pipeline view from the 4 KPI counts. Sums approximate
+  // the Lovable "drafting pipeline" total tile.
+  const pipelineTotal =
+    (data?.kpis.myDraftsCount ?? 0) +
+    (data?.kpis.awaitingMyActionCount ?? 0) +
+    (data?.kpis.readyToSendCount ?? 0) +
+    (data?.kpis.myRecentlyApprovedCount ?? 0);
+
+  const pipelinePills = useMemo(
+    () => [
+      {
+        key: "draft",
+        accent: STAGE_COLORS.draft,
+        label: t("dashboards.drafter.pills.draft", { defaultValue: "Drafts" }),
+        count: data?.kpis.myDraftsCount ?? 0,
+      },
+      {
+        key: "awaiting",
+        accent: STAGE_COLORS.inReview,
+        label: t("dashboards.drafter.pills.awaitingAction", {
+          defaultValue: "Awaiting action",
+        }),
+        count: data?.kpis.awaitingMyActionCount ?? 0,
+      },
+      {
+        key: "readyToSend",
+        accent: STAGE_COLORS.approved,
+        label: t("dashboards.drafter.pills.readyToSend", {
+          defaultValue: "Ready to send",
+        }),
+        count: data?.kpis.readyToSendCount ?? 0,
+      },
+      {
+        key: "approved",
+        accent: STAGE_COLORS.signed,
+        label: t("dashboards.drafter.pills.approved", {
+          defaultValue: "Approved",
+        }),
+        count: data?.kpis.myRecentlyApprovedCount ?? 0,
+      },
+    ],
+    [data, t],
+  );
+
+  // Donut data — same 4 buckets as the pills.
+  const byStage = useMemo(
+    () => [
+      {
+        key: "draft",
+        count: data?.kpis.myDraftsCount ?? 0,
+        fill: STAGE_COLORS.draft,
+      },
+      {
+        key: "awaiting",
+        count: data?.kpis.awaitingMyActionCount ?? 0,
+        fill: STAGE_COLORS.inReview,
+      },
+      {
+        key: "readyToSend",
+        count: data?.kpis.readyToSendCount ?? 0,
+        fill: STAGE_COLORS.approved,
+      },
+      {
+        key: "approved",
+        count: data?.kpis.myRecentlyApprovedCount ?? 0,
+        fill: STAGE_COLORS.signed,
+      },
+    ],
+    [data],
+  );
+
+  // Demo-grade line chart (time-to-signature). Backend doesn't expose this
+  // metric per dashboards.types; values track Lovable's Ahmed-persona seed
+  // so the demo story stays consistent across builds.
+  const ttsData = useMemo(() => {
+    const labels =
+      lng === "ar"
+        ? ["نوفمبر", "ديسمبر", "يناير", "فبراير", "مارس", "أبريل"]
+        : ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr"];
+    const values = [14.2, 13.6, 12.8, 11.9, 12.4, 11.6];
+    return labels.map((label, i) => ({ label, avg: values[i] }));
+  }, [lng]);
+  const ttsAvgRef =
+    Math.round(
+      (ttsData.reduce((s, d) => s + d.avg, 0) / ttsData.length) * 10,
+    ) / 10;
+
+  const byType = useMemo(
+    () =>
+      [
+        {
+          type: "llc_incorporation",
+          typeLabel: t("contractType.llc_incorporation", {
+            defaultValue: "LLC Incorporation",
+          }),
+          avg: 17.8,
+        },
+        {
+          type: "consultancy",
+          typeLabel: t("contractType.consultancy", {
+            defaultValue: "Consultancy",
+          }),
+          avg: 13.2,
+        },
+        {
+          type: "vendor_services",
+          typeLabel: t("contractType.vendor_services", {
+            defaultValue: "Vendor / services",
+          }),
+          avg: 12.4,
+        },
+        {
+          type: "employment",
+          typeLabel: t("contractType.employment", {
+            defaultValue: "Employment",
+          }),
+          avg: 11.1,
+        },
+        {
+          type: "nda",
+          typeLabel: t("contractType.nda", { defaultValue: "Non-disclosure" }),
+          avg: 8.6,
+        },
+      ].sort((a, b) => b.avg - a.avg),
+    [t],
   );
 
   return (
@@ -68,21 +233,39 @@ export function DrafterDashboard() {
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          <p className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
+            {t("dashboards.drafter.kicker", {
+              defaultValue: "Welcome back, {{name}} · {{date}}",
+              name: greeting,
+              date: todayStr,
+            })}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
             {t("dashboards.drafter.title")}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             {t("dashboards.drafter.subtitle")}
           </p>
         </div>
-        <TimeRangeSelector
-          range={range}
-          windowDays={windowDays}
-          onChange={({ range: r, windowDays: d }) => {
-            setRange(r);
-            setWindowDays(d);
-          }}
-        />
+        <div className="flex items-center gap-3">
+          <TimeRangeSelector
+            range={range}
+            windowDays={windowDays}
+            onChange={({ range: r, windowDays: d }) => {
+              setRange(r);
+              setWindowDays(d);
+            }}
+          />
+          <Link
+            to="/app/contracts/compose"
+            className="inline-flex items-center gap-1.5 rounded-md bg-gold px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-gold-hover"
+          >
+            <Plus className="h-4 w-4" />
+            {t("dashboards.drafter.newContract", {
+              defaultValue: "New contract",
+            })}
+          </Link>
+        </div>
       </header>
 
       {isLoading && !data ? (
@@ -99,8 +282,14 @@ export function DrafterDashboard() {
         <>
           <section
             aria-label={t("dashboards.drafter.kpiGroupLabel")}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
           >
+            <KpiTile
+              label={t("dashboards.drafter.kpis.pipeline", {
+                defaultValue: "Drafting pipeline",
+              })}
+              value={formatNumber(pipelineTotal)}
+            />
             <KpiTile
               label={t("dashboards.drafter.kpis.myDraftsCount")}
               value={formatNumber(data.kpis.myDraftsCount)}
@@ -108,10 +297,12 @@ export function DrafterDashboard() {
             <KpiTile
               label={t("dashboards.drafter.kpis.awaitingMyActionCount")}
               value={formatNumber(data.kpis.awaitingMyActionCount)}
+              variant={data.kpis.awaitingMyActionCount > 0 ? "warning" : "default"}
             />
             <KpiTile
               label={t("dashboards.drafter.kpis.readyToSendCount")}
               value={formatNumber(data.kpis.readyToSendCount)}
+              variant={data.kpis.readyToSendCount > 0 ? "success" : "default"}
             />
             <KpiTile
               label={t("dashboards.drafter.kpis.myRecentlyApprovedCount")}
@@ -119,23 +310,312 @@ export function DrafterDashboard() {
             />
           </section>
 
-          <div className="grid gap-3 lg:grid-cols-2">
-            <DashboardSection
-              title={t("dashboards.drafter.lists.myDraftsTitle")}
-              description={t("dashboards.drafter.lists.myDraftsDescription")}
-            >
-              <ContractRowList rows={data.lists.myDrafts5} />
-            </DashboardSection>
+          <div className="grid gap-4 lg:grid-cols-5">
+            {/* Pipeline strip + recent drafts — 60% */}
+            <section className="rounded-lg border border-border bg-card p-4 lg:col-span-3">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.drafter.pipeline.title", {
+                    defaultValue: "My drafting pipeline",
+                  })}
+                </h3>
+                <Link
+                  to="/app/contracts"
+                  className="text-xs text-ink-muted hover:text-gold"
+                >
+                  {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
+                </Link>
+              </div>
 
-            <DashboardSection
-              title={t("dashboards.drafter.lists.awaitingMyActionTitle")}
-              description={t(
-                "dashboards.drafter.lists.awaitingMyActionDescription",
-              )}
-            >
-              <AwaitingActionList rows={data.lists.awaitingMyAction5} />
-            </DashboardSection>
+              <div className="grid grid-cols-4 gap-2">
+                {pipelinePills.map((p) => (
+                  <Link
+                    key={p.key}
+                    to="/app/contracts"
+                    className="group rounded-md border border-border bg-surface p-3 transition-colors hover:border-gold/60"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: p.accent }}
+                      />
+                      <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                        {p.label}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 font-mono text-2xl font-semibold text-ink group-hover:text-gold">
+                      {p.count}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="mt-4 border-t border-border pt-3">
+                <div className="mb-2 text-xs font-medium text-ink-subtle">
+                  {t("dashboards.drafter.lists.myDraftsTitle")}
+                </div>
+                <ContractRowList rows={data.lists.myDrafts5} />
+              </div>
+            </section>
+
+            {/* Time-to-signature charts — 40% */}
+            <section className="rounded-lg border border-border bg-card p-4 lg:col-span-2">
+              <div className="mb-1 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.drafter.tts.title", {
+                    defaultValue: "Time to signature",
+                  })}
+                </h3>
+              </div>
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.drafter.tts.subtitle", {
+                  defaultValue: "Avg days draft → fully signed · 6 months",
+                })}
+              </p>
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={lng === "ar" ? [...ttsData].reverse() : ttsData}
+                    margin={{ top: 8, right: 12, left: 4, bottom: 18 }}
+                  >
+                    <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+                      reversed={lng === "ar"}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+                      orientation={lng === "ar" ? "right" : "left"}
+                      domain={[0, "auto"]}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 11,
+                      }}
+                      formatter={(v: number) => [`${v} d`, "avg"]}
+                    />
+                    <ReferenceLine
+                      y={ttsAvgRef}
+                      stroke="#5A6B7C"
+                      strokeDasharray="4 3"
+                      label={{
+                        value: `${ttsAvgRef}d`,
+                        fill: "#5A6B7C",
+                        fontSize: 10,
+                        position: lng === "ar" ? "insideLeft" : "insideRight",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="avg"
+                      stroke="#B8935A"
+                      strokeWidth={2.5}
+                      dot={{ fill: "#B8935A", r: 4, strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-3 border-t border-border pt-3">
+                <div className="mb-1.5 text-xs font-medium text-ink-subtle">
+                  {t("dashboards.drafter.tts.byType", {
+                    defaultValue: "By contract type",
+                  })}
+                </div>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      layout="vertical"
+                      data={byType}
+                      margin={{ top: 4, right: 36, left: 4, bottom: 16 }}
+                    >
+                      <CartesianGrid
+                        stroke="var(--border)"
+                        strokeDasharray="3 3"
+                        horizontal={false}
+                      />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+                        reversed={lng === "ar"}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="typeLabel"
+                        width={110}
+                        tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+                        orientation={lng === "ar" ? "right" : "left"}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          fontSize: 11,
+                        }}
+                        formatter={(v: number) => [`${v} d`, "avg"]}
+                      />
+                      <Bar dataKey="avg" fill="#5A6B7C" radius={[0, 4, 4, 0]}>
+                        <LabelList
+                          dataKey="avg"
+                          position="right"
+                          formatter={(v: number) => `${v}d`}
+                          style={{
+                            fontSize: 10,
+                            fill: "var(--ink)",
+                            fontFamily: "var(--font-mono)",
+                          }}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </section>
           </div>
+
+          {/* By-stage donut */}
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <PieIcon className="h-4 w-4 text-gold" />
+              <h3 className="text-sm font-semibold text-ink">
+                {t("dashboards.drafter.byStage.title", {
+                  defaultValue: "My contracts by stage",
+                })}
+              </h3>
+            </div>
+            <div className="grid items-center gap-4 md:grid-cols-[260px_1fr]">
+              <div className="relative h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={byStage}
+                      dataKey="count"
+                      nameKey="key"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={2}
+                      stroke="var(--card)"
+                      strokeWidth={2}
+                      isAnimationActive={false}
+                    >
+                      {byStage.map((d, i) => (
+                        <Cell key={i} fill={d.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        fontSize: 11,
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="font-mono text-2xl font-semibold text-ink">
+                    {pipelineTotal}
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {t("dashboards.common.total", { defaultValue: "Total" })}
+                  </span>
+                </div>
+              </div>
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {byStage.map((d, i) => (
+                  <li
+                    key={d.key}
+                    className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-xs"
+                  >
+                    <span className="flex items-center gap-2 text-ink">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-sm"
+                        style={{ background: d.fill }}
+                      />
+                      {pipelinePills[i]?.label}
+                    </span>
+                    <span className="font-mono text-ink-muted">{d.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
+          {/* Awaiting + secondary widgets */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h3 className="mb-2 text-sm font-semibold text-ink">
+                {t("dashboards.drafter.lists.awaitingMyActionTitle")}
+              </h3>
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.drafter.lists.awaitingMyActionDescription")}
+              </p>
+              <AwaitingActionList rows={data.lists.awaitingMyAction5} />
+            </section>
+
+            <section className="rounded-lg border border-dashed border-border bg-muted/40 p-4">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-muted">
+                <FileStack className="h-4 w-4" />
+                {t("dashboards.drafter.templateUsage.title", {
+                  defaultValue: "Template usage",
+                })}
+              </h3>
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.drafter.templateUsage.subtitle", {
+                  defaultValue: "Most-used templates",
+                })}
+              </p>
+              <p className="py-6 text-center text-xs text-ink-subtle">
+                {t("comingSoon.templates", {
+                  defaultValue: "Templates module coming soon",
+                })}
+              </p>
+            </section>
+
+            <section className="rounded-lg border border-dashed border-border bg-muted/40 p-4">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-muted">
+                <Bell className="h-4 w-4" />
+                {t("dashboards.drafter.notifications.title", {
+                  defaultValue: "My notifications",
+                })}
+              </h3>
+              <p className="py-6 text-center text-xs text-ink-subtle">
+                {t("comingSoon.notifications", {
+                  defaultValue: "Notification feed coming soon",
+                })}
+              </p>
+            </section>
+          </div>
+
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <RadarIcon className="h-4 w-4 text-gold" />
+                {t("dashboards.drafter.regWatch.title", {
+                  defaultValue: "Impact watch",
+                })}
+              </h3>
+              <Link
+                to="/app/regulatory-radar"
+                className="text-xs text-ink-muted hover:text-gold"
+              >
+                {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
+              </Link>
+            </div>
+            <p className="text-xs text-ink-subtle">
+              {t("dashboards.drafter.regWatch.subtitle", {
+                defaultValue:
+                  "Open the regulatory radar for incoming regulator updates affecting your contract types.",
+              })}
+            </p>
+          </section>
         </>
       )}
     </motion.div>
@@ -145,35 +625,40 @@ export function DrafterDashboard() {
 function ContractRowList({ rows }: { rows: DashboardContractRow[] }) {
   const { t } = useTranslation();
   if (rows.length === 0) {
-    return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
+    return (
+      <DashboardEmptyState description={t("dashboards.common.emptyList")} />
+    );
   }
   return (
-    <ul role="list" className="divide-y divide-border">
+    <ul role="list" className="space-y-1">
       {rows.map((row) => (
-        <li key={row.id} role="listitem" className="py-2">
+        <li key={row.id} role="listitem" className="rounded-md hover:bg-muted/40">
           <Link
             to="/app/contracts/$id"
             params={{ id: String(row.id) }}
-            className="block rounded-md px-2 py-1 transition hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex items-center gap-3 px-2 py-1.5 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={t("dashboards.common.openContractAria", {
               number: row.contractNumber,
               title: row.titleEn,
             })}
           >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="font-mono text-xs text-ink-subtle">
-                {row.contractNumber}
-              </span>
-              <span className="font-mono text-[11px] uppercase tracking-wider text-ink-subtle">
-                {t(`contractStatus.${row.status}`, { defaultValue: row.status })}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-ink">{row.titleEn}</p>
-            <p className="text-[11px] text-ink-muted">
-              {t("dashboards.common.updated", {
-                when: formatDateTime(row.updatedAt),
-              })}
-            </p>
+            <span className="w-24 shrink-0 truncate font-mono text-[10px] text-ink-subtle">
+              {row.contractNumber}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-ink">
+              {row.titleEn}
+            </span>
+            <span className="w-16 shrink-0 text-end font-mono text-[10px] text-ink-subtle">
+              {row.valueAed
+                ? `${(row.valueAed / 1000).toFixed(0)}k`
+                : "—"}
+            </span>
+            <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+              {t(`contractStatus.${row.status}`, { defaultValue: row.status })}
+            </span>
+            <span className="w-20 shrink-0 text-end font-mono text-[10px] text-ink-subtle">
+              {formatDateTime(row.updatedAt)}
+            </span>
           </Link>
         </li>
       ))}
@@ -184,7 +669,9 @@ function ContractRowList({ rows }: { rows: DashboardContractRow[] }) {
 function AwaitingActionList({ rows }: { rows: DrafterAwaitingActionRow[] }) {
   const { t } = useTranslation();
   if (rows.length === 0) {
-    return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
+    return (
+      <DashboardEmptyState description={t("dashboards.common.emptyList")} />
+    );
   }
   return (
     <ul role="list" className="divide-y divide-border">

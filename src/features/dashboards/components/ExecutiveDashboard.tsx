@@ -1,40 +1,38 @@
 /**
- * ExecutiveDashboard (S7) — also mounts ExecutiveAnomaliesCard (S9 closure).
+ * ExecutiveDashboard (S7) — M_parity polish.
  *
- * Mode: REGENERATE — Lovable's ExecutiveDashboard.tsx (1825L) was the
- * largest insights component, heavily supabase-coupled per DASH-OI-B
- * (supabase.functions.invoke direct calls, supabase.from() reads, multiple
- * non-existent tables). M5 precedent (1/20 harden ratio) confirms regenerate
- * is the right call. Default windowDays = 90 per AC-S7-02.
+ * Mode: REGENERATE → POLISHED. Visual structure adapted from Lovable's
+ * 1825L ExecutiveDashboard.tsx. Trend tables replaced with recharts
+ * line/bar charts; expiry cliffs and counterparty-share rendered as
+ * progress bars; value distribution as horizontal bars. All data shapes
+ * remain our fn_dashboard_executive contract.
  *
  *   GET /api/v1/dashboards/executive?windowDays=N
- *
- * AC mapping:
- *   AC-S7-01..02 — KPI grid + window pills (default last_90d).
- *   AC-S7-03 — expiry cliffs monotonic (server-validated).
- *   AC-S7-04 — top counterparties by value (counterpartyId only —
- *              parties module pending; "pending" label rendered).
- *   AC-S7-05 — aiCostUsdWindow inline; null marker rendered when caller
- *              lacks ai.observability.read.
- *   AC-S7-06 — 403 when caller is not executive / admin / Super Admin.
- *   AC-S7-07 — windowDays validation 400 surfaced via translateApiError.
- *
- * S9 — MOUNTS the existing M4 ExecutiveAnomaliesCard. The card consumes
- * POST /api/v1/ai/executive-anomalies (M4) on demand; the parent dashboard
- * passes precomputed stats so the card can self-fire (autoFetch).
- *
- * 13-checklist: T1/T2/T3/T4/T5/T6/T7/T11/T12.
  */
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  Area,
+  AreaChart,
+} from "recharts";
+import { TrendingUp, AlertTriangle, Building2, BarChart3 } from "lucide-react";
 import { useExecutiveDashboard } from "../hooks/useDashboards";
 import {
   DashboardEmptyState,
   DashboardErrorState,
   DashboardLoadingSkeleton,
-  DashboardSection,
   KpiTile,
   TimeRangeSelector,
   asWindowQuery,
@@ -70,8 +68,6 @@ export function ExecutiveDashboard() {
     asWindowQuery(windowDays),
   );
 
-  // Stats payload for the M4 ExecutiveAnomaliesCard mount (S9). The
-  // anomaly card auto-fires once stats arrive (autoFetch=true default).
   const anomaliesStats: AiExecutiveAnomaliesStats | null = useMemo(() => {
     if (!data) return null;
     return {
@@ -140,10 +136,14 @@ export function ExecutiveDashboard() {
             <KpiTile
               label={t("dashboards.executive.kpis.totalActiveValueAed")}
               value={formatAed(data.kpis.totalActiveValueAed)}
+              variant="success"
             />
             <KpiTile
               label={t("dashboards.executive.kpis.openRegulatoryImpactsCritical")}
               value={formatNumber(data.kpis.openRegulatoryImpactsCritical)}
+              variant={
+                data.kpis.openRegulatoryImpactsCritical > 0 ? "risk" : "default"
+              }
             />
             <KpiTile
               label={t("dashboards.executive.kpis.aiCostUsdWindow")}
@@ -166,78 +166,90 @@ export function ExecutiveDashboard() {
             />
           </section>
 
-          {/* Expiry cliffs */}
-          <DashboardSection
-            title={t("dashboards.executive.expiryCliffs.title")}
-            description={t("dashboards.executive.expiryCliffs.description")}
-          >
+          {/* Expiry cliffs hero — colored progressive risk bands */}
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber" />
+              <h3 className="text-sm font-semibold text-ink">
+                {t("dashboards.executive.expiryCliffs.title")}
+              </h3>
+            </div>
+            <p className="mb-3 text-xs text-ink-subtle">
+              {t("dashboards.executive.expiryCliffs.description")}
+            </p>
             <ExpiryCliffsBlock cliffs={data.kpis.expiryCliffs} />
-          </DashboardSection>
+          </section>
 
           {/* Status + value distribution */}
           <div className="grid gap-3 lg:grid-cols-2">
-            <DashboardSection
-              title={t("dashboards.executive.contractsByStatus.title")}
-            >
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.executive.contractsByStatus.title")}
+                </h3>
+              </div>
               {Object.keys(data.kpis.contractsByStatus).length === 0 ? (
                 <DashboardEmptyState />
               ) : (
-                <ul className="grid gap-2 sm:grid-cols-2">
-                  {Object.entries(data.kpis.contractsByStatus).map(
-                    ([status, count]) => (
-                      <li
-                        key={status}
-                        className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2"
-                      >
-                        <span className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
-                          {t(`contractStatus.${status}`, {
-                            defaultValue: status,
-                          })}
-                        </span>
-                        <span className="text-sm font-semibold tabular-nums text-ink">
-                          {formatNumber(count)}
-                        </span>
-                      </li>
-                    ),
-                  )}
-                </ul>
+                <ContractsByStatusChart data={data.kpis.contractsByStatus} />
               )}
-            </DashboardSection>
+            </section>
 
-            <DashboardSection
-              title={t("dashboards.executive.valueDistribution.title")}
-              description={t(
-                "dashboards.executive.valueDistribution.description",
-              )}
-            >
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-1 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.executive.valueDistribution.title")}
+                </h3>
+              </div>
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.executive.valueDistribution.description")}
+              </p>
               <ValueDistributionBlock buckets={data.kpis.valueDistribution} />
-            </DashboardSection>
+            </section>
           </div>
 
           {/* Top counterparties */}
-          <DashboardSection
-            title={t("dashboards.executive.topCounterparties.title")}
-            description={t("dashboards.executive.topCounterparties.description")}
-          >
-            <TopCounterpartiesBlock rows={data.kpis.topCounterpartiesByValue5} />
-          </DashboardSection>
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-1 flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-gold" />
+              <h3 className="text-sm font-semibold text-ink">
+                {t("dashboards.executive.topCounterparties.title")}
+              </h3>
+            </div>
+            <p className="mb-3 text-xs text-ink-subtle">
+              {t("dashboards.executive.topCounterparties.description")}
+            </p>
+            <TopCounterpartiesBlock
+              rows={data.kpis.topCounterpartiesByValue5}
+              totalValue={data.kpis.totalActiveValueAed}
+            />
+          </section>
 
-          {/* Trends */}
+          {/* Trends — recharts */}
           <div className="grid gap-3 lg:grid-cols-2">
-            <DashboardSection
-              title={t("dashboards.executive.trends.valueOverTimeTitle")}
-            >
-              <ValueOverTimeBlock points={data.trends.valueOverTimeByMonth} />
-            </DashboardSection>
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-1 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.executive.trends.valueOverTimeTitle")}
+                </h3>
+              </div>
+              <ValueOverTimeChart points={data.trends.valueOverTimeByMonth} />
+            </section>
 
-            <DashboardSection
-              title={t("dashboards.executive.trends.contractsCreatedTitle")}
-            >
-              <ContractsByMonthBlock points={data.trends.contractsCreatedByMonth} />
-            </DashboardSection>
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-1 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.executive.trends.contractsCreatedTitle")}
+                </h3>
+              </div>
+              <ContractsByMonthChart points={data.trends.contractsCreatedByMonth} />
+            </section>
           </div>
 
-          {/* S9 — Mount existing M4 ExecutiveAnomaliesCard */}
           {anomaliesStats && (
             <ExecutiveAnomaliesCard
               stats={anomaliesStats}
@@ -253,32 +265,95 @@ export function ExecutiveDashboard() {
 
 function ExpiryCliffsBlock({ cliffs }: { cliffs: ExecutiveExpiryCliffs }) {
   const { t } = useTranslation();
+  const max = Math.max(cliffs.next30d, cliffs.next60d, cliffs.next90d, 1);
+  const items = [
+    {
+      key: "next30d",
+      label: t("dashboards.executive.expiryCliffs.next30d"),
+      count: cliffs.next30d,
+      bg: "bg-terracotta",
+      tint: "bg-terracotta/15",
+    },
+    {
+      key: "next60d",
+      label: t("dashboards.executive.expiryCliffs.next60d"),
+      count: cliffs.next60d,
+      bg: "bg-amber",
+      tint: "bg-amber/15",
+    },
+    {
+      key: "next90d",
+      label: t("dashboards.executive.expiryCliffs.next90d"),
+      count: cliffs.next90d,
+      bg: "bg-sage",
+      tint: "bg-sage/15",
+    },
+  ];
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <div className="rounded-md border border-border bg-amber-tint/30 p-3 text-center">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-amber-ink">
-          {t("dashboards.executive.expiryCliffs.next30d")}
-        </p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-          {formatNumber(cliffs.next30d)}
-        </p>
-      </div>
-      <div className="rounded-md border border-border bg-amber-tint/20 p-3 text-center">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-amber-ink">
-          {t("dashboards.executive.expiryCliffs.next60d")}
-        </p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-          {formatNumber(cliffs.next60d)}
-        </p>
-      </div>
-      <div className="rounded-md border border-border bg-amber-tint/10 p-3 text-center">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-amber-ink">
-          {t("dashboards.executive.expiryCliffs.next90d")}
-        </p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-          {formatNumber(cliffs.next90d)}
-        </p>
-      </div>
+      {items.map((it) => {
+        const pct = (it.count / max) * 100;
+        return (
+          <div
+            key={it.key}
+            className={`rounded-md border border-border ${it.tint} p-3`}
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
+                {it.label}
+              </p>
+              <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+                {formatNumber(it.count)}
+              </p>
+            </div>
+            <div className="mt-2 h-1.5 rounded-full bg-muted">
+              <div
+                className={`h-1.5 rounded-full ${it.bg} transition-all`}
+                style={{ width: `${pct}%` }}
+                aria-hidden="true"
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ContractsByStatusChart({ data }: { data: Record<string, number> }) {
+  const { t } = useTranslation();
+  const series = Object.entries(data).map(([status, count]) => ({
+    status,
+    label: t(`contractStatus.${status}`, { defaultValue: status }),
+    count,
+  }));
+  return (
+    <div className="h-56">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          layout="vertical"
+          data={series}
+          margin={{ top: 4, right: 24, left: 4, bottom: 4 }}
+        >
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 10, fill: "var(--ink-muted)" }} />
+          <YAxis
+            type="category"
+            dataKey="label"
+            width={120}
+            tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+          />
+          <Bar dataKey="count" fill="var(--gold)" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -291,7 +366,6 @@ function ValueDistributionBlock({
   const { t } = useTranslation();
   if (buckets.length === 0) return <DashboardEmptyState />;
   const maxCount = Math.max(...buckets.map((b) => b.count), 1);
-
   return (
     <ul className="space-y-2">
       {buckets.map((b) => {
@@ -324,8 +398,10 @@ function ValueDistributionBlock({
 
 function TopCounterpartiesBlock({
   rows,
+  totalValue,
 }: {
   rows: CounterpartyConcentrationRow[];
+  totalValue: number;
 }) {
   const { t } = useTranslation();
   if (rows.length === 0) {
@@ -335,7 +411,7 @@ function TopCounterpartiesBlock({
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="text-left text-xs uppercase tracking-wider text-ink-subtle">
+          <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-subtle">
             <th className="py-2 pe-3 font-medium">
               {t("dashboards.executive.topCounterparties.counterparty")}
             </th>
@@ -345,89 +421,141 @@ function TopCounterpartiesBlock({
             <th className="py-2 pe-3 font-medium tabular-nums">
               {t("dashboards.executive.topCounterparties.contractCount")}
             </th>
+            <th className="py-2 pe-3 font-medium tabular-nums">
+              {t("dashboards.executive.topCounterparties.share", {
+                defaultValue: "Share",
+              })}
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.counterpartyId}
-              className="border-t border-border/60"
-            >
-              <td className="py-2 pe-3">
-                <span className="font-mono text-xs text-ink-subtle">
-                  {t("dashboards.executive.topCounterparties.idLabel", {
-                    id: row.counterpartyId,
-                  })}
-                </span>
-                <span className="ms-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-muted">
-                  {t("dashboards.executive.topCounterparties.namePending")}
-                </span>
-              </td>
-              <td className="py-2 pe-3 tabular-nums text-ink">
-                {formatAed(row.totalValueAed)}
-              </td>
-              <td className="py-2 pe-3 tabular-nums text-ink">
-                {formatNumber(row.contractCount)}
-              </td>
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const share =
+              totalValue > 0
+                ? Math.round((row.totalValueAed / totalValue) * 100)
+                : 0;
+            return (
+              <tr
+                key={row.counterpartyId}
+                className="border-t border-border/60"
+              >
+                <td className="py-2 pe-3">
+                  <span className="font-mono text-xs text-ink-subtle">
+                    {t("dashboards.executive.topCounterparties.idLabel", {
+                      id: row.counterpartyId,
+                    })}
+                  </span>
+                  <span className="ms-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-muted">
+                    {t("dashboards.executive.topCounterparties.namePending")}
+                  </span>
+                </td>
+                <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+                  {formatAed(row.totalValueAed)}
+                </td>
+                <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+                  {formatNumber(row.contractCount)}
+                </td>
+                <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-block h-1.5 w-12 rounded-full bg-muted">
+                      <span
+                        className="block h-1.5 rounded-full bg-gold"
+                        style={{ width: `${share}%` }}
+                      />
+                    </span>
+                    {share}%
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
 }
 
-function ValueOverTimeBlock({ points }: { points: TrendMonthValueAed[] }) {
-  const { t } = useTranslation();
+function ValueOverTimeChart({ points }: { points: TrendMonthValueAed[] }) {
   if (points.length === 0) return <DashboardEmptyState />;
   return (
-    <table className="min-w-full text-xs">
-      <thead>
-        <tr className="text-left text-ink-subtle">
-          <th className="py-1 pe-3 font-medium">{t("dashboards.common.month")}</th>
-          <th className="py-1 pe-3 font-medium tabular-nums">
-            {t("dashboards.common.totalValue")}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {points.map((p) => (
-          <tr key={p.month} className="border-t border-border/60">
-            <td className="py-1 pe-3 font-mono text-ink">{p.month}</td>
-            <td className="py-1 pe-3 tabular-nums text-ink">
-              {formatAed(p.totalValueAed)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="h-56">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart
+          data={points}
+          margin={{ top: 8, right: 12, left: 4, bottom: 8 }}
+        >
+          <defs>
+            <linearGradient id="execValueArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#B8935A" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="#B8935A" stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+          <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--ink-muted)" }} />
+          <YAxis
+            tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+            tickFormatter={(v: number) =>
+              v >= 1_000_000
+                ? `${(v / 1_000_000).toFixed(1)}M`
+                : v >= 1_000
+                  ? `${Math.round(v / 1_000)}k`
+                  : String(v)
+            }
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+            formatter={(v: number) => formatAed(v)}
+          />
+          <Area
+            type="monotone"
+            dataKey="totalValueAed"
+            stroke="#B8935A"
+            strokeWidth={2}
+            fill="url(#execValueArea)"
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
-function ContractsByMonthBlock({ points }: { points: TrendMonthCount[] }) {
-  const { t } = useTranslation();
+function ContractsByMonthChart({ points }: { points: TrendMonthCount[] }) {
   if (points.length === 0) return <DashboardEmptyState />;
   return (
-    <table className="min-w-full text-xs">
-      <thead>
-        <tr className="text-left text-ink-subtle">
-          <th className="py-1 pe-3 font-medium">{t("dashboards.common.month")}</th>
-          <th className="py-1 pe-3 font-medium tabular-nums">
-            {t("dashboards.common.count")}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {points.map((p) => (
-          <tr key={p.month} className="border-t border-border/60">
-            <td className="py-1 pe-3 font-mono text-ink">{p.month}</td>
-            <td className="py-1 pe-3 tabular-nums text-ink">
-              {formatNumber(p.count)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="h-56">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={points}
+          margin={{ top: 8, right: 12, left: 4, bottom: 8 }}
+        >
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+          <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--ink-muted)" }} />
+          <YAxis tick={{ fontSize: 10, fill: "var(--ink-muted)" }} allowDecimals={false} />
+          <Tooltip
+            contentStyle={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="count"
+            stroke="#5B8374"
+            strokeWidth={2.5}
+            dot={{ fill: "#5B8374", r: 3, strokeWidth: 0 }}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
