@@ -26,7 +26,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { RefreshCw, AlertCircle } from "lucide-react";
+import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { translateApiError } from "@/lib/translate-api-error";
@@ -64,6 +64,22 @@ export function ApprovalsListView() {
   const items = data?.data ?? [];
   const pagination = data?.pagination;
 
+  const slaBreaches = useMemo(
+    () => items.filter((i) => i.hoursPending > 24).length,
+    [items],
+  );
+  const avgWaitHours = useMemo(() => {
+    if (items.length === 0) return 0;
+    return Math.round(
+      items.reduce((s, i) => s + i.hoursPending, 0) / items.length,
+    );
+  }, [items]);
+  const totalValue = useMemo(
+    () =>
+      items.reduce((s, i) => s + (i.valueAed ?? 0), 0),
+    [items],
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -94,6 +110,56 @@ export function ApprovalsListView() {
           {t("common.retry")}
         </Button>
       </header>
+
+      {/* Stat strip */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-gold" />
+            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              {t("approval.list.stats.pending", { defaultValue: "Pending decisions" })}
+            </p>
+          </div>
+          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
+            {pagination?.total ?? items.length}
+          </p>
+        </div>
+        <div className={`rounded-lg border border-border bg-card p-4 ${slaBreaches > 0 ? "border-l-2 border-l-terracotta" : ""}`}>
+          <div className="flex items-center gap-2">
+            <Zap className={`h-4 w-4 ${slaBreaches > 0 ? "text-terracotta" : "text-ink-subtle"}`} />
+            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              {t("approval.list.stats.slaBreaches", { defaultValue: "SLA breaches (>24h)" })}
+            </p>
+          </div>
+          <p className={`mt-1.5 font-mono text-2xl font-semibold ${slaBreaches > 0 ? "text-terracotta" : "text-ink"}`}>
+            {slaBreaches}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-ink-subtle" />
+            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              {t("approval.list.stats.avgWait", { defaultValue: "Avg waiting" })}
+            </p>
+          </div>
+          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
+            {avgWaitHours}h
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+            {t("approval.list.stats.totalValue", { defaultValue: "Pending value" })}
+          </p>
+          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
+            {totalValue >= 1_000_000
+              ? `${(totalValue / 1_000_000).toFixed(1)}M`
+              : totalValue >= 1_000
+                ? `${Math.round(totalValue / 1_000)}k`
+                : totalValue.toLocaleString()}{" "}
+            <span className="font-mono text-xs text-ink-subtle">AED</span>
+          </p>
+        </div>
+      </section>
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
@@ -260,6 +326,7 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
     days >= 1
       ? t("approval.list.daysAgo", { count: days })
       : t("approval.list.hoursAgo", { count: Math.floor(hoursPending) });
+  const breach = hoursPending > 24;
 
   return (
     <tr className="border-b border-border/60 transition-colors hover:bg-surface/50">
@@ -301,7 +368,20 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
           </span>
         )}
       </td>
-      <td className="px-4 py-3 text-ink-muted">{pendingLabel}</td>
+      <td className="px-4 py-3">
+        <span
+          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${
+            breach
+              ? "bg-terracotta/10 text-terracotta"
+              : hoursPending > 8
+                ? "bg-amber-tint/40 text-amber-ink"
+                : "text-ink-muted"
+          }`}
+        >
+          {breach && <Zap className="h-3 w-3" />}
+          {pendingLabel}
+        </span>
+      </td>
       <td className="px-4 py-3 text-end">
         <Button type="button" size="sm" onClick={() => onAct(row)}>
           {t("approval.list.actAction")}

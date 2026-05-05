@@ -49,6 +49,17 @@ import {
   Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useAdminDashboard } from "../hooks/useDashboards";
 import {
   DashboardErrorState,
@@ -198,39 +209,28 @@ export function AdminDashboard({
             )}
           </DashboardSection>
 
-          {/* Trends — kept as compact summary lists in the absence of a chart lib */}
+          {/* Trends — recharts */}
           {!isTileGrid && (
             <div className="grid gap-3 lg:grid-cols-2">
-              <DashboardSection
-                title={t("dashboards.admin.trends.contractsCreatedTitle")}
-                description={t(
-                  "dashboards.admin.trends.contractsCreatedDescription",
-                )}
-              >
-                <TrendDayList
-                  data={data.trends.contractsCreatedByDay.map((p) => ({
-                    date: p.date,
-                    primary: p.count,
-                    secondary: null,
-                  }))}
-                  primaryLabel={t("dashboards.admin.trends.created")}
-                />
-              </DashboardSection>
+              <section className="rounded-lg border border-border bg-card p-4">
+                <h3 className="mb-1 text-sm font-semibold text-ink">
+                  {t("dashboards.admin.trends.contractsCreatedTitle")}
+                </h3>
+                <p className="mb-3 text-xs text-ink-subtle">
+                  {t("dashboards.admin.trends.contractsCreatedDescription")}
+                </p>
+                <ContractsCreatedChart points={data.trends.contractsCreatedByDay} />
+              </section>
 
-              <DashboardSection
-                title={t("dashboards.admin.trends.decisionsTitle")}
-                description={t("dashboards.admin.trends.decisionsDescription")}
-              >
-                <TrendDayList
-                  data={data.trends.approvalDecisionsByDay.map((p) => ({
-                    date: p.date,
-                    primary: p.approved,
-                    secondary: p.rejected,
-                  }))}
-                  primaryLabel={t("dashboards.admin.trends.approved")}
-                  secondaryLabel={t("dashboards.admin.trends.rejected")}
-                />
-              </DashboardSection>
+              <section className="rounded-lg border border-border bg-card p-4">
+                <h3 className="mb-1 text-sm font-semibold text-ink">
+                  {t("dashboards.admin.trends.decisionsTitle")}
+                </h3>
+                <p className="mb-3 text-xs text-ink-subtle">
+                  {t("dashboards.admin.trends.decisionsDescription")}
+                </p>
+                <DecisionsChart points={data.trends.approvalDecisionsByDay} />
+              </section>
             </div>
           )}
 
@@ -289,59 +289,100 @@ export function AdminDashboard({
   );
 }
 
-interface TrendPoint {
-  date: string;
-  primary: number;
-  secondary: number | null;
+function ContractsCreatedChart({
+  points,
+}: {
+  points: Array<{ date: string; count: number }>;
+}) {
+  if (points.length === 0) return <DashboardEmptyState />;
+  return (
+    <div className="h-48">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart
+          data={points}
+          margin={{ top: 8, right: 12, left: 4, bottom: 4 }}
+        >
+          <defs>
+            <linearGradient id="adminCreatedArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#B8935A" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="#B8935A" stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+            tickFormatter={(v: string) => v.slice(5)}
+          />
+          <YAxis
+            tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+            allowDecimals={false}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="count"
+            stroke="#B8935A"
+            strokeWidth={2}
+            fill="url(#adminCreatedArea)"
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }
 
-function TrendDayList({
-  data,
-  primaryLabel,
-  secondaryLabel,
+function DecisionsChart({
+  points,
 }: {
-  data: TrendPoint[];
-  primaryLabel: string;
-  secondaryLabel?: string;
+  points: Array<{ date: string; approved: number; rejected: number }>;
 }) {
   const { t } = useTranslation();
-  if (data.length === 0) return <DashboardEmptyState />;
-
-  // Compact horizontal scroll list — no chart lib.
+  if (points.length === 0) return <DashboardEmptyState />;
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-xs">
-        <thead>
-          <tr className="text-left text-ink-subtle">
-            <th className="py-1 pe-3 font-medium">
-              {t("dashboards.common.date")}
-            </th>
-            <th className="py-1 pe-3 font-medium tabular-nums">
-              {primaryLabel}
-            </th>
-            {secondaryLabel && (
-              <th className="py-1 pe-3 font-medium tabular-nums">
-                {secondaryLabel}
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((p) => (
-            <tr key={p.date} className="border-t border-border/60">
-              <td className="py-1 pe-3 font-mono text-ink">{p.date}</td>
-              <td className="py-1 pe-3 tabular-nums text-ink">
-                {formatNumber(p.primary)}
-              </td>
-              {secondaryLabel && (
-                <td className="py-1 pe-3 tabular-nums text-ink">
-                  {formatNumber(p.secondary)}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="h-48">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={points} margin={{ top: 8, right: 12, left: 4, bottom: 4 }}>
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+            tickFormatter={(v: string) => v.slice(5)}
+          />
+          <YAxis
+            tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+            allowDecimals={false}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--card)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              fontSize: 11,
+            }}
+          />
+          <Bar
+            dataKey="approved"
+            stackId="a"
+            fill="#5B8374"
+            name={t("dashboards.admin.trends.approved", { defaultValue: "Approved" })}
+          />
+          <Bar
+            dataKey="rejected"
+            stackId="a"
+            fill="#C4634D"
+            name={t("dashboards.admin.trends.rejected", { defaultValue: "Rejected" })}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
