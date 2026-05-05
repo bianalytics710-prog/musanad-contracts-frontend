@@ -5,7 +5,7 @@
  * Redirects to /auth/login if the auth store is empty.
  */
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { AppLayout } from "@/components/common/AppLayout";
+import { AppShell } from "@/components/shell/AppShell";
 import { useAuthStore } from "@/store/auth.store";
 
 export const Route = createFileRoute("/app")({
@@ -23,8 +23,8 @@ export const Route = createFileRoute("/app")({
 
 function AppShellRoute() {
   return (
-    <AppLayout>
+    <AppShell>
       <Outlet />
-    </AppLayout>
+    </AppShell>
   );
 }
