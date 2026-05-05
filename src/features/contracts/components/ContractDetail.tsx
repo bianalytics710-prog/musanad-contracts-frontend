@@ -25,18 +25,21 @@
  *   AC-S2-04 — bodyEn/bodyAr displayed but never console.logged (T13).
  *   AC-S2-05 — drafted_by/reviewed_by/approved_by null when user soft-deleted.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Download,
+  FileSignature,
   GitBranch,
   History,
   PencilLine,
   Trash2,
+  TrendingUp,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -148,7 +151,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       <Breadcrumb contractNumber={contract.contractNumber} />
 
       {/* Header card */}
-      <Card>
+      <Card className="border-l-4 border-l-gold">
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -196,6 +199,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Metric strip */}
+      <ContractMetricStrip contract={contract} />
 
       {/* Tabs */}
       <div
@@ -277,6 +283,92 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+function ContractMetricStrip({ contract }: { contract: Contract }) {
+  const { t } = useTranslation();
+  const daysToExpiry = useMemo(() => {
+    if (!contract.endDate) return null;
+    const end = new Date(contract.endDate).getTime();
+    return Math.floor((end - Date.now()) / (1000 * 60 * 60 * 24));
+  }, [contract.endDate]);
+
+  const expiryClass =
+    daysToExpiry == null
+      ? "text-ink-muted"
+      : daysToExpiry < 0
+        ? "text-terracotta"
+        : daysToExpiry <= 30
+          ? "text-amber-ink"
+          : "text-ink";
+
+  const expiryLabel =
+    daysToExpiry == null
+      ? "—"
+      : daysToExpiry < 0
+        ? t("contracts.detail.metrics.expiredAgo", {
+            count: Math.abs(daysToExpiry),
+            defaultValue: "Expired {{count}}d ago",
+          })
+        : t("contracts.detail.metrics.expiresIn", {
+            count: daysToExpiry,
+            defaultValue: "{{count}} d to expiry",
+          });
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="rounded-lg border border-border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <Wallet className="h-3.5 w-3.5 text-gold" />
+          <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+            {t("contracts.fields.valueAed")}
+          </p>
+        </div>
+        <p className="mt-1.5 font-mono text-xl font-semibold text-ink">
+          {contract.valueAed === null
+            ? "—"
+            : `${contract.currency} ${contract.valueAed.toLocaleString()}`}
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <CalendarClock className={`h-3.5 w-3.5 ${expiryClass}`} />
+          <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+            {t("contracts.detail.metrics.expiry", { defaultValue: "Expiry" })}
+          </p>
+        </div>
+        <p className={`mt-1.5 font-mono text-xl font-semibold ${expiryClass}`}>
+          {expiryLabel}
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <FileSignature className="h-3.5 w-3.5 text-ink-subtle" />
+          <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+            {t("contracts.detail.metrics.attachments", {
+              defaultValue: "Attachments",
+            })}
+          </p>
+        </div>
+        <p className="mt-1.5 font-mono text-xl font-semibold text-ink">
+          {contract.attachmentCount}
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-3.5 w-3.5 text-ink-subtle" />
+          <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+            {t("contracts.detail.metrics.versions", {
+              defaultValue: "Versions",
+            })}
+          </p>
+        </div>
+        <p className="mt-1.5 font-mono text-xl font-semibold text-ink">
+          v{contract.currentVersion}
+        </p>
+      </div>
+    </section>
+  );
+}
 
 interface BreadcrumbProps {
   contractNumber: string;

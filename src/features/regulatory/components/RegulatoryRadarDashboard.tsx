@@ -35,7 +35,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Plus, RefreshCw, Search, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  RefreshCw,
+  Search,
+  AlertCircle,
+  Radar as RadarIcon,
+  Zap,
+  Clock,
+  Shield,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -149,6 +158,19 @@ export function RegulatoryRadarDashboard() {
     [categoriesData],
   );
 
+  const stats = useMemo(() => {
+    const all = data?.data ?? [];
+    const critical = all.filter((u) => u.severity === "critical").length;
+    const high = all.filter((u) => u.severity === "high").length;
+    const next30 = all.filter((u) => {
+      if (!u.effectiveDate) return false;
+      const ed = new Date(u.effectiveDate).getTime();
+      const days = (ed - Date.now()) / (1000 * 60 * 60 * 24);
+      return days >= 0 && days <= 30;
+    }).length;
+    return { total: all.length, critical, high, next30 };
+  }, [data]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -191,6 +213,54 @@ export function RegulatoryRadarDashboard() {
           )}
         </div>
       </header>
+
+      {/* Stat strip */}
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center gap-2">
+            <RadarIcon className="h-4 w-4 text-gold" />
+            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              {t("regulatory.radar.stats.total", { defaultValue: "Tracked updates" })}
+            </p>
+          </div>
+          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
+            {stats.total}
+          </p>
+        </div>
+        <div className={`rounded-lg border border-border bg-card p-4 ${stats.critical > 0 ? "border-l-2 border-l-terracotta" : ""}`}>
+          <div className="flex items-center gap-2">
+            <Zap className={`h-4 w-4 ${stats.critical > 0 ? "text-terracotta" : "text-ink-subtle"}`} />
+            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              {t("regulatory.radar.stats.critical", { defaultValue: "Critical" })}
+            </p>
+          </div>
+          <p className={`mt-1.5 font-mono text-2xl font-semibold ${stats.critical > 0 ? "text-terracotta" : "text-ink"}`}>
+            {stats.critical}
+          </p>
+        </div>
+        <div className={`rounded-lg border border-border bg-card p-4 ${stats.high > 0 ? "border-l-2 border-l-amber" : ""}`}>
+          <div className="flex items-center gap-2">
+            <Shield className={`h-4 w-4 ${stats.high > 0 ? "text-amber-ink" : "text-ink-subtle"}`} />
+            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              {t("regulatory.radar.stats.high", { defaultValue: "High" })}
+            </p>
+          </div>
+          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
+            {stats.high}
+          </p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-ink-subtle" />
+            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              {t("regulatory.radar.stats.next30", { defaultValue: "Effective in 30 days" })}
+            </p>
+          </div>
+          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
+            {stats.next30}
+          </p>
+        </div>
+      </section>
 
       <Card>
         <CardContent className="space-y-3 pt-6">
