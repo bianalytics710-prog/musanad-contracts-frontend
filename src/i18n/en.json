@@ -5245,5 +5245,305 @@
       "nameEnRequired": "English name is required.",
       "nameArRequired": "Arabic name is required."
     }
+  },
+  "dashboards": {
+    "common": {
+      "timeRangeLabel": "Time range",
+      "range": {
+        "last_7d": "Last 7 days",
+        "last_30d": "Last 30 days",
+        "last_90d": "Last 90 days",
+        "custom": "Custom",
+        "customDaysLabel": "Days"
+      },
+      "featurePending": "Feature pending — coming in a future module.",
+      "emptyList": "Nothing to show yet.",
+      "noDataDash": "—",
+      "hoursAbbrev": "h",
+      "updated": "Updated {{when}}",
+      "detected": "Detected",
+      "effective": "Effective",
+      "date": "Date",
+      "month": "Month",
+      "count": "Count",
+      "totalValue": "Total value",
+      "openContractAria": "Open contract {{number}} — {{title}}",
+      "severity": {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "unknown": "Unknown"
+      }
+    },
+    "admin": {
+      "title": "Admin Dashboard",
+      "landingTitle": "Admin Landing",
+      "subtitle": "System-wide KPIs and recent activity.",
+      "kpiGroupLabel": "Admin key performance indicators",
+      "kpis": {
+        "totalContractsActive": "Active contracts",
+        "expiringWithin30d": "Expiring in 30 days",
+        "expiringWithin90d": "Expiring in 90 days",
+        "pendingApprovals": "Pending approvals",
+        "pendingSignatures": "Pending signatures",
+        "openRegulatoryImpacts": "Open regulatory impacts",
+        "recentAuditEvents": "Recent audit events",
+        "totalActiveUsers": "Active users"
+      },
+      "contractsByStatus": {
+        "title": "Contracts by status",
+        "description": "Live distribution across all active contracts."
+      },
+      "trends": {
+        "contractsCreatedTitle": "Contracts created",
+        "contractsCreatedDescription": "Daily count over the selected window.",
+        "decisionsTitle": "Approval decisions",
+        "decisionsDescription": "Approve / reject counts per day.",
+        "created": "Created",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "tileGrid": {
+        "quickActionsTitle": "Quick actions",
+        "contracts": "Contracts",
+        "approvals": "Approvals",
+        "regulatoryRadar": "Regulatory Radar",
+        "imports": "Imports",
+        "aiRequests": "AI requests",
+        "health": "System health",
+        "aiCosts": "AI costs"
+      },
+      "errors": {
+        "loadFailed": "Could not load the admin dashboard."
+      }
+    },
+    "drafter": {
+      "title": "Drafter Dashboard",
+      "subtitle": "Your drafts and what is awaiting your action.",
+      "kpiGroupLabel": "Drafter key performance indicators",
+      "kpis": {
+        "myDraftsCount": "My drafts",
+        "awaitingMyActionCount": "Awaiting my action",
+        "readyToSendCount": "Ready to send",
+        "myRecentlyApprovedCount": "Recently approved"
+      },
+      "lists": {
+        "myDraftsTitle": "My drafts",
+        "myDraftsDescription": "Latest drafts you authored.",
+        "awaitingMyActionTitle": "Awaiting my action",
+        "awaitingMyActionDescription": "Items returned for revision."
+      },
+      "lastDecisionNote": "Last decision note",
+      "errors": {
+        "loadFailed": "Could not load the drafter dashboard."
+      }
+    },
+    "approver": {
+      "title": "Approver Dashboard",
+      "subtitle": "Your queue and decision metrics.",
+      "kpiGroupLabel": "Approver key performance indicators",
+      "kpis": {
+        "pendingMyApprovalCount": "Pending my approval",
+        "pendingMyApprovalCountHelper": "Includes delegated and reassigned items.",
+        "decidedByMeCount": "Decided by me",
+        "averageDecisionHoursMine": "Avg. hours (mine)",
+        "averageDecisionHoursTeam": "Avg. hours (team)"
+      },
+      "lists": {
+        "pendingQueueTitle": "Pending queue",
+        "pendingQueueDescription": "Top 5 contracts awaiting your decision.",
+        "contract": "Contract",
+        "value": "Value",
+        "requestedAt": "Requested",
+        "hoursWaiting": "Hours waiting"
+      },
+      "errors": {
+        "loadFailed": "Could not load the approver dashboard."
+      }
+    },
+    "legalCounsel": {
+      "title": "Legal Counsel Dashboard",
+      "subtitle": "Regulatory updates, impacts and audit visibility.",
+      "kpiGroupLabel": "Legal counsel key performance indicators",
+      "kpis": {
+        "regulatoryUpdatesThisWindow": "Regulatory updates",
+        "openRegulatoryImpacts": "Open impacts",
+        "criticalSeverityCount": "Critical severity",
+        "regulationCatalogSize": "Regulation catalogue size",
+        "templateUsageThisWindow": "Template usage",
+        "templateUsageHint": "Coming with the Templates module — this tile is intentionally disabled.",
+        "auditEventsLabel": "Audit events",
+        "auditSummaryDenied": "You don't have the audit.read permission to view this breakdown."
+      },
+      "auditSummary": {
+        "title": "Audit events by table",
+        "description": "Counts grouped by audited table name."
+      },
+      "lists": {
+        "recentRegulatoryUpdatesTitle": "Recent regulatory updates",
+        "recentRegulatoryUpdatesDescription": "Top 5 most recent updates.",
+        "openImpactsTitle": "Open impacts",
+        "openImpactsDescription": "Top 5 unresolved regulatory impacts."
+      },
+      "errors": {
+        "loadFailed": "Could not load the legal counsel dashboard."
+      }
+    },
+    "recipient": {
+      "title": "Recipient Dashboard",
+      "subtitle": "Your contracts and signature inbox.",
+      "kpiGroupLabel": "Recipient key performance indicators",
+      "kpis": {
+        "myContractsCount": "My contracts",
+        "pendingMySignatureCount": "Pending my signature",
+        "signedByMeWindow": "Signed by me",
+        "signedByMeWindowHelper": "Counts internal signatures only — external invitation signers are not included.",
+        "myObligationsCount": "My obligations",
+        "myObligationsHint": "Coming with the Obligations module — this tile is intentionally disabled."
+      },
+      "lists": {
+        "myContractsTitle": "My contracts",
+        "myContractsDescription": "Contracts where you are listed as a signatory.",
+        "pendingSignaturesTitle": "Pending signatures",
+        "pendingSignaturesDescription": "Active invitations addressed to you.",
+        "counterpartyPending": "Counterparty details: pending",
+        "invitationSent": "Invitation sent",
+        "invitationExpires": "Expires"
+      },
+      "errors": {
+        "loadFailed": "Could not load the recipient dashboard."
+      }
+    },
+    "insightsRouter": {
+      "title": "Insights",
+      "detecting": "Detecting your dashboard…",
+      "redirecting": "Taking you to the {{dashboard}} dashboard…",
+      "target": {
+        "admin": "Admin",
+        "drafter": "Drafter",
+        "approver": "Approver",
+        "legal_counsel": "Legal Counsel",
+        "recipient": "Recipient",
+        "executive": "Executive"
+      },
+      "errors": {
+        "loadFailed": "Could not detect your dashboard."
+      }
+    },
+    "executive": {
+      "title": "Executive Dashboard",
+      "subtitle": "Enterprise-wide view of contract value and risk.",
+      "kpiGroupLabel": "Executive key performance indicators",
+      "kpis": {
+        "totalActiveValueAed": "Total active value",
+        "openRegulatoryImpactsCritical": "Critical regulatory impacts",
+        "aiCostUsdWindow": "AI cost (USD)",
+        "aiCostHelper": "Capped at the last 90 days.",
+        "aiCostDenied": "You don't have the ai.observability.read permission to view AI costs.",
+        "windowDays": "Window (days)",
+        "windowDaysHelper": "Default 90 days; up to 365."
+      },
+      "expiryCliffs": {
+        "title": "Expiry cliffs",
+        "description": "Contracts expiring in the next 30 / 60 / 90 days.",
+        "next30d": "Next 30 days",
+        "next60d": "Next 60 days",
+        "next90d": "Next 90 days"
+      },
+      "contractsByStatus": {
+        "title": "Contracts by status"
+      },
+      "valueDistribution": {
+        "title": "Value distribution",
+        "description": "Contract count by AED bucket.",
+        "bucket": {
+          "<100k": "Below 100k",
+          "100k-1M": "100k – 1M",
+          "1M-10M": "1M – 10M",
+          "10M+": "Above 10M"
+        }
+      },
+      "topCounterparties": {
+        "title": "Top counterparties",
+        "description": "By total active contract value (top 5).",
+        "counterparty": "Counterparty",
+        "totalValue": "Total value",
+        "contractCount": "Contracts",
+        "idLabel": "ID #{{id}}",
+        "namePending": "Name pending"
+      },
+      "trends": {
+        "valueOverTimeTitle": "Value over time",
+        "contractsCreatedTitle": "Contracts created"
+      },
+      "errors": {
+        "loadFailed": "Could not load the executive dashboard."
+      }
+    },
+    "executiveAnomalies": {
+      "title": "Executive anomalies",
+      "subtitle": "AI-detected anomalies in your contract portfolio.",
+      "historyTitle": "Cached anomalies",
+      "historyDescription": "Most recent anomaly snapshots from the AI cache.",
+      "limitLabel": "Limit",
+      "refreshAria": "Refresh anomalies history",
+      "detectedAt": "Detected",
+      "unsummarized": "(no summary available)",
+      "emptyTitle": "No anomalies cached yet",
+      "emptyDescription": "Run the executive anomalies detection from the executive dashboard to populate this list.",
+      "errors": {
+        "loadFailed": "Could not load the anomalies history."
+      }
+    },
+    "aiCost": {
+      "title": "AI cost summary",
+      "totalCostUsdWindow": "Total cost (USD)",
+      "totalRequestsWindow": "Total requests",
+      "cacheHitRatioOverall": "Cache hit ratio",
+      "noRequestsHelper": "No requests in this window.",
+      "topPromptsTitle": "Top prompts by cost",
+      "promptId": "Prompt",
+      "requestCount": "Requests",
+      "totalCostUsd": "Cost (USD)",
+      "cacheHitRatio": "Cache hits",
+      "noPrompts": "No prompt activity in this window.",
+      "errors": {
+        "loadFailed": "Could not load the AI cost summary."
+      }
+    },
+    "adminHealth": {
+      "title": "System health",
+      "subtitle": "Live status of database and AI subsystems.",
+      "refreshAria": "Refresh health probe",
+      "overall": {
+        "ok": "All systems operational",
+        "degraded": "Degraded service",
+        "unhealthy": "Service unhealthy"
+      },
+      "overallDescription": "Combined database and AI status. Auto-refreshes every 60 seconds.",
+      "db": {
+        "title": "Database",
+        "status": "Status",
+        "statusValue": {
+          "ok": "Healthy",
+          "degraded": "Degraded"
+        },
+        "latestMigration": "Latest migration",
+        "latestMigrationNullHint": "schema_migrations is unreadable on this connection — verify migration 054 (schema_migrations_select_admin policy) was applied.",
+        "currentTimestamp": "Server time"
+      },
+      "ai": {
+        "title": "AI subsystem",
+        "estimatedHealthy": "Estimated health",
+        "healthy": "Healthy",
+        "degraded": "Degraded",
+        "lastSuccessfulRequestAt": "Last successful request",
+        "lastFailureAt": "Last failure"
+      },
+      "errors": {
+        "loadFailed": "Could not load the system health probe."
+      }
+    }
   }
 }

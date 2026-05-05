@@ -10,6 +10,15 @@
  *                  collapsed preview; the full body is gated behind an
  *                  expand toggle (and never logged).
  *   AC-S9-05..06 — error path surfaced via data-state branches.
+ *
+ * M6 S10: MOUNTS the M4 VersionDiffSummaryPanel inside the expanded view
+ * when an adjacent version pair is available — closes M4-FE-OI-2 (half 2).
+ * This is a harden-mode addition: the existing component shape is
+ * preserved; the panel slot is added inside the expanded body. The panel
+ * fetches the diff summary from POST /api/v1/ai/version-diff-summary
+ * (M4 endpoint). modifiedClauses is empty by default — the panel will
+ * still render summary text generated from additions/deletions when we
+ * pass empty clauses.
  */
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -21,6 +30,8 @@ import { formatDateTime } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
 import { ContractVersionCreateDialog } from "./ContractVersionCreateDialog";
 import type { ContractVersion } from "@/types/entities/contract.types";
+import { VersionDiffSummaryPanel } from "@/features/ai/components/VersionDiffSummaryPanel";
+import type { AiLanguage } from "@/types/entities/ai.types";
 
 interface ContractVersionListProps {
   contractId: number;
@@ -29,12 +40,15 @@ interface ContractVersionListProps {
 }
 
 export function ContractVersionList({ contractId, canCreate = false }: ContractVersionListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data, isLoading, isError, error, refetch } = useContractVersions(contractId, {});
   const [createOpen, setCreateOpen] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
 
   const versions = data?.data ?? [];
+  // S10 — derive an adjacent version pair (newest-first list) so the M4
+  // VersionDiffSummaryPanel can summarize prevVersion → currentVersion.
+  const language: AiLanguage = i18n.language?.startsWith("ar") ? "ar" : "en";
 
   return (
     <Card>
@@ -69,14 +83,22 @@ export function ContractVersionList({ contractId, canCreate = false }: ContractV
           <p className="text-sm text-ink-muted">{t("contracts.versions.empty")}</p>
         ) : (
           <ul className="divide-y divide-border">
-            {versions.map((v) => (
-              <VersionItem
-                key={v.id}
-                version={v}
-                expanded={expanded === v.id}
-                onToggle={() => setExpanded((prev) => (prev === v.id ? null : v.id))}
-              />
-            ))}
+            {versions.map((v, idx) => {
+              // S10 — pair this version with the next-older version
+              // (newest-first list, so older = idx + 1) for the diff panel.
+              const olderVersion = versions[idx + 1] ?? null;
+              return (
+                <VersionItem
+                  key={v.id}
+                  version={v}
+                  olderVersion={olderVersion}
+                  contractId={contractId}
+                  language={language}
+                  expanded={expanded === v.id}
+                  onToggle={() => setExpanded((prev) => (prev === v.id ? null : v.id))}
+                />
+              );
+            })}
           </ul>
         )}
       </CardContent>
@@ -94,11 +116,22 @@ export function ContractVersionList({ contractId, canCreate = false }: ContractV
 
 interface VersionItemProps {
   version: ContractVersion;
+  /** The next-older version, used to fuel the M4 diff-summary panel (S10). */
+  olderVersion: ContractVersion | null;
+  contractId: number;
+  language: AiLanguage;
   expanded: boolean;
   onToggle: () => void;
 }
 
-function VersionItem({ version, expanded, onToggle }: VersionItemProps) {
+function VersionItem({
+  version,
+  olderVersion,
+  contractId,
+  language,
+  expanded,
+  onToggle,
+}: VersionItemProps) {
   const { t } = useTranslation();
   const Chevron = expanded ? ChevronDown : ChevronRight;
   const actor = version.changedBy
@@ -151,6 +184,23 @@ function VersionItem({ version, expanded, onToggle }: VersionItemProps) {
                 <BodyPreview label={t("contracts.fields.bodyAr")} body={version.bodyAr} rtl />
               )}
             </div>
+          )}
+
+          {/* S10 — Mount existing M4 VersionDiffSummaryPanel when an
+              adjacent older version exists. additions/deletions/clauses
+              come from the version pair; the panel triggers
+              POST /api/v1/ai/version-diff-summary on demand. */}
+          {olderVersion && (
+            <VersionDiffSummaryPanel
+              contractId={contractId}
+              leftVersionId={olderVersion.id}
+              rightVersionId={version.id}
+              additions={version.bodyEn ?? ""}
+              deletions={olderVersion.bodyEn ?? ""}
+              modifiedClauses={[]}
+              language={language}
+              autoFetch={false}
+            />
           )}
         </div>
       )}
