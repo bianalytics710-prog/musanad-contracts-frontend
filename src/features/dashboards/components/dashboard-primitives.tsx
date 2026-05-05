@@ -27,7 +27,6 @@ import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import type { TFunction } from "i18next";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { translateApiError } from "@/lib/translate-api-error";
 import { cn } from "@/lib/utils";
 import type { ApiError } from "@/lib/api-client";
@@ -47,6 +46,8 @@ export interface KpiTileProps {
   disabled?: boolean;
   /** Tooltip / title text — surfaced on disabled placeholder tiles. */
   hint?: string;
+  /** Visual accent — left border colour-codes the tile. */
+  variant?: "default" | "risk" | "warning" | "success";
   className?: string;
 }
 
@@ -56,37 +57,37 @@ export function KpiTile({
   helper,
   disabled,
   hint,
+  variant = "default",
   className,
 }: KpiTileProps) {
   return (
-    <Card
+    <div
       className={cn(
-        "transition-colors",
+        "rounded-lg border border-border bg-card p-4 transition-colors",
+        variant === "risk" && "border-l-2 border-l-terracotta",
+        variant === "warning" && "border-l-2 border-l-amber",
+        variant === "success" && "border-l-2 border-l-sage",
         disabled && "border-dashed bg-muted/40 text-ink-muted",
         className,
       )}
       title={hint}
       aria-disabled={disabled || undefined}
     >
-      <CardHeader className="pb-1">
-        <CardTitle className="text-xs font-medium uppercase tracking-wider text-ink-subtle">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div
-          className={cn(
-            "text-2xl font-semibold tabular-nums",
-            disabled ? "text-ink-subtle" : "text-ink",
-          )}
-        >
-          {value}
-        </div>
-        {helper && (
-          <p className="mt-1 text-xs text-ink-muted">{helper}</p>
+      <div className="mb-2 font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "font-mono text-2xl font-semibold tracking-tight tabular-nums",
+          disabled ? "text-ink-subtle" : "text-ink",
         )}
-      </CardContent>
-    </Card>
+      >
+        {value}
+      </div>
+      {helper && (
+        <p className="mt-1 font-mono text-[11px] text-ink-subtle">{helper}</p>
+      )}
+    </div>
   );
 }
 
@@ -321,20 +322,23 @@ export function DashboardSection({
   className,
 }: DashboardSectionProps) {
   return (
-    <Card className={className}>
-      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
+    <div
+      className={cn(
+        "rounded-lg border border-border bg-card p-5 transition hover:border-gold/30",
+        className,
+      )}
+    >
+      <div className="mb-3 flex flex-row items-start justify-between gap-2 border-b border-border pb-3">
         <div>
-          <CardTitle className="text-sm font-semibold text-ink">
-            {title}
-          </CardTitle>
+          <div className="text-sm font-semibold text-ink">{title}</div>
           {description && (
             <p className="mt-0.5 text-xs text-ink-muted">{description}</p>
           )}
         </div>
         {action}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+      </div>
+      <div>{children}</div>
+    </div>
   );
 }
 
