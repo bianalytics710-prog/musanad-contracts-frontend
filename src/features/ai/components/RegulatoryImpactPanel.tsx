@@ -41,9 +41,19 @@ const MODES: ReadonlyArray<AiRegulatoryImpactMode> = ["explain", "amendment"];
 
 interface Props {
   language: AiLanguage;
+  /**
+   * Optional sample contracts to seed the AI prompt. M4 shipped with this
+   * unwired (M4-FE-OI-3); M5 RegulatoryUpdateDetailPanel can now pass impacted
+   * contracts derived from useRegulatoryImpactList. Defaults to empty for
+   * stateless paste-text use (M4 contract).
+   */
+  sampleContracts?: AiRegulatoryImpactSampleContract[];
 }
 
-export function RegulatoryImpactPanel({ language }: Props) {
+export function RegulatoryImpactPanel({
+  language,
+  sampleContracts: externalSampleContracts,
+}: Props) {
   const { t } = useTranslation();
   const [mode, setMode] = useState<AiRegulatoryImpactMode>("explain");
   const [regulator, setRegulator] = useState("");
@@ -71,7 +81,9 @@ export function RegulatoryImpactPanel({ language }: Props) {
       return;
     }
     setOutput("");
-    const sampleContracts: AiRegulatoryImpactSampleContract[] = [];
+    // M5 closes M4-FE-OI-3: parent can now inject sample contracts.
+    const sampleContracts: AiRegulatoryImpactSampleContract[] =
+      externalSampleContracts ?? [];
     void start({
       mode,
       regulator,

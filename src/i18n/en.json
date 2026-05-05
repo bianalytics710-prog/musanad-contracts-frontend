@@ -66,7 +66,15 @@
     "error": "Something went wrong",
     "total": "total",
     "done": "Done",
-    "continue": "Continue"
+    "continue": "Continue",
+    "deleting": "Deleting…",
+    "processing": "Processing…",
+    "actions": "Actions",
+    "pagination": {
+      "showing": "Page {{current}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next"
+    }
   },
   "notifications": {
     "title": "Notifications",
@@ -4918,6 +4926,324 @@
       "copy": "Copy",
       "copied": "Copied",
       "hint": "Send via your usual channel — email, secure messaging, or in person."
+    }
+  },
+  "regulatory": {
+    "regulation": {
+      "list": {
+        "title": "Regulation Library",
+        "totalCount_one": "{{count}} regulation",
+        "totalCount_other": "{{count}} regulations",
+        "searchLabel": "Search regulations",
+        "searchPlaceholder": "Search by reference code or title…",
+        "allJurisdictions": "All jurisdictions",
+        "allTypes": "All types",
+        "allStatuses": "All statuses",
+        "empty": "No regulations match the current filters.",
+        "createButton": "New regulation",
+        "editAction": "Edit {{name}}",
+        "deleteAction": "Delete {{name}}",
+        "supersededBy": "Superseded by {{code}}"
+      },
+      "detail": {
+        "loading": "Loading regulation…",
+        "supersededByChain": "Supersession chain",
+        "depthLabel": "Depth {{depth}}"
+      },
+      "create": {
+        "title": "Create regulation",
+        "submit": "Create regulation"
+      },
+      "edit": {
+        "title": "Edit regulation",
+        "submit": "Save changes"
+      },
+      "delete": {
+        "title": "Delete regulation",
+        "confirmMessage": "Soft-delete regulation {{code}} — “{{title}}”? This is reversible by an admin.",
+        "activeImpactsWarning": "Regulations referenced by active impacts cannot be deleted until those impacts are resolved.",
+        "confirmAction": "Delete"
+      },
+      "fields": {
+        "referenceCode": "Reference code",
+        "titleEn": "Title (English)",
+        "titleAr": "Title (Arabic)",
+        "issuer": "Issuer",
+        "regulationType": "Type",
+        "jurisdiction": "Jurisdiction",
+        "effectiveDate": "Effective date",
+        "summary": "Summary",
+        "summaryEn": "Summary (English)",
+        "summaryAr": "Summary (Arabic)",
+        "sourceUrl": "Source URL",
+        "tags": "Tags",
+        "status": "Status"
+      },
+      "placeholders": {
+        "referenceCode": "FED-LAW-33-2021",
+        "selectIssuer": "Select an issuer",
+        "selectType": "Select a type",
+        "selectJurisdiction": "Select a jurisdiction"
+      },
+      "helpText": {
+        "tagsCommaSeparated": "Comma-separated tags"
+      },
+      "regulationType": {
+        "federal_decree_law": "Federal decree-law",
+        "cabinet_resolution": "Cabinet resolution",
+        "ministerial_decision": "Ministerial decision",
+        "free_zone_regulation": "Free-zone regulation",
+        "circular": "Circular",
+        "guideline": "Guideline"
+      },
+      "jurisdiction": {
+        "uae_federal": "UAE Federal",
+        "dubai": "Dubai",
+        "abu_dhabi": "Abu Dhabi",
+        "sharjah": "Sharjah",
+        "difc": "DIFC",
+        "adgm": "ADGM",
+        "dmcc": "DMCC",
+        "other": "Other"
+      },
+      "status": {
+        "active": "Active",
+        "superseded": "Superseded",
+        "repealed": "Repealed",
+        "draft": "Draft"
+      },
+      "toast": {
+        "createSuccess": "Regulation created successfully.",
+        "updateSuccess": "Regulation updated successfully.",
+        "deleteSuccess": "Regulation deleted."
+      }
+    },
+    "regulatoryUpdate": {
+      "list": {
+        "title": "Regulatory Updates",
+        "createButton": "Add regulatory update",
+        "empty": "No regulatory updates match the current filters."
+      },
+      "detail": {
+        "loading": "Loading update…",
+        "ariaLabel": "Regulatory update detail",
+        "bulkAmend": "Bulk amend impacts",
+        "impactSummary": "Impact summary",
+        "totalImpacts": "Total",
+        "pendingCount": "Pending",
+        "resolvedCount": "Resolved",
+        "avgImpactScore": "Avg score"
+      },
+      "create": {
+        "title": "New regulatory update",
+        "submit": "Create"
+      },
+      "edit": {
+        "title": "Edit regulatory update",
+        "submit": "Save changes"
+      },
+      "delete": {
+        "title": "Delete regulatory update",
+        "confirmMessage": "Soft-delete this regulatory update? — “{{title}}”",
+        "cascadeWarning": "Associated impacts (where regulatory_update_id matches) will be soft-deleted in cascade. Structural impacts (no associated update) are not affected.",
+        "confirmAction": "Delete update"
+      },
+      "fields": {
+        "regulator": "Regulator",
+        "titleEn": "Title (English)",
+        "titleAr": "Title (Arabic)",
+        "summary": "Summary",
+        "summaryEn": "Summary (English)",
+        "summaryAr": "Summary (Arabic)",
+        "referenceNumber": "Reference number",
+        "publishedDate": "Published date",
+        "effectiveDate": "Effective date",
+        "complianceDeadline": "Compliance deadline",
+        "severity": "Severity",
+        "sourceUrl": "Source URL",
+        "affectedClauseCategories": "Affected clause categories",
+        "category": "Impact category",
+        "subSource": "Sub-source"
+      },
+      "placeholders": {
+        "selectRegulator": "Select a regulator",
+        "noCategory": "— No category —"
+      },
+      "helpText": {
+        "affectedClauseCategoriesCommaSeparated": "Comma-separated categories"
+      },
+      "severity": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "openSource": "Open source",
+      "toast": {
+        "createSuccess": "Regulatory update created.",
+        "updateSuccess": "Regulatory update saved.",
+        "deleteSuccess": "Regulatory update deleted."
+      }
+    },
+    "impact": {
+      "list": {
+        "empty": "No regulatory impacts in this scope."
+      },
+      "structuralBadge": "Structural",
+      "detectedAt": "Detected",
+      "score": "Score",
+      "actions": {
+        "resolve": "Resolve",
+        "update": "Update"
+      },
+      "status": {
+        "pending": "Pending",
+        "resolved": "Resolved"
+      },
+      "resolutionAction": {
+        "amended": "Amended",
+        "waived": "Waived",
+        "out_of_scope": "Out of scope",
+        "pending": "Pending"
+      },
+      "resolutionActionHelp": {
+        "amended": "The contract was amended to comply with the new regulation.",
+        "waived": "The impact was reviewed and accepted as a known deviation; no contract change.",
+        "out_of_scope": "On further review the regulation does not apply to this contract.",
+        "pending": "Re-open this impact for further review (un-resolves)."
+      },
+      "resolve": {
+        "title": "Resolve regulatory impact",
+        "actionLabel": "Resolution action",
+        "noteLabel": "Resolution note (optional)",
+        "notePlaceholder": "Brief context for auditors…",
+        "noteHelp": "Stored verbatim on the audit trail.",
+        "submit": "Save resolution"
+      },
+      "toast": {
+        "bulkDetectSuccess": "{{created}} impacts created · {{skipped}} duplicates skipped.",
+        "resolveSuccess": "Impact resolved."
+      }
+    },
+    "bulkAmend": {
+      "title": "Bulk amendment — detect impacts",
+      "empty": "No contracts in scope. Re-open from a regulation context.",
+      "selectColumn": "Select",
+      "selectRow": "Toggle row {{number}}",
+      "selectionCount": "{{selected}} of {{total}} contracts selected",
+      "submit": "Detect on {{count}} contracts",
+      "fields": {
+        "contract": "Contract",
+        "impactScore": "Impact score",
+        "noteEn": "Note (English)"
+      },
+      "placeholders": {
+        "noteEn": "Short tag — radar tooltip"
+      }
+    },
+    "banner": {
+      "affected_one": "Affected by {{count}} pending regulation",
+      "affected_other": "Affected by {{count}} pending regulations",
+      "regulatoryUpdate": "Regulatory update",
+      "reviewAll": "Review all"
+    },
+    "impactCategory": {
+      "list": {
+        "title": "Impact Categories",
+        "subtitle": "Configure the canonical categories used to group regulatory updates.",
+        "includeInactive": "Include inactive",
+        "empty": "No impact categories configured.",
+        "createButton": "New category",
+        "editAction": "Edit {{key}}"
+      },
+      "create": {
+        "title": "Create impact category",
+        "submit": "Create category"
+      },
+      "edit": {
+        "title": "Edit impact category",
+        "submit": "Save changes"
+      },
+      "fields": {
+        "key": "Key",
+        "nameEn": "Name (English)",
+        "nameAr": "Name (Arabic)",
+        "descriptionEn": "Description (English)",
+        "descriptionAr": "Description (Arabic)",
+        "icon": "Icon",
+        "colour": "Colour",
+        "active": "Active",
+        "displayOrder": "Display order",
+        "sources": "Sources",
+        "severityScale": "Severity scale",
+        "defaultClauseCategories": "Default clause categories",
+        "aiPromptContext": "AI prompt context"
+      },
+      "helpText": {
+        "severityScaleCommaSeparated": "Comma-separated; default low,medium,high,critical.",
+        "aiPromptContextHint": "Admin guidance text used by the AI prompt. Not user PII."
+      },
+      "activeBadge": "Active",
+      "inactiveBadge": "Inactive",
+      "picker": {
+        "ariaLabel": "Impact category",
+        "placeholderRequired": "Select a category",
+        "placeholderOptional": "— No category —"
+      },
+      "toast": {
+        "createSuccess": "Category created.",
+        "updateSuccess": "Category saved."
+      }
+    },
+    "radar": {
+      "title": "Regulatory Radar",
+      "subtitle_one": "{{count}} regulatory update visible",
+      "subtitle_other": "{{count}} regulatory updates visible",
+      "searchLabel": "Search regulatory updates",
+      "searchPlaceholder": "Search by title, regulator, or reference number…",
+      "allSeverities": "All severities",
+      "effectiveFrom": "Effective from",
+      "effectiveTo": "Effective to",
+      "empty": "No regulatory updates match the current filters.",
+      "selectHint": "Select a dot on the radar to see details.",
+      "centerLabel": "Today",
+      "rings": {
+        "today": "Today",
+        "week": "Week",
+        "month": "Month",
+        "quarter": "Quarter"
+      },
+      "quadrants": {
+        "north": "Federal labour",
+        "east": "Tax & finance",
+        "south": "Free zones",
+        "west": "Sectoral"
+      },
+      "tooltip": {
+        "regulator": "Regulator",
+        "published": "Published",
+        "impacts_one": "{{count}} impacted contract",
+        "impacts_other": "{{count}} impacted contracts"
+      },
+      "controls": {
+        "panHint": "Shift+drag to pan · scroll to zoom"
+      }
+    },
+    "errors": {
+      "referenceCodeRequired": "Reference code is required.",
+      "referenceCodeTooLong": "Reference code is too long.",
+      "titleEnRequired": "English title is required.",
+      "titleEnTooLong": "English title is too long.",
+      "issuerRequired": "Issuer is required.",
+      "regulatorRequired": "Regulator is required.",
+      "publishedDateRequired": "Published date is required.",
+      "effectiveBeforePublished": "Effective date cannot be before published date.",
+      "deadlineBeforePublished": "Compliance deadline cannot be before published date.",
+      "invalidUrl": "Enter a valid URL.",
+      "keyRequired": "Key is required.",
+      "keyFormat": "Key must start with a letter and use only lowercase letters, digits, or underscores.",
+      "nameEnRequired": "English name is required.",
+      "nameArRequired": "Arabic name is required."
     }
   }
 }

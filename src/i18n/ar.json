@@ -66,7 +66,15 @@
     "error": "حدث خطأ ما",
     "total": "إجمالي",
     "done": "تم",
-    "continue": "متابعة"
+    "continue": "متابعة",
+    "deleting": "جارٍ الحذف…",
+    "processing": "جارٍ المعالجة…",
+    "actions": "الإجراءات",
+    "pagination": {
+      "showing": "الصفحة {{current}} من {{total}}",
+      "previous": "السابق",
+      "next": "التالي"
+    }
   },
   "notifications": {
     "title": "الإشعارات",
@@ -4918,6 +4926,324 @@
       "copy": "نسخ",
       "copied": "تم النسخ",
       "hint": "أرسل الرابط عبر قناتك المعتادة — البريد الإلكتروني أو الرسائل الآمنة أو شخصيًا."
+    }
+  },
+  "regulatory": {
+    "regulation": {
+      "list": {
+        "title": "مكتبة اللوائح",
+        "totalCount_one": "لائحة واحدة",
+        "totalCount_other": "{{count}} لائحة",
+        "searchLabel": "البحث في اللوائح",
+        "searchPlaceholder": "ابحث برقم المرجع أو العنوان…",
+        "allJurisdictions": "جميع الاختصاصات",
+        "allTypes": "جميع الأنواع",
+        "allStatuses": "جميع الحالات",
+        "empty": "لا توجد لوائح تطابق المرشحات الحالية.",
+        "createButton": "لائحة جديدة",
+        "editAction": "تعديل {{name}}",
+        "deleteAction": "حذف {{name}}",
+        "supersededBy": "مُلغاة بواسطة {{code}}"
+      },
+      "detail": {
+        "loading": "جارٍ تحميل اللائحة…",
+        "supersededByChain": "سلسلة الإلغاء",
+        "depthLabel": "العمق {{depth}}"
+      },
+      "create": {
+        "title": "إنشاء لائحة",
+        "submit": "إنشاء اللائحة"
+      },
+      "edit": {
+        "title": "تعديل اللائحة",
+        "submit": "حفظ التغييرات"
+      },
+      "delete": {
+        "title": "حذف اللائحة",
+        "confirmMessage": "حذف ناعم للائحة {{code}} — “{{title}}”؟ يمكن للمسؤول التراجع عن هذا الإجراء.",
+        "activeImpactsWarning": "لا يمكن حذف اللوائح المرتبطة بآثار نشطة حتى يتم حلّ تلك الآثار.",
+        "confirmAction": "حذف"
+      },
+      "fields": {
+        "referenceCode": "رمز المرجع",
+        "titleEn": "العنوان (الإنجليزية)",
+        "titleAr": "العنوان (العربية)",
+        "issuer": "الجهة المصدرة",
+        "regulationType": "النوع",
+        "jurisdiction": "الاختصاص",
+        "effectiveDate": "تاريخ النفاذ",
+        "summary": "الملخص",
+        "summaryEn": "الملخص (الإنجليزية)",
+        "summaryAr": "الملخص (العربية)",
+        "sourceUrl": "رابط المصدر",
+        "tags": "الوسوم",
+        "status": "الحالة"
+      },
+      "placeholders": {
+        "referenceCode": "FED-LAW-33-2021",
+        "selectIssuer": "اختر جهة مصدرة",
+        "selectType": "اختر نوعًا",
+        "selectJurisdiction": "اختر اختصاصًا"
+      },
+      "helpText": {
+        "tagsCommaSeparated": "وسوم مفصولة بفواصل"
+      },
+      "regulationType": {
+        "federal_decree_law": "قانون اتحادي بمرسوم",
+        "cabinet_resolution": "قرار مجلس الوزراء",
+        "ministerial_decision": "قرار وزاري",
+        "free_zone_regulation": "لائحة منطقة حرة",
+        "circular": "تعميم",
+        "guideline": "إرشادات"
+      },
+      "jurisdiction": {
+        "uae_federal": "اتحادي — الإمارات",
+        "dubai": "دبي",
+        "abu_dhabi": "أبوظبي",
+        "sharjah": "الشارقة",
+        "difc": "DIFC",
+        "adgm": "ADGM",
+        "dmcc": "DMCC",
+        "other": "أخرى"
+      },
+      "status": {
+        "active": "نشطة",
+        "superseded": "مُلغاة",
+        "repealed": "ملغاة كليًا",
+        "draft": "مسودة"
+      },
+      "toast": {
+        "createSuccess": "تم إنشاء اللائحة بنجاح.",
+        "updateSuccess": "تم حفظ اللائحة بنجاح.",
+        "deleteSuccess": "تم حذف اللائحة."
+      }
+    },
+    "regulatoryUpdate": {
+      "list": {
+        "title": "التحديثات التنظيمية",
+        "createButton": "إضافة تحديث تنظيمي",
+        "empty": "لا توجد تحديثات تنظيمية تطابق المرشحات الحالية."
+      },
+      "detail": {
+        "loading": "جارٍ تحميل التحديث…",
+        "ariaLabel": "تفاصيل التحديث التنظيمي",
+        "bulkAmend": "تعديل جماعي للآثار",
+        "impactSummary": "ملخص الأثر",
+        "totalImpacts": "الإجمالي",
+        "pendingCount": "قيد الانتظار",
+        "resolvedCount": "تم الحل",
+        "avgImpactScore": "متوسط الدرجة"
+      },
+      "create": {
+        "title": "تحديث تنظيمي جديد",
+        "submit": "إنشاء"
+      },
+      "edit": {
+        "title": "تعديل التحديث التنظيمي",
+        "submit": "حفظ التغييرات"
+      },
+      "delete": {
+        "title": "حذف التحديث التنظيمي",
+        "confirmMessage": "حذف ناعم لهذا التحديث التنظيمي؟ — “{{title}}”",
+        "cascadeWarning": "ستُحذف الآثار المرتبطة (حيث يتطابق regulatory_update_id) بالتسلسل. الآثار البنيوية (دون تحديث مرتبط) لن تتأثر.",
+        "confirmAction": "حذف التحديث"
+      },
+      "fields": {
+        "regulator": "المنظِّم",
+        "titleEn": "العنوان (الإنجليزية)",
+        "titleAr": "العنوان (العربية)",
+        "summary": "الملخص",
+        "summaryEn": "الملخص (الإنجليزية)",
+        "summaryAr": "الملخص (العربية)",
+        "referenceNumber": "الرقم المرجعي",
+        "publishedDate": "تاريخ النشر",
+        "effectiveDate": "تاريخ النفاذ",
+        "complianceDeadline": "موعد الامتثال",
+        "severity": "الشدة",
+        "sourceUrl": "رابط المصدر",
+        "affectedClauseCategories": "فئات البنود المتأثرة",
+        "category": "فئة الأثر",
+        "subSource": "المصدر الفرعي"
+      },
+      "placeholders": {
+        "selectRegulator": "اختر منظِّمًا",
+        "noCategory": "— لا توجد فئة —"
+      },
+      "helpText": {
+        "affectedClauseCategoriesCommaSeparated": "فئات مفصولة بفواصل"
+      },
+      "severity": {
+        "low": "منخفضة",
+        "medium": "متوسطة",
+        "high": "عالية",
+        "critical": "حرجة"
+      },
+      "openSource": "فتح المصدر",
+      "toast": {
+        "createSuccess": "تم إنشاء التحديث التنظيمي.",
+        "updateSuccess": "تم حفظ التحديث التنظيمي.",
+        "deleteSuccess": "تم حذف التحديث التنظيمي."
+      }
+    },
+    "impact": {
+      "list": {
+        "empty": "لا توجد آثار تنظيمية في هذا النطاق."
+      },
+      "structuralBadge": "بنيوي",
+      "detectedAt": "تم الاكتشاف",
+      "score": "الدرجة",
+      "actions": {
+        "resolve": "حل",
+        "update": "تحديث"
+      },
+      "status": {
+        "pending": "قيد الانتظار",
+        "resolved": "تم الحل"
+      },
+      "resolutionAction": {
+        "amended": "تم التعديل",
+        "waived": "تم التجاوز",
+        "out_of_scope": "خارج النطاق",
+        "pending": "قيد الانتظار"
+      },
+      "resolutionActionHelp": {
+        "amended": "تم تعديل العقد ليتوافق مع اللائحة الجديدة.",
+        "waived": "تمت مراجعة الأثر وقبوله كانحراف معروف؛ دون تعديل العقد.",
+        "out_of_scope": "بعد المراجعة، اللائحة لا تنطبق على هذا العقد.",
+        "pending": "أعد فتح هذا الأثر لمزيد من المراجعة (إلغاء الحل)."
+      },
+      "resolve": {
+        "title": "حل الأثر التنظيمي",
+        "actionLabel": "إجراء الحل",
+        "noteLabel": "ملاحظة الحل (اختياري)",
+        "notePlaceholder": "سياق موجز للمدققين…",
+        "noteHelp": "تُحفظ حرفيًا في سجل التدقيق.",
+        "submit": "حفظ الحل"
+      },
+      "toast": {
+        "bulkDetectSuccess": "تم إنشاء {{created}} أثرًا · تم تخطي {{skipped}} مكررًا.",
+        "resolveSuccess": "تم حل الأثر."
+      }
+    },
+    "bulkAmend": {
+      "title": "تعديل جماعي — اكتشاف الآثار",
+      "empty": "لا توجد عقود في النطاق. أعد الفتح من سياق لائحة.",
+      "selectColumn": "تحديد",
+      "selectRow": "تبديل الصف {{number}}",
+      "selectionCount": "{{selected}} من {{total}} عقد محددًا",
+      "submit": "اكتشاف على {{count}} عقد",
+      "fields": {
+        "contract": "العقد",
+        "impactScore": "درجة الأثر",
+        "noteEn": "ملاحظة (الإنجليزية)"
+      },
+      "placeholders": {
+        "noteEn": "وسم قصير — تلميح الرادار"
+      }
+    },
+    "banner": {
+      "affected_one": "متأثر بلائحة واحدة قيد الانتظار",
+      "affected_other": "متأثر بـ {{count}} لائحة قيد الانتظار",
+      "regulatoryUpdate": "تحديث تنظيمي",
+      "reviewAll": "مراجعة الكل"
+    },
+    "impactCategory": {
+      "list": {
+        "title": "فئات الأثر",
+        "subtitle": "تكوين الفئات المعيارية المستخدمة لتجميع التحديثات التنظيمية.",
+        "includeInactive": "تضمين غير النشطة",
+        "empty": "لا توجد فئات أثر مكوّنة.",
+        "createButton": "فئة جديدة",
+        "editAction": "تعديل {{key}}"
+      },
+      "create": {
+        "title": "إنشاء فئة أثر",
+        "submit": "إنشاء الفئة"
+      },
+      "edit": {
+        "title": "تعديل فئة الأثر",
+        "submit": "حفظ التغييرات"
+      },
+      "fields": {
+        "key": "المفتاح",
+        "nameEn": "الاسم (الإنجليزية)",
+        "nameAr": "الاسم (العربية)",
+        "descriptionEn": "الوصف (الإنجليزية)",
+        "descriptionAr": "الوصف (العربية)",
+        "icon": "الأيقونة",
+        "colour": "اللون",
+        "active": "نشط",
+        "displayOrder": "ترتيب العرض",
+        "sources": "المصادر",
+        "severityScale": "مقياس الشدة",
+        "defaultClauseCategories": "فئات البنود الافتراضية",
+        "aiPromptContext": "سياق موجِّه الذكاء الاصطناعي"
+      },
+      "helpText": {
+        "severityScaleCommaSeparated": "مفصولة بفواصل؛ افتراضي low,medium,high,critical.",
+        "aiPromptContextHint": "نص توجيهي للمسؤول يستخدمه موجِّه الذكاء الاصطناعي. ليس بيانات شخصية."
+      },
+      "activeBadge": "نشط",
+      "inactiveBadge": "غير نشط",
+      "picker": {
+        "ariaLabel": "فئة الأثر",
+        "placeholderRequired": "اختر فئة",
+        "placeholderOptional": "— لا توجد فئة —"
+      },
+      "toast": {
+        "createSuccess": "تم إنشاء الفئة.",
+        "updateSuccess": "تم حفظ الفئة."
+      }
+    },
+    "radar": {
+      "title": "الرادار التنظيمي",
+      "subtitle_one": "تحديث تنظيمي واحد ظاهر",
+      "subtitle_other": "{{count}} تحديث تنظيمي ظاهر",
+      "searchLabel": "البحث في التحديثات التنظيمية",
+      "searchPlaceholder": "ابحث بالعنوان أو المنظِّم أو الرقم المرجعي…",
+      "allSeverities": "جميع الشدات",
+      "effectiveFrom": "نافذ من",
+      "effectiveTo": "نافذ حتى",
+      "empty": "لا توجد تحديثات تنظيمية تطابق المرشحات الحالية.",
+      "selectHint": "حدد نقطة على الرادار لرؤية التفاصيل.",
+      "centerLabel": "اليوم",
+      "rings": {
+        "today": "اليوم",
+        "week": "أسبوع",
+        "month": "شهر",
+        "quarter": "ربع سنة"
+      },
+      "quadrants": {
+        "north": "العمل الاتحادي",
+        "east": "الضرائب والمالية",
+        "south": "المناطق الحرة",
+        "west": "قطاعي"
+      },
+      "tooltip": {
+        "regulator": "المنظِّم",
+        "published": "نُشر",
+        "impacts_one": "عقد واحد متأثر",
+        "impacts_other": "{{count}} عقد متأثر"
+      },
+      "controls": {
+        "panHint": "Shift+سحب للتحريك · العجلة للتكبير"
+      }
+    },
+    "errors": {
+      "referenceCodeRequired": "رمز المرجع مطلوب.",
+      "referenceCodeTooLong": "رمز المرجع طويل جدًا.",
+      "titleEnRequired": "العنوان الإنجليزي مطلوب.",
+      "titleEnTooLong": "العنوان الإنجليزي طويل جدًا.",
+      "issuerRequired": "الجهة المصدرة مطلوبة.",
+      "regulatorRequired": "المنظِّم مطلوب.",
+      "publishedDateRequired": "تاريخ النشر مطلوب.",
+      "effectiveBeforePublished": "تاريخ النفاذ لا يمكن أن يسبق تاريخ النشر.",
+      "deadlineBeforePublished": "موعد الامتثال لا يمكن أن يسبق تاريخ النشر.",
+      "invalidUrl": "أدخل رابطًا صالحًا.",
+      "keyRequired": "المفتاح مطلوب.",
+      "keyFormat": "يجب أن يبدأ المفتاح بحرف ويحتوي فقط على أحرف صغيرة وأرقام وشرطات سفلية.",
+      "nameEnRequired": "الاسم الإنجليزي مطلوب.",
+      "nameArRequired": "الاسم العربي مطلوب."
     }
   }
 }
