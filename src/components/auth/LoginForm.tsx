@@ -18,7 +18,7 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowRight, Languages } from "lucide-react";
+import { ArrowRight, Languages, Shield, Globe2, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -161,7 +161,92 @@ export function LoginForm() {
         </button>
       </header>
 
-      <main className="mx-auto flex max-w-md flex-col px-6 pb-16 pt-6">
+      <main className="mx-auto grid max-w-[1280px] gap-12 px-6 pb-16 pt-6 lg:grid-cols-[1fr_minmax(0,28rem)]">
+        {/* Marketing wing — desktop only */}
+        <motion.aside
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          className="hidden flex-col justify-center lg:flex"
+        >
+          <p className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
+            {t("auth.marketing.kicker", { defaultValue: "AE · CLM workspace" })}
+          </p>
+          <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-ink">
+            {t("auth.marketing.title", { defaultValue: "Sign in to Musanad." })}
+          </h2>
+          <p className="mt-3 max-w-md text-sm text-ink-muted">
+            {t("auth.marketing.subtitle", {
+              defaultValue:
+                "The contract workspace built for the United Arab Emirates — bilingual, regulator-aware, and audit-ready from day one.",
+            })}
+          </p>
+
+          <ul className="mt-8 space-y-5">
+            <li className="flex items-start gap-3">
+              <div className="rounded-md bg-gold/10 p-2 text-gold">
+                <Shield className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink">
+                  {t("auth.marketing.pillar1.title", {
+                    defaultValue: "UAE Pass identity",
+                  })}
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {t("auth.marketing.pillar1.body", {
+                    defaultValue:
+                      "Premium-level verification for signers and approvers.",
+                  })}
+                </p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <div className="rounded-md bg-gold/10 p-2 text-gold">
+                <Globe2 className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink">
+                  {t("auth.marketing.pillar2.title", {
+                    defaultValue: "Fully bilingual",
+                  })}
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {t("auth.marketing.pillar2.body", {
+                    defaultValue:
+                      "Every clause and contract side-by-side — AR/EN.",
+                  })}
+                </p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <div className="rounded-md bg-gold/10 p-2 text-gold">
+                <ScrollText className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink">
+                  {t("auth.marketing.pillar3.title", {
+                    defaultValue: "Regulator-aware",
+                  })}
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {t("auth.marketing.pillar3.body", {
+                    defaultValue:
+                      "Federal decree-laws and free-zones as first-class types.",
+                  })}
+                </p>
+              </div>
+            </li>
+          </ul>
+
+          <p className="mt-12 text-3xl font-semibold text-gold" dir="rtl">
+            مُسَنَد
+          </p>
+          <p className="text-xs text-ink-subtle" dir="rtl">
+            — إدارة دورة حياة العقود لدولة الإمارات
+          </p>
+        </motion.aside>
+
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
