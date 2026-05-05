@@ -2,14 +2,14 @@ import { Search, Languages, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/lib/design-system/theme-provider";
+import { useCommandPalette } from "./CommandPalette";
 
-interface TopBarProps {
-  onSearchClick?: () => void;
-}
-
-export function TopBar({ onSearchClick }: TopBarProps) {
+export function TopBar() {
   const { t, i18n } = useTranslation();
   const { locale, setLocale } = useTheme();
+  const { open: openPalette } = useCommandPalette();
+
+  const onSearchClick = () => openPalette();
 
   const toggleLang = () => {
     const next = locale === "ar" ? "en" : "ar";
