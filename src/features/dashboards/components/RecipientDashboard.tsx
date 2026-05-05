@@ -20,16 +20,16 @@
  * 13-checklist: T1/T2/T3/T4/T5/T6/T7/T11/T12.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
+import { ArrowRight, PenLine, Clock } from "lucide-react";
 import { useRecipientDashboard } from "../hooks/useDashboards";
 import {
   DashboardEmptyState,
   DashboardErrorState,
   DashboardLoadingSkeleton,
-  DashboardSection,
   KpiTile,
   PlaceholderKpiTile,
   TimeRangeSelector,
@@ -55,6 +55,11 @@ export function RecipientDashboard() {
 
   const { data, isLoading, isError, error, refetch } = useRecipientDashboard(
     asWindowQuery(windowDays),
+  );
+
+  const topPendingSig = useMemo(
+    () => data?.lists.pendingSignatures5?.[0] ?? null,
+    [data],
   );
 
   return (
@@ -95,6 +100,47 @@ export function RecipientDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
+          {topPendingSig && (
+            <Link
+              to="/app/contracts/$id"
+              params={{ id: String(topPendingSig.contractId) }}
+              className="relative block overflow-hidden rounded-xl border border-gold bg-gold/10 p-5 transition-colors hover:bg-gold/20"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="font-mono text-xs uppercase tracking-wider text-gold">
+                    {t("dashboards.recipient.hero.kicker", {
+                      defaultValue: "Awaiting your signature",
+                    })}
+                  </div>
+                  <div className="mt-1 text-lg font-semibold leading-tight text-ink md:text-xl">
+                    {topPendingSig.contractNumber}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
+                      <Clock className="h-3 w-3" />
+                      {t("dashboards.recipient.lists.invitationSent")}:{" "}
+                      {formatDateTime(topPendingSig.sentAt)}
+                    </span>
+                    {topPendingSig.expiresAt && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-tint/30 px-2 py-0.5 font-mono text-amber-ink">
+                        {t("dashboards.recipient.lists.invitationExpires")}:{" "}
+                        {formatDateTime(topPendingSig.expiresAt)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-card">
+                    <PenLine className="h-4 w-4" />
+                    {t("dashboards.recipient.hero.signCta", {
+                      defaultValue: "Open & sign",
+                    })}
+                    <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+                  </div>
+                </div>
+              </div>
+            </Link>
+          )}
+
           <section
             aria-label={t("dashboards.recipient.kpiGroupLabel")}
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
@@ -106,11 +152,15 @@ export function RecipientDashboard() {
             <KpiTile
               label={t("dashboards.recipient.kpis.pendingMySignatureCount")}
               value={formatNumber(data.kpis.pendingMySignatureCount)}
+              variant={
+                data.kpis.pendingMySignatureCount > 0 ? "warning" : "default"
+              }
             />
             <KpiTile
               label={t("dashboards.recipient.kpis.signedByMeWindow")}
               value={formatNumber(data.kpis.signedByMeWindow)}
               helper={t("dashboards.recipient.kpis.signedByMeWindowHelper")}
+              variant="success"
             />
             <PlaceholderKpiTile
               label={t("dashboards.recipient.kpis.myObligationsCount")}
@@ -119,23 +169,25 @@ export function RecipientDashboard() {
           </section>
 
           <div className="grid gap-3 lg:grid-cols-2">
-            <DashboardSection
-              title={t("dashboards.recipient.lists.myContractsTitle")}
-              description={t(
-                "dashboards.recipient.lists.myContractsDescription",
-              )}
-            >
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h3 className="mb-2 text-sm font-semibold text-ink">
+                {t("dashboards.recipient.lists.myContractsTitle")}
+              </h3>
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.recipient.lists.myContractsDescription")}
+              </p>
               <MyContractsList rows={data.lists.myContracts5} />
-            </DashboardSection>
+            </section>
 
-            <DashboardSection
-              title={t("dashboards.recipient.lists.pendingSignaturesTitle")}
-              description={t(
-                "dashboards.recipient.lists.pendingSignaturesDescription",
-              )}
-            >
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h3 className="mb-2 text-sm font-semibold text-ink">
+                {t("dashboards.recipient.lists.pendingSignaturesTitle")}
+              </h3>
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.recipient.lists.pendingSignaturesDescription")}
+              </p>
               <PendingSignaturesList rows={data.lists.pendingSignatures5} />
-            </DashboardSection>
+            </section>
           </div>
         </>
       )}
