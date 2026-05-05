@@ -33,10 +33,12 @@ import { Plus, Search, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { StatCard, TableSkeleton } from "@/components/patterns";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/utils/datetime";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { cn } from "@/lib/utils";
 import {
   CONTRACT_STATUS_VALUES,
   type ContractListItem,
@@ -50,6 +52,31 @@ import { ExportXlsxButton } from "./ExportXlsxButton";
 import type { ContractExportXlsxQueryParams } from "@/types/entities/payment-schedule.types";
 
 const PAGE_SIZE = 20;
+
+const QUICK_FILTERS: ReadonlyArray<{ key: ContractStatus | ""; defaultLabel: string }> = [
+  { key: "", defaultLabel: "All" },
+  { key: "active", defaultLabel: "Active" },
+  { key: "in_approval", defaultLabel: "In approval" },
+  { key: "awaiting_signature_employer", defaultLabel: "Awaiting us" },
+  { key: "awaiting_signature_counterparty", defaultLabel: "Awaiting counterparty" },
+  { key: "fully_signed", defaultLabel: "Fully signed" },
+  { key: "expiring_soon", defaultLabel: "Expiring soon" },
+  { key: "draft", defaultLabel: "Draft" },
+  { key: "expired", defaultLabel: "Expired" },
+];
+
+function formatAed(value: number | null, currency: string | undefined): string {
+  if (value == null) return "—";
+  try {
+    return new Intl.NumberFormat("en-AE", {
+      style: "currency",
+      currency: currency || "AED",
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return `${currency || "AED"} ${value.toLocaleString()}`;
+  }
+}
 
 export function ContractListView() {
   const { t } = useTranslation();
@@ -114,6 +141,17 @@ export function ContractListView() {
   const pagination = data?.pagination;
   const hasFilters = !!debouncedSearch || !!statusFilter;
 
+  // Lightweight KPI strip derived from the current page rows. Faithful to
+  // the visible page; for whole-set numbers we use pagination.total.
+  const kpis = useMemo(() => {
+    const totalAll = pagination?.total ?? items.length;
+    const active = items.filter((c) => c.status === "active" || c.status === "fully_signed").length;
+    const inApproval = items.filter((c) => c.status === "in_approval").length;
+    const expiring = items.filter((c) => c.status === "expiring_soon").length;
+    const totalAed = items.reduce((sum, c) => sum + (c.valueAed ?? 0), 0);
+    return { totalAll, active, inApproval, expiring, totalAed };
+  }, [items, pagination?.total]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -123,6 +161,9 @@ export function ContractListView() {
     >
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <div className="mb-2 font-mono text-xs uppercase tracking-wider text-ink-subtle">
+            {t("contracts.kicker", { defaultValue: "Contract register" })}
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{t("contracts.title")}</h1>
           {pagination && (
             <p className="mt-1 text-sm text-ink-muted">
@@ -157,9 +198,34 @@ export function ContractListView() {
         </div>
       </header>
 
-      {/* Filter toolbar */}
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+      {/* KPI strip */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label={t("contracts.kpis.total", { defaultValue: "Total" })}
+          value={kpis.totalAll.toLocaleString()}
+        />
+        <StatCard
+          label={t("contracts.kpis.active", { defaultValue: "Active or signed" })}
+          value={kpis.active.toLocaleString()}
+          delta={t("contracts.kpis.thisPage", { defaultValue: "on this page" })}
+        />
+        <StatCard
+          label={t("contracts.kpis.inApproval", { defaultValue: "In approval" })}
+          value={kpis.inApproval.toLocaleString()}
+          variant={kpis.inApproval > 0 ? "warning" : "default"}
+          delta={t("contracts.kpis.thisPage", { defaultValue: "on this page" })}
+        />
+        <StatCard
+          label={t("contracts.kpis.expiring", { defaultValue: "Expiring soon" })}
+          value={kpis.expiring.toLocaleString()}
+          variant={kpis.expiring > 0 ? "risk" : "default"}
+          delta={t("contracts.kpis.thisPage", { defaultValue: "on this page" })}
+        />
+      </div>
+
+      {/* Filter toolbar — search + status chips */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <label htmlFor="contracts-search" className="sr-only">
               {t("contracts.searchPlaceholder")}
@@ -178,34 +244,40 @@ export function ContractListView() {
               autoComplete="off"
             />
           </div>
-
-          <div className="flex items-center gap-2">
-            <label htmlFor="contracts-status" className="sr-only">
-              {t("contracts.filterStatus")}
-            </label>
-            <select
-              id="contracts-status"
-              value={statusFilter}
-              onChange={handleStatusChange}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">{t("contracts.filterAll")}</option>
-              {CONTRACT_STATUS_VALUES.map((s) => (
-                <option key={s} value={s}>
-                  {t(`contractStatus.${s}`, { defaultValue: s })}
-                </option>
-              ))}
-            </select>
-
-            {hasFilters && (
-              <Button type="button" variant="ghost" size="sm" onClick={handleClearFilters}>
-                <X className="h-3.5 w-3.5" />
-                {t("contracts.clearFilters")}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          {hasFilters && (
+            <Button type="button" variant="ghost" size="sm" onClick={handleClearFilters}>
+              <X className="h-3.5 w-3.5" />
+              {t("contracts.clearFilters")}
+            </Button>
+          )}
+        </div>
+        <div role="group" aria-label={t("contracts.filterStatus")} className="flex flex-wrap gap-1.5">
+          {QUICK_FILTERS.map((f) => {
+            const active = (statusFilter || "") === f.key;
+            return (
+              <button
+                key={f.key || "all"}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(f.key);
+                  setPage(1);
+                }}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition",
+                  active
+                    ? "border-gold bg-gold/10 text-ink"
+                    : "border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink",
+                )}
+                aria-pressed={active}
+              >
+                {f.key
+                  ? t(`contractStatus.${f.key}`, { defaultValue: f.defaultLabel })
+                  : t("contracts.filterAll", { defaultValue: f.defaultLabel })}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Three data states (T4) */}
       {isLoading ? (
@@ -317,25 +389,25 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-surface">
               <tr className="text-left">
-                <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colNumber")}
                 </th>
-                <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colTitle")}
                 </th>
-                <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colType")}
                 </th>
-                <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colStatus")}
                 </th>
-                <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colEndDate")}
                 </th>
-                <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <th scope="col" className="px-4 py-3 text-end font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colValue")}
                 </th>
-                <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   <span className="sr-only">{t("common.view")}</span>
                 </th>
               </tr>
@@ -346,7 +418,7 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                 return (
                   <tr
                     key={c.id}
-                    className="border-b border-border/60 transition-colors hover:bg-surface/50"
+                    className="group border-b border-border/60 transition-colors hover:bg-surface/50"
                   >
                     <td className="px-4 py-3 font-mono text-xs text-ink-subtle">
                       {c.contractNumber}
@@ -360,15 +432,19 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                         {displayTitle}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-ink-muted">{c.contractType}</td>
+                    <td className="px-4 py-3 text-ink-muted">
+                      <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider">
+                        {t(`contractType.${c.contractType}`, { defaultValue: c.contractType })}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <ContractStatusBadge status={c.status} />
                     </td>
-                    <td className="px-4 py-3 text-ink-muted">
+                    <td className="px-4 py-3 font-mono text-xs text-ink-muted">
                       {c.endDate ? formatDate(c.endDate) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-ink-muted">
-                      {c.valueAed !== null ? `${c.currency} ${c.valueAed.toLocaleString()}` : "—"}
+                    <td className="px-4 py-3 text-end font-mono text-xs text-ink">
+                      {formatAed(c.valueAed, c.currency)}
                     </td>
                     <td className="px-4 py-3 text-end">
                       <div className="flex justify-end gap-1">
@@ -407,13 +483,9 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
 
 function ContractListSkeleton() {
   return (
-    <Card>
-      <CardContent className="space-y-2 p-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-12 animate-pulse rounded-md bg-surface" aria-hidden="true" />
-        ))}
-      </CardContent>
-    </Card>
+    <div className="rounded-lg border border-border bg-card p-4">
+      <TableSkeleton rows={8} cols={6} />
+    </div>
   );
 }
 
