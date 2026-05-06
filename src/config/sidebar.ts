@@ -93,8 +93,10 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "obligations",
     "parties",
   ],
-  contract_approver: ["insights", "approvals", "contracts", "obligations"],
-  contract_approver_2: ["insights", "approvals", "contracts", "obligations"],
+  // R1 audit: Lovable approver sidebar is narrowly Insights / Approvals /
+  // Contracts. Drop Obligations leak (was inherited from drafter mapping).
+  contract_approver: ["insights", "approvals", "contracts"],
+  contract_approver_2: ["insights", "approvals", "contracts"],
   contract_recipient: ["insights", "contracts", "obligations"],
   platform_admin: ["admin", "insights", "contracts", "parties", "templates", "clauses"],
   "Super Admin": [

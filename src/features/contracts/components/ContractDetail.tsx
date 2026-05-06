@@ -81,6 +81,9 @@ import { ContractInfoCards } from "./ContractInfoCards";
 import { ContractAIInsightsPanel } from "./ContractAIInsightsPanel";
 import { ContractAttachmentsTab } from "./ContractAttachmentsTab";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
+import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
+import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
+import { CheckCircle2 } from "lucide-react";
 import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
 
 type Tab =
@@ -114,9 +117,22 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const canDelete = useAuthStore(selectHasPermission("contract.delete"));
   const canChangeStatus = useAuthStore(selectHasPermission("contract.status.update"));
   const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
-  // M1b — gate the Export PDF action by the contract.export permission.
+  const canApprove = useAuthStore(selectHasPermission("approval.act"));
 
   const { data, isLoading, isError, error, refetch } = useContract(contractId);
+
+  // R1 audit 8.1.4: surface a top-level Approve CTA on contract detail when
+  // (a) the user holds approval.act and (b) they have a pending step on
+  // this contract. Tapping it opens the existing ApprovalDecisionDialog
+  // pre-bound to that step. Lovable embeds Approve in the header so the
+  // approver can act without round-tripping to /approvals.
+  const myPending = useMyPendingApprovals({ page: 1, limit: 100 }, { enabled: canApprove });
+  const myPendingStep = useMemo(
+    () => myPending.data?.data?.find((row) => row.contractId === contractId) ?? null,
+    [myPending.data?.data, contractId],
+  );
+  const [approveOpen, setApproveOpen] = useState(false);
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
 
   if (isLoading) {
     return (
@@ -191,6 +207,18 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           </div>
         </div>
         <div className="flex items-start gap-2">
+          {/* R1 audit 8.1.4: approver-perspective top-level Approve CTA. */}
+          {myPendingStep && contract.status === "in_approval" && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setApproveOpen(true)}
+              className="hidden sm:inline-flex"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {t("contracts.detail.actions.approve", { defaultValue: "Approve" })}
+            </Button>
+          )}
           {canEdit && (
             <Button
               type="button"
@@ -334,22 +362,31 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         <TabButton active={tab === "attachments"} onClick={() => setTab("attachments")}>
           {t("contracts.detail.tabs.attachments", { defaultValue: "Attachments" })}
         </TabButton>
-        <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
-          {t("contracts.detail.tabs.edit")}
-        </TabButton>
-        <TabButton active={tab === "payments"} onClick={() => setTab("payments")}>
-          <Wallet className="h-3.5 w-3.5" />
-          {t("contracts.detail.tabs.payments")}
-        </TabButton>
+        {/* R1 audit 8.2.2: Edit / Payments / Signatures are drafter-context
+            tabs. Lovable doesn't surface them to approvers. Gate by canEdit
+            (proxy for "can mutate this contract"). */}
+        {canEdit && (
+          <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
+            {t("contracts.detail.tabs.edit")}
+          </TabButton>
+        )}
+        {canEdit && (
+          <TabButton active={tab === "payments"} onClick={() => setTab("payments")}>
+            <Wallet className="h-3.5 w-3.5" />
+            {t("contracts.detail.tabs.payments")}
+          </TabButton>
+        )}
         <TabButton active={tab === "versions"} onClick={() => setTab("versions")}>
           {t("contracts.detail.tabs.versions")}
         </TabButton>
         <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
           {t("contracts.detail.tabs.activity")}
         </TabButton>
-        <TabButton active={tab === "signatures"} onClick={() => setTab("signatures")}>
-          {t("contracts.detail.tabs.signatures")}
-        </TabButton>
+        {canEdit && (
+          <TabButton active={tab === "signatures"} onClick={() => setTab("signatures")}>
+            {t("contracts.detail.tabs.signatures")}
+          </TabButton>
+        )}
         <TabButton active={tab === "tree"} onClick={() => setTab("tree")}>
           <GitBranch className="h-3.5 w-3.5" />
           {t("contracts.detail.tabs.tree")}
@@ -407,6 +444,20 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           contractNumber={contract.contractNumber}
           open={exportPdfOpen}
           onClose={() => setExportPdfOpen(false)}
+        />
+      )}
+
+      {/* R1 audit 8.1.4 — top-level Approve dialog (approver perspective).
+          initialKind="approve" pre-selects the action so the user lands
+          directly on the approve confirmation, matching Lovable's 1-click
+          flow. */}
+      {approveOpen && myPendingStep && (
+        <ApprovalDecisionDialog
+          stepId={myPendingStep.stepId}
+          initialKind="approve"
+          currentUserId={currentUserId}
+          open={approveOpen}
+          onClose={() => setApproveOpen(false)}
         />
       )}
 

@@ -55,6 +55,33 @@ type LoginFormValues = z.infer<typeof loginSchema>;
  * backslash variants, and anything not starting with `/`. Returns the
  * sanitized path or undefined.
  */
+/**
+ * R1 audit fix: post-login landing per role. Lovable redirects approvers
+ * to /approvals on sign-in (queue-as-workspace); drafters to their
+ * dashboard; etc. Falls back to /app for unknown roles.
+ */
+function defaultLandingForRole(roleName: string | null | undefined): string {
+  switch (roleName) {
+    case "contract_approver":
+    case "contract_approver_2":
+      return "/app/approvals";
+    case "contract_drafter":
+      return "/app/dashboards/drafter";
+    case "legal_counsel":
+      return "/app/dashboards/legal-counsel";
+    case "executive":
+      return "/app/dashboards/executive";
+    case "contract_recipient":
+      return "/app/dashboards/recipient";
+    case "platform_admin":
+      return "/app/admin";
+    case "Super Admin":
+      return "/app/admin";
+    default:
+      return "/app";
+  }
+}
+
 function readSafeRedirect(): string | undefined {
   if (typeof window === "undefined") return undefined;
   const raw = new URLSearchParams(window.location.search).get("redirect");
@@ -93,7 +120,8 @@ export function LoginForm() {
       if (safeRedirect) {
         router.history.push(safeRedirect);
       } else {
-        navigate({ to: "/app" });
+        const landing = defaultLandingForRole(response.user.role?.name);
+        router.history.push(landing);
       }
     },
     onError: (err: unknown) => {

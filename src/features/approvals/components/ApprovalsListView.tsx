@@ -27,7 +27,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2 } from "lucide-react";
+import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2, XCircle, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { translateApiError } from "@/lib/translate-api-error";
@@ -40,8 +40,11 @@ import {
   type MyPendingApprovalListItem,
   type MyPendingApprovalListQuery,
 } from "@/types/entities/approval.types";
+import type { ApprovalActionKind } from "@/features/approvals/components/ApprovalDecisionDialog";
 
 const PAGE_SIZE = 20;
+
+type TabKey = "all" | "pending" | "approved" | "rejected" | "watching";
 
 export function ApprovalsListView() {
   const { t } = useTranslation();
@@ -53,6 +56,14 @@ export function ApprovalsListView() {
   const [activeStep, setActiveStep] = useState<MyPendingApprovalListItem | null>(
     null,
   );
+  // R1 audit 6.4.6: per-row inline buttons preset the action so the dialog
+  // opens directly to Approve / Reject / Request-info, matching Lovable's
+  // 1-click decision flow (was previously a 2-step Act → choose-action).
+  const [presetAction, setPresetAction] = useState<ApprovalActionKind | null>(null);
+  // R1 audit 6.2.1: 5-tab inbox matches Lovable. "Pending mine" is the
+  // default + only tab with real data in R1; the other 4 surface a
+  // "coming soon" placeholder until the BE endpoints land in R3.
+  const [activeTab, setActiveTab] = useState<TabKey>("pending");
 
   const query: MyPendingApprovalListQuery = useMemo(
     () => ({ page, limit: PAGE_SIZE, sort }),
@@ -90,14 +101,16 @@ export function ApprovalsListView() {
     >
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
+          <p className="text-xs text-ink-subtle">
+            {t("approval.list.eyebrow", {
+              count: pagination?.total ?? items.length,
+              urgent: slaBreaches,
+              defaultValue: "{{count}} pending · {{urgent}} urgent",
+            })}
+          </p>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
             {t("approval.list.title")}
           </h1>
-          {pagination && (
-            <p className="mt-1 text-sm text-ink-muted">
-              {t("approval.list.totalCount", { count: pagination.total })}
-            </p>
-          )}
         </div>
         <Button
           type="button"
@@ -162,6 +175,54 @@ export function ApprovalsListView() {
         </div>
       </section>
 
+      {/* R1 audit 6.2.1: 5-tab inbox parity with Lovable. */}
+      <div role="tablist" className="flex flex-wrap gap-1 border-b border-border">
+        {(
+          [
+            { key: "all", label: t("approval.list.tabs.all", { defaultValue: "All" }) },
+            {
+              key: "pending",
+              label: t("approval.list.tabs.pending", {
+                defaultValue: "Pending my approval",
+              }),
+              badge: pagination?.total ?? items.length,
+            },
+            {
+              key: "approved",
+              label: t("approval.list.tabs.approved", { defaultValue: "Approved by me" }),
+            },
+            {
+              key: "rejected",
+              label: t("approval.list.tabs.rejected", { defaultValue: "Rejected by me" }),
+            },
+            {
+              key: "watching",
+              label: t("approval.list.tabs.watching", { defaultValue: "Watching" }),
+            },
+          ] as Array<{ key: TabKey; label: string; badge?: number }>
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            role="tab"
+            type="button"
+            aria-selected={activeTab === tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`inline-flex items-center gap-1.5 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+              activeTab === tab.key
+                ? "border-gold text-ink"
+                : "border-transparent text-ink-muted hover:text-ink"
+            }`}
+          >
+            {tab.label}
+            {typeof tab.badge === "number" && tab.badge > 0 && (
+              <span className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-muted">
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
           <div className="flex items-center gap-2">
@@ -187,7 +248,23 @@ export function ApprovalsListView() {
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {activeTab !== "pending" ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 p-12 text-center">
+            <h2 className="text-base font-semibold text-ink">
+              {t("approval.list.tabComingSoonTitle", {
+                defaultValue: "Coming soon",
+              })}
+            </h2>
+            <p className="max-w-md text-sm text-ink-muted">
+              {t("approval.list.tabComingSoonBody", {
+                defaultValue:
+                  "This view will land alongside the upcoming approver decision history endpoint.",
+              })}
+            </p>
+          </CardContent>
+        </Card>
+      ) : isLoading ? (
         <Card>
           <CardContent className="space-y-2 p-4" aria-busy="true">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -257,7 +334,10 @@ export function ApprovalsListView() {
                     <ApprovalListRow
                       key={row.stepId}
                       row={row}
-                      onAct={(it) => setActiveStep(it)}
+                      onAct={(it, action) => {
+                        setActiveStep(it);
+                        setPresetAction(action ?? null);
+                      }}
                     />
                   ))}
                 </tbody>
@@ -305,9 +385,13 @@ export function ApprovalsListView() {
       {activeStep && (
         <ApprovalDecisionDialog
           stepId={activeStep.stepId}
+          initialKind={presetAction ?? undefined}
           currentUserId={currentUserId}
           open={true}
-          onClose={() => setActiveStep(null)}
+          onClose={() => {
+            setActiveStep(null);
+            setPresetAction(null);
+          }}
         />
       )}
     </motion.div>
@@ -316,7 +400,7 @@ export function ApprovalsListView() {
 
 interface ApprovalListRowProps {
   row: MyPendingApprovalListItem;
-  onAct: (item: MyPendingApprovalListItem) => void;
+  onAct: (item: MyPendingApprovalListItem, presetAction?: ApprovalActionKind) => void;
 }
 
 function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
@@ -401,16 +485,54 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
         </span>
       </td>
       <td className="px-4 py-3 text-end">
-        <Button
-          type="button"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAct(row);
-          }}
-        >
-          {t("approval.list.actAction")}
-        </Button>
+        {/* R1 audit 6.4.6: 3 inline icon buttons (Approve / Reject / Request
+            info) match Lovable's 1-click decision UX. Each presets the
+            ApprovalDecisionDialog action so the user lands on the right
+            screen with no extra step. */}
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label={t("approval.decide.approve", { defaultValue: "Approve" })}
+            title={t("approval.decide.approve", { defaultValue: "Approve" })}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAct(row, "approve");
+            }}
+            className="text-primary hover:bg-primary/10"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label={t("approval.decide.reject", { defaultValue: "Reject" })}
+            title={t("approval.decide.reject", { defaultValue: "Reject" })}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAct(row, "reject");
+            }}
+            className="text-destructive hover:bg-destructive/10"
+          >
+            <XCircle className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
+            title={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAct(row, "request_resubmission");
+            }}
+            className="text-amber-ink hover:bg-amber-tint/40"
+          >
+            <MessageCircleQuestion className="h-4 w-4" />
+          </Button>
+        </div>
       </td>
     </tr>
   );
