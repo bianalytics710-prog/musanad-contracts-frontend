@@ -823,7 +823,7 @@ const SEVERITY_TINT: Record<NotificationSeverity, string> = {
 function NotificationsWidget() {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
-  const { notifications, unreadCount } = useNotifications();
+  const { notifications, unreadCount, markAsRead } = useNotifications();
 
   const recent: AppNotification[] = useMemo(
     () =>
@@ -864,29 +864,46 @@ function NotificationsWidget() {
             const title = isAr && n.titleAr ? n.titleAr : n.titleEn;
             const body = isAr && n.bodyAr ? n.bodyAr : n.bodyEn;
             const isUnread = n.readAt === null;
-            return (
-              <li
-                key={n.id}
-                className={`rounded-md border border-border px-3 py-2 ${
-                  isUnread ? "bg-surface" : "bg-card"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${SEVERITY_TINT[n.severity]}`} />
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`truncate text-xs ${isUnread ? "font-medium text-ink" : "text-ink-muted"}`}
-                    >
-                      {title}
-                    </p>
-                    {body && (
-                      <p className="mt-0.5 line-clamp-2 text-[11px] text-ink-subtle">{body}</p>
-                    )}
-                  </div>
-                  <span className="font-mono text-[10px] text-ink-subtle whitespace-nowrap">
-                    {formatDateTime(n.createdAt)}
-                  </span>
+            const inner = (
+              <div className="flex items-start gap-2">
+                <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${SEVERITY_TINT[n.severity]}`} />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`truncate text-xs ${isUnread ? "font-medium text-ink" : "text-ink-muted"}`}
+                  >
+                    {title}
+                  </p>
+                  {body && (
+                    <p className="mt-0.5 line-clamp-2 text-[11px] text-ink-subtle">{body}</p>
+                  )}
                 </div>
+                <span className="font-mono text-[10px] text-ink-subtle whitespace-nowrap">
+                  {formatDateTime(n.createdAt)}
+                </span>
+              </div>
+            );
+            const wrapperClass = `block rounded-md border border-border px-3 py-2 transition hover:border-gold/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+              isUnread ? "bg-surface" : "bg-card"
+            }`;
+            return (
+              <li key={n.id}>
+                {n.linkUrl ? (
+                  <Link
+                    to={n.linkUrl}
+                    onClick={() => markAsRead(n.id)}
+                    className={wrapperClass}
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => markAsRead(n.id)}
+                    className={`${wrapperClass} w-full text-start`}
+                  >
+                    {inner}
+                  </button>
+                )}
               </li>
             );
           })}
