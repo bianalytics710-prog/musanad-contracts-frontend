@@ -78,7 +78,16 @@ function formatAed(value: number | null, currency: string | undefined): string {
   }
 }
 
-export function ContractListView() {
+interface ContractListViewProps {
+  /**
+   * Pre-applies a status filter on first render. Threaded from
+   * `?status=<contract_status>` on the route — set by inbound deep links
+   * such as the drafter dashboard pipeline pills.
+   */
+  initialStatus?: ContractStatus;
+}
+
+export function ContractListView({ initialStatus }: ContractListViewProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -89,7 +98,9 @@ export function ContractListView() {
 
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ContractStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<ContractStatus | "">(
+    initialStatus ?? "",
+  );
   const [deleteTarget, setDeleteTarget] = useState<ContractListItem | null>(null);
 
   const debouncedSearch = useDebounce(searchInput, 300);

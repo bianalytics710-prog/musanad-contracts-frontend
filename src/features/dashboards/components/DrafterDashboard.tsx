@@ -72,6 +72,7 @@ import type {
   DashboardRangeKey,
   DrafterAwaitingActionRow,
 } from "@/types/entities/dashboards.types";
+import type { ContractStatus } from "@/types/entities/contract.types";
 import { formatDateTime } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
@@ -123,16 +124,29 @@ export function DrafterDashboard() {
     (data?.kpis.readyToSendCount ?? 0) +
     (data?.kpis.myRecentlyApprovedCount ?? 0);
 
-  const pipelinePills = useMemo(
+  // Each pill deep-links to /app/contracts?status=<x>. Mapping mirrors the
+  // bucket each KPI counts in fn_dashboard_drafter:
+  //   myDraftsCount             → status='draft'
+  //   awaitingMyActionCount     → status='resubmission_requested'
+  //                               (the drafter-actionable subset of the BE's
+  //                                IN ('draft','resubmission_requested') —
+  //                                'draft' is already the first pill)
+  //   readyToSendCount          → status='approved'
+  //   myRecentlyApprovedCount   → status='fully_signed' (downstream end-state)
+  const pipelinePills = useMemo<
+    ReadonlyArray<{ key: string; accent: string; label: string; count: number; filter: ContractStatus }>
+  >(
     () => [
       {
         key: "draft",
+        filter: "draft",
         accent: STAGE_COLORS.draft,
         label: t("dashboards.drafter.pills.draft", { defaultValue: "Drafts" }),
         count: data?.kpis.myDraftsCount ?? 0,
       },
       {
         key: "awaiting",
+        filter: "resubmission_requested",
         accent: STAGE_COLORS.inReview,
         label: t("dashboards.drafter.pills.awaitingAction", {
           defaultValue: "Awaiting action",
@@ -141,6 +155,7 @@ export function DrafterDashboard() {
       },
       {
         key: "readyToSend",
+        filter: "approved",
         accent: STAGE_COLORS.approved,
         label: t("dashboards.drafter.pills.readyToSend", {
           defaultValue: "Ready to send",
@@ -149,6 +164,7 @@ export function DrafterDashboard() {
       },
       {
         key: "approved",
+        filter: "fully_signed",
         accent: STAGE_COLORS.signed,
         label: t("dashboards.drafter.pills.approved", {
           defaultValue: "Approved",
@@ -350,6 +366,7 @@ export function DrafterDashboard() {
                   <Link
                     key={p.key}
                     to="/app/contracts"
+                    search={{ status: p.filter }}
                     className="group rounded-md border border-border bg-surface p-3 transition-colors hover:border-gold/60"
                   >
                     <div className="flex items-center gap-1.5">
