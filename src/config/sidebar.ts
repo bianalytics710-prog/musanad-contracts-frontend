@@ -93,12 +93,24 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "obligations",
     "parties",
   ],
-  contract_approver: ["insights", "approvals", "contracts"],
-  contract_approver_2: ["insights", "approvals", "contracts"],
-  contract_recipient: ["insights", "contracts"],
-  platform_admin: ["admin", "contracts", "insights"],
-  "Super Admin": ["admin", "insights", "contracts", "approvals", "regulations", "radar"],
-  executive: ["insights", "contracts", "regulations"],
+  contract_approver: ["insights", "approvals", "contracts", "obligations"],
+  contract_approver_2: ["insights", "approvals", "contracts", "obligations"],
+  contract_recipient: ["insights", "contracts", "obligations"],
+  platform_admin: ["admin", "insights", "contracts", "parties", "templates", "clauses"],
+  "Super Admin": [
+    "admin",
+    "insights",
+    "contracts",
+    "compose",
+    "approvals",
+    "templates",
+    "clauses",
+    "parties",
+    "obligations",
+    "regulations",
+    "radar",
+  ],
+  executive: ["insights", "contracts", "regulations", "parties"],
 };
 
 export interface AdminSubItem {
@@ -110,6 +122,8 @@ export interface AdminSubItem {
 
 export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin",                      labelKey: "nav.adminOverview", defaultLabel: "Overview",        icon: LayoutGrid },
+  { to: "/app/admin/users",                labelKey: "nav.adminUsers",    defaultLabel: "Users",           icon: UsersIcon },
+  { to: "/app/admin/audit",                labelKey: "nav.adminAudit",    defaultLabel: "Audit log",       icon: ScrollText },
   { to: "/app/admin/health",               labelKey: "nav.adminHealth",   defaultLabel: "Health",          icon: Activity },
   { to: "/app/admin/approval-matrix",      labelKey: "nav.adminMatrix",   defaultLabel: "Approval matrix", icon: KeyRound },
   { to: "/app/admin/approval-chains",      labelKey: "nav.adminChains",   defaultLabel: "Approval chains", icon: KeyRound },
