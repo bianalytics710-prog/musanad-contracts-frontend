@@ -473,6 +473,10 @@ export interface ContractListQuery {
   importConfidenceMin?: number;
   /** Upper bound on contract.import_confidence. Range [0, 100]. AC-S6-01. */
   importConfidenceMax?: number;
+  // ─── R5+ Lovable parity filters ────────────────────────────────────
+  language?: ContractLanguage;
+  governingLaw?: GoverningLaw;
+  sort?: "updated_at" | "created_at" | "end_date" | "value" | "alpha";
 }
 
 export interface ContractVersionListQuery {

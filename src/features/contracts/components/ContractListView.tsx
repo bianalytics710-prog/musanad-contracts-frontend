@@ -40,10 +40,14 @@ import { translateApiError } from "@/lib/translate-api-error";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import { cn } from "@/lib/utils";
 import {
+  CONTRACT_LANGUAGE_VALUES,
   CONTRACT_STATUS_VALUES,
+  GOVERNING_LAW_VALUES,
+  type ContractLanguage,
   type ContractListItem,
   type ContractListQuery,
   type ContractStatus,
+  type GoverningLaw,
 } from "@/types/entities/contract.types";
 import { useContractList } from "@/features/contracts/hooks/useContracts";
 import { ContractStatusBadge } from "./ContractStatusBadge";
@@ -63,7 +67,40 @@ const QUICK_FILTERS: ReadonlyArray<{ key: ContractStatus | ""; defaultLabel: str
   { key: "expiring_soon", defaultLabel: "Expiring soon" },
   { key: "draft", defaultLabel: "Draft" },
   { key: "expired", defaultLabel: "Expired" },
+  // Lovable-parity additions
+  { key: "amended", defaultLabel: "Amended" },
+  { key: "terminated", defaultLabel: "Terminated" },
+  { key: "rejected", defaultLabel: "Rejected" },
+  { key: "resubmission_requested", defaultLabel: "Resubmission requested" },
 ];
+
+/** Lovable parity: contract type filter options. */
+const CONTRACT_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "employment", label: "Employment" },
+  { value: "vendor_services", label: "Vendor / services" },
+  { value: "service", label: "Service" },
+  { value: "consultancy", label: "Consultancy" },
+  { value: "advisory", label: "Advisory" },
+  { value: "nda", label: "Non-disclosure" },
+  { value: "master_services", label: "Master services" },
+  { value: "sow", label: "SOW" },
+  { value: "supply", label: "Supply" },
+  { value: "concession", label: "Concession" },
+];
+
+/** Lovable parity: sort options. */
+const SORT_OPTIONS: ReadonlyArray<{
+  value: NonNullable<ContractListQuery["sort"]>;
+  label: string;
+}> = [
+  { value: "updated_at", label: "Last updated" },
+  { value: "created_at", label: "Created" },
+  { value: "end_date", label: "End date" },
+  { value: "value", label: "Value" },
+  { value: "alpha", label: "Alphabetical" },
+];
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 function formatAed(value: number | null, currency: string | undefined): string {
   if (value == null) return "—";
@@ -97,9 +134,19 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
   const canDelete = useAuthStore(selectHasPermission("contract.delete"));
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE);
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<ContractStatus | "">(
     initialStatus ?? "",
+  );
+  // R5+ Lovable parity filters
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [languageFilter, setLanguageFilter] = useState<ContractLanguage | "">("");
+  const [governingLawFilter, setGoverningLawFilter] = useState<GoverningLaw | "">("");
+  const [startFromFilter, setStartFromFilter] = useState<string>("");
+  const [startToFilter, setStartToFilter] = useState<string>("");
+  const [sortField, setSortField] = useState<NonNullable<ContractListQuery["sort"]>>(
+    "updated_at",
   );
   const [deleteTarget, setDeleteTarget] = useState<ContractListItem | null>(null);
 
@@ -108,11 +155,28 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
   const query: ContractListQuery = useMemo(
     () => ({
       page,
-      limit: PAGE_SIZE,
+      limit: pageSize,
       search: debouncedSearch.trim() || undefined,
       status: statusFilter || undefined,
+      contractType: typeFilter || undefined,
+      language: (languageFilter as ContractLanguage) || undefined,
+      governingLaw: (governingLawFilter as GoverningLaw) || undefined,
+      startDateFrom: startFromFilter || undefined,
+      startDateTo: startToFilter || undefined,
+      sort: sortField,
     }),
-    [page, debouncedSearch, statusFilter],
+    [
+      page,
+      pageSize,
+      debouncedSearch,
+      statusFilter,
+      typeFilter,
+      languageFilter,
+      governingLawFilter,
+      startFromFilter,
+      startToFilter,
+      sortField,
+    ],
   );
 
   const { data, isLoading, isError, error, refetch, isFetching } = useContractList(query);
@@ -145,12 +209,26 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
   const handleClearFilters = () => {
     setSearchInput("");
     setStatusFilter("");
+    setTypeFilter("");
+    setLanguageFilter("");
+    setGoverningLawFilter("");
+    setStartFromFilter("");
+    setStartToFilter("");
+    setSortField("updated_at");
     setPage(1);
   };
 
   const items = data?.data ?? [];
   const pagination = data?.pagination;
-  const hasFilters = !!debouncedSearch || !!statusFilter;
+  const hasFilters =
+    !!debouncedSearch ||
+    !!statusFilter ||
+    !!typeFilter ||
+    !!languageFilter ||
+    !!governingLawFilter ||
+    !!startFromFilter ||
+    !!startToFilter ||
+    sortField !== "updated_at";
 
   // Lightweight KPI strip derived from the current page rows. Faithful to
   // the visible page; for whole-set numbers we use pagination.total.
@@ -287,6 +365,130 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
               </button>
             );
           })}
+        </div>
+
+        {/* R5+ Lovable parity: Type / Language / Governing law / Date range / Sort / Page size */}
+        <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <FilterSelect
+            label={t("contracts.filters.type", { defaultValue: "Type" })}
+            value={typeFilter}
+            onChange={(v) => {
+              setTypeFilter(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "", label: t("common.all", { defaultValue: "All" }) },
+              ...CONTRACT_TYPE_OPTIONS.map((o) => ({
+                value: o.value,
+                label: t(`contracts.contractType.${o.value}`, { defaultValue: o.label }),
+              })),
+            ]}
+          />
+          <FilterSelect
+            label={t("contracts.filters.language", { defaultValue: "Language" })}
+            value={languageFilter}
+            onChange={(v) => {
+              setLanguageFilter(v as ContractLanguage | "");
+              setPage(1);
+            }}
+            options={[
+              { value: "", label: t("common.all", { defaultValue: "All" }) },
+              ...CONTRACT_LANGUAGE_VALUES.map((v) => ({
+                value: v,
+                label: t(`contracts.languageOptions.${v}`, {
+                  defaultValue: v === "en" ? "English" : v === "ar" ? "Arabic" : "Bilingual",
+                }),
+              })),
+            ]}
+          />
+          <FilterSelect
+            label={t("contracts.filters.governingLaw", { defaultValue: "Governing law" })}
+            value={governingLawFilter}
+            onChange={(v) => {
+              setGoverningLawFilter(v as GoverningLaw | "");
+              setPage(1);
+            }}
+            options={[
+              { value: "", label: t("common.all", { defaultValue: "All" }) },
+              ...GOVERNING_LAW_VALUES.map((v) => ({
+                value: v,
+                label: t(`contracts.governingLawOptions.${v}`, {
+                  defaultValue: v.replace("_", " "),
+                }),
+              })),
+            ]}
+          />
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="contracts-start-from"
+              className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+            >
+              {t("contracts.filters.startFrom", { defaultValue: "Start from" })}
+            </label>
+            <input
+              id="contracts-start-from"
+              type="date"
+              value={startFromFilter}
+              onChange={(e) => {
+                setStartFromFilter(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="contracts-start-to"
+              className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+            >
+              {t("contracts.filters.startTo", { defaultValue: "Start to" })}
+            </label>
+            <input
+              id="contracts-start-to"
+              type="date"
+              value={startToFilter}
+              onChange={(e) => {
+                setStartToFilter(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+          <FilterSelect
+            label={t("contracts.filters.sort", { defaultValue: "Sort by" })}
+            value={sortField}
+            onChange={(v) => {
+              setSortField((v as NonNullable<ContractListQuery["sort"]>) || "updated_at");
+              setPage(1);
+            }}
+            options={SORT_OPTIONS.map((o) => ({
+              value: o.value,
+              label: t(`contracts.filters.sortOption.${o.value}`, { defaultValue: o.label }),
+            }))}
+          />
+        </div>
+        <div className="mt-2 flex items-center justify-end">
+          <label
+            htmlFor="contracts-page-size"
+            className="me-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+          >
+            {t("contracts.filters.pageSize", { defaultValue: "Per page" })}
+          </label>
+          <select
+            id="contracts-page-size"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm"
+          >
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n} / page
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -496,6 +698,36 @@ function ContractListSkeleton() {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <TableSkeleton rows={8} cols={6} />
+    </div>
+  );
+}
+
+/**
+ * R5+ — labelled select used by the Lovable-parity filter row.
+ */
+interface FilterSelectProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: ReadonlyArray<{ value: string; label: string }>;
+}
+function FilterSelect({ label, value, onChange, options }: FilterSelectProps) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        {options.map((o) => (
+          <option key={o.value || "_all"} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
