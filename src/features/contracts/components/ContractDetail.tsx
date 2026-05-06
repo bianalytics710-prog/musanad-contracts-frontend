@@ -79,12 +79,14 @@ import { ExportPdfDialog } from "./ExportPdfDialog";
 import { ContractDocumentTab } from "./ContractDocumentTab";
 import { ContractInfoCards } from "./ContractInfoCards";
 import { ContractAIInsightsPanel } from "./ContractAIInsightsPanel";
+import { ContractAttachmentsTab } from "./ContractAttachmentsTab";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
 
 type Tab =
   | "overview"
   | "document"
+  | "attachments"
   | "edit"
   | "payments"
   | "versions"
@@ -328,6 +330,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           <FileTextIcon className="h-3.5 w-3.5" />
           {t("contracts.detail.tabs.document", { defaultValue: "Document" })}
         </TabButton>
+        <TabButton active={tab === "attachments"} onClick={() => setTab("attachments")}>
+          {t("contracts.detail.tabs.attachments", { defaultValue: "Attachments" })}
+        </TabButton>
         <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
           {t("contracts.detail.tabs.edit")}
         </TabButton>
@@ -353,6 +358,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       {/* Tab panels */}
       {tab === "overview" && <OverviewPanel contract={contract} canManageTags={canManageTags} />}
       {tab === "document" && <ContractDocumentTab contract={contract} />}
+      {tab === "attachments" && <ContractAttachmentsTab contractId={contract.id} />}
       {tab === "edit" && (
         <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />
       )}
