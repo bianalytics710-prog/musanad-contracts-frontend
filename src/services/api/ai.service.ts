@@ -20,7 +20,7 @@
  * axios body only and are NEVER console-logged. Pino redaction handles BE.
  */
 
-import { apiClient } from "@/lib/api-client";
+import { apiClient, unwrap } from "@/lib/api-client";
 import type {
   AiContractInsightsRequest,
   AiContractInsightsResponseBody,
@@ -75,11 +75,11 @@ export const aiService = {
         "ai.service.contractInsights: mode='summary'|'rewrite' must use the SSE streaming hook (useAiInsightsSseStream).",
       );
     }
-    const { data } = await apiClient.post<AiContractInsightsResponseBody>(
+    const { data } = await apiClient.post(
       `${AI_BASE}/contract-insights`,
       payload,
     );
-    return data;
+    return unwrap<AiContractInsightsResponseBody>(data);
   },
 
   // ── S2 — drafting assistant — non-streaming (suggest only) ─────────────────
@@ -96,11 +96,11 @@ export const aiService = {
         "ai.service.draftingAssistantSuggest: only mode='suggest' is synchronous; use the SSE hook for chat/explain/rewrite.",
       );
     }
-    const { data } = await apiClient.post<AiDraftingAssistantSuggestResponse>(
+    const { data } = await apiClient.post(
       `${AI_BASE}/drafting-assistant`,
       payload,
     );
-    return data;
+    return unwrap<AiDraftingAssistantSuggestResponse>(data);
   },
 
   // ── S3 — executive anomalies (non-streaming, cached 1h) ────────────────────
@@ -108,11 +108,11 @@ export const aiService = {
   executiveAnomalies: async (
     payload: AiExecutiveAnomaliesRequest,
   ): Promise<AiExecutiveAnomaliesResponse> => {
-    const { data } = await apiClient.post<AiExecutiveAnomaliesResponse>(
+    const { data } = await apiClient.post(
       `${AI_BASE}/executive-anomalies`,
       payload,
     );
-    return data;
+    return unwrap<AiExecutiveAnomaliesResponse>(data);
   },
 
   // S4 — regulatory impact: SSE-only — see useAiRegulatoryImpactSseStream.
@@ -122,11 +122,11 @@ export const aiService = {
   versionDiffSummary: async (
     payload: AiVersionDiffSummaryRequest,
   ): Promise<AiVersionDiffSummaryResponse> => {
-    const { data } = await apiClient.post<AiVersionDiffSummaryResponse>(
+    const { data } = await apiClient.post(
       `${AI_BASE}/version-diff-summary`,
       payload,
     );
-    return data;
+    return unwrap<AiVersionDiffSummaryResponse>(data);
   },
 
   // ── S11 — admin observability — list ai_request_log rows ──────────────────
