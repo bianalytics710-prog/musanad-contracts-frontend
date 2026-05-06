@@ -5273,6 +5273,9 @@
         "custom": "Custom",
         "customDaysLabel": "Days"
       },
+      "welcome": "Welcome back",
+      "viewAll": "View all →",
+      "total": "Total",
       "featurePending": "Feature pending — coming in a future module.",
       "emptyList": "Nothing to show yet.",
       "noDataDash": "—",
@@ -5380,22 +5383,90 @@
       }
     },
     "legalCounsel": {
-      "title": "Legal Counsel Dashboard",
+      "title": "Legal insights",
       "subtitle": "Regulatory updates, impacts and audit visibility.",
       "kpiGroupLabel": "Legal counsel key performance indicators",
       "kpis": {
+        "activeContracts": "Active",
+        "expiringIn30d": "Expiring 30d",
+        "pendingReview": "Pending Review",
         "regulatoryUpdatesThisWindow": "Regulatory updates",
-        "openRegulatoryImpacts": "Open impacts",
+        "openRegulatoryImpacts": "Regulatory impact (open)",
         "criticalSeverityCount": "Critical severity",
-        "regulationCatalogSize": "Regulation catalogue size",
-        "templateUsageThisWindow": "Template usage",
-        "templateUsageHint": "Coming with the Templates module — this tile is intentionally disabled.",
-        "auditEventsLabel": "Audit events",
-        "auditSummaryDenied": "You don't have the audit.read permission to view this breakdown."
+        "regulationCatalogSize": "Regulation catalogue size"
       },
-      "auditSummary": {
-        "title": "Audit events by table",
-        "description": "Counts grouped by audited table name."
+      "hero": {
+        "kicker": "Critical regulatory impact",
+        "openImpacts": "open regulatory impacts",
+        "openRadar": "Open Radar"
+      },
+      "approvalQueue": {
+        "title": "My approval queue",
+        "empty": "No contracts pending your review",
+        "col": {
+          "contract": "Contract",
+          "type": "Type",
+          "drafter": "Drafter",
+          "submitted": "Submitted"
+        },
+        "action": {
+          "review": "Review"
+        }
+      },
+      "risk": {
+        "title": "Risk exposure",
+        "subtitle": "Active contracts by AI risk score",
+        "totalActive": "Total active",
+        "bucketLow": "Low (0–30)",
+        "bucketMedium": "Medium (31–60)",
+        "bucketHigh": "High (61+)",
+        "avgReview": "Avg legal review time",
+        "currentWeek": "Current week",
+        "top5Title": "Top 5 highest-risk contracts"
+      },
+      "regUpdates12w": {
+        "title": "Regulatory updates · 12 weeks",
+        "totalUpdates": "Total updates",
+        "authoritiesActive": "Authorities active",
+        "peakWeek": "Peak week"
+      },
+      "contractTypes": {
+        "title": "Contract types",
+        "subtitle": "Active contracts by type"
+      },
+      "obligations": {
+        "title": "Obligations at risk",
+        "overdue": "overdue",
+        "dueWeek": "due this week",
+        "daysOverdue": "days overdue",
+        "daysLeft": "days left",
+        "viewAll": "View all obligations →"
+      },
+      "activityFeed": {
+        "title": "Activity feed",
+        "pill": {
+          "all": "All",
+          "mine": "My actions",
+          "mentions": "Mentions",
+          "high": "High-priority"
+        },
+        "type": {
+          "submitted_for_approval": "Contract submitted for approval",
+          "approval_decided": "Approval decision recorded",
+          "approval_reassigned": "Approval reassigned",
+          "approval_escalated": "Approval escalated",
+          "approval_delegated": "Approval delegated",
+          "regulatory_impact_detected": "Regulatory impact detected",
+          "regulatory_impact_resolved": "Regulatory impact resolved",
+          "ai_summary_generated": "AI summary generated",
+          "ai_risk_score_updated": "AI risk score updated",
+          "ai_diff_summary_generated": "Version diff summary generated",
+          "sent_for_signature": "Sent for signature",
+          "signer_signed": "Signer signed",
+          "fully_executed": "Contract fully executed",
+          "status_changed": "Status changed",
+          "version_created": "New version created"
+        }
       },
       "lists": {
         "recentRegulatoryUpdatesTitle": "Recent regulatory updates",

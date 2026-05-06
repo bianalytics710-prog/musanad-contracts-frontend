@@ -316,13 +316,15 @@ export interface LegalCounselDashboardKpis {
   openRegulatoryImpacts: number;
   criticalSeverityCount: number;
   regulationCatalogSize: number;
-  /** Placeholder until templates module ships (AC-S4-05). */
-  templateUsageThisWindow: PlaceholderKpi;
   /**
    * Keys are LIVE audit_log.table_name (S2-22-FIX-4).
    * NULL when caller lacks 'audit.read' (CRIT-4 lock).
    */
   auditSummary: Record<string, number> | null;
+  /** R-LC1 — contracts-led KPIs added for Lovable parity. */
+  activeContracts: number;
+  expiringIn30d: number;
+  pendingReview: number;
 }
 
 export interface LegalCounselDashboardLists {
@@ -330,9 +332,102 @@ export interface LegalCounselDashboardLists {
   openImpacts5: DashboardOpenImpactRow[];
 }
 
+export interface LegalCounselApprovalQueueRow {
+  id: number;
+  contractId: number;
+  contractNumber: string;
+  titleEn: string;
+  titleAr: string | null;
+  contractType: string;
+  valueAed: number | null;
+  currency: string;
+  submittedAt: string | null;
+  drafterFirstName: string | null;
+  drafterLastName: string | null;
+  stepOrder: number;
+  totalSteps: number;
+}
+
+export interface LegalCounselTopRiskRow {
+  id: number;
+  contractNumber: string;
+  titleEn: string;
+  risk: number;
+}
+
+export interface LegalCounselRiskExposure {
+  lowCount: number;
+  mediumCount: number;
+  highCount: number;
+  totalActive: number;
+  top5HighRisk: LegalCounselTopRiskRow[];
+}
+
+export interface LegalCounselWeekHours {
+  weekIndex: number;
+  avgHours: number;
+}
+
+export interface LegalCounselWeeklyAuthority {
+  weekIndex: number;
+  authority: string | null;
+  count: number;
+}
+
+export interface LegalCounselRegulatoryUpdates12w {
+  totalUpdates: number;
+  authoritiesActive: number;
+  weeklyByAuthority: LegalCounselWeeklyAuthority[];
+}
+
+export interface LegalCounselContractTypeRow {
+  type: string;
+  count: number;
+  pct: number;
+}
+
+export interface LegalCounselContractTypes {
+  total: number;
+  rows: LegalCounselContractTypeRow[];
+}
+
+export interface LegalCounselObligationRow {
+  id: number;
+  titleEn: string;
+  contractId: number;
+  contractNumber: string;
+  dueDate: string | null;
+  status: string;
+  daysOverdue: number;
+  daysLeft: number;
+}
+
+export interface LegalCounselObligations {
+  overdueCount: number;
+  dueThisWeekCount: number;
+  top5: LegalCounselObligationRow[];
+}
+
+export interface LegalCounselActivityRow {
+  id: number;
+  activityType: string;
+  contractId: number;
+  contractNumber: string;
+  description: string;
+  createdAt: string;
+  actorUserId: number | null;
+}
+
 export interface LegalCounselDashboardSnapshot {
   kpis: LegalCounselDashboardKpis;
   lists: LegalCounselDashboardLists;
+  approvalQueue5: LegalCounselApprovalQueueRow[];
+  risk: LegalCounselRiskExposure;
+  avgReview12w: LegalCounselWeekHours[];
+  regulatoryUpdates12w: LegalCounselRegulatoryUpdates12w;
+  contractTypes: LegalCounselContractTypes;
+  obligations: LegalCounselObligations;
+  activityFeed: LegalCounselActivityRow[];
 }
 
 // ─── Recipient dashboard (S5) ───────────────────────────────────────────────

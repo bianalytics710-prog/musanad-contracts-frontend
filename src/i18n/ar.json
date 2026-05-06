@@ -5273,6 +5273,9 @@
         "custom": "مخصص",
         "customDaysLabel": "أيام"
       },
+      "welcome": "أهلاً بعودتك",
+      "viewAll": "عرض الكل ←",
+      "total": "الإجمالي",
       "featurePending": "الميزة قيد التطوير — قادمة في وحدة لاحقة.",
       "emptyList": "لا توجد بيانات لعرضها بعد.",
       "noDataDash": "—",
@@ -5380,22 +5383,90 @@
       }
     },
     "legalCounsel": {
-      "title": "لوحة المستشار القانوني",
+      "title": "نظرة قانونية",
       "subtitle": "التحديثات التنظيمية والتأثيرات ورؤية التدقيق.",
       "kpiGroupLabel": "مؤشرات أداء المستشار القانوني",
       "kpis": {
+        "activeContracts": "نشِط",
+        "expiringIn30d": "ينتهي خلال 30 يومًا",
+        "pendingReview": "قيد المراجعة",
         "regulatoryUpdatesThisWindow": "التحديثات التنظيمية",
-        "openRegulatoryImpacts": "التأثيرات المفتوحة",
+        "openRegulatoryImpacts": "التأثيرات التنظيمية (مفتوحة)",
         "criticalSeverityCount": "ذات خطورة حرجة",
-        "regulationCatalogSize": "حجم كتالوج اللوائح",
-        "templateUsageThisWindow": "استخدام القوالب",
-        "templateUsageHint": "قادمة مع وحدة القوالب — هذه البلاطة معطلة عمدًا.",
-        "auditEventsLabel": "أحداث التدقيق",
-        "auditSummaryDenied": "ليس لديك صلاحية audit.read لعرض هذا التفصيل."
+        "regulationCatalogSize": "حجم كتالوج اللوائح"
       },
-      "auditSummary": {
-        "title": "أحداث التدقيق حسب الجدول",
-        "description": "الأعداد مجمّعة حسب اسم الجدول المُدقّق."
+      "hero": {
+        "kicker": "تأثير تنظيمي حرج",
+        "openImpacts": "تأثير تنظيمي مفتوح",
+        "openRadar": "افتح الرادار"
+      },
+      "approvalQueue": {
+        "title": "قائمة موافقاتي",
+        "empty": "لا توجد عقود بانتظار مراجعتك",
+        "col": {
+          "contract": "العقد",
+          "type": "النوع",
+          "drafter": "الكاتب",
+          "submitted": "تاريخ التقديم"
+        },
+        "action": {
+          "review": "مراجعة"
+        }
+      },
+      "risk": {
+        "title": "تعرّض للمخاطر",
+        "subtitle": "العقود النشطة حسب درجة المخاطر بالذكاء الاصطناعي",
+        "totalActive": "إجمالي النشط",
+        "bucketLow": "منخفض (0–30)",
+        "bucketMedium": "متوسط (31–60)",
+        "bucketHigh": "مرتفع (61+)",
+        "avgReview": "متوسط زمن المراجعة القانونية",
+        "currentWeek": "الأسبوع الحالي",
+        "top5Title": "أعلى 5 عقود مخاطر"
+      },
+      "regUpdates12w": {
+        "title": "التحديثات التنظيمية · 12 أسبوعًا",
+        "totalUpdates": "إجمالي التحديثات",
+        "authoritiesActive": "الجهات الفاعلة",
+        "peakWeek": "الأسبوع الأعلى"
+      },
+      "contractTypes": {
+        "title": "أنواع العقود",
+        "subtitle": "العقود النشطة حسب النوع"
+      },
+      "obligations": {
+        "title": "التزامات معرّضة للخطر",
+        "overdue": "متأخرة",
+        "dueWeek": "مستحقة هذا الأسبوع",
+        "daysOverdue": "أيام تأخر",
+        "daysLeft": "يوم متبقّ",
+        "viewAll": "عرض كل الالتزامات →"
+      },
+      "activityFeed": {
+        "title": "سجل النشاط",
+        "pill": {
+          "all": "الكل",
+          "mine": "إجراءاتي",
+          "mentions": "الإشارات",
+          "high": "ذات أولوية عالية"
+        },
+        "type": {
+          "submitted_for_approval": "تم تقديم العقد للاعتماد",
+          "approval_decided": "تم تسجيل قرار الاعتماد",
+          "approval_reassigned": "تم إعادة تعيين الاعتماد",
+          "approval_escalated": "تم تصعيد الاعتماد",
+          "approval_delegated": "تم تفويض الاعتماد",
+          "regulatory_impact_detected": "تم اكتشاف تأثير تنظيمي",
+          "regulatory_impact_resolved": "تم حل التأثير التنظيمي",
+          "ai_summary_generated": "تم إنشاء ملخص الذكاء الاصطناعي",
+          "ai_risk_score_updated": "تم تحديث درجة المخاطر",
+          "ai_diff_summary_generated": "تم إنشاء ملخص الفروقات",
+          "sent_for_signature": "أرسل للتوقيع",
+          "signer_signed": "وقع المُوقِّع",
+          "fully_executed": "تم تنفيذ العقد بالكامل",
+          "status_changed": "تغيرت الحالة",
+          "version_created": "تم إنشاء نسخة جديدة"
+        }
       },
       "lists": {
         "recentRegulatoryUpdatesTitle": "أحدث التحديثات التنظيمية",
