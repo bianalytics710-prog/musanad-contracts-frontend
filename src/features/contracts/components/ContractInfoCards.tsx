@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ContractStatusBadge } from "./ContractStatusBadge";
-import { formatDate } from "@/utils/datetime";
+import { formatDate, formatHijriDate } from "@/utils/datetime";
 import { partiesService } from "@/services/api/m_parity.service";
 import type { Contract } from "@/types/entities/contract.types";
 
@@ -119,10 +119,24 @@ export function ContractInfoCards({
             <span className="font-mono text-sm text-ink">{termLabel}</span>
           </Row>
           <Row label={t("contracts.fields.startDate", { defaultValue: "Start" })}>
-            <span className="font-mono text-sm text-ink">{formatDate(contract.startDate)}</span>
+            <div className="flex flex-col items-end">
+              <span className="font-mono text-sm text-ink">{formatDate(contract.startDate)}</span>
+              {contract.startDate && (
+                <span className="font-mono text-[10px] text-ink-subtle">
+                  {formatHijriDate(contract.startDate)}
+                </span>
+              )}
+            </div>
           </Row>
           <Row label={t("contracts.fields.endDate", { defaultValue: "End" })}>
-            <span className="font-mono text-sm text-ink">{formatDate(contract.endDate)}</span>
+            <div className="flex flex-col items-end">
+              <span className="font-mono text-sm text-ink">{formatDate(contract.endDate)}</span>
+              {contract.endDate && (
+                <span className="font-mono text-[10px] text-ink-subtle">
+                  {formatHijriDate(contract.endDate)}
+                </span>
+              )}
+            </div>
           </Row>
           <Row label={t("contracts.fields.governingLaw", { defaultValue: "Governing law" })}>
             <span className="text-sm text-ink">{governingLawLabel}</span>

@@ -98,6 +98,34 @@ export function formatDate(utcString: string | null | undefined, locale?: string
 }
 
 /**
+ * R3 audit 8.1.2 — Hijri (Islamic Umm al-Qura) calendar formatter.
+ * Uses Intl.DateTimeFormat with calendar=islamic-umalqura and falls back
+ * to plain "islamic" then ISO truncation when the runtime can't render
+ * either. Returns a label like "Dhuʻl-Qiʻdah 19, 1447 AH".
+ */
+export function formatHijriDate(utcString: string | null | undefined): string {
+  if (!utcString) return "—";
+  const date = new Date(utcString);
+  if (Number.isNaN(date.getTime())) return "—";
+  const opts: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  };
+  for (const calendar of ["islamic-umalqura", "islamic"] as const) {
+    try {
+      const out = new Intl.DateTimeFormat(`en-u-ca-${calendar}`, opts).format(date);
+      // Intl already appends an era marker on most engines (e.g. "1447 AH").
+      // Add the suffix only if it's missing so we don't render "AH AH".
+      return /\bAH\b/.test(out) ? out : `${out} AH`;
+    } catch {
+      // try next
+    }
+  }
+  return "—";
+}
+
+/**
  * Convenience helper for time-only formatting.
  */
 export function formatTime(

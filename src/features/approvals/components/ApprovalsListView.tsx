@@ -27,11 +27,12 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2, XCircle, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { translateApiError } from "@/lib/translate-api-error";
-import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
+import { useMyPendingApprovals, useDecideApproval } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
 import { useAuthStore } from "@/store/auth.store";
 import {
@@ -65,6 +66,11 @@ export function ApprovalsListView() {
   // default + only tab with real data in R1; the other 4 surface a
   // "coming soon" placeholder until the BE endpoints land in R3.
   const [activeTab, setActiveTab] = useState<TabKey>("pending");
+  // R3 audit 6.3.1: bulk-select state.
+  const [selectedStepIds, setSelectedStepIds] = useState<Set<number>>(new Set());
+  const [bulkApproving, setBulkApproving] = useState(false);
+
+  const decideMutation = useDecideApproval();
 
   const query: MyPendingApprovalListQuery = useMemo(
     () => ({ page, limit: PAGE_SIZE, sort }),
@@ -92,6 +98,58 @@ export function ApprovalsListView() {
       items.reduce((s, i) => s + (i.valueAed ?? 0), 0),
     [items],
   );
+
+  // R3 audit 6.3.1: bulk approve fires a decide mutation for each selected
+  // step in parallel (Promise.allSettled — partial failures don't abort the
+  // batch). Refetch on completion so the inbox reflects the new state.
+  const handleBulkApprove = async () => {
+    if (selectedStepIds.size === 0 || bulkApproving) return;
+    setBulkApproving(true);
+    const results = await Promise.allSettled(
+      Array.from(selectedStepIds).map((stepId) =>
+        decideMutation.mutateAsync({ stepId, data: { decision: "approve" } }),
+      ),
+    );
+    const failures = results.filter((r) => r.status === "rejected").length;
+    setBulkApproving(false);
+    setSelectedStepIds(new Set());
+    if (failures === 0) {
+      toast.success(
+        t("approval.bulk.approveAllSuccess", {
+          count: results.length,
+          defaultValue:
+            results.length === 1
+              ? "1 contract approved"
+              : `${results.length} contracts approved`,
+        }),
+      );
+    } else {
+      toast.error(
+        t("approval.bulk.approveAllPartial", {
+          ok: results.length - failures,
+          failed: failures,
+          defaultValue: `${results.length - failures} approved, ${failures} failed`,
+        }),
+      );
+    }
+    void refetch();
+  };
+
+  const toggleRowSelected = (stepId: number) => {
+    setSelectedStepIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(stepId)) next.delete(stepId);
+      else next.add(stepId);
+      return next;
+    });
+  };
+  const toggleAllSelected = () => {
+    if (selectedStepIds.size === items.length && items.length > 0) {
+      setSelectedStepIds(new Set());
+    } else {
+      setSelectedStepIds(new Set(items.map((i) => i.stepId)));
+    }
+  };
 
   return (
     <motion.div
@@ -310,6 +368,22 @@ export function ApprovalsListView() {
               >
                 <thead className="border-b border-border bg-surface">
                   <tr className="text-left">
+                    {/* R3 audit 6.3.1 — bulk-select header checkbox. */}
+                    <th scope="col" className="w-8 px-2 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={t("approval.list.col.selectAll", { defaultValue: "Select all" })}
+                        checked={selectedStepIds.size === items.length && items.length > 0}
+                        ref={(el) => {
+                          if (el) {
+                            el.indeterminate =
+                              selectedStepIds.size > 0 && selectedStepIds.size < items.length;
+                          }
+                        }}
+                        onChange={toggleAllSelected}
+                        className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-gold"
+                      />
+                    </th>
                     {/* R2 audit — Lovable column set: Priority / Contract /
                         Type / Value / Stage / Submitted / Drafter / Actions */}
                     <th scope="col" className="px-2 py-3 font-medium text-ink-muted">
@@ -343,6 +417,8 @@ export function ApprovalsListView() {
                     <ApprovalListRow
                       key={row.stepId}
                       row={row}
+                      selected={selectedStepIds.has(row.stepId)}
+                      onToggleSelect={() => toggleRowSelected(row.stepId)}
                       onAct={(it, action) => {
                         setActiveStep(it);
                         setPresetAction(action ?? null);
@@ -403,12 +479,56 @@ export function ApprovalsListView() {
           }}
         />
       )}
+
+      {/* R3 audit 6.3.1 — floating bulk-action toolbar appears when ≥1 row
+          selected. Only "Approve all selected" is offered (matches Lovable's
+          single bulk action). Reject/Request-info remain row-level since
+          they require a free-text reason that doesn't fit a bulk flow. */}
+      {selectedStepIds.size > 0 && (
+        <div
+          role="region"
+          aria-label={t("approval.bulk.toolbarLabel", { defaultValue: "Bulk actions" })}
+          className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-border bg-card px-4 py-2 shadow-lg"
+        >
+          <span className="text-sm text-ink-muted">
+            {t("approval.bulk.selectedCount", {
+              count: selectedStepIds.size,
+              defaultValue:
+                selectedStepIds.size === 1
+                  ? "1 selected"
+                  : `${selectedStepIds.size} selected`,
+            })}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleBulkApprove()}
+            disabled={bulkApproving}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {bulkApproving
+              ? t("approval.bulk.approving", { defaultValue: "Approving…" })
+              : t("approval.bulk.approveAll", { defaultValue: "Approve all selected" })}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedStepIds(new Set())}
+            disabled={bulkApproving}
+          >
+            {t("common.clear", { defaultValue: "Clear" })}
+          </Button>
+        </div>
+      )}
     </motion.div>
   );
 }
 
 interface ApprovalListRowProps {
   row: MyPendingApprovalListItem;
+  selected: boolean;
+  onToggleSelect: () => void;
   onAct: (item: MyPendingApprovalListItem, presetAction?: ApprovalActionKind) => void;
 }
 
@@ -419,7 +539,7 @@ function priorityForRow(valueAed: number | null, hoursPending: number): "highVal
   return null;
 }
 
-function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
+function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListRowProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { hoursPending } = row;
@@ -458,8 +578,18 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
           goToContract();
         }
       }}
-      className="cursor-pointer border-b border-border/60 transition-colors hover:bg-surface/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:bg-surface/50"
+      className={`cursor-pointer border-b border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${selected ? "bg-gold/5" : "hover:bg-surface/50 focus-visible:bg-surface/50"}`}
     >
+      {/* R3 audit 6.3.1 — bulk-select row checkbox. */}
+      <td className="w-8 px-2 py-3" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          aria-label={`Select ${row.contractNumber}`}
+          checked={selected}
+          onChange={onToggleSelect}
+          className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-gold"
+        />
+      </td>
       {/* Priority */}
       <td className="px-2 py-3">
         {priority === "highValue" ? (
