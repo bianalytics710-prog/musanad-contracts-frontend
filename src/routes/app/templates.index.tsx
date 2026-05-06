@@ -3,13 +3,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Search, FileStack, Languages, TrendingUp, ArrowRight, Eye } from "lucide-react";
+import { Search, FileStack, Languages, TrendingUp, ArrowRight, Eye, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { TemplatePreviewDialog } from "@/features/templates/components/TemplatePreviewDialog";
+import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { CreateTemplateDialog } from "@/features/m_parity/components/CreateEntityDialogs";
 
 export const Route = createFileRoute("/app/templates/")({
   component: () => (
@@ -25,7 +27,9 @@ function TemplatesListView() {
   const [search, setSearch] = useState("");
   const [contractType, setContractType] = useState("");
   const [previewTemplate, setPreviewTemplate] = useState<TemplateListItem | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const debounced = useDebounce(search, 300);
+  const canCreate = useAuthStore(selectHasPermission("contract.edit"));
 
   const { data, isLoading } = useQuery({
     queryKey: ["templates", debounced, contractType],
@@ -51,16 +55,25 @@ function TemplatesListView() {
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1280px] space-y-4 p-6"
     >
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">
-          {t("templates.title", { defaultValue: "Contract templates" })}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {t("templates.subtitle", {
-            defaultValue: "Re-usable contract templates aligned with UAE law.",
-          })}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            {t("templates.title", { defaultValue: "Contract templates" })}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {t("templates.subtitle", {
+              defaultValue: "Re-usable contract templates aligned with UAE law.",
+            })}
+          </p>
+        </div>
+        {canCreate && (
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            {t("templates.create.cta", { defaultValue: "New template" })}
+          </Button>
+        )}
       </header>
+      <CreateTemplateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-4">

@@ -93,6 +93,21 @@ export interface ObligationListItem {
   createdAt: string;
 }
 
+export interface CreatePartyInput {
+  partyType: "individual" | "company";
+  nameEn: string;
+  nameAr?: string | null;
+  tradeLicenseNumber?: string | null;
+  tradeLicenseIssuer?: string | null;
+  emirate?: string | null;
+  freeZone?: string | null;
+  country?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  registeredAddress?: string | null;
+  notes?: string | null;
+}
+
 export const partiesService = {
   list: async (params: {
     partyType?: string;
@@ -110,7 +125,23 @@ export const partiesService = {
     const { data } = await apiClient.get<PartyDetail>(`/api/v1/parties/${id}`);
     return data;
   },
+  create: async (input: CreatePartyInput): Promise<PartyDetail> => {
+    const { data } = await apiClient.post<PartyDetail>("/api/v1/parties", input);
+    return data;
+  },
 };
+
+export interface CreateTemplateInput {
+  nameEn: string;
+  contractType: string;
+  language?: "en" | "ar" | "bilingual";
+  nameAr?: string | null;
+  descriptionEn?: string | null;
+  descriptionAr?: string | null;
+  bodyEn?: string | null;
+  bodyAr?: string | null;
+  regulatoryTags?: string[];
+}
 
 export const templatesService = {
   list: async (params: {
@@ -131,7 +162,23 @@ export const templatesService = {
     );
     return data;
   },
+  create: async (input: CreateTemplateInput): Promise<TemplateDetail> => {
+    const { data } = await apiClient.post<TemplateDetail>("/api/v1/templates", input);
+    return data;
+  },
 };
+
+export interface CreateClauseInput {
+  category: string;
+  titleEn: string;
+  bodyEn: string;
+  variant?: "standard" | "alternative" | "fallback";
+  titleAr?: string | null;
+  bodyAr?: string | null;
+  legalCommentaryEn?: string | null;
+  legalCommentaryAr?: string | null;
+  regulatoryRefs?: string[];
+}
 
 export const clausesService = {
   list: async (params: {
@@ -153,7 +200,25 @@ export const clausesService = {
     );
     return data;
   },
+  create: async (input: CreateClauseInput): Promise<ClauseDetail> => {
+    const { data } = await apiClient.post<ClauseDetail>("/api/v1/clauses", input);
+    return data;
+  },
 };
+
+export interface CreateObligationInput {
+  contractId: number;
+  titleEn: string;
+  obligationType: "payment" | "delivery" | "reporting" | "renewal" | "compliance" | "notice" | "other";
+  dueDate?: string | null;
+  recurrence?: "once" | "monthly" | "quarterly" | "annually";
+  responsibleParty?: "our_party" | "counterparty" | "both";
+  titleAr?: string | null;
+  descriptionEn?: string | null;
+  descriptionAr?: string | null;
+  assigneeUserId?: number | null;
+  status?: "open" | "in_progress" | "completed" | "overdue" | "waived";
+}
 
 export const obligationsService = {
   list: async (params: {
@@ -166,6 +231,10 @@ export const obligationsService = {
       "/api/v1/obligations",
       { params },
     );
+    return data;
+  },
+  create: async (input: CreateObligationInput): Promise<ObligationListItem> => {
+    const { data } = await apiClient.post<ObligationListItem>("/api/v1/obligations", input);
     return data;
   },
 };

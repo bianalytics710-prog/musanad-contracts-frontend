@@ -19,6 +19,10 @@ import { obligationsService, type ObligationListItem } from "@/services/api/m_pa
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { formatDate } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { CreateObligationDialog } from "@/features/m_parity/components/CreateEntityDialogs";
 
 export const Route = createFileRoute("/app/obligations")({
   component: () => (
@@ -53,6 +57,8 @@ function ObligationsView() {
   const [direction, setDirection] = useState<Direction>("all");
   const [status, setStatus] = useState("");
   const [category, setCategory] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const canCreate = useAuthStore(selectHasPermission("contract.edit"));
 
   const { data, isLoading } = useQuery({
     queryKey: ["obligations", status],
@@ -117,17 +123,26 @@ function ObligationsView() {
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1280px] space-y-4 p-6"
     >
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">
-          {t("obligations.title", { defaultValue: "Obligations tracker" })}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {t("obligations.subtitle", {
-            defaultValue:
-              "Per-contract payment, delivery, reporting, and compliance commitments.",
-          })}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            {t("obligations.title", { defaultValue: "Obligations tracker" })}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {t("obligations.subtitle", {
+              defaultValue:
+                "Per-contract payment, delivery, reporting, and compliance commitments.",
+            })}
+          </p>
+        </div>
+        {canCreate && (
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            {t("obligations.create.cta", { defaultValue: "Add obligation" })}
+          </Button>
+        )}
       </header>
+      <CreateObligationDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
       {/* KPI strip */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

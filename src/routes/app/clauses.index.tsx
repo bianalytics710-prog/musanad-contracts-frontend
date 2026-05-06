@@ -24,6 +24,8 @@ import {
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { cn } from "@/lib/utils";
+import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { CreateClauseDialog } from "@/features/m_parity/components/CreateEntityDialogs";
 
 export const Route = createFileRoute("/app/clauses/")({
   component: () => (
@@ -65,6 +67,8 @@ function ClausesMasterDetailView() {
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [favourites, setFavourites] = useState<Set<number>>(() => loadFavourites());
+  const [createOpen, setCreateOpen] = useState(false);
+  const canCreate = useAuthStore(selectHasPermission("contract.edit"));
   const debounced = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
@@ -131,17 +135,26 @@ function ClausesMasterDetailView() {
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1400px] space-y-4 p-6"
     >
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">
-          {t("clauses.title", { defaultValue: "Clause library" })}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {t("clauses.subtitle", {
-            defaultValue:
-              "Re-usable clauses with standard / alternative / fallback variants.",
-          })}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            {t("clauses.title", { defaultValue: "Clause library" })}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {t("clauses.subtitle", {
+              defaultValue:
+                "Re-usable clauses with standard / alternative / fallback variants.",
+            })}
+          </p>
+        </div>
+        {canCreate && (
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            {t("clauses.create.cta", { defaultValue: "New clause" })}
+          </Button>
+        )}
       </header>
+      <CreateClauseDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-4">

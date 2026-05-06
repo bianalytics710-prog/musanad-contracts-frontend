@@ -3,11 +3,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Search, Building2, User } from "lucide-react";
+import { Search, Building2, User, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { partiesService } from "@/services/api/m_parity.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { CreatePartyDialog } from "@/features/m_parity/components/CreateEntityDialogs";
 
 export const Route = createFileRoute("/app/parties/")({
   component: () => (
@@ -22,7 +25,9 @@ function PartiesListView() {
   const isAr = i18n.language?.startsWith("ar");
   const [search, setSearch] = useState("");
   const [partyType, setPartyType] = useState<"" | "individual" | "company">("");
+  const [createOpen, setCreateOpen] = useState(false);
   const debounced = useDebounce(search, 300);
+  const canCreate = useAuthStore(selectHasPermission("contract.edit"));
 
   const { data, isLoading } = useQuery({
     queryKey: ["parties", debounced, partyType],
@@ -47,17 +52,26 @@ function PartiesListView() {
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1280px] space-y-4 p-6"
     >
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">
-          {t("parties.title", { defaultValue: "Counterparties & Parties" })}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {t("parties.subtitle", {
-            defaultValue:
-              "Catalog of organizations and individuals you transact with.",
-          })}
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            {t("parties.title", { defaultValue: "Counterparties & Parties" })}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {t("parties.subtitle", {
+              defaultValue:
+                "Catalog of organizations and individuals you transact with.",
+            })}
+          </p>
+        </div>
+        {canCreate && (
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            {t("parties.create.cta", { defaultValue: "New party" })}
+          </Button>
+        )}
       </header>
+      <CreatePartyDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
       {/* Stat strip */}
       <section className="grid gap-3 sm:grid-cols-3">
