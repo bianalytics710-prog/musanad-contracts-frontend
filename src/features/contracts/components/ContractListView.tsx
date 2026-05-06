@@ -38,7 +38,6 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { formatDate } from "@/utils/datetime";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
-import { cn } from "@/lib/utils";
 import {
   CONTRACT_LANGUAGE_VALUES,
   CONTRACT_STATUS_VALUES,
@@ -100,7 +99,6 @@ const SORT_OPTIONS: ReadonlyArray<{
   { value: "alpha", label: "Alphabetical" },
 ];
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 function formatAed(value: number | null, currency: string | undefined): string {
   if (value == null) return "—";
@@ -134,7 +132,6 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
   const canDelete = useAuthStore(selectHasPermission("contract.delete"));
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE);
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<ContractStatus | "">(
     initialStatus ?? "",
@@ -155,7 +152,7 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
   const query: ContractListQuery = useMemo(
     () => ({
       page,
-      limit: pageSize,
+      limit: PAGE_SIZE,
       search: debouncedSearch.trim() || undefined,
       status: statusFilter || undefined,
       contractType: typeFilter || undefined,
@@ -167,7 +164,6 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
     }),
     [
       page,
-      pageSize,
       debouncedSearch,
       statusFilter,
       typeFilter,
@@ -340,35 +336,22 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
             </Button>
           )}
         </div>
-        <div role="group" aria-label={t("contracts.filterStatus")} className="flex flex-wrap gap-1.5">
-          {QUICK_FILTERS.map((f) => {
-            const active = (statusFilter || "") === f.key;
-            return (
-              <button
-                key={f.key || "all"}
-                type="button"
-                onClick={() => {
-                  setStatusFilter(f.key);
-                  setPage(1);
-                }}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-medium transition",
-                  active
-                    ? "border-gold bg-gold/10 text-ink"
-                    : "border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink",
-                )}
-                aria-pressed={active}
-              >
-                {f.key
-                  ? t(`contractStatus.${f.key}`, { defaultValue: f.defaultLabel })
-                  : t("contracts.filterAll", { defaultValue: f.defaultLabel })}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* R5+ Lovable parity: Type / Language / Governing law / Date range / Sort / Page size */}
-        <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {/* Filters: Status / Type / Language / Governing law / Date range / Sort */}
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
+          <FilterSelect
+            label={t("contracts.filters.status", { defaultValue: "Status" })}
+            value={statusFilter}
+            onChange={(v) => {
+              setStatusFilter((v as ContractStatus) || "");
+              setPage(1);
+            }}
+            options={QUICK_FILTERS.map((f) => ({
+              value: f.key,
+              label: f.key
+                ? t(`contractStatus.${f.key}`, { defaultValue: f.defaultLabel })
+                : t("contracts.filterAll", { defaultValue: f.defaultLabel }),
+            }))}
+          />
           <FilterSelect
             label={t("contracts.filters.type", { defaultValue: "Type" })}
             value={typeFilter}
@@ -466,29 +449,6 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
               label: t(`contracts.filters.sortOption.${o.value}`, { defaultValue: o.label }),
             }))}
           />
-        </div>
-        <div className="mt-2 flex items-center justify-end">
-          <label
-            htmlFor="contracts-page-size"
-            className="me-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
-          >
-            {t("contracts.filters.pageSize", { defaultValue: "Per page" })}
-          </label>
-          <select
-            id="contracts-page-size"
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-            className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm"
-          >
-            {PAGE_SIZE_OPTIONS.map((n) => (
-              <option key={n} value={n}>
-                {n} / page
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
