@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUpdateContract } from "@/features/contracts/hooks/useContracts";
+import { translateApiError } from "@/lib/translate-api-error";
 import type {
   Contract,
   ContractLanguage,
@@ -168,6 +169,16 @@ export function ContractEditForm({ contract, onSaved, onCancel }: ContractEditFo
             errors={form.formState.errors as never}
             disabled={mutation.isPending}
           />
+
+          {mutation.isError ? (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {translateApiError(mutation.error, t, "contracts.toasts.updateError")}
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button

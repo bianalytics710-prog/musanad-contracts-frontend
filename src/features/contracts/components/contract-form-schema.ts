@@ -67,18 +67,19 @@ export const contractCreateSchema = z
     }
   });
 
-/** Partial schema — used by ContractEditForm. titleEn + contractType optional. */
+/**
+ * Partial schema — used by ContractEditForm.
+ *
+ * NOTE: titleEn + contractType are still rendered + pre-filled in the form,
+ * so RHF always sends them. Treating them as required with min(1) gives
+ * an inline field error the moment a user clears them — preventing the
+ * silent BE 400 documented in the drafter E2E sweep (5.8).
+ */
 export const contractEditSchema = z
   .object({
-    titleEn: z.preprocess(
-      (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-      z.string().trim().min(1, "contracts.form.errors.titleEnRequired").optional(),
-    ),
+    titleEn: z.string().trim().min(1, "contracts.form.errors.titleEnRequired"),
     titleAr: optionalString,
-    contractType: z.preprocess(
-      (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-      z.string().trim().min(1, "contracts.form.errors.contractTypeRequired").optional(),
-    ),
+    contractType: z.string().trim().min(1, "contracts.form.errors.contractTypeRequired"),
     language: z.enum(CONTRACT_LANGUAGE_VALUES as unknown as [string, ...string[]]).optional(),
     governingLaw: z
       .union([z.enum(GOVERNING_LAW_VALUES as unknown as [string, ...string[]]), z.literal("")])
