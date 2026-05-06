@@ -5222,7 +5222,7 @@
       }
     },
     "radar": {
-      "title": "Regulatory Radar",
+      "title": "Impact Radar",
       "subtitle_one": "{{count}} regulatory update visible",
       "subtitle_other": "{{count}} regulatory updates visible",
       "searchLabel": "Search regulatory updates",
