@@ -77,7 +77,8 @@ import { ContractTreeTimeline } from "./ContractTreeTimeline";
 import { PaymentScheduleTab } from "./PaymentScheduleTab";
 import { ExportPdfDialog } from "./ExportPdfDialog";
 import { ContractDocumentTab } from "./ContractDocumentTab";
-import { ContractAIInsightsSidebar } from "./ContractAIInsightsSidebar";
+import { ContractInfoCards } from "./ContractInfoCards";
+import { ContractAIInsightsPanel } from "./ContractAIInsightsPanel";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
 
@@ -104,8 +105,6 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   // M1b — Export PDF dialog state.
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
-  // M_parity Round 2 — AI insights slide-over.
-  const [aiOpen, setAiOpen] = useState(false);
 
   // FE-C3 — defense-in-depth RBAC gating. BE returns 403 if a user without
   // a permission still hits the endpoint; these flags simply hide actions.
@@ -173,50 +172,37 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
     <div className="mx-auto w-full max-w-[1280px] space-y-4 p-6">
       <Breadcrumb contractNumber={contract.contractNumber} />
 
-      {/* Header card */}
-      <Card className="border-l-4 border-l-gold">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs text-ink-subtle">{contract.contractNumber}</span>
-              <ContractStatusBadge status={contract.status} />
-              <span className="text-[11px] text-ink-subtle">v{contract.currentVersion}</span>
-            </div>
-            <CardTitle className="mt-1 text-xl tracking-tight text-ink">{displayTitle}</CardTitle>
-            <p className="mt-1 text-xs text-ink-subtle">
-              {t("contracts.detail.updatedAt", {
-                when: formatDateTime(contract.updatedAt),
-              })}
-            </p>
+      {/* Compact header — matches Lovable's title + chips + ... menu */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">{displayTitle}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <ContractStatusBadge status={contract.status} />
+            <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-ink-muted">
+              {contract.contractType}
+            </span>
+            <span className="rounded-full border border-border bg-card px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+              {contract.language === "bilingual" ? "AR · EN" : contract.language}
+            </span>
+            <span className="ms-2 text-[11px] text-ink-subtle">
+              {t("contracts.detail.updatedAt", { when: formatDateTime(contract.updatedAt) })}
+            </span>
           </div>
-          <div className="flex flex-wrap gap-2">
+        </div>
+        <div className="flex items-start gap-2">
+          {canEdit && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setAiOpen(true)}
+              onClick={() => setTab("edit")}
+              className="hidden sm:inline-flex"
             >
-              <Sparkles className="h-3.5 w-3.5 text-gold" />
-              {t("contracts.detail.aiInsightsAction", { defaultValue: "AI insights" })}
+              <PencilLine className="h-3.5 w-3.5" />
+              {t("common.edit")}
             </Button>
-            {canExport && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setExportPdfOpen(true)}
-              >
-                <Download className="h-3.5 w-3.5" />
-                {t("contracts.export.pdf.action")}
-              </Button>
-            )}
-            {canEdit && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setTab("edit")}>
-                <PencilLine className="h-3.5 w-3.5" />
-                {t("common.edit")}
-              </Button>
-            )}
-            <DropdownMenu>
+          )}
+          <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
@@ -323,12 +309,11 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </CardHeader>
-      </Card>
+        </div>
+      </div>
 
-      {/* Metric strip */}
-      <ContractMetricStrip contract={contract} />
+      {/* Three info cards (Lovable layout) */}
+      <ContractInfoCards contract={contract} />
 
       {/* Tabs */}
       <div
@@ -382,6 +367,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       )}
       {tab === "tree" && <ContractTreeTimeline contractId={contract.id} />}
 
+      {/* Inline AI insights — Lovable layout */}
+      <ContractAIInsightsPanel contractId={contract.id} />
+
       {/* Modals */}
       {statusOpen && (
         <ContractStatusDialog
@@ -415,11 +403,6 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         />
       )}
 
-      <ContractAIInsightsSidebar
-        contractId={contract.id}
-        open={aiOpen}
-        onClose={() => setAiOpen(false)}
-      />
     </div>
   );
 }
