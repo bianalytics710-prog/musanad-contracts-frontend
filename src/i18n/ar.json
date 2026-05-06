@@ -4643,8 +4643,16 @@
     }
   },
   "approval": {
+    "requestInfo": {
+      "title": "طلب معلومات",
+      "helper": "ينشر رسالة في قسم التعليقات للكاتب. يظل العقد في قائمتك — يمكنك الاعتماد أو الرفض بعد الرد.",
+      "messageLabel": "سؤالك",
+      "messagePlaceholder": "ما الذي تحتاج توضيحه؟",
+      "submit": "طلب معلومات",
+      "success": "تم إرسال الطلب للكاتب"
+    },
     "list": {
-      "title": "موافقاتي المعلقة",
+      "title": "الموافقات",
       "totalCount": "{{count}} موافقة معلقة",
       "totalCount_other": "{{count}} موافقات معلقة",
       "emptyTitle": "لا توجد موافقات معلقة",
@@ -4686,6 +4694,7 @@
       "approve": "اعتماد",
       "reject": "رفض",
       "requestResubmission": "طلب إعادة التقديم",
+      "requestInfo": "طلب معلومات",
       "noteOptional": "ملاحظة اختيارية",
       "rejectReason": "سبب الرفض",
       "resubmitReason": "ما المعلومات التي تحتاجها؟",

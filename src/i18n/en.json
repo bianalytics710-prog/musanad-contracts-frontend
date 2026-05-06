@@ -4643,8 +4643,16 @@
     }
   },
   "approval": {
+    "requestInfo": {
+      "title": "Request information",
+      "helper": "Posts a message to the comments thread for the drafter. The contract stays in your queue — you can approve or reject after they respond.",
+      "messageLabel": "Your question",
+      "messagePlaceholder": "What do you need clarified?",
+      "submit": "Request info",
+      "success": "Request sent to drafter"
+    },
     "list": {
-      "title": "My pending approvals",
+      "title": "Approvals",
       "totalCount": "{{count}} pending approval",
       "totalCount_other": "{{count}} pending approvals",
       "emptyTitle": "No pending approvals",
@@ -4686,6 +4694,7 @@
       "approve": "Approve",
       "reject": "Reject",
       "requestResubmission": "Request resubmission",
+      "requestInfo": "Request info",
       "noteOptional": "Optional comment",
       "rejectReason": "Rejection reason",
       "resubmitReason": "What information do you need?",

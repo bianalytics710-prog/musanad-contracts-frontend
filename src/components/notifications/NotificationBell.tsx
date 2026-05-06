@@ -2,7 +2,7 @@
  * NotificationBell — TopBar bell with unread badge + dropdown panel.
  * Wired to NotificationProvider; persists per-user in localStorage.
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import {
@@ -10,10 +10,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Bell, Check } from "lucide-react";
+import { Bell, Check, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "./NotificationProvider";
 import type { NotificationSeverity } from "./NotificationProvider";
+
+type NotificationFilter = "all" | "unread" | "mentions" | "this_week";
 
 const severityDot: Record<NotificationSeverity, string> = {
   critical: "bg-terracotta",
@@ -39,6 +41,26 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllRead } =
     useNotifications();
+  // R-LC4 LC-A2 — Lovable parity filter pills (All / Unread / Mentions /
+  // This week). Mentions is a stub until @-mention notifications ship.
+  const [filter, setFilter] = useState<NotificationFilter>("all");
+  const filtered = useMemo(() => {
+    switch (filter) {
+      case "unread":
+        return notifications.filter((n) => !n.readAt);
+      case "mentions":
+        return notifications.filter((n) =>
+          // Title or body mentioning the assignee — best-effort heuristic.
+          /@\w+/.test(`${n.titleEn ?? ""} ${n.bodyEn ?? ""}`),
+        );
+      case "this_week": {
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        return notifications.filter((n) => new Date(n.createdAt).getTime() >= cutoff);
+      }
+      default:
+        return notifications;
+    }
+  }, [notifications, filter]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -89,8 +111,33 @@ export function NotificationBell() {
           )}
         </div>
 
+        {/* R-LC4 LC-A2 — filter pills (All / Unread / Mentions / This week) */}
+        <div className="flex flex-wrap gap-1 border-b border-border px-3 py-2">
+          {(
+            [
+              { key: "all", labelKey: "all", defaultLabel: "All" },
+              { key: "unread", labelKey: "unread", defaultLabel: "Unread" },
+              { key: "mentions", labelKey: "mentions", defaultLabel: "Mentions" },
+              { key: "this_week", labelKey: "thisWeek", defaultLabel: "This week" },
+            ] as const
+          ).map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setFilter(p.key)}
+              className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+                filter === p.key
+                  ? "bg-gold/20 text-gold"
+                  : "text-ink-muted hover:bg-surface"
+              }`}
+            >
+              {t(`notifications.filter.${p.labelKey}`, { defaultValue: p.defaultLabel })}
+            </button>
+          ))}
+        </div>
+
         <ul className="max-h-[60vh] overflow-y-auto">
-          {notifications.length === 0 ? (
+          {filtered.length === 0 ? (
             <li className="p-6 text-center text-xs text-ink-subtle">
               {t("notifications.empty", { defaultValue: "No notifications." })}
             </li>
@@ -99,10 +146,10 @@ export function NotificationBell() {
               // R5 audit 5.1 — two-section layout: Recent (last 24h) +
               // Earlier. Mirrors Lovable's notification dropdown.
               const recentCutoffMs = Date.now() - 24 * 60 * 60 * 1000;
-              const recentList = notifications.filter(
+              const recentList = filtered.filter(
                 (n) => new Date(n.createdAt).getTime() >= recentCutoffMs,
               );
-              const earlierList = notifications.filter(
+              const earlierList = filtered.filter(
                 (n) => new Date(n.createdAt).getTime() < recentCutoffMs,
               );
               const sectionHeader = (label: string) => (
@@ -136,6 +183,17 @@ export function NotificationBell() {
             })()
           )}
         </ul>
+        {/* R-LC4 LC-A3 — footer link to notification preferences (Lovable parity). */}
+        <div className="border-t border-border px-3 py-2">
+          <Link
+            to="/app/settings"
+            onClick={() => setOpen(false)}
+            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gold hover:underline"
+          >
+            <Settings className="h-3 w-3" />
+            {t("notifications.preferences", { defaultValue: "Notification preferences" })}
+          </Link>
+        </div>
       </PopoverContent>
     </Popover>
   );

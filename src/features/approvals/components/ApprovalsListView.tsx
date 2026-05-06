@@ -37,6 +37,8 @@ import { useQuery } from "@tanstack/react-query";
 import { approvalService } from "@/services/api/approval.service";
 import type { ApiError } from "@/lib/api-client";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
+import { RequestInfoDialog } from "@/features/approvals/components/RequestInfoDialog";
+import { MessageSquare } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import {
   APPROVAL_PENDING_SORT_VALUES,
@@ -66,6 +68,9 @@ export function ApprovalsListView() {
   // opens directly to Approve / Reject / Request-info, matching Lovable's
   // 1-click decision flow (was previously a 2-step Act → choose-action).
   const [presetAction, setPresetAction] = useState<ApprovalActionKind | null>(null);
+  // R-LC4 LC-F7 — separate Request-info dialog (soft action; distinct from
+  // request_resubmission's hard bounce).
+  const [requestInfoStepId, setRequestInfoStepId] = useState<number | null>(null);
   // R1 audit 6.2.1: 5-tab inbox matches Lovable. "Pending mine" is the
   // default + only tab with real data in R1; the other 4 surface a
   // "coming soon" placeholder until the BE endpoints land in R3.
@@ -464,8 +469,14 @@ export function ApprovalsListView() {
                       selected={selectedStepIds.has(row.stepId)}
                       onToggleSelect={() => toggleRowSelected(row.stepId)}
                       onAct={(it, action) => {
+                        // R-LC4 — request_info short-circuits to the soft-
+                        // action dialog (separate codepath from request_resubmission).
+                        if (action === "request_info") {
+                          setRequestInfoStepId(it.stepId);
+                          return;
+                        }
                         setActiveStep(it);
-                        setPresetAction(action ?? null);
+                        setPresetAction((action as ApprovalActionKind | undefined) ?? null);
                       }}
                     />
                   ))}
@@ -524,6 +535,14 @@ export function ApprovalsListView() {
         />
       )}
 
+      {/* R-LC4 LC-F7 — soft Request-info dialog (separate from the
+          decision dialog used for approve/reject/request_resubmission). */}
+      <RequestInfoDialog
+        stepId={requestInfoStepId}
+        open={requestInfoStepId != null}
+        onClose={() => setRequestInfoStepId(null)}
+      />
+
       {/* R3 audit 6.3.1 — floating bulk-action toolbar appears when ≥1 row
           selected. Only "Approve all selected" is offered (matches Lovable's
           single bulk action). Reject/Request-info remain row-level since
@@ -569,11 +588,15 @@ export function ApprovalsListView() {
   );
 }
 
+// R-LC4 — extend the action kind union to include request_info (handled
+// by a separate soft-action dialog, not ApprovalDecisionDialog).
+type ListRowActionKind = ApprovalActionKind | "request_info";
+
 interface ApprovalListRowProps {
   row: MyPendingApprovalListItem;
   selected: boolean;
   onToggleSelect: () => void;
-  onAct: (item: MyPendingApprovalListItem, presetAction?: ApprovalActionKind) => void;
+  onAct: (item: MyPendingApprovalListItem, presetAction?: ListRowActionKind) => void;
 }
 
 /** R2 audit 6.4.1 — derive Priority hint from value + hours-pending. */
@@ -800,12 +823,27 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
             >
               <XCircle className="h-4 w-4" />
             </Button>
+            {/* R-LC4 LC-F7 — separate Request info (soft) + Request resubmission (hard) buttons. */}
             <Button
               type="button"
               size="icon"
               variant="ghost"
-              aria-label={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
-              title={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
+              aria-label={t("approval.decide.requestInfo", { defaultValue: "Request info" })}
+              title={t("approval.decide.requestInfo", { defaultValue: "Request info" })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAct(row, "request_info");
+              }}
+              className="text-ink-muted hover:bg-surface"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("approval.decide.requestResubmission", { defaultValue: "Request resubmission" })}
+              title={t("approval.decide.requestResubmission", { defaultValue: "Request resubmission" })}
               onClick={(e) => {
                 e.stopPropagation();
                 onAct(row, "request_resubmission");
