@@ -37,6 +37,12 @@ interface ContractStatusDialogProps {
   currentStatus: ContractStatus;
   open: boolean;
   onClose: () => void;
+  /**
+   * Optional target status to preselect (e.g. when the dialog is opened
+   * from a "Terminate" or "Archive" action). Falls back to the first
+   * narrowed target when the requested status is not in the matrix.
+   */
+  presetTarget?: ContractStatus;
 }
 
 export function ContractStatusDialog({
@@ -45,6 +51,7 @@ export function ContractStatusDialog({
   currentStatus,
   open,
   onClose,
+  presetTarget,
 }: ContractStatusDialogProps) {
   const { t } = useTranslation();
   const titleId = useId();
@@ -63,7 +70,9 @@ export function ContractStatusDialog({
   );
 
   const [newStatus, setNewStatus] = useState<ContractStatus>(
-    narrowedTargets[0] ?? currentStatus,
+    presetTarget && narrowedTargets.includes(presetTarget)
+      ? presetTarget
+      : (narrowedTargets[0] ?? currentStatus),
   );
   const [reason, setReason] = useState("");
 
@@ -76,11 +85,15 @@ export function ContractStatusDialog({
 
   useEffect(() => {
     if (!open) return;
-    setNewStatus(narrowedTargets[0] ?? currentStatus);
+    setNewStatus(
+      presetTarget && narrowedTargets.includes(presetTarget)
+        ? presetTarget
+        : (narrowedTargets[0] ?? currentStatus),
+    );
     setReason("");
     const handle = window.setTimeout(() => firstFocusRef.current?.focus(), 0);
     return () => window.clearTimeout(handle);
-  }, [open, currentStatus, narrowedTargets]);
+  }, [open, currentStatus, narrowedTargets, presetTarget]);
 
   useEffect(() => {
     if (!open) return;

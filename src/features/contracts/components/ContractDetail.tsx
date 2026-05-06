@@ -28,22 +28,39 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Download,
   FileSignature,
+  FileStack,
   GitBranch,
   History,
+  Languages,
+  MoreHorizontal,
   PencilLine,
+  Power,
+  Sparkles,
   Trash2,
   TrendingUp,
   Wallet,
+  Archive,
+  FileText as FileTextIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useContract } from "@/features/contracts/hooks/useContracts";
 import { formatDate, formatDateTime } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
@@ -59,11 +76,14 @@ import { ContractActivityLog } from "./ContractActivityLog";
 import { ContractTreeTimeline } from "./ContractTreeTimeline";
 import { PaymentScheduleTab } from "./PaymentScheduleTab";
 import { ExportPdfDialog } from "./ExportPdfDialog";
+import { ContractDocumentTab } from "./ContractDocumentTab";
+import { ContractAIInsightsSidebar } from "./ContractAIInsightsSidebar";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
-import type { Contract, UserRef } from "@/types/entities/contract.types";
+import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
 
 type Tab =
   | "overview"
+  | "document"
   | "edit"
   | "payments"
   | "versions"
@@ -80,9 +100,12 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("overview");
   const [statusOpen, setStatusOpen] = useState(false);
+  const [statusPreset, setStatusPreset] = useState<ContractStatus | undefined>(undefined);
   const [deleteOpen, setDeleteOpen] = useState(false);
   // M1b — Export PDF dialog state.
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
+  // M_parity Round 2 — AI insights slide-over.
+  const [aiOpen, setAiOpen] = useState(false);
 
   // FE-C3 — defense-in-depth RBAC gating. BE returns 403 if a user without
   // a permission still hits the endpoint; these flags simply hide actions.
@@ -167,6 +190,15 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAiOpen(true)}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-gold" />
+              {t("contracts.detail.aiInsightsAction", { defaultValue: "AI insights" })}
+            </Button>
             {canExport && (
               <Button
                 type="button"
@@ -178,24 +210,119 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                 {t("contracts.export.pdf.action")}
               </Button>
             )}
-            {canChangeStatus && (
-              <Button type="button" variant="outline" size="sm" onClick={() => setStatusOpen(true)}>
-                <History className="h-3.5 w-3.5" />
-                {t("contracts.status.action")}
-              </Button>
-            )}
             {canEdit && (
               <Button type="button" variant="outline" size="sm" onClick={() => setTab("edit")}>
                 <PencilLine className="h-3.5 w-3.5" />
                 {t("common.edit")}
               </Button>
             )}
-            {canDelete && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setDeleteOpen(true)}>
-                <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                {t("common.delete")}
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={t("contracts.detail.moreActions", { defaultValue: "More actions" })}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-56">
+                <DropdownMenuLabel>
+                  {t("contracts.detail.moreActions", { defaultValue: "More actions" })}
+                </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    toast.info(
+                      t("contracts.detail.actions.duplicateComingSoon", {
+                        defaultValue: "Duplicate is coming in a future module.",
+                      }),
+                    )
+                  }
+                >
+                  <Copy className="me-2 h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.duplicate", { defaultValue: "Duplicate" })}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    toast.info(
+                      t("contracts.detail.actions.saveAsTemplateComingSoon", {
+                        defaultValue: "Save as template is coming in a future module.",
+                      }),
+                    )
+                  }
+                >
+                  <FileStack className="me-2 h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.saveAsTemplate", {
+                    defaultValue: "Save as template",
+                  })}
+                </DropdownMenuItem>
+                {canExport && (
+                  <DropdownMenuItem onSelect={() => setExportPdfOpen(true)}>
+                    <Languages className="me-2 h-3.5 w-3.5" />
+                    {t("contracts.detail.actions.exportBilingualPdf", {
+                      defaultValue: "Export bilingual PDF",
+                    })}
+                  </DropdownMenuItem>
+                )}
+                {canChangeStatus && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setStatusPreset(undefined);
+                        setStatusOpen(true);
+                      }}
+                    >
+                      <History className="me-2 h-3.5 w-3.5" />
+                      {t("contracts.status.action")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        toast.info(
+                          t("contracts.detail.actions.terminateComingSoon", {
+                            defaultValue:
+                              "Terminate transition is not yet wired to a BE endpoint.",
+                          }),
+                        )
+                      }
+                    >
+                      <Power className="me-2 h-3.5 w-3.5 text-destructive" />
+                      {t("contracts.detail.actions.terminate", {
+                        defaultValue: "Terminate",
+                      })}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        toast.info(
+                          t("contracts.detail.actions.archiveComingSoon", {
+                            defaultValue:
+                              "Archive transition is not yet wired to a BE endpoint.",
+                          }),
+                        )
+                      }
+                    >
+                      <Archive className="me-2 h-3.5 w-3.5" />
+                      {t("contracts.detail.actions.archive", {
+                        defaultValue: "Archive",
+                      })}
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {canDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => setDeleteOpen(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="me-2 h-3.5 w-3.5" />
+                      {t("common.delete")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
       </Card>
@@ -211,6 +338,10 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       >
         <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>
           {t("contracts.detail.tabs.overview")}
+        </TabButton>
+        <TabButton active={tab === "document"} onClick={() => setTab("document")}>
+          <FileTextIcon className="h-3.5 w-3.5" />
+          {t("contracts.detail.tabs.document", { defaultValue: "Document" })}
         </TabButton>
         <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
           {t("contracts.detail.tabs.edit")}
@@ -236,6 +367,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
 
       {/* Tab panels */}
       {tab === "overview" && <OverviewPanel contract={contract} canManageTags={canManageTags} />}
+      {tab === "document" && <ContractDocumentTab contract={contract} />}
       {tab === "edit" && (
         <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />
       )}
@@ -257,7 +389,11 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           contractNumber={contract.contractNumber}
           currentStatus={contract.status}
           open={statusOpen}
-          onClose={() => setStatusOpen(false)}
+          onClose={() => {
+            setStatusOpen(false);
+            setStatusPreset(undefined);
+          }}
+          presetTarget={statusPreset}
         />
       )}
       {deleteOpen && (
@@ -278,6 +414,12 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           onClose={() => setExportPdfOpen(false)}
         />
       )}
+
+      <ContractAIInsightsSidebar
+        contractId={contract.id}
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+      />
     </div>
   );
 }
