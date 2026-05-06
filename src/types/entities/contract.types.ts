@@ -266,6 +266,12 @@ export interface ContractListItem {
   endDate: string | null;
   counterpartyId: number | null;
   ourPartyId: number | null;
+  /** R-LC6 LC-D1 — counterparty name (resolved BE-side). */
+  counterpartyNameEn?: string | null;
+  counterpartyNameAr?: string | null;
+  /** R-LC6 LC-D2 — primary signatory (drafter or creator). */
+  signatoryFirstName?: string | null;
+  signatoryLastName?: string | null;
   tags: string[];
   currentVersion: number;
   createdAt: string;

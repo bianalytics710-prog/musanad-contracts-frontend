@@ -35,7 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCard, TableSkeleton } from "@/components/patterns";
 import { useDebounce } from "@/hooks/useDebounce";
-import { formatDate } from "@/utils/datetime";
+import { formatDate, formatHijriDate } from "@/utils/datetime";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import {
@@ -574,6 +574,14 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colType")}
                 </th>
+                {/* R-LC6 LC-D1 — Counterparty column. */}
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                  {t("contracts.colCounterparty", { defaultValue: "Counterparty" })}
+                </th>
+                {/* R-LC6 LC-D2 — Signatory column. */}
+                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                  {t("contracts.colSignatory", { defaultValue: "Signatory" })}
+                </th>
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colStatus")}
                 </th>
@@ -613,11 +621,48 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                         {t(`contractType.${c.contractType}`, { defaultValue: c.contractType })}
                       </span>
                     </td>
+                    {/* R-LC6 LC-D1 — Counterparty (locale-aware). */}
+                    <td className="px-4 py-3 text-xs text-ink-muted">
+                      {(() => {
+                        const cpName = isAr && c.counterpartyNameAr
+                          ? c.counterpartyNameAr
+                          : c.counterpartyNameEn;
+                        return cpName ?? "—";
+                      })()}
+                    </td>
+                    {/* R-LC6 LC-D2 — Signatory (drafter). */}
+                    <td className="px-4 py-3 text-xs text-ink-muted">
+                      {(() => {
+                        const fn = c.signatoryFirstName ?? "";
+                        const ln = c.signatoryLastName ?? "";
+                        const initials = `${fn[0] ?? ""}${ln[0] ?? ""}`.toUpperCase();
+                        const full = `${fn} ${ln}`.trim();
+                        if (!full) return "—";
+                        return (
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold/10 font-mono text-[9px] font-medium text-gold">
+                              {initials}
+                            </span>
+                            {full}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3">
                       <ContractStatusBadge status={c.status} />
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-ink-muted">
-                      {c.endDate ? formatDate(c.endDate) : "—"}
+                      {c.endDate ? (
+                        <div className="flex flex-col">
+                          <span>{formatDate(c.endDate)}</span>
+                          {/* R-LC6 LC-D4 — Hijri inline. */}
+                          <span className="text-[10px] text-ink-subtle">
+                            {formatHijriDate(c.endDate)}
+                          </span>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-4 py-3 text-end font-mono text-xs text-ink">
                       {formatAed(c.valueAed, c.currency)}
