@@ -271,6 +271,18 @@ export interface SubmitForApprovalResponse {
 // 6. fn_approval_my_pending shapes (S1)
 // ------------------------------------------------------------
 
+/**
+ * R2 — chain breadcrumb step descriptor (one entry per step in the chain).
+ * Used to render the "Legal Counsel → Contract Approver → ..." trail in
+ * the inbox row.
+ */
+export interface ApprovalChainStepRef {
+  order: number;
+  role: string | null;
+  status: "pending" | "approved" | "rejected" | "skipped" | string;
+  approverName: string | null;
+}
+
 export interface MyPendingApprovalListItem {
   stepId: number;
   chainId: number;
@@ -278,6 +290,8 @@ export interface MyPendingApprovalListItem {
   contractNumber: string;
   contractTitleEn: string;
   contractTitleAr: string | null;
+  /** R2 — added for inbox Type column. */
+  contractType?: string | null;
   valueAed: number | null;
   /** Drafter who initiated the chain. */
   requesterUserRef: UserRef | null;
@@ -288,6 +302,10 @@ export interface MyPendingApprovalListItem {
   hoursPending: number;
   escalationRole: string | null;
   escalationAfterHours: number | null;
+  /** R2 — total step count in the chain (for "Step X of Y" + breadcrumb). */
+  totalSteps?: number;
+  /** R2 — full chain breadcrumb (all steps, current state). */
+  chainSteps?: ApprovalChainStepRef[];
 }
 
 export interface MyPendingApprovalListQuery {

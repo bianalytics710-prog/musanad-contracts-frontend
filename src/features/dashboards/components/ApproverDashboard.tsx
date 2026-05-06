@@ -13,17 +13,22 @@ import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  BarChart3,
   CheckCircle2,
   Clock,
   PieChart as PieIcon,
   Zap,
 } from "lucide-react";
 import {
+  Bar,
+  BarChart,
   Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
   Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import { useApproverDashboard } from "../hooks/useDashboards";
 import {
@@ -103,6 +108,29 @@ export function ApproverDashboard() {
   );
   const decisionMixTotal = decisionMix.reduce((s, d) => s + d.count, 0);
 
+  // R2 audit 7.3.1 — approval queue segments (Mine / Quick approve / SLA breach).
+  // Quick approve = low-value items in the visible top-5 queue (< 100k AED).
+  // Team segment is omitted — needs a team-aware BE endpoint slated for R3.
+  const queueSegments = useMemo(() => {
+    const mine = data?.kpis.pendingMyApprovalCount ?? 0;
+    const quickApprove = (data?.lists.pendingQueue5 ?? []).filter(
+      (r) => r.valueAed !== null && r.valueAed < 100_000,
+    ).length;
+    return { mine, quickApprove, slaBreaches };
+  }, [data, slaBreaches]);
+
+  // R2 audit 7.5.1 — approval aging buckets derived from pendingQueue5.
+  // Buckets match Lovable: 0-24h / 25-72h / 73-168h (4-7d) / >168h.
+  const agingBuckets = useMemo(() => {
+    const rows = data?.lists.pendingQueue5 ?? [];
+    return [
+      { key: "0-1d", count: rows.filter((r) => r.hoursWaiting <= 24).length, fill: "#5B8374" },
+      { key: "2-3d", count: rows.filter((r) => r.hoursWaiting > 24 && r.hoursWaiting <= 72).length, fill: "#C68A3A" },
+      { key: "4-7d", count: rows.filter((r) => r.hoursWaiting > 72 && r.hoursWaiting <= 168).length, fill: "#B5523A" },
+      { key: ">7d", count: rows.filter((r) => r.hoursWaiting > 168).length, fill: "#822A1A" },
+    ];
+  }, [data]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -141,6 +169,64 @@ export function ApproverDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
+          {/* R2 audit 7.3.1 — Approval queue summary card with 4-segment
+              breakdown matching Lovable's hero. Sits above the per-contract
+              focus card so the approver sees overall load at a glance. */}
+          <Link
+            to="/app/approvals"
+            className="block rounded-xl border border-border bg-card p-5 transition-colors hover:border-gold/60"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
+                  {t("dashboards.approver.queue.kicker", { defaultValue: "Approval queue" })}
+                </p>
+                <h2 className="mt-1 text-base font-semibold text-ink">
+                  {t("dashboards.approver.queue.headline", {
+                    count: queueSegments.mine,
+                    defaultValue:
+                      queueSegments.mine === 1
+                        ? "You have 1 approval waiting"
+                        : `You have ${queueSegments.mine} approvals waiting`,
+                  })}
+                </h2>
+              </div>
+              <ArrowRight className="h-4 w-4 text-ink-subtle rtl:rotate-180" />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-md border border-border bg-surface p-3">
+                <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                  {t("dashboards.approver.queue.mine", { defaultValue: "Mine" })}
+                </p>
+                <p className="mt-1 font-mono text-xl font-semibold text-ink">
+                  {queueSegments.mine}
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-surface p-3">
+                <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                  {t("dashboards.approver.queue.team", { defaultValue: "Team" })}
+                </p>
+                <p className="mt-1 font-mono text-xl font-semibold text-ink-subtle">—</p>
+              </div>
+              <div className="rounded-md border border-border bg-surface p-3">
+                <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                  {t("dashboards.approver.queue.quickApprove", { defaultValue: "Quick approve" })}
+                </p>
+                <p className="mt-1 font-mono text-xl font-semibold text-ink">
+                  {queueSegments.quickApprove}
+                </p>
+              </div>
+              <div className={`rounded-md border p-3 ${queueSegments.slaBreaches > 0 ? "border-terracotta/40 bg-terracotta/5" : "border-border bg-surface"}`}>
+                <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                  {t("dashboards.approver.queue.slaBreach", { defaultValue: "SLA breach" })}
+                </p>
+                <p className={`mt-1 font-mono text-xl font-semibold ${queueSegments.slaBreaches > 0 ? "text-terracotta" : "text-ink"}`}>
+                  {queueSegments.slaBreaches}
+                </p>
+              </div>
+            </div>
+          </Link>
+
           {/* Hero — top pending decision call-out */}
           {topPending && (
             <Link
@@ -222,6 +308,42 @@ export function ApproverDashboard() {
               label={t("dashboards.approver.kpis.averageDecisionHoursTeam")}
               value={formatHours(data.kpis.averageDecisionHoursTeam, t)}
             />
+          </section>
+
+          {/* R2 audit 7.5.1 — Approval aging buckets (0-1d / 2-3d / 4-7d / >7d). */}
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-gold" />
+              <h3 className="text-sm font-semibold text-ink">
+                {t("dashboards.approver.aging.title", { defaultValue: "Approval aging" })}
+              </h3>
+              <span className="ms-auto text-[11px] text-ink-subtle">
+                {t("dashboards.approver.aging.scope", {
+                  defaultValue: "Top 5 of pending queue",
+                })}
+              </span>
+            </div>
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={agingBuckets} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
+                  <XAxis dataKey="key" tickLine={false} axisLine={false} stroke="var(--ink-muted)" fontSize={11} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--ink-muted)" fontSize={11} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      fontSize: 11,
+                    }}
+                  />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                    {agingBuckets.map((b, i) => (
+                      <Cell key={i} fill={b.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </section>
 
           <div className="grid gap-4 lg:grid-cols-3">

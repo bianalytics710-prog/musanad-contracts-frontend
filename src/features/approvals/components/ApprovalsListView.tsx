@@ -36,6 +36,7 @@ import { ApprovalDecisionDialog } from "@/features/approvals/components/Approval
 import { useAuthStore } from "@/store/auth.store";
 import {
   APPROVAL_PENDING_SORT_VALUES,
+  type ApprovalChainStepRef,
   type ApprovalPendingSort,
   type MyPendingApprovalListItem,
   type MyPendingApprovalListQuery,
@@ -309,11 +310,16 @@ export function ApprovalsListView() {
               >
                 <thead className="border-b border-border bg-surface">
                   <tr className="text-left">
+                    {/* R2 audit — Lovable column set: Priority / Contract /
+                        Type / Value / Stage / Submitted / Drafter / Actions */}
+                    <th scope="col" className="px-2 py-3 font-medium text-ink-muted">
+                      {t("approval.list.col.priority", { defaultValue: "Priority" })}
+                    </th>
                     <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
                       {t("approval.list.col.contract")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                      {t("approval.list.col.requester")}
+                    <th scope="col" className="px-2 py-3 font-medium text-ink-muted">
+                      {t("approval.list.col.type", { defaultValue: "Type" })}
                     </th>
                     <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
                       {t("approval.list.col.value")}
@@ -323,6 +329,9 @@ export function ApprovalsListView() {
                     </th>
                     <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
                       {t("approval.list.col.pending")}
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                      {t("approval.list.col.requester")}
                     </th>
                     <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
                       <span className="sr-only">{t("approval.list.col.actions")}</span>
@@ -403,6 +412,13 @@ interface ApprovalListRowProps {
   onAct: (item: MyPendingApprovalListItem, presetAction?: ApprovalActionKind) => void;
 }
 
+/** R2 audit 6.4.1 — derive Priority hint from value + hours-pending. */
+function priorityForRow(valueAed: number | null, hoursPending: number): "highValue" | "urgent" | null {
+  if (valueAed !== null && valueAed >= 1_000_000) return "highValue";
+  if (hoursPending > 24) return "urgent";
+  return null;
+}
+
 function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -413,11 +429,23 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
       ? t("approval.list.daysAgo", { count: days })
       : t("approval.list.hoursAgo", { count: Math.floor(hoursPending) });
   const breach = hoursPending > 24;
+  const priority = priorityForRow(row.valueAed, hoursPending);
+  const requesterName = row.requesterUserRef
+    ? `${row.requesterUserRef.firstName} ${row.requesterUserRef.lastName}`
+    : t("approval.list.unknownRequester");
+  const requesterInitials = row.requesterUserRef
+    ? `${(row.requesterUserRef.firstName?.[0] ?? "").toUpperCase()}${(row.requesterUserRef.lastName?.[0] ?? "").toUpperCase()}`
+    : "??";
 
   // R0 audit bug 6.6.1: row clickable to navigate to contract detail.
   // The Act button stops propagation so it doesn't double-fire.
   const goToContract = () =>
     void navigate({ to: "/app/contracts/$id", params: { id: String(row.contractId) } });
+
+  // R2 audit 6.4.4 — current step descriptor for "Step X of Y: <role>".
+  const totalSteps = row.totalSteps ?? row.chainSteps?.length ?? 1;
+  const currentStepRole =
+    row.chainSteps?.find((s) => s.order === row.stepOrder)?.role ?? null;
 
   return (
     <tr
@@ -432,36 +460,63 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
       }}
       className="cursor-pointer border-b border-border/60 transition-colors hover:bg-surface/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:bg-surface/50"
     >
-      <td className="px-4 py-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="font-mono text-xs text-ink-muted">
-            {row.contractNumber}
+      {/* Priority */}
+      <td className="px-2 py-3">
+        {priority === "highValue" ? (
+          <span className="inline-flex items-center rounded-full bg-amber-tint/40 px-2 py-0.5 text-[10px] font-medium text-amber-ink">
+            {t("approval.list.priority.highValue", { defaultValue: "High value" })}
           </span>
+        ) : priority === "urgent" ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-terracotta/10 px-2 py-0.5 text-[10px] font-medium text-terracotta">
+            <Zap className="h-2.5 w-2.5" />
+            {t("approval.list.priority.urgent", { defaultValue: "Urgent" })}
+          </span>
+        ) : (
+          <span className="text-[10px] text-ink-subtle">—</span>
+        )}
+      </td>
+      {/* Contract — number + title + chain breadcrumb (R2 audit 6.4.3) */}
+      <td className="px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <span className="font-mono text-xs text-ink-muted">{row.contractNumber}</span>
           <span className="text-sm font-medium text-ink">{row.contractTitleEn}</span>
           {row.contractTitleAr && (
             <span dir="rtl" className="text-xs text-ink-muted">
               {row.contractTitleAr}
             </span>
           )}
+          {row.chainSteps && row.chainSteps.length > 0 && (
+            <ChainBreadcrumb steps={row.chainSteps} />
+          )}
         </div>
       </td>
-      <td className="px-4 py-3 text-ink-muted">
-        {row.requesterUserRef
-          ? `${row.requesterUserRef.firstName} ${row.requesterUserRef.lastName}`
-          : t("approval.list.unknownRequester")}
+      {/* Type — contract type pill */}
+      <td className="px-2 py-3">
+        {row.contractType ? (
+          <span className="inline-flex items-center rounded-md border border-border bg-card px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+            {row.contractType}
+          </span>
+        ) : (
+          "—"
+        )}
       </td>
+      {/* Value */}
       <td className="px-4 py-3 font-mono text-ink-muted">
         {row.valueAed === null
           ? "—"
           : t("approval.list.valueAed", { value: row.valueAed.toLocaleString() })}
       </td>
+      {/* Stage — "Step X of Y: <role>" */}
       <td className="px-4 py-3">
         <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-ink-muted">
-          {t("approval.list.stepLabel", {
+          {t("approval.list.stageLabel", {
             order: row.stepOrder,
-            ...(row.parallelGroup !== null
-              ? { parallel: row.parallelGroup }
-              : {}),
+            total: totalSteps,
+            role: currentStepRole ?? "",
+            defaultValue:
+              currentStepRole && totalSteps > 1
+                ? `Step ${row.stepOrder} of ${totalSteps}: ${currentStepRole}`
+                : `Step ${row.stepOrder} of ${totalSteps}`,
           })}
         </span>
         {!row.isRequired && (
@@ -470,6 +525,7 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
           </span>
         )}
       </td>
+      {/* Pending */}
       <td className="px-4 py-3">
         <span
           className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -483,6 +539,15 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
           {breach && <Zap className="h-3 w-3" />}
           {pendingLabel}
         </span>
+      </td>
+      {/* Drafter — avatar + name (R2 audit 6.4.5) */}
+      <td className="px-4 py-3 text-ink-muted">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gold/20 font-mono text-[10px] font-medium text-gold-ink">
+            {requesterInitials}
+          </span>
+          <span className="text-xs">{requesterName}</span>
+        </div>
       </td>
       <td className="px-4 py-3 text-end">
         {/* R1 audit 6.4.6: 3 inline icon buttons (Approve / Reject / Request
@@ -535,6 +600,39 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
         </div>
       </td>
     </tr>
+  );
+}
+
+/**
+ * R2 audit 6.4.3 — chain breadcrumb shown beneath the contract title.
+ * Renders each step as a small avatar + role chip with a connecting arrow,
+ * mirroring Lovable's "Legal Counsel → Contract Approver → Contract
+ * Approver (Stage 2)" trail. Pending steps stay neutral; approved steps
+ * tint primary; rejected/skipped tint terracotta/muted.
+ */
+function ChainBreadcrumb({ steps }: { steps: ApprovalChainStepRef[] }) {
+  return (
+    <ol className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px] text-ink-subtle">
+      {steps.map((step, idx) => {
+        const tint =
+          step.status === "approved"
+            ? "border-primary/40 bg-primary/10 text-primary"
+            : step.status === "rejected"
+              ? "border-destructive/40 bg-destructive/10 text-destructive"
+              : step.status === "skipped"
+                ? "border-border bg-card text-ink-subtle line-through"
+                : "border-border bg-card text-ink-muted";
+        return (
+          <li key={`${step.order}-${step.role ?? "u"}`} className="inline-flex items-center gap-1">
+            <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${tint}`}>
+              <span className="font-mono">{step.order}</span>
+              <span>{step.role ?? "—"}</span>
+            </span>
+            {idx < steps.length - 1 && <span aria-hidden>→</span>}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
