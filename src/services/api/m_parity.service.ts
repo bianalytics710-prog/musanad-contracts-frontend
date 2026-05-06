@@ -1,0 +1,171 @@
+/**
+ * M_parity FE service — read-only thin axios wrappers for the 4 entities
+ * introduced in BE migration 058. Mirrors the BE shape exactly.
+ */
+import { apiClient } from "@/lib/api-client";
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: { total: number; limit: number; offset: number };
+}
+
+export interface PartyListItem {
+  id: number;
+  partyType: "individual" | "company";
+  nameEn: string;
+  nameAr: string | null;
+  tradeLicenseNumber: string | null;
+  tradeLicenseIssuer: string | null;
+  emirate: string | null;
+  freeZone: string | null;
+  country: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  createdAt: string;
+}
+
+export interface PartyDetail extends PartyListItem {
+  registeredAddress: string | null;
+  notes: string | null;
+  updatedAt: string;
+  recentContracts5: Array<{
+    id: number;
+    contractNumber: string;
+    titleEn: string;
+    status: string;
+    valueAed: number | null;
+    updatedAt: string;
+  }>;
+}
+
+export interface TemplateListItem {
+  id: number;
+  nameEn: string;
+  nameAr: string | null;
+  contractType: string;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
+  language: "en" | "ar" | "bilingual";
+  regulatoryTags: string[];
+  usageCount: number;
+  createdAt: string;
+}
+
+export interface TemplateDetail extends TemplateListItem {
+  bodyEn: string | null;
+  bodyAr: string | null;
+  updatedAt: string;
+}
+
+export interface ClauseListItem {
+  id: number;
+  category: string;
+  titleEn: string;
+  titleAr: string | null;
+  variant: "standard" | "alternative" | "fallback";
+  regulatoryRefs: string[];
+  usageCount: number;
+  createdAt: string;
+}
+
+export interface ClauseDetail extends ClauseListItem {
+  bodyEn: string;
+  bodyAr: string | null;
+  legalCommentaryEn: string | null;
+  legalCommentaryAr: string | null;
+  updatedAt: string;
+}
+
+export interface ObligationListItem {
+  id: number;
+  contractId: number;
+  contractNumber: string;
+  titleEn: string;
+  titleAr: string | null;
+  descriptionEn: string | null;
+  obligationType: string;
+  dueDate: string | null;
+  recurrence: string;
+  responsibleParty: string;
+  assigneeUserId: number | null;
+  status: "open" | "in_progress" | "completed" | "overdue" | "waived";
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export const partiesService = {
+  list: async (params: {
+    partyType?: string;
+    q?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<PaginatedResult<PartyListItem>> => {
+    const { data } = await apiClient.get<PaginatedResult<PartyListItem>>(
+      "/api/v1/parties",
+      { params },
+    );
+    return data;
+  },
+  getById: async (id: number): Promise<PartyDetail> => {
+    const { data } = await apiClient.get<PartyDetail>(`/api/v1/parties/${id}`);
+    return data;
+  },
+};
+
+export const templatesService = {
+  list: async (params: {
+    contractType?: string;
+    q?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<PaginatedResult<TemplateListItem>> => {
+    const { data } = await apiClient.get<PaginatedResult<TemplateListItem>>(
+      "/api/v1/templates",
+      { params },
+    );
+    return data;
+  },
+  getById: async (id: number): Promise<TemplateDetail> => {
+    const { data } = await apiClient.get<TemplateDetail>(
+      `/api/v1/templates/${id}`,
+    );
+    return data;
+  },
+};
+
+export const clausesService = {
+  list: async (params: {
+    category?: string;
+    variant?: string;
+    q?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<PaginatedResult<ClauseListItem>> => {
+    const { data } = await apiClient.get<PaginatedResult<ClauseListItem>>(
+      "/api/v1/clauses",
+      { params },
+    );
+    return data;
+  },
+  getById: async (id: number): Promise<ClauseDetail> => {
+    const { data } = await apiClient.get<ClauseDetail>(
+      `/api/v1/clauses/${id}`,
+    );
+    return data;
+  },
+};
+
+export const obligationsService = {
+  list: async (params: {
+    status?: string;
+    assigneeUserId?: number | "me";
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<PaginatedResult<ObligationListItem>> => {
+    const { data } = await apiClient.get<PaginatedResult<ObligationListItem>>(
+      "/api/v1/obligations",
+      { params },
+    );
+    return data;
+  },
+};
