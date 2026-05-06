@@ -3,13 +3,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Search, FileStack, Languages, TrendingUp } from "lucide-react";
+import { Search, FileStack, Languages, TrendingUp, ArrowRight, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { templatesService } from "@/services/api/m_parity.service";
+import { Button } from "@/components/ui/button";
+import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { TemplatePreviewDialog } from "@/features/templates/components/TemplatePreviewDialog";
 
-export const Route = createFileRoute("/app/templates")({
+export const Route = createFileRoute("/app/templates/")({
   component: () => (
     <ErrorBoundary>
       <TemplatesListView />
@@ -22,6 +24,7 @@ function TemplatesListView() {
   const isAr = i18n.language?.startsWith("ar");
   const [search, setSearch] = useState("");
   const [contractType, setContractType] = useState("");
+  const [previewTemplate, setPreviewTemplate] = useState<TemplateListItem | null>(null);
   const debounced = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
@@ -146,61 +149,97 @@ function TemplatesListView() {
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((tpl) => (
-            <li key={tpl.id}>
+            <li
+              key={tpl.id}
+              className="flex h-full flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-gold"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+                  {tpl.contractType.replace(/_/g, " ")}
+                </span>
+                {tpl.language === "bilingual" && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
+                    <Languages className="h-3 w-3" />
+                    AR · EN
+                  </span>
+                )}
+              </div>
               <Link
                 to="/app/templates/$id"
                 params={{ id: String(tpl.id) }}
-                className="flex h-full flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-gold"
+                className="mt-2 text-sm font-semibold text-ink hover:text-gold"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-                    {tpl.contractType.replace(/_/g, " ")}
-                  </span>
-                  {tpl.language === "bilingual" && (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
-                      <Languages className="h-3 w-3" />
-                      AR · EN
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 text-sm font-semibold text-ink">
-                  {isAr && tpl.nameAr ? tpl.nameAr : tpl.nameEn}
-                </p>
-                {tpl.descriptionEn && !isAr && (
-                  <p className="mt-1 line-clamp-2 text-xs text-ink-muted">
-                    {tpl.descriptionEn}
-                  </p>
-                )}
-                {tpl.descriptionAr && isAr && (
-                  <p className="mt-1 line-clamp-2 text-xs text-ink-muted" dir="rtl">
-                    {tpl.descriptionAr}
-                  </p>
-                )}
-                <div className="mt-auto flex items-center justify-between pt-3">
-                  <div className="flex flex-wrap gap-1">
-                    {tpl.regulatoryTags.slice(0, 2).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-subtle"
-                      >
-                        {tag.replace(/_/g, " ")}
-                      </span>
-                    ))}
-                    {tpl.regulatoryTags.length > 2 && (
-                      <span className="font-mono text-[10px] text-ink-subtle">
-                        +{tpl.regulatoryTags.length - 2}
-                      </span>
-                    )}
-                  </div>
-                  <span className="font-mono text-[11px] text-ink-subtle">
-                    {tpl.usageCount}× used
-                  </span>
-                </div>
+                {isAr && tpl.nameAr ? tpl.nameAr : tpl.nameEn}
               </Link>
+              {tpl.descriptionEn && !isAr && (
+                <p className="mt-1 line-clamp-2 text-xs text-ink-muted">
+                  {tpl.descriptionEn}
+                </p>
+              )}
+              {tpl.descriptionAr && isAr && (
+                <p className="mt-1 line-clamp-2 text-xs text-ink-muted" dir="rtl">
+                  {tpl.descriptionAr}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-1">
+                {tpl.regulatoryTags.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-subtle"
+                  >
+                    {tag.replace(/_/g, " ")}
+                  </span>
+                ))}
+                {tpl.regulatoryTags.length > 2 && (
+                  <span className="font-mono text-[10px] text-ink-subtle">
+                    +{tpl.regulatoryTags.length - 2}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 font-mono text-[11px] text-ink-subtle">
+                {t("templates.usedNTimes", {
+                  defaultValue: "Used {{count}} times",
+                  count: tpl.usageCount,
+                })}
+              </p>
+              <div className="mt-auto flex items-center gap-2 pt-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPreviewTemplate(tpl)}
+                  className="flex-1"
+                >
+                  <Eye className="me-1.5 h-3.5 w-3.5" />
+                  {t("templates.preview.cta", { defaultValue: "Preview" })}
+                </Button>
+                <Link
+                  to="/app/contracts/compose"
+                  search={{ template_id: tpl.id }}
+                  className="flex-1"
+                >
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full bg-gold text-ink hover:bg-gold-hover"
+                  >
+                    {t("templates.useTemplate.short", { defaultValue: "Use template" })}
+                    <ArrowRight className="ms-1.5 h-3.5 w-3.5 rtl:rotate-180" />
+                  </Button>
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
       )}
+
+      <TemplatePreviewDialog
+        template={previewTemplate}
+        open={previewTemplate !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewTemplate(null);
+        }}
+      />
     </motion.div>
   );
 }

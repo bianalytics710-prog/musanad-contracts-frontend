@@ -25,9 +25,21 @@
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
-import { Plus, TrendingUp, PieChart as PieIcon, Bell, Radar as RadarIcon, FileStack } from "lucide-react";
+import {
+  Plus,
+  TrendingUp,
+  PieChart as PieIcon,
+  Bell,
+  Radar as RadarIcon,
+  FileStack,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  CheckCircle2,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -62,6 +74,12 @@ import type {
 } from "@/types/entities/dashboards.types";
 import { formatDateTime } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
+import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
+import {
+  useNotifications,
+  type AppNotification,
+  type NotificationSeverity,
+} from "@/components/notifications/NotificationProvider";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
@@ -560,38 +578,9 @@ export function DrafterDashboard() {
               <AwaitingActionList rows={data.lists.awaitingMyAction5} />
             </section>
 
-            <section className="rounded-lg border border-dashed border-border bg-muted/40 p-4">
-              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-muted">
-                <FileStack className="h-4 w-4" />
-                {t("dashboards.drafter.templateUsage.title", {
-                  defaultValue: "Template usage",
-                })}
-              </h3>
-              <p className="mb-3 text-xs text-ink-subtle">
-                {t("dashboards.drafter.templateUsage.subtitle", {
-                  defaultValue: "Most-used templates",
-                })}
-              </p>
-              <p className="py-6 text-center text-xs text-ink-subtle">
-                {t("comingSoon.templates", {
-                  defaultValue: "Templates module coming soon",
-                })}
-              </p>
-            </section>
+            <TemplateUsageWidget />
 
-            <section className="rounded-lg border border-dashed border-border bg-muted/40 p-4">
-              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-muted">
-                <Bell className="h-4 w-4" />
-                {t("dashboards.drafter.notifications.title", {
-                  defaultValue: "My notifications",
-                })}
-              </h3>
-              <p className="py-6 text-center text-xs text-ink-subtle">
-                {t("comingSoon.notifications", {
-                  defaultValue: "Notification feed coming soon",
-                })}
-              </p>
-            </section>
+            <NotificationsWidget />
           </div>
 
           <section className="rounded-lg border border-border bg-card p-4">
@@ -704,6 +693,189 @@ function AwaitingActionList({ rows }: { rows: DrafterAwaitingActionRow[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function TemplateUsageWidget() {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith("ar");
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["dashboard-templates-usage"],
+    queryFn: () => templatesService.list({ limit: 50 }),
+    staleTime: 5 * 60_000,
+  });
+
+  const top = useMemo(() => {
+    const items = data?.data ?? [];
+    return [...items].sort((a, b) => b.usageCount - a.usageCount).slice(0, 5);
+  }, [data]);
+
+  const max = top[0]?.usageCount ?? 0;
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-4">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink">
+        <FileStack className="h-4 w-4 text-gold" />
+        {t("dashboards.drafter.templateUsage.title", {
+          defaultValue: "Template usage",
+        })}
+      </h3>
+      <p className="mb-3 text-xs text-ink-subtle">
+        {t("dashboards.drafter.templateUsage.subtitle", {
+          defaultValue: "Most-used templates",
+        })}
+      </p>
+      {isLoading ? (
+        <div className="space-y-1.5" aria-hidden>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-7 animate-pulse rounded-md bg-surface" />
+          ))}
+        </div>
+      ) : isError ? (
+        <p className="py-4 text-center text-xs text-destructive">
+          {t("dashboards.drafter.templateUsage.error", {
+            defaultValue: "Could not load templates.",
+          })}
+        </p>
+      ) : top.length === 0 ? (
+        <p className="py-4 text-center text-xs text-ink-subtle">
+          {t("dashboards.drafter.templateUsage.empty", {
+            defaultValue: "No templates yet.",
+          })}
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {top.map((tpl: TemplateListItem) => {
+            const pct = max === 0 ? 0 : Math.round((tpl.usageCount / max) * 100);
+            const name = isAr && tpl.nameAr ? tpl.nameAr : tpl.nameEn;
+            return (
+              <li key={tpl.id}>
+                <Link
+                  to="/app/templates/$id"
+                  params={{ id: String(tpl.id) }}
+                  className="block rounded-md px-1 py-1 text-xs hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-ink">{name}</span>
+                    <span className="font-mono text-[10px] text-ink-subtle">
+                      {t("dashboards.drafter.templateUsage.usedN", {
+                        defaultValue: "{{count}}",
+                        count: tpl.usageCount,
+                      })}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
+                    <div
+                      className="h-full rounded-full bg-gold"
+                      style={{ width: `${pct}%` }}
+                      aria-hidden
+                    />
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <Link
+        to="/app/templates"
+        className="mt-3 block text-end text-xs text-ink-muted hover:text-gold"
+      >
+        {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
+      </Link>
+    </section>
+  );
+}
+
+const SEVERITY_ICON: Record<NotificationSeverity, React.ComponentType<{ className?: string }>> = {
+  critical: AlertTriangle,
+  high: AlertCircle,
+  medium: Bell,
+  low: Info,
+  info: CheckCircle2,
+};
+
+const SEVERITY_TINT: Record<NotificationSeverity, string> = {
+  critical: "text-destructive",
+  high: "text-amber-500",
+  medium: "text-gold",
+  low: "text-ink-subtle",
+  info: "text-emerald-500",
+};
+
+function NotificationsWidget() {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith("ar");
+  const { notifications, unreadCount } = useNotifications();
+
+  const recent: AppNotification[] = useMemo(
+    () =>
+      [...notifications]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 5),
+    [notifications],
+  );
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <Bell className="h-4 w-4 text-gold" />
+          {t("dashboards.drafter.notifications.title", {
+            defaultValue: "My notifications",
+          })}
+        </h3>
+        {unreadCount > 0 && (
+          <span className="rounded-full bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
+            {t("dashboards.drafter.notifications.unread", {
+              defaultValue: "{{count}} unread",
+              count: unreadCount,
+            })}
+          </span>
+        )}
+      </div>
+      {recent.length === 0 ? (
+        <p className="py-4 text-center text-xs text-ink-subtle">
+          {t("dashboards.drafter.notifications.empty", {
+            defaultValue: "All clear — no notifications.",
+          })}
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {recent.map((n) => {
+            const Icon = SEVERITY_ICON[n.severity] ?? Bell;
+            const title = isAr && n.titleAr ? n.titleAr : n.titleEn;
+            const body = isAr && n.bodyAr ? n.bodyAr : n.bodyEn;
+            const isUnread = n.readAt === null;
+            return (
+              <li
+                key={n.id}
+                className={`rounded-md border border-border px-3 py-2 ${
+                  isUnread ? "bg-surface" : "bg-card"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${SEVERITY_TINT[n.severity]}`} />
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`truncate text-xs ${isUnread ? "font-medium text-ink" : "text-ink-muted"}`}
+                    >
+                      {title}
+                    </p>
+                    {body && (
+                      <p className="mt-0.5 line-clamp-2 text-[11px] text-ink-subtle">{body}</p>
+                    )}
+                  </div>
+                  <span className="font-mono text-[10px] text-ink-subtle whitespace-nowrap">
+                    {formatDateTime(n.createdAt)}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 

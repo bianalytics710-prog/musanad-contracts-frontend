@@ -14,7 +14,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate, Link } from "@tanstack/react-router";
+import { useNavigate, useRouter, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -49,9 +49,25 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+/**
+ * Read `?redirect=...` from the current URL and accept it only if it is a
+ * same-origin relative path. Rejects protocol-relative (`//evil.com`),
+ * backslash variants, and anything not starting with `/`. Returns the
+ * sanitized path or undefined.
+ */
+function readSafeRedirect(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const raw = new URLSearchParams(window.location.search).get("redirect");
+  if (!raw) return undefined;
+  if (!raw.startsWith("/")) return undefined;
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return undefined;
+  return raw;
+}
+
 export function LoginForm() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const router = useRouter();
   const isAr = i18n.language?.startsWith("ar");
   const applyLogin = useAuthStore((s) => s.applyLogin);
   const [formError, setFormError] = useState<string | null>(null);
@@ -73,7 +89,12 @@ export function LoginForm() {
       toast.success(
         t("auth.signInSuccess", { defaultValue: "Welcome back, {{name}}", name: response.user.firstName }),
       );
-      navigate({ to: "/app" });
+      const safeRedirect = readSafeRedirect();
+      if (safeRedirect) {
+        router.history.push(safeRedirect);
+      } else {
+        navigate({ to: "/app" });
+      }
     },
     onError: (err: unknown) => {
       if (err instanceof ApiError) {

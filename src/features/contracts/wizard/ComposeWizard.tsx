@@ -34,14 +34,16 @@
  * the FE-C1 fix from M1a's ContractCreateForm. localStorage retention is
  * acknowledged in the useComposeDraft.ts header.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Send, RotateCcw, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Send, RotateCcw, AlertTriangle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore, selectHasPermission, selectUser } from "@/store/auth.store";
+import { templatesService } from "@/services/api/m_parity.service";
 import { translateApiError } from "@/lib/translate-api-error";
 import { Step1Type } from "./steps/Step1Type";
 import { Step2Parties } from "./steps/Step2Parties";
@@ -106,9 +108,11 @@ function emptyState(composeDraftId: string): ComposeWizardState {
 interface ComposeWizardProps {
   /** Optional override for the draft id (e.g., when resuming from a URL param). */
   composeDraftId?: string;
+  /** Optional template id from `?template_id=N` to seed the wizard with. */
+  prefillTemplateId?: number | null;
 }
 
-export function ComposeWizard({ composeDraftId }: ComposeWizardProps) {
+export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: ComposeWizardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const user = useAuthStore(selectUser);
@@ -123,6 +127,41 @@ export function ComposeWizard({ composeDraftId }: ComposeWizardProps) {
   const [state, setState] = useComposeDraftState(user?.id ?? null, draftId, () =>
     emptyState(draftId),
   );
+
+  // Pre-fetch the template when ?template_id= is present so we can seed
+  // step1/step3 before the wizard's first interactive render. Only fires
+  // once: the prefillAppliedRef guards against re-applying after the user
+  // has started editing (state.step1.templateId === prefillTemplateId).
+  const wantsPrefill = typeof prefillTemplateId === "number" && Number.isInteger(prefillTemplateId);
+  const { data: prefillTemplate, isLoading: prefillLoading, isError: prefillError } = useQuery({
+    queryKey: ["compose-prefill-template", prefillTemplateId],
+    queryFn: () => templatesService.getById(prefillTemplateId!),
+    enabled: wantsPrefill,
+    staleTime: 5 * 60_000,
+  });
+
+  const prefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!wantsPrefill || !prefillTemplate || prefillAppliedRef.current) return;
+    if (state.step1.templateId === prefillTemplate.id) {
+      prefillAppliedRef.current = true;
+      return;
+    }
+    prefillAppliedRef.current = true;
+    setState((s) => ({
+      ...s,
+      step1: {
+        ...s.step1,
+        contractType: prefillTemplate.contractType,
+        language: prefillTemplate.language,
+        templateId: prefillTemplate.id,
+      },
+      step3: {
+        bodyEn: s.step3.bodyEn ?? prefillTemplate.bodyEn,
+        bodyAr: s.step3.bodyAr ?? prefillTemplate.bodyAr,
+      },
+    }));
+  }, [prefillTemplate, wantsPrefill, setState, state.step1.templateId]);
 
   const { submit, retryStep2, isSubmitting, phase, error: submitError } = useComposeSubmit();
 
@@ -203,6 +242,29 @@ export function ComposeWizard({ composeDraftId }: ComposeWizardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Block wizard render until template prefill has been applied to draft
+  // state — Step1Type's RHF form snapshots its defaultValues at mount, so
+  // mounting it before the prefill setState would lose the prefill values.
+  if (wantsPrefill && state.step1.templateId !== prefillTemplateId && !prefillError) {
+    return (
+      <div
+        className="mx-auto w-full max-w-4xl space-y-4 p-6"
+        role="status"
+        aria-live="polite"
+        aria-busy={prefillLoading}
+      >
+        <div className="h-8 w-2/3 animate-pulse rounded-md bg-surface" />
+        <div className="h-32 animate-pulse rounded-lg bg-surface" />
+        <div className="h-72 animate-pulse rounded-lg bg-surface" />
+        <p className="text-xs text-ink-subtle">
+          {t("contracts.compose.prefill.loading", {
+            defaultValue: "Loading template…",
+          })}
+        </p>
+      </div>
+    );
+  }
+
   // RBAC defense-in-depth: redirect users who don't have contract.draft.
   // BE will return 403 anyway on submit, but rendering the wizard at all
   // wastes the user's time.
@@ -250,6 +312,29 @@ export function ComposeWizard({ composeDraftId }: ComposeWizardProps) {
           {t("contracts.compose.discardDraft")}
         </Button>
       </header>
+
+      {prefillTemplate && state.step1.templateId === prefillTemplate.id && (
+        <div className="flex items-center gap-2 rounded-md border border-gold/30 bg-gold/10 px-3 py-2 text-xs text-ink">
+          <Sparkles className="h-4 w-4 text-gold" aria-hidden="true" />
+          <span>
+            {t("contracts.compose.prefill.banner", {
+              defaultValue: "Started from template: {{name}}",
+              name: prefillTemplate.nameEn,
+            })}
+          </span>
+        </div>
+      )}
+
+      {prefillError && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          <span>
+            {t("contracts.compose.prefill.error", {
+              defaultValue: "Failed to load template — starting from a blank draft.",
+            })}
+          </span>
+        </div>
+      )}
 
       {/* Progress indicator (AC-S1-11) */}
       <Card>

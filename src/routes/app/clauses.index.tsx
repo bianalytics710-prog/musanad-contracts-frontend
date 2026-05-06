@@ -9,7 +9,7 @@ import { clausesService } from "@/services/api/m_parity.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
-export const Route = createFileRoute("/app/clauses")({
+export const Route = createFileRoute("/app/clauses/")({
   component: () => (
     <ErrorBoundary>
       <ClausesListView />

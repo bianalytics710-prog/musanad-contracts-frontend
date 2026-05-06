@@ -9,7 +9,7 @@ import { partiesService } from "@/services/api/m_parity.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
-export const Route = createFileRoute("/app/parties")({
+export const Route = createFileRoute("/app/parties/")({
   component: () => (
     <ErrorBoundary>
       <PartiesListView />
