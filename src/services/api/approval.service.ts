@@ -118,6 +118,40 @@ export const approvalService = {
     );
     return data;
   },
+
+  /** R5 audit 6.2.1 — GET /api/v1/approvals/my-decisions */
+  myDecisions: async (query: {
+    kind?: "approve" | "reject" | "request_resubmission" | "skipped";
+    page?: number;
+    limit?: number;
+  } = {}): Promise<MyPendingApprovalListResponse> => {
+    const { data } = await apiClient.get<MyPendingApprovalListResponse>(
+      `${APPROVALS_BASE}/my-decisions`,
+      { params: toParams(query as Record<string, unknown>) },
+    );
+    return data;
+  },
+
+  /** R5 audit 6.2.1 — GET /api/v1/approvals/watching */
+  watching: async (query: { page?: number; limit?: number } = {}): Promise<MyPendingApprovalListResponse> => {
+    const { data } = await apiClient.get<MyPendingApprovalListResponse>(
+      `${APPROVALS_BASE}/watching`,
+      { params: toParams(query as Record<string, unknown>) },
+    );
+    return data;
+  },
+
+  /** R5 audit — PUT /api/v1/contracts/:id/watch */
+  setContractWatch: async (
+    contractId: number,
+    watching: boolean,
+  ): Promise<{ data: { contractId: number; watching: boolean } }> => {
+    const { data } = await apiClient.put<{ data: { contractId: number; watching: boolean } }>(
+      `${CONTRACTS_BASE}/${contractId}/watch`,
+      { watching },
+    );
+    return data;
+  },
 };
 
 export default approvalService;

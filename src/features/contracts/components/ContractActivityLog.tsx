@@ -131,13 +131,84 @@ export function ContractActivityLog({ contractId }: ContractActivityLogProps) {
 
   const items = data?.data ?? [];
 
+  // R5 audit 8.4.1 — filter pills (All / Reviews / Approvals / Signatures /
+  // Comments / Edits) instead of the 21-value <select>. Pills map to type
+  // groups; selecting "All" clears the filter.
+  const PILL_GROUPS: Array<{ key: string; label: string; types?: ActivityType[] }> = [
+    { key: "all", label: t("contracts.activity.pills.all", { defaultValue: "All" }) },
+    {
+      key: "reviews",
+      label: t("contracts.activity.pills.reviews", { defaultValue: "Reviews" }),
+      types: ["status_changed"],
+    },
+    {
+      key: "approvals",
+      label: t("contracts.activity.pills.approvals", { defaultValue: "Approvals" }),
+      types: [
+        "submitted_for_approval",
+        "approval_decided",
+        "approval_reassigned",
+        "approval_escalated",
+        "approval_delegated",
+      ],
+    },
+    {
+      key: "signatures",
+      label: t("contracts.activity.pills.signatures", { defaultValue: "Signatures" }),
+      types: [
+        "sent_for_signature",
+        "signer_viewed",
+        "signer_signed",
+        "signer_declined",
+        "fully_executed",
+        "signature_invalidated",
+      ],
+    },
+    {
+      key: "edits",
+      label: t("contracts.activity.pills.edits", { defaultValue: "Edits" }),
+      types: ["created", "updated", "version_created", "tagged", "soft_deleted", "restored"],
+    },
+  ];
+  // Find the active pill key from the current filter (single-type select).
+  const activePillKey = filter
+    ? PILL_GROUPS.find((g) => g.types?.includes(filter as ActivityType))?.key ?? "all"
+    : "all";
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">{t("contracts.activity.title")}</CardTitle>
+      <CardHeader className="space-y-2">
+        <div className="flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-base">{t("contracts.activity.title")}</CardTitle>
+        </div>
+        {/* R5 audit 8.4.1 — filter pills */}
+        <div role="tablist" className="flex flex-wrap gap-1">
+          {PILL_GROUPS.map((g) => (
+            <button
+              key={g.key}
+              role="tab"
+              type="button"
+              aria-selected={activePillKey === g.key}
+              onClick={() => {
+                // R5 — single-type filter; group pills set the FIRST mapped
+                // type. Power users can still narrow further with the
+                // dropdown below.
+                if (g.key === "all") setFilter("");
+                else if (g.types && g.types.length > 0) setFilter(g.types[0]);
+              }}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                activePillKey === g.key
+                  ? "bg-gold/20 text-ink"
+                  : "border border-border text-ink-muted hover:bg-surface"
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-2">
-          <label htmlFor="activity-filter" className="sr-only">
-            {t("contracts.activity.filterLabel")}
+          <label htmlFor="activity-filter" className="text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t("contracts.activity.filterLabel", { defaultValue: "Type" })}
           </label>
           <select
             id="activity-filter"

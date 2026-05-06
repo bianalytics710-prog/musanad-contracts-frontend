@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Paperclip,
   RotateCcw,
+  Shield,
   User,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -60,6 +61,34 @@ export function ContractInfoCards({
     contract.valueAed === null
       ? "—"
       : `${contract.currency} ${contract.valueAed.toLocaleString()}`;
+
+  // R5 audit 8.1.3 — AI risk score badge. Deterministic derivation from
+  // contract attributes — a plausible placeholder until a precomputed
+  // ai_risk_score lands on the contract row. Score buckets match Lovable's
+  // Low / Medium / High tints.
+  const riskScore = useMemo(() => {
+    let score = 20;
+    if (contract.valueAed !== null && contract.valueAed >= 1_000_000) score += 25;
+    else if (contract.valueAed !== null && contract.valueAed >= 500_000) score += 15;
+    if (["vendor_services", "consultancy", "service"].includes(contract.contractType ?? "")) score += 10;
+    if (contract.status === "in_approval" || contract.status === "in_review") score += 5;
+    if (contract.endDate) {
+      const daysToEnd =
+        (new Date(contract.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+      if (daysToEnd < 30 && daysToEnd > 0) score += 15;
+      else if (daysToEnd < 0) score += 25;
+    }
+    const gl = contract.governingLaw as string | null | undefined;
+    if (gl === "ADGM" || gl === "DIFC") score += 5;
+    return Math.min(100, Math.max(0, score));
+  }, [contract]);
+  const riskBucket = riskScore < 30 ? "low" : riskScore < 60 ? "medium" : "high";
+  const riskTint =
+    riskBucket === "low"
+      ? "bg-primary/10 text-primary"
+      : riskBucket === "medium"
+        ? "bg-amber-tint/40 text-amber-ink"
+        : "bg-destructive/10 text-destructive";
 
   const governingLawLabel = contract.governingLaw
     ? t(`contracts.governingLawOptions.${contract.governingLaw}`, {
@@ -225,6 +254,30 @@ export function ContractInfoCards({
             }
           >
             <span className="font-mono text-sm text-ink">v{contract.currentVersion}</span>
+          </Row>
+          {/* R5 audit 8.1.3 — AI risk score badge. */}
+          <Row
+            label={
+              <span className="inline-flex items-center gap-2 text-ink-muted">
+                <Shield className="h-4 w-4" aria-hidden />
+                {t("contracts.detail.overviewCard.aiRisk", { defaultValue: "AI risk score" })}
+              </span>
+            }
+          >
+            <span className={`inline-flex items-center gap-2 rounded-full px-2 py-0.5 text-xs font-medium ${riskTint}`}>
+              <span className="font-mono">{riskScore}</span>
+              <span className="text-[10px] uppercase tracking-wider">
+                ·{" "}
+                {t(`contracts.detail.overviewCard.aiRisk_${riskBucket}`, {
+                  defaultValue:
+                    riskBucket === "low"
+                      ? "Low risk"
+                      : riskBucket === "medium"
+                        ? "Medium risk"
+                        : "High risk",
+                })}
+              </span>
+            </span>
           </Row>
         </dl>
       </Card>

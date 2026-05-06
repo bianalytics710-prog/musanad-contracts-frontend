@@ -38,6 +38,7 @@ import {
   Download,
   FileSignature,
   FileStack,
+  RotateCcw,
   GitBranch,
   History,
   Languages,
@@ -84,7 +85,9 @@ import { ContractCommentsTab } from "./ContractCommentsTab";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
-import { CheckCircle2 } from "lucide-react";
+import { approvalService } from "@/services/api/approval.service";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
 
 type Tab =
@@ -135,6 +138,20 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   );
   const [approveOpen, setApproveOpen] = useState(false);
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
+
+  // R5 audit — Watch toggle. Local state for UX; we don't have a GET-watch
+  // endpoint so we start unset and let the user toggle. The watch tab on
+  // /app/approvals reflects the actual server state.
+  const [watching, setWatching] = useState<boolean | null>(null);
+  const qc = useQueryClient();
+  const watchMutation = useMutation({
+    mutationFn: ({ id, value }: { id: number; value: boolean }) =>
+      approvalService.setContractWatch(id, value),
+    onSuccess: (_data, variables) => {
+      setWatching(variables.value);
+      void qc.invalidateQueries({ queryKey: ["approval", "watching"] });
+    },
+  });
 
   if (isLoading) {
     return (
@@ -209,6 +226,29 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           </div>
         </div>
         <div className="flex items-start gap-2">
+          {/* R5 audit — Watch toggle. */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              watchMutation.mutate({ id: contract.id, value: !(watching ?? false) })
+            }
+            disabled={watchMutation.isPending}
+            className="hidden sm:inline-flex"
+          >
+            {watching ? (
+              <>
+                <EyeOff className="h-3.5 w-3.5" />
+                {t("contracts.detail.actions.unwatch", { defaultValue: "Unwatch" })}
+              </>
+            ) : (
+              <>
+                <Eye className="h-3.5 w-3.5" />
+                {t("contracts.detail.actions.watch", { defaultValue: "Watch" })}
+              </>
+            )}
+          </Button>
           {/* R1 audit 8.1.4: approver-perspective top-level Approve CTA. */}
           {myPendingStep && contract.status === "in_approval" && (
             <Button
@@ -283,6 +323,35 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                   {t("contracts.detail.actions.exportBilingualPdf", {
                     defaultValue: "Export bilingual PDF",
                   })}
+                </DropdownMenuItem>
+                {/* R5 audit 8.5.2: Amend / Renew menu items match Lovable.
+                    Both surface a "coming soon" toast since the BE lifecycle
+                    transitions aren't wired yet — but the menu is visible. */}
+                <DropdownMenuItem
+                  onSelect={() =>
+                    toast.info(
+                      t("contracts.detail.actions.amendComingSoon", {
+                        defaultValue:
+                          "Amend will be available when the contract amendment workflow ships.",
+                      }),
+                    )
+                  }
+                >
+                  <FileSignature className="me-2 h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.amend", { defaultValue: "Amend" })}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() =>
+                    toast.info(
+                      t("contracts.detail.actions.renewComingSoon", {
+                        defaultValue:
+                          "Renew will be available when the contract renewal workflow ships.",
+                      }),
+                    )
+                  }
+                >
+                  <RotateCcw className="me-2 h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.renew", { defaultValue: "Renew" })}
                 </DropdownMenuItem>
                 {canChangeStatus && (
                   <>

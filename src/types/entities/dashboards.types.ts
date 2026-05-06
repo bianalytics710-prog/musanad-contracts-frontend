@@ -256,15 +256,57 @@ export interface ApproverDashboardKpis {
   /** NULL when 0 decisions in window. */
   averageDecisionHoursMine: number | null;
   averageDecisionHoursTeam: number | null;
+  // R5 additions — queue segments and SLA breach
+  queueTeamCount?: number;
+  queueQuickApproveCount?: number;
+  slaBreachCount?: number;
+  // R5 — prior-period values for delta arrows
+  kpiPrev?: {
+    decidedByMeCount: number;
+    averageDecisionHoursMine: number | null;
+    pendingMyApprovalCount: number;
+  };
+}
+
+export interface ApproverRecentDecisionRow {
+  stepId: number;
+  contractId: number;
+  contractNumber: string;
+  titleEn: string;
+  decision: "approve" | "reject" | "request_resubmission" | "skipped";
+  decidedAt: string;
+  hoursAgo: number;
 }
 
 export interface ApproverDashboardLists {
   pendingQueue5: ApproverPendingQueueRow[];
+  recentDecisions5?: ApproverRecentDecisionRow[];
+}
+
+export interface ApproverDashboardCharts {
+  decisionMixSplit?: {
+    approve: number;
+    reject: number;
+    requestResubmission: number;
+    skipped: number;
+  };
+  decisionsByValue?: Array<{
+    bucket: "lt100k" | "p100to500" | "p500to1m" | "gt1m";
+    approved: number;
+    rejected: number;
+    other: number;
+  }>;
+  approvalsByApprover?: Array<{
+    userId: number;
+    name: string;
+    count: number;
+  }>;
 }
 
 export interface ApproverDashboardSnapshot {
   kpis: ApproverDashboardKpis;
   lists: ApproverDashboardLists;
+  charts?: ApproverDashboardCharts;
 }
 
 // ─── Legal-counsel dashboard (S4) ───────────────────────────────────────────

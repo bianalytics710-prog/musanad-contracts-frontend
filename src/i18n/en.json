@@ -4514,7 +4514,7 @@
       "tabs": {
         "summary": "Summary",
         "keyTerms": "Key terms",
-        "risks": "Risks",
+        "risks": "Risk flags",
         "obligations": "Obligations",
         "regulatory": "Regulatory"
       },
@@ -5340,7 +5340,7 @@
       }
     },
     "approver": {
-      "title": "Approver Dashboard",
+      "title": "Your approvals",
       "subtitle": "Your queue and decision metrics.",
       "kpiGroupLabel": "Approver key performance indicators",
       "kpis": {

@@ -95,7 +95,53 @@ export function NotificationBell() {
               {t("notifications.empty", { defaultValue: "No notifications." })}
             </li>
           ) : (
-            notifications.map((n) => {
+            (() => {
+              // R5 audit 5.1 — two-section layout: Recent (last 24h) +
+              // Earlier. Mirrors Lovable's notification dropdown.
+              const recentCutoffMs = Date.now() - 24 * 60 * 60 * 1000;
+              const recentList = notifications.filter(
+                (n) => new Date(n.createdAt).getTime() >= recentCutoffMs,
+              );
+              const earlierList = notifications.filter(
+                (n) => new Date(n.createdAt).getTime() < recentCutoffMs,
+              );
+              const sectionHeader = (label: string) => (
+                <li
+                  className="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+                  aria-hidden="true"
+                >
+                  {label}
+                </li>
+              );
+              return (
+                <>
+                  {recentList.length > 0 && (
+                    <>
+                      {sectionHeader(
+                        t("notifications.sectionRecent", { defaultValue: "Recent" }),
+                      )}
+                      {renderNotifications(recentList)}
+                    </>
+                  )}
+                  {earlierList.length > 0 && (
+                    <>
+                      {sectionHeader(
+                        t("notifications.sectionEarlier", { defaultValue: "Earlier" }),
+                      )}
+                      {renderNotifications(earlierList)}
+                    </>
+                  )}
+                </>
+              );
+            })()
+          )}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+
+  function renderNotifications(list: typeof notifications) {
+    return list.map((n) => {
               const title = lng === "ar" ? n.titleAr : n.titleEn;
               const body = lng === "ar" ? n.bodyAr : n.bodyEn;
               const inner = (
@@ -156,10 +202,6 @@ export function NotificationBell() {
                   )}
                 </li>
               );
-            })
-          )}
-        </ul>
-      </PopoverContent>
-    </Popover>
-  );
+            });
+  }
 }

@@ -33,6 +33,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useMyPendingApprovals, useDecideApproval } from "@/features/approvals/hooks/useApprovals";
+import { useQuery } from "@tanstack/react-query";
+import { approvalService } from "@/services/api/approval.service";
+import type { ApiError } from "@/lib/api-client";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
 import { useAuthStore } from "@/store/auth.store";
 import {
@@ -41,6 +44,7 @@ import {
   type ApprovalPendingSort,
   type MyPendingApprovalListItem,
   type MyPendingApprovalListQuery,
+  type MyPendingApprovalListResponse,
 } from "@/types/entities/approval.types";
 import type { ApprovalActionKind } from "@/features/approvals/components/ApprovalDecisionDialog";
 
@@ -78,10 +82,62 @@ export function ApprovalsListView() {
   );
 
   const { data, isLoading, isError, error, refetch, isFetching } =
-    useMyPendingApprovals(query);
+    useMyPendingApprovals(query, { enabled: activeTab === "pending" });
 
-  const items = data?.data ?? [];
-  const pagination = data?.pagination;
+  // R5 audit 6.2.1 — three additional tab queries.
+  const decisionsKind: "approve" | "reject" | undefined =
+    activeTab === "approved" ? "approve" : activeTab === "rejected" ? "reject" : undefined;
+  const decisionsQuery = useQuery<MyPendingApprovalListResponse, ApiError>({
+    queryKey: ["approval", "my-decisions", { page, kind: decisionsKind ?? null }],
+    queryFn: () =>
+      approvalService.myDecisions({
+        page,
+        limit: PAGE_SIZE,
+        kind: decisionsKind,
+      }) as Promise<MyPendingApprovalListResponse>,
+    enabled: activeTab === "all" || activeTab === "approved" || activeTab === "rejected",
+    staleTime: 15_000,
+  });
+  const watchingQuery = useQuery<MyPendingApprovalListResponse, ApiError>({
+    queryKey: ["approval", "watching", { page }],
+    queryFn: () =>
+      approvalService.watching({ page, limit: PAGE_SIZE }) as Promise<MyPendingApprovalListResponse>,
+    enabled: activeTab === "watching",
+    staleTime: 15_000,
+  });
+
+  // Choose the active dataset based on the selected tab.
+  const activeData =
+    activeTab === "pending"
+      ? data
+      : activeTab === "watching"
+        ? watchingQuery.data
+        : decisionsQuery.data;
+  const activeIsLoading =
+    activeTab === "pending"
+      ? isLoading
+      : activeTab === "watching"
+        ? watchingQuery.isLoading
+        : decisionsQuery.isLoading;
+  const activeIsError =
+    activeTab === "pending"
+      ? isError
+      : activeTab === "watching"
+        ? watchingQuery.isError
+        : decisionsQuery.isError;
+  const activeError =
+    activeTab === "pending" ? error : activeTab === "watching" ? watchingQuery.error : decisionsQuery.error;
+  const activeRefetch =
+    activeTab === "pending"
+      ? refetch
+      : activeTab === "watching"
+        ? watchingQuery.refetch
+        : decisionsQuery.refetch;
+  const activeIsFetching =
+    activeTab === "pending" ? isFetching : activeTab === "watching" ? watchingQuery.isFetching : decisionsQuery.isFetching;
+
+  const items = activeData?.data ?? [];
+  const pagination = activeData?.pagination;
 
   const slaBreaches = useMemo(
     () => items.filter((i) => i.hoursPending > 24).length,
@@ -175,11 +231,11 @@ export function ApprovalsListView() {
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => void refetch()}
-          disabled={isFetching}
+          onClick={() => void activeRefetch()}
+          disabled={activeIsFetching}
           aria-label={t("common.retry")}
         >
-          <RefreshCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <RefreshCw className={activeIsFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           {t("common.retry")}
         </Button>
       </header>
@@ -265,7 +321,11 @@ export function ApprovalsListView() {
             role="tab"
             type="button"
             aria-selected={activeTab === tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setPage(1);
+              setSelectedStepIds(new Set());
+            }}
             className={`inline-flex items-center gap-1.5 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
               activeTab === tab.key
                 ? "border-gold text-ink"
@@ -307,23 +367,7 @@ export function ApprovalsListView() {
         </CardContent>
       </Card>
 
-      {activeTab !== "pending" ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 p-12 text-center">
-            <h2 className="text-base font-semibold text-ink">
-              {t("approval.list.tabComingSoonTitle", {
-                defaultValue: "Coming soon",
-              })}
-            </h2>
-            <p className="max-w-md text-sm text-ink-muted">
-              {t("approval.list.tabComingSoonBody", {
-                defaultValue:
-                  "This view will land alongside the upcoming approver decision history endpoint.",
-              })}
-            </p>
-          </CardContent>
-        </Card>
-      ) : isLoading ? (
+      {activeIsLoading ? (
         <Card>
           <CardContent className="space-y-2 p-4" aria-busy="true">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -335,14 +379,14 @@ export function ApprovalsListView() {
             ))}
           </CardContent>
         </Card>
-      ) : isError ? (
+      ) : activeIsError ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
             <AlertCircle className="h-5 w-5 text-destructive" aria-hidden />
             <p className="text-sm font-medium text-destructive">
-              {translateApiError(error, t, "errors.approval.listFailed")}
+              {translateApiError(activeError, t, "errors.approval.listFailed")}
             </p>
-            <Button type="button" size="sm" onClick={() => void refetch()}>
+            <Button type="button" size="sm" onClick={() => void activeRefetch()}>
               {t("common.retry")}
             </Button>
           </CardContent>
@@ -364,7 +408,7 @@ export function ApprovalsListView() {
             <div className="overflow-x-auto">
               <table
                 className="w-full text-sm"
-                aria-busy={isFetching ? "true" : "false"}
+                aria-busy={activeIsFetching ? "true" : "false"}
               >
                 <thead className="border-b border-border bg-surface">
                   <tr className="text-left">
@@ -447,7 +491,7 @@ export function ApprovalsListView() {
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={pagination.page <= 1 || isFetching}
+              disabled={pagination.page <= 1 || activeIsFetching}
             >
               {t("common.back")}
             </Button>
@@ -459,7 +503,7 @@ export function ApprovalsListView() {
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => p + 1)}
-              disabled={pagination.page >= pagination.totalPages || isFetching}
+              disabled={pagination.page >= pagination.totalPages || activeIsFetching}
             >
               {t("common.next")}
             </Button>
@@ -542,14 +586,21 @@ function priorityForRow(valueAed: number | null, hoursPending: number): "highVal
 function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListRowProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { hoursPending } = row;
-  const days = Math.floor(hoursPending / 24);
+  // R5 — past-decision rows from fn_approval_my_decisions don't carry
+  // hoursPending; derive a "decided X ago" label from decidedAt instead.
+  const isPast = typeof row.decision === "string";
+  const hoursPending = row.hoursPending ?? 0;
+  const hoursAgo = row.decidedAt
+    ? Math.max(0, (Date.now() - new Date(row.decidedAt).getTime()) / (1000 * 60 * 60))
+    : 0;
+  const elapsedHours = isPast ? hoursAgo : hoursPending;
+  const days = Math.floor(elapsedHours / 24);
   const pendingLabel =
     days >= 1
       ? t("approval.list.daysAgo", { count: days })
-      : t("approval.list.hoursAgo", { count: Math.floor(hoursPending) });
-  const breach = hoursPending > 24;
-  const priority = priorityForRow(row.valueAed, hoursPending);
+      : t("approval.list.hoursAgo", { count: Math.floor(elapsedHours) });
+  const breach = !isPast && hoursPending > 24;
+  const priority = isPast ? null : priorityForRow(row.valueAed, hoursPending);
   const requesterName = row.requesterUserRef
     ? `${row.requesterUserRef.firstName} ${row.requesterUserRef.lastName}`
     : t("approval.list.unknownRequester");
@@ -580,15 +631,17 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
       }}
       className={`cursor-pointer border-b border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${selected ? "bg-gold/5" : "hover:bg-surface/50 focus-visible:bg-surface/50"}`}
     >
-      {/* R3 audit 6.3.1 — bulk-select row checkbox. */}
+      {/* R3 audit 6.3.1 — bulk-select row checkbox (pending tab only). */}
       <td className="w-8 px-2 py-3" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          aria-label={`Select ${row.contractNumber}`}
-          checked={selected}
-          onChange={onToggleSelect}
-          className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-gold"
-        />
+        {!isPast && (
+          <input
+            type="checkbox"
+            aria-label={`Select ${row.contractNumber}`}
+            checked={selected}
+            onChange={onToggleSelect}
+            className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-gold"
+          />
+        )}
       </td>
       {/* Priority */}
       <td className="px-2 py-3">
@@ -680,54 +733,82 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
         </div>
       </td>
       <td className="px-4 py-3 text-end">
-        {/* R1 audit 6.4.6: 3 inline icon buttons (Approve / Reject / Request
-            info) match Lovable's 1-click decision UX. Each presets the
-            ApprovalDecisionDialog action so the user lands on the right
-            screen with no extra step. */}
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            aria-label={t("approval.decide.approve", { defaultValue: "Approve" })}
-            title={t("approval.decide.approve", { defaultValue: "Approve" })}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAct(row, "approve");
-            }}
-            className="text-primary hover:bg-primary/10"
+        {isPast ? (
+          // R5 — show decision badge instead of action buttons for past rows.
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              row.decision === "approve"
+                ? "bg-primary/10 text-primary"
+                : row.decision === "reject"
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-amber-tint/40 text-amber-ink"
+            }`}
           >
-            <CheckCircle2 className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            aria-label={t("approval.decide.reject", { defaultValue: "Reject" })}
-            title={t("approval.decide.reject", { defaultValue: "Reject" })}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAct(row, "reject");
-            }}
-            className="text-destructive hover:bg-destructive/10"
-          >
-            <XCircle className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            aria-label={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
-            title={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
-            onClick={(e) => {
-              e.stopPropagation();
-              onAct(row, "request_resubmission");
-            }}
-            className="text-amber-ink hover:bg-amber-tint/40"
-          >
-            <MessageCircleQuestion className="h-4 w-4" />
-          </Button>
-        </div>
+            {row.decision === "approve" ? (
+              <CheckCircle2 className="h-2.5 w-2.5" />
+            ) : row.decision === "reject" ? (
+              <XCircle className="h-2.5 w-2.5" />
+            ) : (
+              <MessageCircleQuestion className="h-2.5 w-2.5" />
+            )}
+            {t(`approval.list.decisionBadge.${row.decision}`, {
+              defaultValue:
+                row.decision === "approve"
+                  ? "Approved"
+                  : row.decision === "reject"
+                    ? "Rejected"
+                    : row.decision === "request_resubmission"
+                      ? "Resubmission"
+                      : "Skipped",
+            })}
+          </span>
+        ) : (
+          // R1 audit 6.4.6: 3 inline icon buttons.
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("approval.decide.approve", { defaultValue: "Approve" })}
+              title={t("approval.decide.approve", { defaultValue: "Approve" })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAct(row, "approve");
+              }}
+              className="text-primary hover:bg-primary/10"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("approval.decide.reject", { defaultValue: "Reject" })}
+              title={t("approval.decide.reject", { defaultValue: "Reject" })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAct(row, "reject");
+              }}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <XCircle className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
+              title={t("approval.decide.requestResubmission", { defaultValue: "Request info" })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAct(row, "request_resubmission");
+              }}
+              className="text-amber-ink hover:bg-amber-tint/40"
+            >
+              <MessageCircleQuestion className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </td>
     </tr>
   );

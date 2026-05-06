@@ -46,13 +46,39 @@ import type {
   ApproverPendingQueueRow,
   DashboardRangeKey,
 } from "@/types/entities/dashboards.types";
-import { formatDateTime } from "@/utils/datetime";
+import { formatDate, formatDateTime, formatHijriDate } from "@/utils/datetime";
+import { useAuthStore, selectUser } from "@/store/auth.store";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
 function formatHours(value: number | null, t: (k: string) => string): string {
   if (value == null) return t("dashboards.common.noDataDash");
   return `${value.toFixed(1)} ${t("dashboards.common.hoursAbbrev")}`;
+}
+
+/** R5 audit 7.4.1 — render a delta hint like "+2 vs prev". */
+function formatDeltaHelper(delta: number, _t: unknown, _kind: "approval" | "decision"): string {
+  if (delta === 0) return "No change vs prev";
+  const sign = delta > 0 ? "+" : "";
+  return `${sign}${delta} vs prev`;
+}
+
+/** R5 audit 7.5.2 — value-bucket label rendering. */
+function bucketLabel(b: "lt100k" | "p100to500" | "p500to1m" | "gt1m"): string {
+  switch (b) {
+    case "lt100k": return "<100K";
+    case "p100to500": return "100K–500K";
+    case "p500to1m": return "500K–1M";
+    case "gt1m": return ">1M";
+    default: return b;
+  }
+}
+
+/** R5 audit 7.4.1 — render an hours delta like "−3.5h vs prev". */
+function formatHourDelta(delta: number, _t: unknown): string {
+  if (Math.abs(delta) < 0.05) return "No change vs prev";
+  const sign = delta > 0 ? "+" : "−";
+  return `${sign}${Math.abs(delta).toFixed(1)}h vs prev`;
 }
 
 const DECISION_COLORS = {
@@ -64,6 +90,7 @@ const DECISION_COLORS = {
 
 export function ApproverDashboard() {
   const { t } = useTranslation();
+  const user = useAuthStore(selectUser);
   const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
   const [range, setRange] = useState<DashboardRangeKey>(
     rangeFromWindowDays(DEFAULT_WINDOW_DAYS),
@@ -74,50 +101,61 @@ export function ApproverDashboard() {
   );
 
   const topPending = data?.lists.pendingQueue5[0];
-  const slaBreaches = useMemo(
-    () =>
-      (data?.lists.pendingQueue5 ?? []).filter((r) => r.hoursWaiting > 24)
-        .length,
-    [data],
-  );
+  // R5 — slaBreaches now come from BE; fall back to derived count if missing.
+  const slaBreaches =
+    data?.kpis.slaBreachCount ??
+    (data?.lists.pendingQueue5 ?? []).filter((r) => r.hoursWaiting > 24).length;
 
-  // Decision mix donut — derive a 3-segment view from
-  // pendingMyApprovalCount + decidedByMeCount split by an approximate
-  // 80/20 approve/reject ratio (visual demo data; real split would come
-  // from a fn_dashboard_approver_decision_mix endpoint we don't have yet).
-  const decidedTotal = data?.kpis.decidedByMeCount ?? 0;
-  const decisionMix = useMemo(
-    () => [
-      {
-        key: "approved",
-        count: Math.round(decidedTotal * 0.8),
-        fill: DECISION_COLORS.approved,
-      },
-      {
-        key: "rejected",
-        count: decidedTotal - Math.round(decidedTotal * 0.8),
-        fill: DECISION_COLORS.rejected,
-      },
-      {
-        key: "pending",
-        count: data?.kpis.pendingMyApprovalCount ?? 0,
-        fill: DECISION_COLORS.pending,
-      },
-    ],
-    [decidedTotal, data],
-  );
+  // R5 audit 7.5.5 — Decision mix from real BE 4-bucket split.
+  const decisionMix = useMemo(() => {
+    const split = data?.charts?.decisionMixSplit;
+    if (split) {
+      return [
+        { key: "approve", count: split.approve, fill: DECISION_COLORS.approved },
+        { key: "reject", count: split.reject, fill: DECISION_COLORS.rejected },
+        { key: "requestResubmission", count: split.requestResubmission, fill: DECISION_COLORS.pending },
+        { key: "skipped", count: split.skipped, fill: DECISION_COLORS.delegated },
+      ];
+    }
+    // Fallback (BE migration not yet applied)
+    const decided = data?.kpis.decidedByMeCount ?? 0;
+    return [
+      { key: "approve", count: Math.round(decided * 0.8), fill: DECISION_COLORS.approved },
+      { key: "reject", count: decided - Math.round(decided * 0.8), fill: DECISION_COLORS.rejected },
+      { key: "pending", count: data?.kpis.pendingMyApprovalCount ?? 0, fill: DECISION_COLORS.pending },
+    ];
+  }, [data]);
   const decisionMixTotal = decisionMix.reduce((s, d) => s + d.count, 0);
 
-  // R2 audit 7.3.1 — approval queue segments (Mine / Quick approve / SLA breach).
-  // Quick approve = low-value items in the visible top-5 queue (< 100k AED).
-  // Team segment is omitted — needs a team-aware BE endpoint slated for R3.
-  const queueSegments = useMemo(() => {
-    const mine = data?.kpis.pendingMyApprovalCount ?? 0;
-    const quickApprove = (data?.lists.pendingQueue5 ?? []).filter(
-      (r) => r.valueAed !== null && r.valueAed < 100_000,
-    ).length;
-    return { mine, quickApprove, slaBreaches };
-  }, [data, slaBreaches]);
+  // R5 audit 7.3.1 — Queue segments (Mine / Team / Quick approve / SLA breach).
+  // Use BE values when present; fall back to derived for backwards-compat.
+  const queueSegments = useMemo(
+    () => ({
+      mine: data?.kpis.pendingMyApprovalCount ?? 0,
+      team: data?.kpis.queueTeamCount ?? null,
+      quickApprove:
+        data?.kpis.queueQuickApproveCount ??
+        (data?.lists.pendingQueue5 ?? []).filter(
+          (r) => r.valueAed !== null && r.valueAed < 100_000,
+        ).length,
+      slaBreaches,
+    }),
+    [data, slaBreaches],
+  );
+
+  // R5 audit 7.4.1 — KPI deltas derived from kpiPrev.
+  const kpiDeltas = useMemo(() => {
+    const prev = data?.kpis.kpiPrev;
+    const cur = data?.kpis;
+    if (!prev || !cur) return null;
+    const decidedDelta = cur.decidedByMeCount - prev.decidedByMeCount;
+    const avgDelta =
+      cur.averageDecisionHoursMine != null && prev.averageDecisionHoursMine != null
+        ? Number(cur.averageDecisionHoursMine) - Number(prev.averageDecisionHoursMine)
+        : null;
+    const pendingDelta = cur.pendingMyApprovalCount - prev.pendingMyApprovalCount;
+    return { decidedDelta, avgDelta, pendingDelta };
+  }, [data]);
 
   // R2 audit 7.5.1 — approval aging buckets derived from pendingQueue5.
   // Buckets match Lovable: 0-24h / 25-72h / 73-168h (4-7d) / >168h.
@@ -140,8 +178,15 @@ export function ApproverDashboard() {
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
+          {/* R5 audit 7.1.1 — welcome line with Hijri date. */}
+          <p className="text-xs text-ink-subtle">
+            {user
+              ? `${user.firstName} ${user.lastName} · ${formatDate(new Date().toISOString())} · ${formatHijriDate(new Date().toISOString())}`
+              : `${formatDate(new Date().toISOString())} · ${formatHijriDate(new Date().toISOString())}`}
+          </p>
+          {/* R5 audit 7.2.1 — H1 wording. */}
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("dashboards.approver.title")}
+            {t("dashboards.approver.title", { defaultValue: "Your approvals" })}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             {t("dashboards.approver.subtitle")}
@@ -206,7 +251,9 @@ export function ApproverDashboard() {
                 <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("dashboards.approver.queue.team", { defaultValue: "Team" })}
                 </p>
-                <p className="mt-1 font-mono text-xl font-semibold text-ink-subtle">—</p>
+                <p className={`mt-1 font-mono text-xl font-semibold ${queueSegments.team !== null ? "text-ink" : "text-ink-subtle"}`}>
+                  {queueSegments.team !== null ? queueSegments.team : "—"}
+                </p>
               </div>
               <div className="rounded-md border border-border bg-surface p-3">
                 <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
@@ -288,9 +335,11 @@ export function ApproverDashboard() {
             <KpiTile
               label={t("dashboards.approver.kpis.pendingMyApprovalCount")}
               value={formatNumber(data.kpis.pendingMyApprovalCount)}
-              helper={t(
-                "dashboards.approver.kpis.pendingMyApprovalCountHelper",
-              )}
+              helper={
+                kpiDeltas?.pendingDelta != null
+                  ? formatDeltaHelper(kpiDeltas.pendingDelta, t, "approval")
+                  : t("dashboards.approver.kpis.pendingMyApprovalCountHelper")
+              }
               variant={
                 data.kpis.pendingMyApprovalCount > 0 ? "warning" : "default"
               }
@@ -298,11 +347,21 @@ export function ApproverDashboard() {
             <KpiTile
               label={t("dashboards.approver.kpis.decidedByMeCount")}
               value={formatNumber(data.kpis.decidedByMeCount)}
+              helper={
+                kpiDeltas?.decidedDelta != null
+                  ? formatDeltaHelper(kpiDeltas.decidedDelta, t, "decision")
+                  : undefined
+              }
               variant="success"
             />
             <KpiTile
               label={t("dashboards.approver.kpis.averageDecisionHoursMine")}
               value={formatHours(data.kpis.averageDecisionHoursMine, t)}
+              helper={
+                kpiDeltas?.avgDelta != null
+                  ? formatHourDelta(kpiDeltas.avgDelta, t)
+                  : undefined
+              }
             />
             <KpiTile
               label={t("dashboards.approver.kpis.averageDecisionHoursTeam")}
@@ -345,6 +404,137 @@ export function ApproverDashboard() {
               </ResponsiveContainer>
             </div>
           </section>
+
+          {/* R5 audit 7.5.2 + 7.5.3 — Decisions-by-value + Approvals-by-approver */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.approver.decisionsByValue.title", {
+                    defaultValue: "Decisions by contract value · last 90 days",
+                  })}
+                </h3>
+              </div>
+              {(data.charts?.decisionsByValue ?? []).length === 0 ? (
+                <p className="py-8 text-center text-xs text-ink-subtle">
+                  {t("dashboards.common.emptyList")}
+                </p>
+              ) : (
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={(data.charts?.decisionsByValue ?? []).map((b) => ({
+                        bucket: bucketLabel(b.bucket),
+                        approved: b.approved,
+                        rejected: b.rejected,
+                        other: b.other,
+                      }))}
+                      margin={{ top: 8, right: 12, bottom: 0, left: -12 }}
+                    >
+                      <XAxis dataKey="bucket" tickLine={false} axisLine={false} stroke="var(--ink-muted)" fontSize={11} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--ink-muted)" fontSize={11} />
+                      <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11 }} />
+                      <Bar dataKey="approved" stackId="x" fill={DECISION_COLORS.approved} isAnimationActive={false} />
+                      <Bar dataKey="rejected" stackId="x" fill={DECISION_COLORS.rejected} isAnimationActive={false} />
+                      <Bar dataKey="other" stackId="x" fill={DECISION_COLORS.delegated} isAnimationActive={false} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.approver.approvalsByApprover.title", {
+                    defaultValue: "Approvals by approver · last 30 days",
+                  })}
+                </h3>
+              </div>
+              {(data.charts?.approvalsByApprover ?? []).length === 0 ? (
+                <p className="py-8 text-center text-xs text-ink-subtle">
+                  {t("dashboards.common.emptyList")}
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {(data.charts?.approvalsByApprover ?? []).map((row, idx) => {
+                    const max = Math.max(
+                      ...(data.charts?.approvalsByApprover ?? []).map((r) => r.count),
+                      1,
+                    );
+                    const pct = (row.count / max) * 100;
+                    return (
+                      <li key={row.userId} className="flex items-center gap-3 text-xs">
+                        <span className="w-32 truncate text-ink">
+                          {row.name}
+                          {row.userId === user?.id && (
+                            <span className="ms-1 text-[10px] text-gold">
+                              {t("dashboards.approver.approvalsByApprover.youSuffix", { defaultValue: "(you)" })}
+                            </span>
+                          )}
+                        </span>
+                        <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-surface">
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full bg-gold"
+                            style={{ width: `${pct}%`, opacity: 0.5 + 0.5 * (1 - idx / 8) }}
+                          />
+                        </div>
+                        <span className="font-mono tabular-nums text-ink-muted">{row.count}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
+
+          {/* R5 audit 7.5.4 — Recent decisions list (5 latest) */}
+          {(data.lists.recentDecisions5 ?? []).length > 0 && (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.approver.recentDecisions.title", {
+                    defaultValue: "Recent decisions",
+                  })}
+                </h3>
+              </div>
+              <ul className="space-y-2">
+                {(data.lists.recentDecisions5 ?? []).map((d) => (
+                  <li key={d.stepId} className="flex items-center justify-between gap-3 text-xs">
+                    <Link
+                      to="/app/contracts/$id"
+                      params={{ id: String(d.contractId) }}
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 transition hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <span className="font-mono text-[10px] text-ink-subtle">{d.contractNumber}</span>
+                      <span className="truncate text-ink">{d.titleEn}</span>
+                    </Link>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        d.decision === "approve"
+                          ? "bg-primary/10 text-primary"
+                          : d.decision === "reject"
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-amber-tint/40 text-amber-ink"
+                      }`}
+                    >
+                      {d.decision === "approve"
+                        ? t("approval.list.decisionBadge.approve", { defaultValue: "Approved" })
+                        : d.decision === "reject"
+                          ? t("approval.list.decisionBadge.reject", { defaultValue: "Rejected" })
+                          : t("approval.list.decisionBadge.request_resubmission", { defaultValue: "Resubmission" })}
+                    </span>
+                    <span className="w-16 text-end font-mono text-[10px] text-ink-subtle">
+                      {Math.round(d.hoursAgo / 24)}d ago
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Decision mix donut — 33% */}

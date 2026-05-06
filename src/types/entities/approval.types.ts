@@ -306,6 +306,13 @@ export interface MyPendingApprovalListItem {
   totalSteps?: number;
   /** R2 — full chain breadcrumb (all steps, current state). */
   chainSteps?: ApprovalChainStepRef[];
+  /**
+   * R5 — past-decision fields when this row came from fn_approval_my_decisions.
+   * Pending rows leave these undefined.
+   */
+  decision?: "approve" | "reject" | "request_resubmission" | "skipped";
+  decidedAt?: string | null;
+  decisionNote?: string | null;
 }
 
 export interface MyPendingApprovalListQuery {

@@ -167,16 +167,17 @@ export function LoginForm() {
   };
 
   // Dev convenience — one-click sign-in for each seeded persona.
+  // R5 audit 1.2 — match Lovable's tile shape: persona name + role + initials.
   // All seeded users share the bootstrap admin's bcrypt hash (ChangeMe@123).
   // Hidden in production builds via import.meta.env.PROD guard.
-  const personas: Array<{ key: string; label: string; sub: string; email: string }> = [
-    { key: "super",     label: "Super Admin",      sub: "All access",                      email: "admin@musanad.local"     },
-    { key: "platform",  label: "Platform Admin",   sub: "Admin observability",             email: "platform@musanad.local"  },
-    { key: "legal",     label: "Legal Counsel",    sub: "Regulatory + audit",              email: "legal@musanad.local"     },
-    { key: "drafter",   label: "Drafter",          sub: "Author contracts",                email: "drafter@musanad.local"   },
-    { key: "approver",  label: "Approver",         sub: "Approval queue",                  email: "approver@musanad.local"  },
-    { key: "recipient", label: "Recipient",        sub: "Sign assigned contracts",         email: "recipient@musanad.local" },
-    { key: "executive", label: "Executive",        sub: "KPIs + AI anomalies",             email: "executive@musanad.local" },
+  const personas: Array<{ key: string; name: string; role: string; initials: string; email: string }> = [
+    { key: "super",     name: "Bootstrap Admin",   role: "Super Admin",       initials: "BA", email: "admin@musanad.local"     },
+    { key: "platform",  name: "Omar Al Mansoori",  role: "Platform Admin",    initials: "OM", email: "platform@musanad.local"  },
+    { key: "legal",     name: "Layla Counsel",     role: "Legal Counsel",     initials: "LC", email: "legal@musanad.local"     },
+    { key: "drafter",   name: "Dana Drafter",      role: "Contract Drafter",  initials: "DD", email: "drafter@musanad.local"   },
+    { key: "approver",  name: "Aisha Approver",    role: "Contract Approver", initials: "AA", email: "approver@musanad.local"  },
+    { key: "recipient", name: "Rashid Recipient",  role: "Contract Recipient", initials: "RR", email: "recipient@musanad.local" },
+    { key: "executive", name: "Eman Executive",    role: "Executive",         initials: "EE", email: "executive@musanad.local" },
   ];
 
   const signInAs = (email: string) => {
@@ -430,13 +431,20 @@ export function LoginForm() {
                           type="button"
                           onClick={() => signInAs(p.email)}
                           disabled={mutation.isPending}
-                          aria-label={`Sign in as ${p.label}`}
-                          className="group flex flex-col items-start gap-0.5 rounded-md border border-border bg-card px-3 py-2 text-start transition hover:border-gold hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label={`Sign in as ${p.name} ${p.role}`}
+                          className="group flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-start transition hover:border-gold hover:bg-card disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <span className="text-xs font-medium text-ink group-hover:text-ink">
-                            {p.label}
+                          {/* R5 audit 1.2 — initials avatar matches Lovable shape. */}
+                          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gold/20 font-mono text-[10px] font-medium text-gold-ink">
+                            {p.initials}
                           </span>
-                          <span className="text-[10px] text-ink-subtle">{p.sub}</span>
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate text-xs font-medium text-ink group-hover:text-ink">
+                              {p.name}
+                            </span>
+                            <span className="truncate text-[10px] text-ink-subtle">{p.role}</span>
+                          </span>
+                          <span className="ms-auto text-ink-subtle">→</span>
                         </button>
                       ))}
                     </div>
