@@ -115,7 +115,6 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const canChangeStatus = useAuthStore(selectHasPermission("contract.status.update"));
   const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
   // M1b — gate the Export PDF action by the contract.export permission.
-  const canExport = useAuthStore(selectHasPermission("contract.export"));
 
   const { data, isLoading, isError, error, refetch } = useContract(contractId);
 
@@ -245,14 +244,16 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                     defaultValue: "Save as template",
                   })}
                 </DropdownMenuItem>
-                {canExport && (
-                  <DropdownMenuItem onSelect={() => setExportPdfOpen(true)}>
-                    <Languages className="me-2 h-3.5 w-3.5" />
-                    {t("contracts.detail.actions.exportBilingualPdf", {
-                      defaultValue: "Export bilingual PDF",
-                    })}
-                  </DropdownMenuItem>
-                )}
+                {/* R0 audit bug 8.5.1: Export is read-only — anyone who can
+                    read the contract can export it. Lovable shows this for
+                    every role; approvers in particular need it to research
+                    the document outside the app. */}
+                <DropdownMenuItem onSelect={() => setExportPdfOpen(true)}>
+                  <Languages className="me-2 h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.exportBilingualPdf", {
+                    defaultValue: "Export bilingual PDF",
+                  })}
+                </DropdownMenuItem>
                 {canChangeStatus && (
                   <>
                     <DropdownMenuSeparator />

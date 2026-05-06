@@ -26,6 +26,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { useNavigate } from "@tanstack/react-router";
 import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -320,6 +321,7 @@ interface ApprovalListRowProps {
 
 function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { hoursPending } = row;
   const days = Math.floor(hoursPending / 24);
   const pendingLabel =
@@ -328,8 +330,24 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
       : t("approval.list.hoursAgo", { count: Math.floor(hoursPending) });
   const breach = hoursPending > 24;
 
+  // R0 audit bug 6.6.1: row clickable to navigate to contract detail.
+  // The Act button stops propagation so it doesn't double-fire.
+  const goToContract = () =>
+    void navigate({ to: "/app/contracts/$id", params: { id: String(row.contractId) } });
+
   return (
-    <tr className="border-b border-border/60 transition-colors hover:bg-surface/50">
+    <tr
+      role="link"
+      tabIndex={0}
+      onClick={goToContract}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          goToContract();
+        }
+      }}
+      className="cursor-pointer border-b border-border/60 transition-colors hover:bg-surface/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:bg-surface/50"
+    >
       <td className="px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <span className="font-mono text-xs text-ink-muted">
@@ -383,7 +401,14 @@ function ApprovalListRow({ row, onAct }: ApprovalListRowProps) {
         </span>
       </td>
       <td className="px-4 py-3 text-end">
-        <Button type="button" size="sm" onClick={() => onAct(row)}>
+        <Button
+          type="button"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAct(row);
+          }}
+        >
           {t("approval.list.actAction")}
         </Button>
       </td>

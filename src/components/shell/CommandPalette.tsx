@@ -25,7 +25,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useAuthStore, selectUser, selectRefreshToken } from "@/store/auth.store";
+import { useAuthStore, selectUser, selectRefreshToken, selectHasPermission } from "@/store/auth.store";
 import { useTheme } from "@/lib/design-system/theme-provider";
 import { authService } from "@/services/api/auth.service";
 import { modulesForRole } from "@/config/sidebar";
@@ -55,6 +55,9 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
   const user = useAuthStore(selectUser);
   const refreshToken = useAuthStore(selectRefreshToken);
+  // R0 audit bug 3.1: gate "New contract" by contract.draft so non-drafters
+  // (approvers, recipients, etc.) don't see an action they can't perform.
+  const canDraft = useAuthStore(selectHasPermission("contract.draft"));
   const logoutAction = useAuthStore((s) => s.logout);
   const { toggleTheme, locale, setLocale } = useTheme();
 
@@ -147,13 +150,15 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
               <CommandGroup
                 heading={t("commandPalette.actions", { defaultValue: "Actions" })}
               >
-                <CommandItem onSelect={() => go("/app/contracts/compose")}>
-                  <PenLine className="me-2 h-4 w-4" />
-                  {t("commandPalette.actions.newContract", {
-                    defaultValue: "New contract",
-                  })}
-                  <span className="ms-auto font-mono text-xs text-ink-subtle">⌘N</span>
-                </CommandItem>
+                {canDraft && (
+                  <CommandItem onSelect={() => go("/app/contracts/compose")}>
+                    <PenLine className="me-2 h-4 w-4" />
+                    {t("commandPalette.actions.newContract", {
+                      defaultValue: "New contract",
+                    })}
+                    <span className="ms-auto font-mono text-xs text-ink-subtle">⌘N</span>
+                  </CommandItem>
+                )}
                 <CommandItem
                   onSelect={() => {
                     toggleTheme();
