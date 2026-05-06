@@ -13,6 +13,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { partiesService } from "@/services/api/m_parity.service";
 import {
   Bar,
   BarChart,
@@ -221,7 +223,7 @@ export function ExecutiveDashboard() {
             <p className="mb-3 text-xs text-ink-subtle">
               {t("dashboards.executive.topCounterparties.description")}
             </p>
-            <TopCounterpartiesBlock
+            <TopCounterpartiesBlockWithNames
               rows={data.kpis.topCounterpartiesByValue5}
               totalValue={data.kpis.totalActiveValueAed}
             />
@@ -396,17 +398,36 @@ function ValueDistributionBlock({
   );
 }
 
-function TopCounterpartiesBlock({
+function TopCounterpartiesBlockWithNames({
   rows,
   totalValue,
 }: {
   rows: CounterpartyConcentrationRow[];
   totalValue: number;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith("ar");
+
+  // Fetch all parties so we can resolve counterpartyId → name. Cheap on
+  // the catalog scale (12-20 rows). 5min staleTime — names don't change.
+  const { data: partiesData } = useQuery({
+    queryKey: ["parties", "all-for-exec"],
+    queryFn: () => partiesService.list({ limit: 200 }),
+    staleTime: 5 * 60_000,
+  });
+
+  const partyMap = useMemo(() => {
+    const m = new Map<number, { nameEn: string; nameAr: string | null; emirate: string | null }>();
+    for (const p of partiesData?.data ?? []) {
+      m.set(p.id, { nameEn: p.nameEn, nameAr: p.nameAr, emirate: p.emirate });
+    }
+    return m;
+  }, [partiesData]);
+
   if (rows.length === 0) {
     return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
   }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
@@ -434,20 +455,31 @@ function TopCounterpartiesBlock({
               totalValue > 0
                 ? Math.round((row.totalValueAed / totalValue) * 100)
                 : 0;
+            const party = partyMap.get(row.counterpartyId);
             return (
               <tr
                 key={row.counterpartyId}
                 className="border-t border-border/60"
               >
                 <td className="py-2 pe-3">
-                  <span className="font-mono text-xs text-ink-subtle">
-                    {t("dashboards.executive.topCounterparties.idLabel", {
-                      id: row.counterpartyId,
-                    })}
-                  </span>
-                  <span className="ms-2 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-muted">
-                    {t("dashboards.executive.topCounterparties.namePending")}
-                  </span>
+                  {party ? (
+                    <>
+                      <span className="text-sm font-medium text-ink">
+                        {isAr && party.nameAr ? party.nameAr : party.nameEn}
+                      </span>
+                      {party.emirate && (
+                        <span className="ms-2 inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {party.emirate.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="font-mono text-xs text-ink-subtle">
+                      {t("dashboards.executive.topCounterparties.idLabel", {
+                        id: row.counterpartyId,
+                      })}
+                    </span>
+                  )}
                 </td>
                 <td className="py-2 pe-3 font-mono tabular-nums text-ink">
                   {formatAed(row.totalValueAed)}

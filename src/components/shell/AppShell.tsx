@@ -3,6 +3,7 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { MobileTabs } from "./MobileTabs";
 import { CommandPaletteProvider } from "./CommandPalette";
+import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +11,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <CommandPaletteProvider>
-      <div className="min-h-screen bg-background safe-px">
+    <NotificationProvider>
+      <CommandPaletteProvider>
+        <div className="min-h-screen bg-background safe-px">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
         <div
           className={cn(
@@ -24,8 +26,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ErrorBoundary>{children}</ErrorBoundary>
           </main>
         </div>
-        <MobileTabs />
-      </div>
-    </CommandPaletteProvider>
+          <MobileTabs />
+        </div>
+      </CommandPaletteProvider>
+    </NotificationProvider>
   );
 }

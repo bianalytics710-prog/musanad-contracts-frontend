@@ -1,0 +1,165 @@
+/**
+ * NotificationBell — TopBar bell with unread badge + dropdown panel.
+ * Wired to NotificationProvider; persists per-user in localStorage.
+ */
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Bell, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNotifications } from "./NotificationProvider";
+import type { NotificationSeverity } from "./NotificationProvider";
+
+const severityDot: Record<NotificationSeverity, string> = {
+  critical: "bg-terracotta",
+  high: "bg-terracotta",
+  medium: "bg-amber",
+  low: "bg-sage",
+  info: "bg-slate",
+};
+
+function timeAgo(iso: string, lng: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diffMs / 60000);
+  if (m < 60) return lng === "ar" ? `قبل ${m} د` : `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return lng === "ar" ? `قبل ${h} س` : `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return lng === "ar" ? `قبل ${d} ي` : `${d}d ago`;
+}
+
+export function NotificationBell() {
+  const { t, i18n } = useTranslation();
+  const lng = i18n.language?.startsWith("ar") ? "ar" : "en";
+  const [open, setOpen] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllRead } =
+    useNotifications();
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+          aria-label={t("notifications.label", { defaultValue: "Notifications" })}
+        >
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span
+              aria-label={t("notifications.unread", {
+                count: unreadCount,
+                defaultValue: "{{count}} unread",
+              })}
+              className="absolute -top-0.5 -end-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-terracotta px-1 font-mono text-[9px] font-semibold text-card"
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[360px] overflow-hidden p-0"
+      >
+        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <p className="text-sm font-semibold text-ink">
+            {t("notifications.title", { defaultValue: "Notifications" })}
+            {unreadCount > 0 && (
+              <span className="ms-2 font-mono text-xs text-ink-muted">
+                ({unreadCount})
+              </span>
+            )}
+          </p>
+          {unreadCount > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={markAllRead}
+              className="h-auto px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider"
+            >
+              <Check className="me-1 h-3 w-3" />
+              {t("notifications.markAllRead", { defaultValue: "Mark all read" })}
+            </Button>
+          )}
+        </div>
+
+        <ul className="max-h-[60vh] overflow-y-auto">
+          {notifications.length === 0 ? (
+            <li className="p-6 text-center text-xs text-ink-subtle">
+              {t("notifications.empty", { defaultValue: "No notifications." })}
+            </li>
+          ) : (
+            notifications.map((n) => {
+              const title = lng === "ar" ? n.titleAr : n.titleEn;
+              const body = lng === "ar" ? n.bodyAr : n.bodyEn;
+              const inner = (
+                <div
+                  className={`flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-surface ${
+                    n.readAt ? "" : "bg-gold/5"
+                  }`}
+                >
+                  <span
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                      severityDot[n.severity] ?? "bg-slate"
+                    }`}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-xs ${
+                        n.readAt ? "text-ink-muted" : "font-semibold text-ink"
+                      }`}
+                    >
+                      {title}
+                    </p>
+                    {body && (
+                      <p className="mt-0.5 text-[11px] text-ink-muted">
+                        {body}
+                      </p>
+                    )}
+                    <p className="mt-0.5 font-mono text-[10px] text-ink-subtle">
+                      {timeAgo(n.createdAt, lng)}
+                    </p>
+                  </div>
+                </div>
+              );
+              return (
+                <li
+                  key={n.id}
+                  className="border-b border-border/40 last:border-b-0"
+                >
+                  {n.linkUrl ? (
+                    <Link
+                      to={n.linkUrl}
+                      onClick={() => {
+                        markAsRead(n.id);
+                        setOpen(false);
+                      }}
+                      className="block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {inner}
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => markAsRead(n.id)}
+                      className="block w-full text-start"
+                    >
+                      {inner}
+                    </button>
+                  )}
+                </li>
+              );
+            })
+          )}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}

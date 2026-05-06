@@ -1,8 +1,9 @@
-import { Search, Languages, Bell } from "lucide-react";
+import { Search, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/lib/design-system/theme-provider";
 import { useCommandPalette } from "./CommandPalette";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function TopBar() {
   const { t, i18n } = useTranslation();
@@ -46,9 +47,7 @@ export function TopBar() {
         >
           <Search className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Notifications" disabled>
-          <Bell className="h-4 w-4" />
-        </Button>
+        <NotificationBell />
         <Button variant="ghost" size="sm" onClick={toggleLang} className="font-mono text-xs">
           <Languages className="me-1 h-3.5 w-3.5" />
           {locale === "ar" ? "ع" : "EN"}
