@@ -79,6 +79,7 @@ import { PaymentScheduleTab } from "./PaymentScheduleTab";
 import { ExportPdfDialog } from "./ExportPdfDialog";
 import { ContractDocumentTab } from "./ContractDocumentTab";
 import { ContractInfoCards } from "./ContractInfoCards";
+import { ContractApprovalChainCard } from "./ContractApprovalChainCard";
 import { ContractAIInsightsPanel } from "./ContractAIInsightsPanel";
 import { ContractAttachmentsTab } from "./ContractAttachmentsTab";
 import { ContractCommentsTab } from "./ContractCommentsTab";
@@ -109,12 +110,16 @@ interface ContractDetailProps {
 export function ContractDetail({ contractId }: ContractDetailProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("overview");
+  // R-LC2 LC-E10 — default tab → Document (Lovable parity; was "overview").
+  const [tab, setTab] = useState<Tab>("document");
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusPreset, setStatusPreset] = useState<ContractStatus | undefined>(undefined);
   const [deleteOpen, setDeleteOpen] = useState(false);
   // M1b — Export PDF dialog state.
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
+  // R-LC2 LC-E11 — track preset language so the same dialog can serve
+  // both "Export PDF" (single-language) and "Export bilingual PDF" entries.
+  const [exportPdfLanguage, setExportPdfLanguage] = useState<"en" | "ar" | "bilingual">("bilingual");
 
   // FE-C3 — defense-in-depth RBAC gating. BE returns 403 if a user without
   // a permission still hits the endpoint; these flags simply hide actions.
@@ -123,6 +128,13 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const canChangeStatus = useAuthStore(selectHasPermission("contract.status.update"));
   const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
   const canApprove = useAuthStore(selectHasPermission("approval.act"));
+  // R-LC2 LC-E9 — legal counsel may keep Edit (for redlining) but does not
+  // need Payments / Signatures tabs (drafter/admin context). Hide both
+  // when the active user role is exactly legal_counsel.
+  const userRole = useAuthStore((s) => s.user?.role.name ?? null);
+  const isLegalCounselOnly = userRole === "legal_counsel";
+  const canSeePaymentsTab = canEdit && !isLegalCounselOnly;
+  const canSeeSignaturesTab = canEdit && !isLegalCounselOnly;
 
   const { data, isLoading, isError, error, refetch } = useContract(contractId);
 
@@ -330,18 +342,39 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                 </DropdownMenuItem>
                 {/* R0 audit bug 8.5.1: Export is read-only — anyone who can
                     read the contract can export it. Lovable shows this for
-                    every role; approvers in particular need it to research
-                    the document outside the app. */}
-                <DropdownMenuItem onSelect={() => setExportPdfOpen(true)}>
+                    every role. */}
+                {/* R-LC2 LC-E11 — separate Export PDF (single-language) item
+                    matches Lovable. Defaults dialog language to current
+                    contract.language (or "en" fallback). */}
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setExportPdfLanguage(
+                      contract.language === "ar" ? "ar" : "en",
+                    );
+                    setExportPdfOpen(true);
+                  }}
+                >
+                  <FileTextIcon className="me-2 h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.exportPdf", {
+                    defaultValue: "Export PDF",
+                  })}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setExportPdfLanguage("bilingual");
+                    setExportPdfOpen(true);
+                  }}
+                >
                   <Languages className="me-2 h-3.5 w-3.5" />
                   {t("contracts.detail.actions.exportBilingualPdf", {
                     defaultValue: "Export bilingual PDF",
                   })}
                 </DropdownMenuItem>
-                {/* R5 audit 8.5.2: Amend / Renew menu items match Lovable.
-                    Both surface a "coming soon" toast since the BE lifecycle
-                    transitions aren't wired yet — but the menu is visible. */}
+                {/* R5 audit 8.5.2 + R-LC2 LC-E13: Amend / Renew items match
+                    Lovable. Both items disabled unless contract.status is
+                    fully_signed (Lovable parity). */}
                 <DropdownMenuItem
+                  disabled={contract.status !== "fully_signed"}
                   onSelect={() =>
                     toast.info(
                       t("contracts.detail.actions.amendComingSoon", {
@@ -355,6 +388,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                   {t("contracts.detail.actions.amend", { defaultValue: "Amend" })}
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  disabled={contract.status !== "fully_signed"}
                   onSelect={() =>
                     toast.info(
                       t("contracts.detail.actions.renewComingSoon", {
@@ -440,6 +474,12 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         })()}
       />
 
+      {/* R-LC2 LC-E8 — approval chain visualization (Lovable parity).
+          Renders only when the contract has an active or completed chain. */}
+      {(["in_approval", "approved", "rejected", "resubmission_requested"] as const).includes(
+        contract.status as never,
+      ) && <ContractApprovalChainCard contractId={contract.id} />}
+
       {/* Tabs */}
       <div
         role="tablist"
@@ -467,7 +507,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             {t("contracts.detail.tabs.edit")}
           </TabButton>
         )}
-        {canEdit && (
+        {canSeePaymentsTab && (
           <TabButton active={tab === "payments"} onClick={() => setTab("payments")}>
             <Wallet className="h-3.5 w-3.5" />
             {t("contracts.detail.tabs.payments")}
@@ -479,7 +519,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
           {t("contracts.detail.tabs.activity")}
         </TabButton>
-        {canEdit && (
+        {canSeeSignaturesTab && (
           <TabButton active={tab === "signatures"} onClick={() => setTab("signatures")}>
             {t("contracts.detail.tabs.signatures")}
           </TabButton>
@@ -542,6 +582,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           contractNumber={contract.contractNumber}
           open={exportPdfOpen}
           onClose={() => setExportPdfOpen(false)}
+          initialLanguage={exportPdfLanguage}
         />
       )}
 

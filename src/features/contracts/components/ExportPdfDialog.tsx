@@ -35,6 +35,8 @@ interface ExportPdfDialogProps {
   contractNumber: string;
   open: boolean;
   onClose: () => void;
+  /** R-LC2 LC-E11 — preset the language radio (en/ar/bilingual). */
+  initialLanguage?: ContractLanguage;
 }
 
 export function ExportPdfDialog({
@@ -42,11 +44,12 @@ export function ExportPdfDialog({
   contractNumber,
   open,
   onClose,
+  initialLanguage = "bilingual",
 }: ExportPdfDialogProps) {
   const { t } = useTranslation();
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [language, setLanguage] = useState<ContractLanguage>("bilingual");
+  const [language, setLanguage] = useState<ContractLanguage>(initialLanguage);
   const [includeAttachments, setIncludeAttachments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,10 +58,10 @@ export function ExportPdfDialog({
   // Reset selection on open.
   useEffect(() => {
     if (open) {
-      setLanguage("bilingual");
+      setLanguage(initialLanguage);
       setIncludeAttachments(false);
     }
-  }, [open]);
+  }, [open, initialLanguage]);
 
   // Escape closes when not in flight.
   useEffect(() => {
