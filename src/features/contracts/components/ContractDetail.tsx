@@ -212,13 +212,27 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-semibold tracking-tight text-ink">{displayTitle}</h1>
+          {/* R5 audit — Lovable parity: title (AR) translation paragraph below H1. */}
+          {contract.titleAr && contract.titleAr !== displayTitle && (
+            <p className="mt-1 text-sm text-ink-muted" dir="rtl">{contract.titleAr}</p>
+          )}
+          {!isAr && contract.titleEn && contract.titleAr && contract.titleAr !== contract.titleEn && (
+            // EN view: show AR; AR view already shows AR as displayTitle and EN here
+            null
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <ContractStatusBadge status={contract.status} />
             <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-ink-muted">
-              {contract.contractType}
+              {contract.contractType
+                ? t(`contractType.${contract.contractType}`, {
+                    defaultValue: contract.contractType,
+                  })
+                : "—"}
             </span>
             <span className="rounded-full border border-border bg-card px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-              {contract.language === "bilingual" ? "AR · EN" : contract.language}
+              {contract.language === "bilingual"
+                ? "AR · EN"
+                : (contract.language?.toUpperCase() ?? "—")}
             </span>
             <span className="ms-2 text-[11px] text-ink-subtle">
               {t("contracts.detail.updatedAt", { when: formatDateTime(contract.updatedAt) })}
@@ -415,7 +429,16 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       </div>
 
       {/* Three info cards (Lovable layout) */}
-      <ContractInfoCards contract={contract} />
+      <ContractInfoCards
+        contract={contract}
+        clauseCount={(() => {
+          // R-LC0 LC-E7 — derive clause count from body markdown H2 headings.
+          const body = contract.bodyEn ?? contract.bodyAr ?? "";
+          if (!body) return undefined;
+          const matches = body.match(/^##\s+\d+\.|^##\s+[A-Za-z]/gm);
+          return matches?.length ?? undefined;
+        })()}
+      />
 
       {/* Tabs */}
       <div

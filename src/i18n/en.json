@@ -466,6 +466,7 @@
   "contractStatus": {
     "draft": "Draft",
     "in_review": "In review",
+    "in_approval": "In approval",
     "approved": "Approved",
     "awaiting_signature": "Awaiting signature",
     "awaiting_signature_employer": "Awaiting employer",
@@ -479,7 +480,8 @@
     "terminated": "Terminated",
     "rejected": "Rejected",
     "resubmission_requested": "Resubmission requested",
-    "archived": "Archived"
+    "archived": "Archived",
+    "cancelled": "Cancelled"
   },
   "contract": {
     "status": {
@@ -504,8 +506,10 @@
   "contractType": {
     "employment": "Employment",
     "vendor_services": "Vendor / services",
+    "service": "Service",
     "nda": "Non-disclosure",
     "consultancy": "Consultancy",
+    "advisory": "Advisory",
     "lease": "Lease",
     "agency": "Agency",
     "distribution": "Distribution",
@@ -513,7 +517,20 @@
     "llc_incorporation": "LLC incorporation",
     "trademark_license": "Trademark licence",
     "franchise": "Franchise",
-    "share_purchase": "Share purchase"
+    "share_purchase": "Share purchase",
+    "master_services": "Master services",
+    "sow": "Statement of work",
+    "supply": "Supply",
+    "concession": "Concession",
+    "joint_venture": "Joint venture",
+    "settlement": "Settlement",
+    "facilities": "Facilities",
+    "management": "Management"
+  },
+  "languageLabel": {
+    "en": "English",
+    "ar": "Arabic",
+    "bilingual": "Bilingual"
   },
   "clauseCategory": {
     "confidentiality": "Confidentiality",

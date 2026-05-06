@@ -52,9 +52,25 @@ export function ContractInfoCards({
       new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime();
     const days = Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
     if (days === 0) return "—";
-    const years = Math.round((days / 365) * 10) / 10;
-    if (days >= 365) return t("contracts.detail.metaCard.termYears", { defaultValue: "{{years}}y", years });
-    return t("contracts.detail.metaCard.termDays", { defaultValue: "{{days}}d", days });
+    // Lovable parity: humanize term — "1 year" / "2 years" / "6 months" / "45 days".
+    if (days >= 365) {
+      const years = Math.round((days / 365) * 10) / 10;
+      return t("contracts.detail.metaCard.termYearsHuman", {
+        defaultValue: years === 1 ? "{{years}} year" : "{{years}} years",
+        years,
+      });
+    }
+    if (days >= 30) {
+      const months = Math.round((days / 30) * 10) / 10;
+      return t("contracts.detail.metaCard.termMonthsHuman", {
+        defaultValue: months === 1 ? "{{months}} month" : "{{months}} months",
+        months,
+      });
+    }
+    return t("contracts.detail.metaCard.termDaysHuman", {
+      defaultValue: days === 1 ? "{{days}} day" : "{{days}} days",
+      days,
+    });
   }, [contract.startDate, contract.endDate, t]);
 
   const valueLabel =
@@ -113,10 +129,21 @@ export function ContractInfoCards({
     ],
   });
   const isAr = i18n.language?.startsWith("ar");
-  const partyName = (p?: { nameEn: string; nameAr: string | null }) =>
-    p ? (isAr && p.nameAr ? p.nameAr : p.nameEn) : "—";
-  const ourPartyName = partyName(partyResults[0].data);
-  const counterpartyName = partyName(partyResults[1].data);
+  const partyName = (p?: { nameEn: string; nameAr: string | null }): string => {
+    if (!p) return "—";
+    const preferred = isAr && p.nameAr ? p.nameAr : p.nameEn;
+    // R-LC0 LC-E6 — render em-dash if both names are empty/null.
+    if (!preferred) return p.nameEn || p.nameAr || "—";
+    return preferred;
+  };
+  const ourPartyName =
+    partyResults[0].isLoading
+      ? "…"
+      : partyName(partyResults[0].data ?? undefined);
+  const counterpartyName =
+    partyResults[1].isLoading
+      ? "…"
+      : partyName(partyResults[1].data ?? undefined);
 
   return (
     <div className="space-y-4">
@@ -131,14 +158,24 @@ export function ContractInfoCards({
             <span className="font-mono text-sm text-ink">{contract.contractNumber}</span>
           </Row>
           <Row label={t("contracts.fields.contractType", { defaultValue: "Type" })}>
-            <span className="text-sm text-ink">{contract.contractType}</span>
+            <span className="text-sm text-ink">
+              {contract.contractType
+                ? t(`contractType.${contract.contractType}`, {
+                    defaultValue: contract.contractType,
+                  })
+                : "—"}
+            </span>
           </Row>
           <Row label={t("contracts.fields.status", { defaultValue: "Status" })}>
             <ContractStatusBadge status={contract.status} />
           </Row>
           <Row label={t("contracts.fields.language", { defaultValue: "Language" })}>
-            <span className="text-sm text-ink uppercase">
-              {contract.language === "bilingual" ? "AR · EN" : contract.language}
+            <span className="text-sm text-ink">
+              {contract.language === "bilingual"
+                ? "AR · EN"
+                : t(`languageLabel.${contract.language}`, {
+                    defaultValue: contract.language?.toUpperCase() ?? "—",
+                  })}
             </span>
           </Row>
           <Row label={t("contracts.fields.valueAed", { defaultValue: "Value" })}>

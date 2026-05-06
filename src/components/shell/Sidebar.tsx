@@ -175,7 +175,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{fullName}</div>
                     <div className="truncate text-xs text-sidebar-foreground/60">
-                      {user.role.name}
+                      {t(`roles.${user.role.name}`, { defaultValue: user.role.name })}
                     </div>
                   </div>
                 )}

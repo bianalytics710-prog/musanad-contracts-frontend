@@ -466,6 +466,7 @@
   "contractStatus": {
     "draft": "مسودة",
     "in_review": "قيد المراجعة",
+    "in_approval": "قيد الاعتماد",
     "approved": "معتمد",
     "awaiting_signature": "بانتظار التوقيع",
     "awaiting_signature_employer": "بانتظار صاحب العمل",
@@ -479,7 +480,8 @@
     "terminated": "منتهٍ بالإلغاء",
     "rejected": "مرفوض",
     "resubmission_requested": "مطلوب إعادة تقديم",
-    "archived": "مؤرشف"
+    "archived": "مؤرشف",
+    "cancelled": "مُلغى"
   },
   "contract": {
     "status": {
@@ -504,8 +506,10 @@
   "contractType": {
     "employment": "توظيف",
     "vendor_services": "خدمات / موردين",
+    "service": "خدمة",
     "nda": "عدم إفشاء",
     "consultancy": "استشارات",
+    "advisory": "استشاري",
     "lease": "إيجار",
     "agency": "وكالة",
     "distribution": "توزيع",
@@ -513,7 +517,20 @@
     "llc_incorporation": "تأسيس ذ.م.م",
     "trademark_license": "ترخيص علامة تجارية",
     "franchise": "امتياز تجاري",
-    "share_purchase": "شراء أسهم"
+    "share_purchase": "شراء أسهم",
+    "master_services": "خدمات إطارية",
+    "sow": "بيان عمل",
+    "supply": "توريد",
+    "concession": "امتياز",
+    "joint_venture": "مشروع مشترك",
+    "settlement": "تسوية",
+    "facilities": "مرافق",
+    "management": "إدارة"
+  },
+  "languageLabel": {
+    "en": "إنجليزية",
+    "ar": "عربية",
+    "bilingual": "ثنائية اللغة"
   },
   "clauseCategory": {
     "confidentiality": "السرية",

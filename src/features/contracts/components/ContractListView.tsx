@@ -258,17 +258,20 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void refetch()}
-            disabled={isFetching}
-            aria-label={t("common.retry")}
-          >
-            <RefreshCw className="h-4 w-4" />
-            {t("common.retry")}
-          </Button>
+          {/* R-LC0 LC-D6 — Retry button only when there's an error to retry. */}
+          {isError && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              aria-label={t("common.retry")}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {t("common.retry")}
+            </Button>
+          )}
           <ExportXlsxButton filter={exportFilter} disabled={isLoading} />
           {canCreate && (
             <Button

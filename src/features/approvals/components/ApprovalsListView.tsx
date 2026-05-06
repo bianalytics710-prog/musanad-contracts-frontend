@@ -677,7 +677,7 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
       <td className="px-2 py-3">
         {row.contractType ? (
           <span className="inline-flex items-center rounded-md border border-border bg-card px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-            {row.contractType}
+            {t(`contractType.${row.contractType}`, { defaultValue: row.contractType })}
           </span>
         ) : (
           "—"
@@ -689,19 +689,26 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
           ? "—"
           : t("approval.list.valueAed", { value: row.valueAed.toLocaleString() })}
       </td>
-      {/* Stage — "Step X of Y: <role>" */}
+      {/* Stage — "Step X of Y: <role>" — R-LC0 format role slug via i18n */}
       <td className="px-4 py-3">
-        <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-ink-muted">
-          {t("approval.list.stageLabel", {
-            order: row.stepOrder,
-            total: totalSteps,
-            role: currentStepRole ?? "",
-            defaultValue:
-              currentStepRole && totalSteps > 1
-                ? `Step ${row.stepOrder} of ${totalSteps}: ${currentStepRole}`
-                : `Step ${row.stepOrder} of ${totalSteps}`,
-          })}
-        </span>
+        {(() => {
+          const roleLabel = currentStepRole
+            ? t(`roles.${currentStepRole}`, { defaultValue: currentStepRole })
+            : "";
+          return (
+            <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-ink-muted">
+              {t("approval.list.stageLabel", {
+                order: row.stepOrder,
+                total: totalSteps,
+                role: roleLabel,
+                defaultValue:
+                  roleLabel && totalSteps > 1
+                    ? `Step ${row.stepOrder} of ${totalSteps}: ${roleLabel}`
+                    : `Step ${row.stepOrder} of ${totalSteps}`,
+              })}
+            </span>
+          );
+        })()}
         {!row.isRequired && (
           <span className="ms-1 inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-ink-muted">
             {t("approval.chain.optional")}
@@ -822,6 +829,7 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
  * tint primary; rejected/skipped tint terracotta/muted.
  */
 function ChainBreadcrumb({ steps }: { steps: ApprovalChainStepRef[] }) {
+  const { t } = useTranslation();
   return (
     <ol className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px] text-ink-subtle">
       {steps.map((step, idx) => {
@@ -833,11 +841,14 @@ function ChainBreadcrumb({ steps }: { steps: ApprovalChainStepRef[] }) {
               : step.status === "skipped"
                 ? "border-border bg-card text-ink-subtle line-through"
                 : "border-border bg-card text-ink-muted";
+        const roleLabel = step.role
+          ? t(`roles.${step.role}`, { defaultValue: step.role })
+          : "—";
         return (
           <li key={`${step.order}-${step.role ?? "u"}`} className="inline-flex items-center gap-1">
             <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${tint}`}>
               <span className="font-mono">{step.order}</span>
-              <span>{step.role ?? "—"}</span>
+              <span>{roleLabel}</span>
             </span>
             {idx < steps.length - 1 && <span aria-hidden>→</span>}
           </li>
