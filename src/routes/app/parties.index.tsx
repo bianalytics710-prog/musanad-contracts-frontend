@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Search, Building2, User, Plus } from "lucide-react";
+import { Search, Building2, User, Plus, BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { partiesService } from "@/services/api/m_parity.service";
@@ -11,6 +11,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import { CreatePartyDialog } from "@/features/m_parity/components/CreateEntityDialogs";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/parties/")({
   component: () => (
@@ -20,30 +21,69 @@ export const Route = createFileRoute("/app/parties/")({
   ),
 });
 
+type PartyTabKey = "all" | "individuals" | "companies";
+
 function PartiesListView() {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
   const [search, setSearch] = useState("");
-  const [partyType, setPartyType] = useState<"" | "individual" | "company">("");
+  const [tab, setTab] = useState<PartyTabKey>("all");
+  // R-LC5 LC-L3 — additional filters: emirate / free zone / verification / nationality.
+  const [emirate, setEmirate] = useState("");
+  const [freeZone, setFreeZone] = useState("");
+  const [verified, setVerified] = useState<"all" | "yes" | "no">("all");
+  const [nationality, setNationality] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const debounced = useDebounce(search, 300);
   const canCreate = useAuthStore(selectHasPermission("contract.edit"));
 
+  // The list endpoint accepts only partyType + q. We over-fetch and
+  // apply emirate/freeZone/verified/nationality filters client-side.
+  const partyTypeForApi =
+    tab === "individuals" ? "individual" : tab === "companies" ? "company" : undefined;
+
   const { data, isLoading } = useQuery({
-    queryKey: ["parties", debounced, partyType],
+    queryKey: ["parties", debounced, partyTypeForApi],
     queryFn: () =>
       partiesService.list({
-        partyType: partyType || undefined,
+        partyType: partyTypeForApi,
         q: debounced || undefined,
-        limit: 200,
+        limit: 500,
       }),
     staleTime: 60_000,
   });
 
-  const items = data?.data ?? [];
+  const all = data?.data ?? [];
+  const filteredItems = useMemo(() => {
+    return all.filter((p) => {
+      if (emirate && p.emirate !== emirate) return false;
+      if (freeZone && p.freeZone !== freeZone) return false;
+      if (verified === "yes" && !p.isVerified) return false;
+      if (verified === "no" && p.isVerified) return false;
+      if (nationality && p.country !== nationality) return false;
+      return true;
+    });
+  }, [all, emirate, freeZone, verified, nationality]);
+
   const total = data?.pagination.total ?? 0;
-  const companies = items.filter((p) => p.partyType === "company").length;
-  const individuals = items.filter((p) => p.partyType === "individual").length;
+  const companies = all.filter((p) => p.partyType === "company").length;
+  const individuals = all.filter((p) => p.partyType === "individual").length;
+
+  // Derive emirate/freeZone option lists from current page.
+  const emirates = useMemo(
+    () =>
+      Array.from(new Set(all.map((p) => p.emirate).filter(Boolean))) as string[],
+    [all],
+  );
+  const freeZones = useMemo(
+    () =>
+      Array.from(new Set(all.map((p) => p.freeZone).filter(Boolean))) as string[],
+    [all],
+  );
+  const nationalities = useMemo(
+    () => Array.from(new Set(all.map((p) => p.country).filter(Boolean))) as string[],
+    [all],
+  );
 
   return (
     <motion.div
@@ -107,7 +147,34 @@ function PartiesListView() {
         </div>
       </section>
 
-      {/* Filter bar */}
+      {/* R-LC5 LC-L2 — 3 tabs (All / Individuals / Companies). */}
+      <div role="tablist" aria-label="Party type" className="flex gap-1 border-b border-border">
+        {(
+          [
+            { key: "all", label: t("parties.tab.all", { defaultValue: "All" }) },
+            { key: "individuals", label: t("parties.tab.individuals", { defaultValue: "Individuals" }) },
+            { key: "companies", label: t("parties.tab.companies", { defaultValue: "Companies" }) },
+          ] as const
+        ).map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === p.key}
+            onClick={() => setTab(p.key)}
+            className={cn(
+              "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              tab === p.key
+                ? "border-gold text-ink"
+                : "border-transparent text-ink-muted hover:text-ink",
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filter bar — search + 4 dropdowns (Lovable parity) */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
         <div className="relative min-w-[260px] flex-1">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
@@ -122,90 +189,150 @@ function PartiesListView() {
           />
         </div>
         <select
-          value={partyType}
-          onChange={(e) =>
-            setPartyType(e.target.value as "" | "individual" | "company")
-          }
+          value={emirate}
+          onChange={(e) => setEmirate(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label={t("parties.filter.emirate", { defaultValue: "Emirate" })}
         >
-          <option value="">
-            {t("parties.allTypes", { defaultValue: "All types" })}
-          </option>
-          <option value="company">
-            {t("parties.company", { defaultValue: "Company" })}
-          </option>
-          <option value="individual">
-            {t("parties.individual", { defaultValue: "Individual" })}
-          </option>
+          <option value="">{t("parties.filter.allEmirates", { defaultValue: "All emirates" })}</option>
+          {emirates.map((em) => (
+            <option key={em} value={em}>
+              {em.replace(/_/g, " ")}
+            </option>
+          ))}
+        </select>
+        <select
+          value={freeZone}
+          onChange={(e) => setFreeZone(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label={t("parties.filter.freeZone", { defaultValue: "Free zone" })}
+        >
+          <option value="">{t("parties.filter.allFreeZones", { defaultValue: "All free zones" })}</option>
+          {freeZones.map((fz) => (
+            <option key={fz} value={fz}>
+              {fz}
+            </option>
+          ))}
+        </select>
+        <select
+          value={verified}
+          onChange={(e) => setVerified(e.target.value as "all" | "yes" | "no")}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label={t("parties.filter.verified", { defaultValue: "Verification" })}
+        >
+          <option value="all">{t("parties.filter.allVerification", { defaultValue: "All" })}</option>
+          <option value="yes">{t("parties.filter.verifiedYes", { defaultValue: "Verified" })}</option>
+          <option value="no">{t("parties.filter.verifiedNo", { defaultValue: "Unverified" })}</option>
+        </select>
+        <select
+          value={nationality}
+          onChange={(e) => setNationality(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label={t("parties.filter.nationality", { defaultValue: "Nationality" })}
+        >
+          <option value="">{t("parties.filter.allNationalities", { defaultValue: "All nationalities" })}</option>
+          {nationalities.map((nat) => (
+            <option key={nat} value={nat}>
+              {nat}
+            </option>
+          ))}
         </select>
       </div>
 
-      {/* Grid */}
+      {/* R-LC5 LC-L4 — table layout (decision 4a). */}
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-lg bg-surface"
-              aria-hidden
-            />
-          ))}
+        <div className="rounded-lg border border-border bg-card p-12 text-center text-sm text-ink-muted">
+          {t("common.loading", { defaultValue: "Loading…" })}
         </div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center">
           <p className="text-sm text-ink-muted">
             {t("parties.empty", { defaultValue: "No parties match the filter." })}
           </p>
         </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((p) => (
-            <li key={p.id}>
-              <Link
-                to="/app/parties/$id"
-                params={{ id: String(p.id) }}
-                className="block rounded-lg border border-border bg-card p-4 transition-colors hover:border-gold"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-ink">
-                      {isAr && p.nameAr ? p.nameAr : p.nameEn}
-                    </p>
-                    {p.nameAr && !isAr && (
-                      <p className="mt-0.5 text-xs text-ink-subtle" dir="rtl">
-                        {p.nameAr}
-                      </p>
-                    )}
-                  </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-                    {p.partyType === "company" ? (
-                      <Building2 className="h-3 w-3" />
-                    ) : (
-                      <User className="h-3 w-3" />
-                    )}
-                    {p.partyType}
-                  </span>
-                </div>
-                {p.tradeLicenseNumber && (
-                  <p className="mt-2 font-mono text-[11px] text-ink-subtle">
-                    {p.tradeLicenseNumber} · {p.tradeLicenseIssuer ?? ""}
-                  </p>
-                )}
-                {p.emirate && (
-                  <p className="mt-1 text-[11px] text-ink-muted capitalize">
-                    {p.emirate.replace(/_/g, " ")}
-                    {p.freeZone ? ` · ${p.freeZone}` : ""}
-                  </p>
-                )}
-                {p.contactEmail && (
-                  <p className="mt-1 truncate font-mono text-[11px] text-ink-subtle">
-                    {p.contactEmail}
-                  </p>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto rounded-lg border border-border bg-card">
+          <table className="w-full text-sm">
+            <thead className="border-b border-border bg-surface text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+              <tr>
+                <th className="w-9 py-2 ps-3"></th>
+                <th className="py-2 text-start">
+                  {t("parties.col.name", { defaultValue: "Name" })}
+                </th>
+                <th className="py-2 text-start" dir="rtl">
+                  {t("parties.col.nameAr", { defaultValue: "Name (AR)" })}
+                </th>
+                <th className="py-2 text-start">
+                  {t("parties.col.type", { defaultValue: "Type" })}
+                </th>
+                <th className="py-2 text-start">
+                  {t("parties.col.identifier", { defaultValue: "Identifier" })}
+                </th>
+                <th className="py-2 text-center">
+                  {t("parties.col.verified", { defaultValue: "Verified" })}
+                </th>
+                <th className="py-2 pe-3 text-end">
+                  {t("parties.col.contracts", { defaultValue: "Contracts" })}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.map((p) => {
+                const initials = p.nameEn
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((w) => w[0])
+                  .join("")
+                  .toUpperCase();
+                const display = isAr && p.nameAr ? p.nameAr : p.nameEn;
+                return (
+                  <tr key={p.id} className="border-b border-border/50 transition-colors hover:bg-surface/50">
+                    <td className="py-2 ps-3">
+                      {p.partyType === "company" ? (
+                        <Building2 className="h-4 w-4 text-gold" />
+                      ) : (
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gold/10 font-mono text-[10px] font-medium text-gold">
+                          {initials}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2">
+                      <Link
+                        to="/app/parties/$id"
+                        params={{ id: String(p.id) }}
+                        className="font-medium text-ink hover:underline"
+                      >
+                        {display}
+                      </Link>
+                    </td>
+                    <td className="py-2 text-ink-muted" dir="rtl">
+                      {p.nameAr ?? "—"}
+                    </td>
+                    <td className="py-2">
+                      <span className="inline-flex items-center rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+                        {p.partyType}
+                      </span>
+                    </td>
+                    <td className="py-2 font-mono text-[11px] text-ink-muted">
+                      {p.tradeLicenseNumber ?? "—"}
+                    </td>
+                    <td className="py-2 text-center">
+                      {p.isVerified ? (
+                        <BadgeCheck className="mx-auto h-4 w-4 text-sage" />
+                      ) : (
+                        <span className="text-ink-subtle">—</span>
+                      )}
+                    </td>
+                    <td className="py-2 pe-3 text-end font-mono text-xs text-ink-muted">
+                      —
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </motion.div>
   );

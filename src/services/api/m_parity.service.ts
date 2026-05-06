@@ -21,6 +21,7 @@ export interface PartyListItem {
   country: string;
   contactEmail: string | null;
   contactPhone: string | null;
+  isVerified?: boolean;
   createdAt: string;
 }
 

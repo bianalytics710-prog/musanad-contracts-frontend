@@ -28,8 +28,12 @@ function TemplatesListView() {
   const [contractType, setContractType] = useState("");
   const [previewTemplate, setPreviewTemplate] = useState<TemplateListItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  // R-LC5 LC-G2 — additional filters: language + sort.
+  const [language, setLanguage] = useState<"" | "en" | "ar" | "bilingual">("");
+  const [sort, setSort] = useState<"most_used" | "az" | "newest">("most_used");
   const debounced = useDebounce(search, 300);
   const canCreate = useAuthStore(selectHasPermission("contract.edit"));
+  const canDelete = useAuthStore(selectHasPermission("contract.delete"));
 
   const { data, isLoading } = useQuery({
     queryKey: ["templates", debounced, contractType],
@@ -42,11 +46,27 @@ function TemplatesListView() {
     staleTime: 60_000,
   });
 
-  const items = data?.data ?? [];
+  const rawItems = data?.data ?? [];
+  // R-LC5 — language filter + sort applied client-side.
+  const items = (() => {
+    let list = rawItems;
+    if (language) list = list.filter((tpl) => tpl.language === language);
+    switch (sort) {
+      case "az":
+        list = [...list].sort((a, b) => a.nameEn.localeCompare(b.nameEn));
+        break;
+      case "newest":
+        list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        break;
+      default:
+        list = [...list].sort((a, b) => b.usageCount - a.usageCount);
+    }
+    return list;
+  })();
   const total = data?.pagination.total ?? 0;
   const totalUsage = items.reduce((s, t) => s + t.usageCount, 0);
 
-  const types = Array.from(new Set(items.map((it) => it.contractType))).sort();
+  const types = Array.from(new Set(rawItems.map((it) => it.contractType))).sort();
 
   return (
     <motion.div
@@ -118,6 +138,27 @@ function TemplatesListView() {
             className="ps-9"
           />
         </div>
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value as "" | "en" | "ar" | "bilingual")}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label={t("templates.filter.language", { defaultValue: "Language" })}
+        >
+          <option value="">{t("templates.filter.allLanguages", { defaultValue: "All languages" })}</option>
+          <option value="en">English</option>
+          <option value="ar">Arabic</option>
+          <option value="bilingual">Bilingual</option>
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as "most_used" | "az" | "newest")}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label={t("templates.filter.sort", { defaultValue: "Sort" })}
+        >
+          <option value="most_used">{t("templates.sort.mostUsed", { defaultValue: "Most used" })}</option>
+          <option value="az">{t("templates.sort.az", { defaultValue: "A–Z" })}</option>
+          <option value="newest">{t("templates.sort.newest", { defaultValue: "Newest" })}</option>
+        </select>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
@@ -141,7 +182,7 @@ function TemplatesListView() {
                   : "border border-border bg-surface text-ink-muted hover:border-gold"
               }`}
             >
-              {tp.replace(/_/g, " ")}
+              {t(`contractType.${tp}`, { defaultValue: tp.replace(/_/g, " ") })}
             </button>
           ))}
         </div>
@@ -184,6 +225,12 @@ function TemplatesListView() {
               >
                 {isAr && tpl.nameAr ? tpl.nameAr : tpl.nameEn}
               </Link>
+              {/* R-LC5 LC-G3 — Arabic title under English (Lovable parity). */}
+              {!isAr && tpl.nameAr && (
+                <p className="mt-0.5 text-xs text-ink-subtle" dir="rtl">
+                  {tpl.nameAr}
+                </p>
+              )}
               {tpl.descriptionEn && !isAr && (
                 <p className="mt-1 line-clamp-2 text-xs text-ink-muted">
                   {tpl.descriptionEn}

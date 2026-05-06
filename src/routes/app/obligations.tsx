@@ -40,7 +40,8 @@ const STATUS_TONE: Record<string, string> = {
   waived: "bg-muted text-ink-subtle",
 };
 
-type ViewMode = "list" | "calendar" | "reports";
+// R-LC5 LC-K2 — Lovable parity: 5 tabs (Owe / Owed / List / Calendar / Reports).
+type ViewMode = "owe" | "owed" | "list" | "calendar" | "reports";
 type Direction = "all" | "we_owe" | "owed_to_us";
 
 function isOurs(o: ObligationListItem): boolean {
@@ -237,7 +238,16 @@ function ObligationsView() {
 
       {/* View tabs + status filter */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
-        <div role="tablist" className="flex gap-1">
+        <div role="tablist" className="flex flex-wrap gap-1">
+          {/* R-LC5 LC-K2 — Lovable parity: 5 tabs starting with directional splits. */}
+          <ViewTab active={view === "owe"} onClick={() => setView("owe")}>
+            <ArrowUpFromLine className="me-1 h-3.5 w-3.5" />
+            {t("obligations.views.owe", { defaultValue: "Obligations I Owe" })}
+          </ViewTab>
+          <ViewTab active={view === "owed"} onClick={() => setView("owed")}>
+            <ArrowDownToLine className="me-1 h-3.5 w-3.5" />
+            {t("obligations.views.owed", { defaultValue: "Obligations Owed to Me" })}
+          </ViewTab>
           <ViewTab active={view === "list"} onClick={() => setView("list")}>
             <ListChecks className="me-1 h-3.5 w-3.5" />
             {t("obligations.views.list", { defaultValue: "List" })}
@@ -281,6 +291,16 @@ function ObligationsView() {
             <div key={i} className="h-20 animate-pulse rounded-lg bg-surface" aria-hidden />
           ))}
         </div>
+      ) : view === "owe" ? (
+        <ObligationList
+          items={filteredItems.filter(isOurs)}
+          isAr={isAr}
+        />
+      ) : view === "owed" ? (
+        <ObligationList
+          items={filteredItems.filter(isTheirs)}
+          isAr={isAr}
+        />
       ) : view === "list" ? (
         <ObligationList items={filteredItems} isAr={isAr} />
       ) : view === "calendar" ? (
