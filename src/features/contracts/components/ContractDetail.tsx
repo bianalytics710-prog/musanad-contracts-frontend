@@ -80,6 +80,7 @@ import { ContractDocumentTab } from "./ContractDocumentTab";
 import { ContractInfoCards } from "./ContractInfoCards";
 import { ContractAIInsightsPanel } from "./ContractAIInsightsPanel";
 import { ContractAttachmentsTab } from "./ContractAttachmentsTab";
+import { ContractCommentsTab } from "./ContractCommentsTab";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
@@ -90,6 +91,7 @@ type Tab =
   | "overview"
   | "document"
   | "attachments"
+  | "comments"
   | "edit"
   | "payments"
   | "versions"
@@ -362,6 +364,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         <TabButton active={tab === "attachments"} onClick={() => setTab("attachments")}>
           {t("contracts.detail.tabs.attachments", { defaultValue: "Attachments" })}
         </TabButton>
+        <TabButton active={tab === "comments"} onClick={() => setTab("comments")}>
+          {t("contracts.detail.tabs.comments", { defaultValue: "Comments" })}
+        </TabButton>
         {/* R1 audit 8.2.2: Edit / Payments / Signatures are drafter-context
             tabs. Lovable doesn't surface them to approvers. Gate by canEdit
             (proxy for "can mutate this contract"). */}
@@ -397,6 +402,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       {tab === "overview" && <OverviewPanel contract={contract} canManageTags={canManageTags} />}
       {tab === "document" && <ContractDocumentTab contract={contract} />}
       {tab === "attachments" && <ContractAttachmentsTab contractId={contract.id} />}
+      {tab === "comments" && <ContractCommentsTab contractId={contract.id} />}
       {tab === "edit" && (
         <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />
       )}
