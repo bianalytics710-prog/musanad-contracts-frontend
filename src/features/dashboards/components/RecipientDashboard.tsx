@@ -42,12 +42,14 @@ import type {
   RecipientMyContractsRow,
   RecipientPendingSignatureRow,
 } from "@/types/entities/dashboards.types";
-import { formatDateTime } from "@/utils/datetime";
+import { formatDate, formatDateTime, formatHijriDate } from "@/utils/datetime";
+import { useAuthStore, selectUser } from "@/store/auth.store";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
 export function RecipientDashboard() {
   const { t } = useTranslation();
+  const user = useAuthStore(selectUser);
   const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
   const [range, setRange] = useState<DashboardRangeKey>(
     rangeFromWindowDays(DEFAULT_WINDOW_DAYS),
@@ -62,6 +64,8 @@ export function RecipientDashboard() {
     [data],
   );
 
+  const nowISO = new Date().toISOString();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -71,12 +75,16 @@ export function RecipientDashboard() {
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("dashboards.recipient.title")}
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {t("dashboards.recipient.subtitle")}
+          {/* R-RC0 — welcome line + Hijri date strip (Lovable parity, mirrors LC + approver). */}
+          <p className="text-xs text-ink-subtle">
+            {user
+              ? `${t("dashboards.common.welcome", { defaultValue: "Welcome back" })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
+              : `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`}
           </p>
+          {/* R-RC0 — H1 wording: "My contracts" (Lovable parity, recipient-tailored). */}
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            {t("dashboards.recipient.title", { defaultValue: "My contracts" })}
+          </h1>
         </div>
         <TimeRangeSelector
           range={range}

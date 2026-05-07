@@ -97,7 +97,10 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // Contracts. Drop Obligations leak (was inherited from drafter mapping).
   contract_approver: ["insights", "approvals", "contracts"],
   contract_approver_2: ["insights", "approvals", "contracts"],
-  contract_recipient: ["insights", "contracts", "obligations"],
+  // R-RC0 audit: Lovable recipient sidebar is Insights / Contracts only.
+  // Recipients sign contracts; they do not track obligations. Drop the
+  // /app/obligations leak.
+  contract_recipient: ["insights", "contracts"],
   platform_admin: ["admin", "insights", "contracts", "parties", "templates", "clauses"],
   "Super Admin": [
     "admin",

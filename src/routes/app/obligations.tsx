@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -25,6 +25,15 @@ import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import { CreateObligationDialog } from "@/features/m_parity/components/CreateEntityDialogs";
 
 export const Route = createFileRoute("/app/obligations")({
+  beforeLoad: () => {
+    // R-RC0 — recipients see only their own contracts; obligations is hidden
+    // from the sidebar AND blocked at the route level so a deep-link redirects
+    // to the recipient dashboard rather than briefly flash-rendering the page.
+    const { user } = useAuthStore.getState();
+    if (user?.role?.name === "contract_recipient") {
+      throw redirect({ to: "/app/dashboards/recipient" });
+    }
+  },
   component: () => (
     <ErrorBoundary>
       <ObligationsView />

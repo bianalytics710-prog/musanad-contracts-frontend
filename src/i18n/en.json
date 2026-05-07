@@ -5488,7 +5488,7 @@
       }
     },
     "recipient": {
-      "title": "Recipient Dashboard",
+      "title": "My contracts",
       "subtitle": "Your contracts and signature inbox.",
       "kpiGroupLabel": "Recipient key performance indicators",
       "kpis": {
