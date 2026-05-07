@@ -23,6 +23,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { Link } from "@tanstack/react-router";
 import {
   Activity,
   AlertTriangle,
@@ -499,8 +500,8 @@ function PendingRow({
   const isZero = count === 0;
   return (
     <li>
-      <a
-        href={to}
+      <Link
+        to={to}
         className="flex items-center justify-between rounded-md border border-border bg-card px-3 py-2 transition hover:border-gold hover:bg-gold/5"
       >
         <span className="text-ink-muted">{label}</span>
@@ -514,7 +515,7 @@ function PendingRow({
             {formatNumber(count)}
           </span>
         )}
-      </a>
+      </Link>
     </li>
   );
 }
@@ -653,8 +654,8 @@ function ContractsCreatedChart({
         >
           <defs>
             <linearGradient id="adminCreatedArea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#B8935A" stopOpacity={0.4} />
-              <stop offset="100%" stopColor="#B8935A" stopOpacity={0.05} />
+              <stop offset="0%" stopColor="var(--gold)" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="var(--gold)" stopOpacity={0.05} />
             </linearGradient>
           </defs>
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
@@ -678,7 +679,7 @@ function ContractsCreatedChart({
           <Area
             type="monotone"
             dataKey="count"
-            stroke="#B8935A"
+            stroke="var(--gold)"
             strokeWidth={2}
             fill="url(#adminCreatedArea)"
             isAnimationActive={false}
@@ -721,13 +722,13 @@ function DecisionsChart({
           <Bar
             dataKey="approved"
             stackId="a"
-            fill="#5B8374"
+            fill="var(--sage)"
             name={t("dashboards.admin.trends.approved", { defaultValue: "Approved" })}
           />
           <Bar
             dataKey="rejected"
             stackId="a"
-            fill="#C4634D"
+            fill="var(--terracotta)"
             name={t("dashboards.admin.trends.rejected", { defaultValue: "Rejected" })}
           />
         </BarChart>
@@ -747,13 +748,13 @@ function TileGridLink({
 }) {
   return (
     <li>
-      <a
-        href={to}
+      <Link
+        to={to}
         className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-ink transition hover:border-gold hover:bg-gold/5"
       >
         <span className="text-ink-subtle">{icon}</span>
         <span>{label}</span>
-      </a>
+      </Link>
     </li>
   );
 }

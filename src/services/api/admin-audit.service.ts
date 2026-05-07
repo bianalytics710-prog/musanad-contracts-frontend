@@ -48,4 +48,12 @@ export const adminAuditService = {
     const qs = sp.toString();
     return `/api/v1/admin/audit/export${qs ? "?" + qs : ""}`;
   },
+
+  downloadCsv: async (query: AuditLogQuery = {}): Promise<Blob> => {
+    const url = adminAuditService.exportUrl(query);
+    const response = await apiClient.get<Blob>(url, { responseType: "blob" });
+    return response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: "text/csv;charset=utf-8" });
+  },
 };

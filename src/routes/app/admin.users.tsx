@@ -194,11 +194,11 @@ function AdminUsersView() {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wider text-ink-subtle">
-                <th className="px-4 py-3 font-medium">User</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Last login</th>
+                <th scope="col" className="px-4 py-3 font-medium">User</th>
+                <th scope="col" className="px-4 py-3 font-medium">Email</th>
+                <th scope="col" className="px-4 py-3 font-medium">Role</th>
+                <th scope="col" className="px-4 py-3 font-medium">Status</th>
+                <th scope="col" className="px-4 py-3 font-medium">Last login</th>
                 <th className="w-12 px-4 py-3" aria-label="Row actions" />
               </tr>
             </thead>
@@ -381,20 +381,37 @@ function StatCard({
 // ─── Dialogs ────────────────────────────────────────────────────────────────
 
 function generatePassword(): string {
-  // 16 chars, includes upper/lower/digit/symbol so it satisfies the M0
-  // strong-password regex.
+  // Crypto-safe 16-char password satisfying the M0 strong-password regex
+  // (≥1 upper, ≥1 lower, ≥1 digit, ≥1 symbol).
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghjkmnpqrstuvwxyz";
   const digit = "23456789";
   const symbol = "!@#$%^&*?";
   const all = upper + lower + digit + symbol;
-  const rand = (s: string) => s[Math.floor(Math.random() * s.length)];
-  let pw = rand(upper) + rand(lower) + rand(digit) + rand(symbol);
-  for (let i = 0; i < 12; i++) pw += rand(all);
-  return pw
-    .split("")
-    .sort(() => Math.random() - 0.5)
-    .join("");
+
+  const buf = new Uint32Array(16);
+  crypto.getRandomValues(buf);
+  const idx = (i: number, len: number) => buf[i]! % len;
+
+  // Guarantee one of each class
+  const chars: string[] = [
+    upper[idx(0, upper.length)]!,
+    lower[idx(1, lower.length)]!,
+    digit[idx(2, digit.length)]!,
+    symbol[idx(3, symbol.length)]!,
+  ];
+  for (let i = 4; i < 16; i++) {
+    chars.push(all[idx(i, all.length)]!);
+  }
+
+  // Fisher-Yates shuffle with crypto bytes
+  const shuf = new Uint32Array(chars.length);
+  crypto.getRandomValues(shuf);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = shuf[i]! % (i + 1);
+    [chars[i]!, chars[j]!] = [chars[j]!, chars[i]!];
+  }
+  return chars.join("");
 }
 
 function InviteUserDialog({

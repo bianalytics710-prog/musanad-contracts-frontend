@@ -17,7 +17,11 @@ import {
   adminRolesService,
   type AdminRoleListItem,
 } from "@/services/api/admin-users.service";
-import { apiClient } from "@/lib/api-client";
+import {
+  adminPermissionsService,
+  type PermissionListResponse,
+  type PermissionRow,
+} from "@/services/api/admin-permissions.service";
 
 export const Route = createFileRoute("/app/admin/roles")({
   component: () => (
@@ -26,19 +30,6 @@ export const Route = createFileRoute("/app/admin/roles")({
     </ErrorBoundary>
   ),
 });
-
-interface PermissionRow {
-  id: number;
-  code: string;
-  module: string;
-  action: string;
-  description: string | null;
-}
-
-interface PermissionListResponse {
-  data: PermissionRow[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
-}
 
 function AdminRolesView() {
   const { t } = useTranslation();
@@ -52,13 +43,7 @@ function AdminRolesView() {
   // Master permission catalog (no roleId filter)
   const permsQuery = useQuery<PermissionListResponse>({
     queryKey: ["admin-permissions-all"],
-    queryFn: async () => {
-      const { data } = await apiClient.get<PermissionListResponse>(
-        "/api/v1/permissions",
-        { params: { limit: 200 } },
-      );
-      return data;
-    },
+    queryFn: () => adminPermissionsService.listAll(),
     staleTime: 5 * 60_000,
   });
 
@@ -69,10 +54,7 @@ function AdminRolesView() {
     queries: roles.map((r) => ({
       queryKey: ["admin-role-permissions", r.id],
       queryFn: async (): Promise<{ roleId: number; codes: Set<string> }> => {
-        const { data } = await apiClient.get<PermissionListResponse>(
-          "/api/v1/permissions",
-          { params: { roleId: r.id, limit: 200 } },
-        );
+        const data = await adminPermissionsService.listForRole(r.id);
         return {
           roleId: r.id,
           codes: new Set(data.data.map((p) => p.code)),
@@ -176,7 +158,7 @@ function AdminRolesView() {
           <table className="min-w-full text-sm">
             <thead className="sticky top-0 bg-card">
               <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wider text-ink-subtle">
-                <th className="sticky left-0 bg-surface px-4 py-3 font-medium">
+                <th scope="col" className="sticky left-0 bg-surface px-4 py-3 font-medium">
                   {t("admin.roles.headers.permission", {
                     defaultValue: "Permission",
                   })}
@@ -184,6 +166,7 @@ function AdminRolesView() {
                 {roles.map((r) => (
                   <th
                     key={r.id}
+                    scope="col"
                     className="px-3 py-3 text-center font-mono text-[10px] font-medium uppercase tracking-wider"
                     title={r.description ?? r.name}
                   >

@@ -70,6 +70,11 @@
     "deleting": "Deleting…",
     "processing": "Processing…",
     "actions": "Actions",
+    "apply": "Apply",
+    "clear": "Clear",
+    "previous": "Previous",
+    "copy": "Copy",
+    "copied": "Copied to clipboard.",
     "pagination": {
       "showing": "Page {{current}} of {{total}}",
       "previous": "Previous",
@@ -3206,13 +3211,62 @@
     "justNow": "now",
     "users": {
       "title": "Users",
+      "subtitle": "Workspace user catalog. Click a user to view their profile and role grants.",
+      "searchPlaceholder": "Search by name or email…",
       "kicker": "{{count}} accounts",
-      "invite": "Invite user",
       "selectAll": "Select all on this page",
-      "empty": "No users match your filters",
+      "empty": "No users match.",
       "never": "Never",
       "impersonating": "Impersonating {{name}} — actions are recorded",
       "endImpersonation": "End impersonation",
+      "stats": {
+        "total": "Total users",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "invite": {
+        "title": "Invite user",
+        "description": "Creates an active user. Share the auto-generated temporary password — they must change it on first login."
+      },
+      "changeRole": {
+        "title": "Change role",
+        "description": "Pick a new role for {{name}}."
+      },
+      "resetPassword": {
+        "title": "Reset password",
+        "description": "Generates a new temporary password for {{name}}. Share it with them — they must change it on first login."
+      },
+      "passwordReset": {
+        "title": "Password reset",
+        "description": "{{name}} can now sign in with the temporary password below. Copy and share it via a secure channel — it will not be shown again."
+      },
+      "fields": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "role": "Role",
+        "rolePlaceholder": "Select a role…",
+        "tempPassword": "Temporary password",
+        "newPassword": "New temporary password"
+      },
+      "actions": {
+        "invite": "Invite user",
+        "menu": "Row actions",
+        "changeRole": "Change role",
+        "resetPassword": "Reset password",
+        "suspend": "Suspend",
+        "reactivate": "Reactivate",
+        "regenerate": "Regenerate",
+        "reset": "Reset",
+        "create": "Create"
+      },
+      "errors": {
+        "inviteFailed": "Could not invite this user.",
+        "changeRoleFailed": "Could not change this user's role.",
+        "resetFailed": "Could not reset this user's password.",
+        "suspendFailed": "Could not suspend this user.",
+        "reactivateFailed": "Could not reactivate this user."
+      },
       "col": {
         "name": "Name",
         "email": "Email",
@@ -3266,8 +3320,11 @@
         "suspend": "Suspend"
       },
       "toast": {
-        "suspended": "User suspended",
+        "suspended": "User suspended.",
         "activated": "User activated",
+        "invited": "User invited. Share the temporary password.",
+        "roleChanged": "Role updated.",
+        "reactivated": "User reactivated.",
         "bulkSuspended": "{{count}} users suspended",
         "bulkRoleChanged": "Role updated for {{count}} users",
         "impersonating": "Now impersonating {{name}}"
@@ -3289,7 +3346,17 @@
       }
     },
     "roles": {
-      "title": "Roles",
+      "title": "Roles & permissions",
+      "subtitle": "Read-only matrix of every role and the permissions it grants. Change a user's role from /admin/users.",
+      "empty": "No roles defined.",
+      "headers": {
+        "permission": "Permission"
+      },
+      "stats": {
+        "roles": "Roles",
+        "permissions": "Permissions",
+        "modules": "Modules"
+      },
       "kicker": "{{count}} roles configured",
       "newRole": "New role",
       "listTitle": "All roles",
@@ -3480,6 +3547,47 @@
           "toolCall": "Tool-call",
           "public": "Public"
         }
+      }
+    },
+    "config": {
+      "title": "Configuration",
+      "subtitle": "Workspace-level defaults. General + UAE Pass are editable; Branding is read-only.",
+      "empty": "No settings in this tab.",
+      "tabs": {
+        "general": "General",
+        "uaePass": "UAE Pass",
+        "branding": "Branding"
+      },
+      "branding": {
+        "readOnly": "Branding values are read-only in this UI. Contact the platform team to change them."
+      },
+      "toast": {
+        "saved": "Setting saved."
+      },
+      "errors": {
+        "saveFailed": "Could not save this setting."
+      }
+    },
+    "audit": {
+      "title": "Audit log",
+      "subtitle": "Every INSERT / UPDATE / DELETE on auditable tables. Filter by table, action, actor, or date range.",
+      "empty": "No events match the filters.",
+      "actions": {
+        "exportCsv": "Export CSV"
+      },
+      "filters": {
+        "table": "Table",
+        "action": "Action",
+        "actor": "Actor",
+        "dateFrom": "From",
+        "dateTo": "To"
+      },
+      "retention": {
+        "known": "Audit events are retained for {{months}} months. Older entries are pruned by the daily retention job.",
+        "unknown": "Audit events follow the workspace retention policy. See Configuration → General → Contract retention."
+      },
+      "pagination": {
+        "label": "Page {{page}} of {{totalPages}}"
       }
     }
   },
@@ -5320,7 +5428,28 @@
         "pendingSignatures": "Pending signatures",
         "openRegulatoryImpacts": "Open regulatory impacts",
         "recentAuditEvents": "Recent audit events",
-        "totalActiveUsers": "Active users"
+        "totalActiveUsers": "Active users",
+        "deltaCountVsPrev": "{{n}} vs prev"
+      },
+      "systemHealth": {
+        "title": "System health",
+        "dbLabel": "Database",
+        "latestMigration": "Latest migration",
+        "auditEvents24h": "Audit events (24h)",
+        "aiErrors24h": "AI errors (24h)"
+      },
+      "pendingActions": {
+        "title": "Pending admin actions",
+        "approvals": "Approvals",
+        "signatures": "Signatures",
+        "imports": "Imports",
+        "regulatoryImpacts": "Open regulatory impacts"
+      },
+      "topContractTypes": {
+        "title": "Top contract types"
+      },
+      "systemActivity": {
+        "title": "System activity"
       },
       "contractsByStatus": {
         "title": "Contracts by status",

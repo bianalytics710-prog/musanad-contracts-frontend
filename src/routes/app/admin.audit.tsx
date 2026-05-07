@@ -21,7 +21,6 @@ import {
 import { adminUsersService } from "@/services/api/admin-users.service";
 import { adminSettingsService } from "@/services/api/admin-settings.service";
 import { formatDateTime } from "@/utils/datetime";
-import { apiClient } from "@/lib/api-client";
 
 export const Route = createFileRoute("/app/admin/audit")({
   component: () => (
@@ -103,9 +102,7 @@ function AdminAuditView() {
   };
 
   const onExport = async () => {
-    const url = adminAuditService.exportUrl(filters);
-    const response = await apiClient.get<Blob>(url, { responseType: "blob" });
-    const blob = new Blob([response.data], { type: "text/csv;charset=utf-8" });
+    const blob = await adminAuditService.downloadCsv(filters);
     const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = objectUrl;
@@ -158,15 +155,17 @@ function AdminAuditView() {
       </div>
 
       <div className="grid gap-3 rounded-lg border border-border bg-card p-3 md:grid-cols-5">
-        <Field label={t("admin.audit.filters.table", { defaultValue: "Table" })}>
+        <Field id="audit-table" label={t("admin.audit.filters.table", { defaultValue: "Table" })}>
           <Input
+            id="audit-table"
             value={draftTable}
             onChange={(e) => setDraftTable(e.target.value)}
             placeholder="user, contract, …"
           />
         </Field>
-        <Field label={t("admin.audit.filters.action", { defaultValue: "Action" })}>
+        <Field id="audit-action" label={t("admin.audit.filters.action", { defaultValue: "Action" })}>
           <select
+            id="audit-action"
             value={draftAction}
             onChange={(e) =>
               setDraftAction(e.target.value as "" | "INSERT" | "UPDATE" | "DELETE")
@@ -179,8 +178,9 @@ function AdminAuditView() {
             <option value="DELETE">DELETE</option>
           </select>
         </Field>
-        <Field label={t("admin.audit.filters.actor", { defaultValue: "Actor" })}>
+        <Field id="audit-actor" label={t("admin.audit.filters.actor", { defaultValue: "Actor" })}>
           <select
+            id="audit-actor"
             value={draftChangedBy}
             onChange={(e) =>
               setDraftChangedBy(e.target.value === "" ? "" : Number(e.target.value))
@@ -195,15 +195,17 @@ function AdminAuditView() {
             ))}
           </select>
         </Field>
-        <Field label={t("admin.audit.filters.dateFrom", { defaultValue: "From" })}>
+        <Field id="audit-from" label={t("admin.audit.filters.dateFrom", { defaultValue: "From" })}>
           <Input
+            id="audit-from"
             type="date"
             value={draftFrom}
             onChange={(e) => setDraftFrom(e.target.value)}
           />
         </Field>
-        <Field label={t("admin.audit.filters.dateTo", { defaultValue: "To" })}>
+        <Field id="audit-to" label={t("admin.audit.filters.dateTo", { defaultValue: "To" })}>
           <Input
+            id="audit-to"
             type="date"
             value={draftTo}
             onChange={(e) => setDraftTo(e.target.value)}
@@ -241,11 +243,11 @@ function AdminAuditView() {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wider text-ink-subtle">
-                  <th className="px-4 py-3 font-medium">When</th>
-                  <th className="px-4 py-3 font-medium">Table</th>
-                  <th className="px-4 py-3 font-medium">Record ID</th>
-                  <th className="px-4 py-3 font-medium">Action</th>
-                  <th className="px-4 py-3 font-medium">Actor</th>
+                  <th scope="col" className="px-4 py-3 font-medium">When</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Table</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Record ID</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Action</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Actor</th>
                 </tr>
               </thead>
               <tbody>
@@ -329,10 +331,21 @@ function AdminAuditView() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1">
-      <label className="block text-xs font-medium uppercase tracking-wider text-ink-subtle">
+      <label
+        htmlFor={id}
+        className="block text-xs font-medium uppercase tracking-wider text-ink-subtle"
+      >
         {label}
       </label>
       {children}
