@@ -31,7 +31,6 @@ import {
   DashboardErrorState,
   DashboardLoadingSkeleton,
   KpiTile,
-  PlaceholderKpiTile,
   TimeRangeSelector,
   asWindowQuery,
   formatNumber,
@@ -149,9 +148,16 @@ export function RecipientDashboard() {
             </Link>
           )}
 
+          {/* R-RC3 — KPI rationalisation. Recipients are external counterparty
+              signers; "My obligations" was a placeholder tied to a feature
+              the recipient role won't ever own (Q1 = drop obligations
+              entirely). The "Signed by me" caveat about external invitation
+              signers is confusing for a recipient who IS exactly that —
+              drop the helper line. Net: 3 tiles, all meaningful for the
+              role. */}
           <section
             aria-label={t("dashboards.recipient.kpiGroupLabel")}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
             <KpiTile
               label={t("dashboards.recipient.kpis.myContractsCount")}
@@ -167,12 +173,7 @@ export function RecipientDashboard() {
             <KpiTile
               label={t("dashboards.recipient.kpis.signedByMeWindow")}
               value={formatNumber(data.kpis.signedByMeWindow)}
-              helper={t("dashboards.recipient.kpis.signedByMeWindowHelper")}
               variant="success"
-            />
-            <PlaceholderKpiTile
-              label={t("dashboards.recipient.kpis.myObligationsCount")}
-              hint={t("dashboards.recipient.kpis.myObligationsHint")}
             />
           </section>
 

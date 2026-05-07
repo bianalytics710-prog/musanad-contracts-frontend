@@ -602,6 +602,8 @@
     "noResultsDescription": "حاول تعديل الفلاتر.",
     "emptyTitle": "ابدأ عقدك الأول",
     "emptyDescription": "قم بالصياغة من قالب أو استيراد عقد موجود.",
+    "emptyTitleRecipient": "لا توجد عقود مسندة إليك حتى الآن",
+    "emptyDescriptionRecipient": "عند إضافتك كموقّع من قِبل صاحب العمل، سيظهر العقد هنا.",
     "importContract": "استيراد عقد",
     "languageEn": "إنجليزية",
     "languageAr": "عربية",

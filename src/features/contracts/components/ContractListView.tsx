@@ -130,6 +130,10 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
   // these flags simply hide actions the user cannot perform.
   const canCreate = useAuthStore(selectHasPermission("contract.draft"));
   const canDelete = useAuthStore(selectHasPermission("contract.delete"));
+  // R-RC3 — empty-state copy and CTAs are role-aware. Recipients can't
+  // draft or import; show signing-context messaging instead.
+  const userRole = useAuthStore((s) => s.user?.role.name ?? null);
+  const isRecipientOnly = userRole === "contract_recipient";
 
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -473,10 +477,23 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-12 text-center">
             <h2 className="text-base font-semibold text-ink">
-              {hasFilters ? t("contracts.noResultsTitle") : t("contracts.emptyTitle")}
+              {hasFilters
+                ? t("contracts.noResultsTitle")
+                : isRecipientOnly
+                  ? t("contracts.emptyTitleRecipient", {
+                      defaultValue: "No contracts assigned to you yet",
+                    })
+                  : t("contracts.emptyTitle")}
             </h2>
             <p className="max-w-md text-sm text-ink-muted">
-              {hasFilters ? t("contracts.noResultsDescription") : t("contracts.emptyDescription")}
+              {hasFilters
+                ? t("contracts.noResultsDescription")
+                : isRecipientOnly
+                  ? t("contracts.emptyDescriptionRecipient", {
+                      defaultValue:
+                        "When an employer adds you as a signatory, the contract will appear here.",
+                    })
+                  : t("contracts.emptyDescription")}
             </p>
             {!hasFilters && canCreate && (
               <Button

@@ -29,6 +29,7 @@ import { Card } from "@/components/ui/card";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
 import { partiesService } from "@/services/api/m_parity.service";
+import { useAuthStore } from "@/store/auth.store";
 import type { Contract } from "@/types/entities/contract.types";
 
 interface ContractInfoCardsProps {
@@ -45,6 +46,14 @@ export function ContractInfoCards({
   attachmentCountOverride,
 }: ContractInfoCardsProps) {
   const { t, i18n } = useTranslation();
+  // R-RC3 — recipients can't navigate to /app/parties/{uuid} (route
+  // guards them out). Don't render party rows as clickable links to
+  // a destination they'd just be bounced from. Plain-text rendering
+  // also avoids the awkward "I'm clicking my own party page" UX when
+  // the recipient is the counterparty.
+  const isRecipientOnly = useAuthStore(
+    (s) => s.user?.role.name === "contract_recipient",
+  );
 
   const termLabel = useMemo(() => {
     if (!contract.startDate || !contract.endDate) return "—";
@@ -230,7 +239,11 @@ export function ContractInfoCards({
             })}
             name={ourPartyName}
             icon={<Building2 className="h-4 w-4 text-gold" />}
-            href={contract.ourPartyId ? `/app/parties/${contract.ourPartyId}` : undefined}
+            href={
+              !isRecipientOnly && contract.ourPartyId
+                ? `/app/parties/${contract.ourPartyId}`
+                : undefined
+            }
           />
           <PartyRow
             roleLabel={t("contracts.detail.partiesCard.counterparty", {
@@ -238,7 +251,11 @@ export function ContractInfoCards({
             })}
             name={counterpartyName}
             icon={<Building2 className="h-4 w-4 text-gold" />}
-            href={contract.counterpartyId ? `/app/parties/${contract.counterpartyId}` : undefined}
+            href={
+              !isRecipientOnly && contract.counterpartyId
+                ? `/app/parties/${contract.counterpartyId}`
+                : undefined
+            }
           />
         </div>
       </Card>

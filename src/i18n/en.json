@@ -602,6 +602,8 @@
     "noResultsDescription": "Try adjusting your filters.",
     "emptyTitle": "Start your first contract",
     "emptyDescription": "Draft from a template or import an existing contract.",
+    "emptyTitleRecipient": "No contracts assigned to you yet",
+    "emptyDescriptionRecipient": "When an employer adds you as a signatory, the contract will appear here.",
     "importContract": "Import contract",
     "languageEn": "English",
     "languageAr": "Arabic",
