@@ -224,9 +224,57 @@ export interface AdminDashboardTrends {
   approvalDecisionsByDay: ApprovalDecisionDayPoint[];
 }
 
+export interface AdminDashboardKpiPrev {
+  totalContractsActive: number;
+  expiringWithin30d: number;
+  expiringWithin90d: number;
+  pendingApprovals: number;
+  pendingSignatures: number;
+  openRegulatoryImpacts: number;
+  recentAuditEvents: number;
+  totalActiveUsers: number;
+}
+
+export interface AdminSystemHealth {
+  dbStatus: "ok" | "degraded" | "down";
+  latestMigration: number;
+  auditEvents24h: number;
+  aiErrors24h: number;
+}
+
+export interface AdminPendingActions {
+  pendingApprovals: number;
+  pendingSignatures: number;
+  pendingImports: number;
+  openImpacts: number;
+}
+
+export interface AdminTopContractTypeRow {
+  contractType: string;
+  count: number;
+}
+
+export interface AdminSystemActivityRow {
+  eventType: string;
+  headline: string;
+  occurredAt: string;
+  entityType: string;
+  entityId: number | null;
+}
+
 export interface AdminDashboardSnapshot {
   kpis: AdminDashboardKpis;
+  /** R-PA1 — present when fn_dashboard_admin >= migration 095. */
+  kpiPrev?: AdminDashboardKpiPrev;
   trends: AdminDashboardTrends;
+  /** R-PA1 — present when fn_dashboard_admin >= migration 095. */
+  systemHealth?: AdminSystemHealth;
+  /** R-PA1 — present when fn_dashboard_admin >= migration 095. */
+  pendingAdminActions?: AdminPendingActions;
+  /** R-PA1 — present when fn_dashboard_admin >= migration 095. */
+  topContractTypes5?: AdminTopContractTypeRow[];
+  /** R-PA1 — present when fn_dashboard_admin >= migration 095. */
+  systemActivity14d?: AdminSystemActivityRow[];
 }
 
 // ─── Drafter dashboard (S2) ─────────────────────────────────────────────────

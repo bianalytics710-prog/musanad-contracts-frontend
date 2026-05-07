@@ -5308,8 +5308,8 @@
       }
     },
     "admin": {
-      "title": "Admin Dashboard",
-      "landingTitle": "Admin Landing",
+      "title": "System overview",
+      "landingTitle": "Admin landing",
       "subtitle": "System-wide KPIs and recent activity.",
       "kpiGroupLabel": "Admin key performance indicators",
       "kpis": {
