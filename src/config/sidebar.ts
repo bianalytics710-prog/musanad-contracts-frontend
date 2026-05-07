@@ -133,6 +133,7 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/users",                labelKey: "nav.adminUsers",    defaultLabel: "Users",           icon: UsersIcon },
   { to: "/app/admin/roles",                labelKey: "nav.adminRoles",    defaultLabel: "Roles",           icon: KeyRound },
   { to: "/app/admin/audit",                labelKey: "nav.adminAudit",    defaultLabel: "Audit log",       icon: ScrollText },
+  { to: "/app/admin/config",               labelKey: "nav.adminConfig",   defaultLabel: "Configuration",   icon: SettingsIcon },
   { to: "/app/admin/health",               labelKey: "nav.adminHealth",   defaultLabel: "Health",          icon: Activity },
   { to: "/app/admin/approval-matrix",      labelKey: "nav.adminMatrix",   defaultLabel: "Approval matrix", icon: KeyRound },
   { to: "/app/admin/approval-chains",      labelKey: "nav.adminChains",   defaultLabel: "Approval chains", icon: KeyRound },
