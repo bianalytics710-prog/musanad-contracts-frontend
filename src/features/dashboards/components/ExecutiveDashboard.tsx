@@ -60,6 +60,7 @@ import type {
 import { ExecutiveAnomaliesCard } from "@/features/ai/components/ExecutiveAnomaliesCard";
 import { ExecutiveCharts } from "./ExecutiveCharts";
 import { ExecutiveLists } from "./ExecutiveLists";
+import { ExecutiveEventsCard } from "./ExecutiveEventsCard";
 import type {
   AiExecutiveAnomaliesStats,
   AiLanguage,
@@ -334,6 +335,11 @@ export function ExecutiveDashboard() {
               (highRiskContracts8 / mostUsedTemplates8 /
               mostAmendedContracts5). Backed by migration 091. */}
           {data.lists && <ExecutiveLists lists={data.lists} />}
+
+          {/* R-EX3 — Executive events (last 14 days) timeline.
+              Backed by migration 092/093. Single chronological feed
+              of regulatory_update + contract_activity events. */}
+          {data.events14d && <ExecutiveEventsCard rows={data.events14d} />}
 
           {anomaliesStats && (
             <ExecutiveAnomaliesCard

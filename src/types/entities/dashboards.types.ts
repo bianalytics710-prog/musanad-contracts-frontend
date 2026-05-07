@@ -598,6 +598,15 @@ export interface ExecutiveDashboardLists {
   mostAmendedContracts5: ExecutiveAmendedContractRow[];
 }
 
+/** R-EX3 — events14d feed row from migration 092/093. */
+export interface ExecutiveEventRow {
+  eventType: string;
+  headline: string;
+  subRef: string | null;
+  occurredAt: string;
+  severity: "critical" | "high" | "low";
+}
+
 export interface ExecutiveDashboardSnapshot {
   kpis: ExecutiveDashboardKpis;
   /** Optional — present from migration 089 onwards. */
@@ -607,6 +616,8 @@ export interface ExecutiveDashboardSnapshot {
   charts?: ExecutiveDashboardCharts;
   /** Optional — present from migration 091 onwards. */
   lists?: ExecutiveDashboardLists;
+  /** Optional — present from migration 092/093 onwards. */
+  events14d?: ExecutiveEventRow[];
 }
 
 // ─── Executive anomalies history (S8) ───────────────────────────────────────
