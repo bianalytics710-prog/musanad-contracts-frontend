@@ -59,6 +59,7 @@ import type {
 } from "@/types/entities/dashboards.types";
 import { ExecutiveAnomaliesCard } from "@/features/ai/components/ExecutiveAnomaliesCard";
 import { ExecutiveCharts } from "./ExecutiveCharts";
+import { ExecutiveLists } from "./ExecutiveLists";
 import type {
   AiExecutiveAnomaliesStats,
   AiLanguage,
@@ -328,6 +329,11 @@ export function ExecutiveDashboard() {
               totalValueAed={data.kpis.totalActiveValueAed}
             />
           )}
+
+          {/* R-EX2 — three Lovable-parity list sections
+              (highRiskContracts8 / mostUsedTemplates8 /
+              mostAmendedContracts5). Backed by migration 091. */}
+          {data.lists && <ExecutiveLists lists={data.lists} />}
 
           {anomaliesStats && (
             <ExecutiveAnomaliesCard

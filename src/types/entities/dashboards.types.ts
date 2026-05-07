@@ -569,6 +569,35 @@ export interface ExecutiveDashboardCharts {
   expiryCliff: ExecutiveExpiryCliffBucket[];
 }
 
+/** R-EX2 — list-section payloads from migration 091. */
+export interface ExecutiveHighRiskRow {
+  id: number;
+  contractNumber: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  valueAed: number | null;
+  riskScore: number;
+}
+export interface ExecutiveTemplateUsageRow {
+  templateId: number;
+  nameEn: string | null;
+  nameAr: string | null;
+  usageCount: number;
+}
+export interface ExecutiveAmendedContractRow {
+  id: number;
+  contractNumber: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  currentVersion: number;
+  amendmentCount: number;
+}
+export interface ExecutiveDashboardLists {
+  highRiskContracts8: ExecutiveHighRiskRow[];
+  mostUsedTemplates8: ExecutiveTemplateUsageRow[];
+  mostAmendedContracts5: ExecutiveAmendedContractRow[];
+}
+
 export interface ExecutiveDashboardSnapshot {
   kpis: ExecutiveDashboardKpis;
   /** Optional — present from migration 089 onwards. */
@@ -576,6 +605,8 @@ export interface ExecutiveDashboardSnapshot {
   trends: ExecutiveDashboardTrends;
   /** Optional — present from migration 090 onwards. */
   charts?: ExecutiveDashboardCharts;
+  /** Optional — present from migration 091 onwards. */
+  lists?: ExecutiveDashboardLists;
 }
 
 // ─── Executive anomalies history (S8) ───────────────────────────────────────
