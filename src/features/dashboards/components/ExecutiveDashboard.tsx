@@ -39,10 +39,13 @@ import {
   TimeRangeSelector,
   asWindowQuery,
   formatAed,
+  formatAedCompact,
   formatNumber,
   formatUsd,
   rangeFromWindowDays,
 } from "./dashboard-primitives";
+import { useAuthStore, selectUser } from "@/store/auth.store";
+import { formatDate, formatHijriDate } from "@/utils/datetime";
 import type {
   CounterpartyConcentrationRow,
   DashboardRangeKey,
@@ -61,6 +64,7 @@ const DEFAULT_WINDOW_DAYS = 90;
 
 export function ExecutiveDashboard() {
   const { t, i18n } = useTranslation();
+  const user = useAuthStore(selectUser);
   const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
   const [range, setRange] = useState<DashboardRangeKey>(
     rangeFromWindowDays(DEFAULT_WINDOW_DAYS),
@@ -69,6 +73,8 @@ export function ExecutiveDashboard() {
   const { data, isLoading, isError, error, refetch } = useExecutiveDashboard(
     asWindowQuery(windowDays),
   );
+
+  const nowISO = new Date().toISOString();
 
   const anomaliesStats: AiExecutiveAnomaliesStats | null = useMemo(() => {
     if (!data) return null;
@@ -101,8 +107,15 @@ export function ExecutiveDashboard() {
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
+          {/* R-EX0 — welcome line + Hijri date strip mirroring LC / approver / recipient. */}
+          <p className="text-xs text-ink-subtle">
+            {user
+              ? `${t("dashboards.common.welcome", { defaultValue: "Welcome back" })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
+              : `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`}
+          </p>
+          {/* R-EX0 — H1 wording: "Enterprise overview" (Lovable parity, Q2=2a). */}
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("dashboards.executive.title")}
+            {t("dashboards.executive.title", { defaultValue: "Enterprise overview" })}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             {t("dashboards.executive.subtitle")}
@@ -130,41 +143,90 @@ export function ExecutiveDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
-          {/* Top-line KPIs */}
+          {/* R-EX0 — Top-line KPIs aligned to Lovable.
+              5 tiles when AI cost is hidden:
+                Total contract value / Active contracts / Avg cycle time /
+                Renewals (90d) / Renewal value (90d).
+              6 tiles when the actor has ai.observability.read — AI cost added
+              between Renewals and Renewal value. The legacy "Window (days)"
+              tile is dropped — the time range tabs already convey window.
+              Per-tile delta indicators are computed against kpiPrev (returned
+              by migration 089). */}
           <section
             aria-label={t("dashboards.executive.kpiGroupLabel")}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
           >
             <KpiTile
-              label={t("dashboards.executive.kpis.totalActiveValueAed")}
-              value={formatAed(data.kpis.totalActiveValueAed)}
+              label={t("dashboards.executive.kpis.totalContractValue", {
+                defaultValue: "Total contract value",
+              })}
+              value={formatAedCompact(data.kpis.totalActiveValueAed)}
+              helper={formatPctDelta(
+                data.kpis.totalActiveValueAed,
+                data.kpiPrev?.totalActiveValueAed,
+                t,
+              )}
               variant="success"
             />
+            <KpiTile
+              label={t("dashboards.executive.kpis.activeContracts", {
+                defaultValue: "Active contracts",
+              })}
+              value={formatNumber(data.kpis.activeContractsCount)}
+              helper={formatCountDelta(
+                data.kpis.activeContractsCount,
+                data.kpiPrev?.activeContractsCount,
+                t,
+              )}
+            />
+            <KpiTile
+              label={t("dashboards.executive.kpis.avgCycleTime", {
+                defaultValue: "Avg. cycle time",
+              })}
+              value={`${data.kpis.avgCycleTimeDays.toFixed(1)}d`}
+            />
+            <KpiTile
+              label={t("dashboards.executive.kpis.renewals90d", {
+                defaultValue: "Renewals (90d)",
+              })}
+              value={formatNumber(data.kpis.renewalsCount90d)}
+              helper={formatCountDelta(
+                data.kpis.renewalsCount90d,
+                data.kpiPrev?.renewalsCount90d,
+                t,
+              )}
+            />
+            <KpiTile
+              label={t("dashboards.executive.kpis.renewalValue90d", {
+                defaultValue: "Renewal value (90d)",
+              })}
+              value={formatAedCompact(data.kpis.renewalValueAed90d)}
+              helper={formatPctDelta(
+                data.kpis.renewalValueAed90d,
+                data.kpiPrev?.renewalValueAed90d,
+                t,
+              )}
+            />
+            {/* R-EX0 — AI cost tile is shown ONLY when the actor has
+                ai.observability.read (server returns aiCostUsdWindow != null
+                in that case). Q3 = 3a: hide when forbidden rather than
+                rendering a permission-denied warning on the tile. */}
+            {data.kpis.aiCostUsdWindow !== null && (
+              <KpiTile
+                label={t("dashboards.executive.kpis.aiCostUsdWindow")}
+                value={formatUsd(data.kpis.aiCostUsdWindow)}
+                helper={t("dashboards.executive.kpis.aiCostHelper")}
+              />
+            )}
+            {/* R-EX0 — Critical regulatory impacts is local-only intel
+                (M5). Keep alongside the Lovable five so executives still
+                see the regulator-aware gate. */}
             <KpiTile
               label={t("dashboards.executive.kpis.openRegulatoryImpactsCritical")}
               value={formatNumber(data.kpis.openRegulatoryImpactsCritical)}
               variant={
                 data.kpis.openRegulatoryImpactsCritical > 0 ? "risk" : "default"
               }
-            />
-            <KpiTile
-              label={t("dashboards.executive.kpis.aiCostUsdWindow")}
-              value={
-                data.kpis.aiCostUsdWindow == null
-                  ? "—"
-                  : formatUsd(data.kpis.aiCostUsdWindow)
-              }
-              helper={
-                data.kpis.aiCostUsdWindow == null
-                  ? t("dashboards.executive.kpis.aiCostDenied")
-                  : t("dashboards.executive.kpis.aiCostHelper")
-              }
-              disabled={data.kpis.aiCostUsdWindow == null}
-            />
-            <KpiTile
-              label={t("dashboards.executive.kpis.windowDays")}
-              value={String(windowDays)}
-              helper={t("dashboards.executive.kpis.windowDaysHelper")}
             />
           </section>
 
@@ -589,6 +651,48 @@ function ContractsByMonthChart({ points }: { points: TrendMonthCount[] }) {
       </ResponsiveContainer>
     </div>
   );
+}
+
+// ─── R-EX0 KPI delta helpers ─────────────────────────────────────────────────
+
+/**
+ * Render a "+X.X% vs prev" / "-X.X% vs prev" string for a tile helper line.
+ * Returns undefined when no comparison value is available so KpiTile renders
+ * cleanly without a helper row.
+ */
+function formatPctDelta(
+  current: number,
+  previous: number | undefined,
+  t: (key: string, opts?: { defaultValue?: string; pct?: string }) => string,
+): string | undefined {
+  if (previous === undefined || previous === null) return undefined;
+  if (previous === 0) return undefined;
+  const pct = ((current - previous) / previous) * 100;
+  const sign = pct >= 0 ? "+" : "";
+  const display = `${sign}${pct.toFixed(1)}%`;
+  return t("dashboards.executive.kpis.deltaVsPrev", {
+    defaultValue: `${display} vs prev`,
+    pct: display,
+  });
+}
+
+/**
+ * Render a "+N vs prev" / "-N vs prev" string for count-based KPIs.
+ */
+function formatCountDelta(
+  current: number,
+  previous: number | undefined,
+  t: (key: string, opts?: { defaultValue?: string; n?: string }) => string,
+): string | undefined {
+  if (previous === undefined || previous === null) return undefined;
+  const diff = current - previous;
+  if (diff === 0) return undefined;
+  const sign = diff > 0 ? "+" : "";
+  const display = `${sign}${diff}`;
+  return t("dashboards.executive.kpis.deltaCountVsPrev", {
+    defaultValue: `${display} vs prev`,
+    n: display,
+  });
 }
 
 export default ExecutiveDashboard;

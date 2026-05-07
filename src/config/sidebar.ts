@@ -115,7 +115,10 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "regulations",
     "radar",
   ],
-  executive: ["insights", "contracts", "regulations", "parties"],
+  // R-EX0 audit: Lovable executive sidebar is Insights / Contracts /
+  // Impact Watch only. Drop the Parties leak — executive consumes
+  // insights, not raw counterparty CRUD.
+  executive: ["insights", "contracts", "regulations"],
 };
 
 export interface AdminSubItem {

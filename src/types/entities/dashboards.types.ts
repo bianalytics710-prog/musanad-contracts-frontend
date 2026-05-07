@@ -481,8 +481,25 @@ export interface ExecutiveExpiryCliffs {
   next90d: number;
 }
 
+export interface ExecutiveCycleTimeFunnel {
+  draftingDays: number;
+  legalReviewDays: number;
+  approvalChainDays: number;
+  counterpartySignatureDays: number;
+}
+
 export interface ExecutiveDashboardKpis {
   totalActiveValueAed: number;
+  /** R-EX0 — count of contracts in active|fully_signed|expiring_soon. */
+  activeContractsCount: number;
+  /** R-EX0 — sum of cycleTimeFunnel stage averages, in days. */
+  avgCycleTimeDays: number;
+  /** R-EX0 — count of renewable contracts due in the next 90 days. */
+  renewalsCount90d: number;
+  /** R-EX0 — sum of value_aed for the renewable set above. */
+  renewalValueAed90d: number;
+  /** R-EX0 — 4-stage cycle-time breakdown for the funnel chart. */
+  cycleTimeFunnel: ExecutiveCycleTimeFunnel;
   contractsByStatus: Record<string, number>;
   expiryCliffs: ExecutiveExpiryCliffs;
   topCounterpartiesByValue5: CounterpartyConcentrationRow[];
@@ -495,6 +512,18 @@ export interface ExecutiveDashboardKpis {
   aiCostUsdWindow: number | null;
 }
 
+/**
+ * R-EX0 — previous-window comparison block for delta indicators.
+ * Same KPI definitions as `kpis`, computed against the [v_window..2*v_window]
+ * range so the FE can render +X% / +N tile deltas.
+ */
+export interface ExecutiveDashboardKpiPrev {
+  totalActiveValueAed: number;
+  activeContractsCount: number;
+  renewalsCount90d: number;
+  renewalValueAed90d: number;
+}
+
 export interface ExecutiveDashboardTrends {
   valueOverTimeByMonth: TrendMonthValueAed[];
   contractsCreatedByMonth: TrendMonthCount[];
@@ -502,6 +531,8 @@ export interface ExecutiveDashboardTrends {
 
 export interface ExecutiveDashboardSnapshot {
   kpis: ExecutiveDashboardKpis;
+  /** Optional — present from migration 089 onwards. */
+  kpiPrev?: ExecutiveDashboardKpiPrev;
   trends: ExecutiveDashboardTrends;
 }
 

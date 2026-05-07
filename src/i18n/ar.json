@@ -5535,17 +5535,24 @@
       }
     },
     "executive": {
-      "title": "اللوحة التنفيذية",
+      "title": "نظرة عامة على المؤسسة",
       "subtitle": "نظرة شاملة على قيمة العقود ومخاطرها.",
       "kpiGroupLabel": "مؤشرات الأداء التنفيذية",
       "kpis": {
         "totalActiveValueAed": "إجمالي القيمة النشطة",
+        "totalContractValue": "إجمالي قيمة العقود",
+        "activeContracts": "العقود النشطة",
+        "avgCycleTime": "متوسط زمن الدورة",
+        "renewals90d": "التجديدات (90 يومًا)",
+        "renewalValue90d": "قيمة التجديدات (90 يومًا)",
         "openRegulatoryImpactsCritical": "تأثيرات تنظيمية حرجة",
         "aiCostUsdWindow": "تكلفة الذكاء الاصطناعي (دولار)",
         "aiCostHelper": "محدد بآخر 90 يومًا.",
         "aiCostDenied": "ليس لديك صلاحية ai.observability.read لعرض تكاليف الذكاء الاصطناعي.",
         "windowDays": "النطاق (أيام)",
-        "windowDaysHelper": "افتراضيًا 90 يومًا؛ حتى 365."
+        "windowDaysHelper": "افتراضيًا 90 يومًا؛ حتى 365.",
+        "deltaVsPrev": "{{pct}} مقارنة بالسابق",
+        "deltaCountVsPrev": "{{n}} مقارنة بالسابق"
       },
       "expiryCliffs": {
         "title": "حواف الانتهاء",

@@ -5535,17 +5535,24 @@
       }
     },
     "executive": {
-      "title": "Executive Dashboard",
+      "title": "Enterprise overview",
       "subtitle": "Enterprise-wide view of contract value and risk.",
       "kpiGroupLabel": "Executive key performance indicators",
       "kpis": {
         "totalActiveValueAed": "Total active value",
+        "totalContractValue": "Total contract value",
+        "activeContracts": "Active contracts",
+        "avgCycleTime": "Avg. cycle time",
+        "renewals90d": "Renewals (90d)",
+        "renewalValue90d": "Renewal value (90d)",
         "openRegulatoryImpactsCritical": "Critical regulatory impacts",
         "aiCostUsdWindow": "AI cost (USD)",
         "aiCostHelper": "Capped at the last 90 days.",
         "aiCostDenied": "You don't have the ai.observability.read permission to view AI costs.",
         "windowDays": "Window (days)",
-        "windowDaysHelper": "Default 90 days; up to 365."
+        "windowDaysHelper": "Default 90 days; up to 365.",
+        "deltaVsPrev": "{{pct}} vs prev",
+        "deltaCountVsPrev": "{{n}} vs prev"
       },
       "expiryCliffs": {
         "title": "Expiry cliffs",

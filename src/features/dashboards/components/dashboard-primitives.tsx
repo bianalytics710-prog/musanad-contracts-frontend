@@ -357,6 +357,34 @@ export function formatAed(value: number | null, locale: string = "en-AE"): strin
   }
 }
 
+/**
+ * R-EX0 — compact AED formatter. AED 146,300,000 -> "AED 146.3M".
+ * Matches the Lovable executive dashboard convention so KPI tiles stay
+ * single-line at desktop widths.
+ */
+export function formatAedCompact(
+  value: number | null,
+  locale: string = "en-AE",
+): string {
+  if (value == null) return "—";
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: "AED",
+      notation: "compact",
+      maximumFractionDigits: 1,
+    }).format(value);
+  } catch {
+    // Manual fallback if Intl rejects "compact" (older runtimes).
+    const abs = Math.abs(value);
+    const sign = value < 0 ? "-" : "";
+    if (abs >= 1_000_000_000) return `${sign}AED ${(abs / 1_000_000_000).toFixed(1)}B`;
+    if (abs >= 1_000_000) return `${sign}AED ${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `${sign}AED ${(abs / 1_000).toFixed(1)}K`;
+    return `${sign}AED ${abs.toFixed(0)}`;
+  }
+}
+
 export function formatUsd(value: number | null, locale: string = "en-US"): string {
   if (value == null) return "—";
   try {
