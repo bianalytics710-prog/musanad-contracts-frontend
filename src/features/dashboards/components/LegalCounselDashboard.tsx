@@ -145,13 +145,13 @@ export function LegalCounselDashboard() {
       .sort((a, b) => b.weekIndex - a.weekIndex)
       .map((row) => ({
         week: `W${12 - row.weekIndex}`,
-        hours: Math.max(0, row.avgHours), // R-LC1 — clamp negative anomalies
+        hours: row.avgHours,
       }));
   }, [data]);
 
   const currentWeekReviewHours = useMemo(() => {
     const w0 = (data?.avgReview12w ?? []).find((r) => r.weekIndex === 0);
-    return w0 ? Math.max(0, w0.avgHours) : 0;
+    return w0 ? w0.avgHours : 0;
   }, [data]);
 
   // Regulatory updates 12-week — group by week, stack by authority.

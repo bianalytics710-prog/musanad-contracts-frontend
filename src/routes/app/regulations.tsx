@@ -33,9 +33,18 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   impactSignalService,
   type ImpactCategory,
   type ImpactSignalListItem,
+  type ImpactSignalAiExplainResponse,
+  type ImpactSignalAiAmendmentResponse,
 } from "@/services/api/impact-signal.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -157,6 +166,28 @@ function ImpactWatchView() {
       );
       void qc.invalidateQueries({ queryKey: ["impact-signal", selectedId] });
     },
+    onError: (e) => toast.error(translateApiError(e, t)),
+  });
+
+  // R-LC7-D1 — Impact Watch AI dialogs (Explain + Suggest amendment).
+  const [explainResult, setExplainResult] = useState<ImpactSignalAiExplainResponse | null>(null);
+  const [amendmentResult, setAmendmentResult] = useState<ImpactSignalAiAmendmentResponse | null>(
+    null,
+  );
+
+  const explainMutation = useMutation({
+    mutationFn: () =>
+      impactSignalService.explainWithAi(selectedId as number, isAr ? "ar" : "en"),
+    onSuccess: (r) => setExplainResult(r),
+    onError: (e) => toast.error(translateApiError(e, t)),
+  });
+
+  const amendmentMutation = useMutation({
+    mutationFn: () =>
+      impactSignalService.suggestAmendment(selectedId as number, {
+        language: isAr ? "ar" : "en",
+      }),
+    onSuccess: (r) => setAmendmentResult(r),
     onError: (e) => toast.error(translateApiError(e, t)),
   });
 
@@ -313,33 +344,25 @@ function ImpactWatchView() {
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() =>
-                    toast.info(
-                      t("impactWatch.explainAI.coming", {
-                        defaultValue:
-                          "Explain with AI is coming in a follow-up — surfaces a plain-language summary of the signal and how it affects each impacted contract.",
-                      }),
-                    )
-                  }
+                  disabled={explainMutation.isPending}
+                  onClick={() => explainMutation.mutate()}
                 >
                   <Sparkles className="me-1.5 h-3.5 w-3.5" />
-                  {t("impactWatch.explainAI", { defaultValue: "Explain with AI" })}
+                  {explainMutation.isPending
+                    ? t("impactWatch.explainAI.loading", { defaultValue: "Explaining…" })
+                    : t("impactWatch.explainAI", { defaultValue: "Explain with AI" })}
                 </Button>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() =>
-                    toast.info(
-                      t("impactWatch.suggestLanguage.coming", {
-                        defaultValue:
-                          "Suggest amendment language is coming in a follow-up — generates redline-ready text aligned with the signal.",
-                      }),
-                    )
-                  }
+                  disabled={amendmentMutation.isPending}
+                  onClick={() => amendmentMutation.mutate()}
                 >
                   <GitBranch className="me-1.5 h-3.5 w-3.5" />
-                  {t("impactWatch.suggestLanguage", { defaultValue: "Suggest amendment language" })}
+                  {amendmentMutation.isPending
+                    ? t("impactWatch.suggestLanguage.loading", { defaultValue: "Drafting…" })
+                    : t("impactWatch.suggestLanguage", { defaultValue: "Suggest amendment language" })}
                 </Button>
               </div>
 
@@ -445,6 +468,128 @@ function ImpactWatchView() {
           )}
         </section>
       </div>
+
+      {/* R-LC7-D1 — Explain with AI dialog */}
+      <Dialog
+        open={explainResult !== null}
+        onOpenChange={(open) => {
+          if (!open) setExplainResult(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[640px]">
+          <DialogHeader>
+            <DialogTitle>
+              {t("impactWatch.explainAI", { defaultValue: "Explain with AI" })}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.titleEn ?? ""}
+            </DialogDescription>
+          </DialogHeader>
+          {explainResult && (
+            <div className="space-y-4 text-sm">
+              <section>
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+                  {t("impactWatch.explainAI.summary", { defaultValue: "Summary" })}
+                </h4>
+                <p className="text-ink">{explainResult.summary}</p>
+              </section>
+              <section>
+                <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+                  {t("impactWatch.explainAI.whyItMatters", { defaultValue: "Why it matters" })}
+                </h4>
+                <p className="text-ink">{explainResult.whyItMatters}</p>
+              </section>
+              {explainResult.perContractImpacts.length > 0 && (
+                <section>
+                  <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+                    {t("impactWatch.explainAI.perContract", {
+                      defaultValue: "Per-contract impact",
+                    })}
+                  </h4>
+                  <ul className="space-y-2">
+                    {explainResult.perContractImpacts.map((c) => (
+                      <li
+                        key={c.contractId}
+                        className="rounded-md border border-border/60 bg-surface p-3"
+                      >
+                        <div className="font-mono text-xs text-ink-muted">{c.contractNumber}</div>
+                        <div className="mt-0.5 text-sm text-ink">{c.explanation}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              <p className="text-[10px] italic text-ink-subtle">
+                {t("impactWatch.aiDisclaimer", {
+                  defaultValue:
+                    "AI-generated guidance — verify with counsel before action.",
+                })}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* R-LC7-D1 — Suggest amendment language dialog */}
+      <Dialog
+        open={amendmentResult !== null}
+        onOpenChange={(open) => {
+          if (!open) setAmendmentResult(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>
+              {t("impactWatch.suggestLanguage", { defaultValue: "Suggest amendment language" })}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.titleEn ?? ""}
+            </DialogDescription>
+          </DialogHeader>
+          {amendmentResult && (
+            <div className="space-y-4 text-sm">
+              {amendmentResult.amendmentSnippets.map((s, idx) => (
+                <section
+                  key={idx}
+                  className="rounded-md border border-border/60 bg-surface p-3"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="rounded-full bg-card px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+                      {s.clauseAnchor}
+                    </span>
+                  </div>
+                  <p className="mb-2 text-xs text-ink-muted">{s.rationale}</p>
+                  <pre className="whitespace-pre-wrap rounded bg-card p-2 font-mono text-xs text-ink">
+                    {s.suggestedText}
+                  </pre>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="mt-2 h-7 px-2 text-xs"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(s.suggestedText);
+                      toast.success(
+                        t("impactWatch.suggestLanguage.copied", {
+                          defaultValue: "Copied to clipboard",
+                        }),
+                      );
+                    }}
+                  >
+                    {t("impactWatch.suggestLanguage.copy", { defaultValue: "Copy" })}
+                  </Button>
+                </section>
+              ))}
+              <p className="text-[10px] italic text-ink-subtle">
+                {t("impactWatch.aiDisclaimer", {
+                  defaultValue:
+                    "AI-generated guidance — verify with counsel before action.",
+                })}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

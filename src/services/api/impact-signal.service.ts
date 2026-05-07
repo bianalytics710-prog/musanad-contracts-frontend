@@ -48,6 +48,24 @@ export interface ImpactSignalListResponse {
   pagination: { total: number; limit: number; offset: number };
 }
 
+export interface ImpactSignalAiExplainResponse {
+  summary: string;
+  whyItMatters: string;
+  perContractImpacts: Array<{
+    contractId: number;
+    contractNumber: string;
+    explanation: string;
+  }>;
+}
+
+export interface ImpactSignalAiAmendmentResponse {
+  amendmentSnippets: Array<{
+    clauseAnchor: string;
+    rationale: string;
+    suggestedText: string;
+  }>;
+}
+
 export const impactSignalService = {
   list: async (params: {
     category?: ImpactCategory;
@@ -75,5 +93,25 @@ export const impactSignalService = {
   bulkAmend: async (id: number): Promise<{ signalId: number; amended: number }> => {
     const { data } = await apiClient.post(`/api/v1/impact-signals/${id}/bulk-amend`);
     return data;
+  },
+  explainWithAi: async (
+    id: number,
+    language: "en" | "ar" = "en",
+  ): Promise<ImpactSignalAiExplainResponse> => {
+    const { data } = await apiClient.post<{ data: ImpactSignalAiExplainResponse }>(
+      `/api/v1/ai/impact-signals/${id}/explain`,
+      { language },
+    );
+    return data.data;
+  },
+  suggestAmendment: async (
+    id: number,
+    opts: { language?: "en" | "ar"; contractId?: number } = {},
+  ): Promise<ImpactSignalAiAmendmentResponse> => {
+    const { data } = await apiClient.post<{ data: ImpactSignalAiAmendmentResponse }>(
+      `/api/v1/ai/impact-signals/${id}/suggest-amendment`,
+      { language: opts.language ?? "en", ...(opts.contractId ? { contractId: opts.contractId } : {}) },
+    );
+    return data.data;
   },
 };
