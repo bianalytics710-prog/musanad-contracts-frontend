@@ -22,6 +22,9 @@ import {
   Cell,
   Line,
   LineChart,
+  Pie,
+  PieChart,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -55,6 +58,7 @@ import type {
   ValueDistributionBucket,
 } from "@/types/entities/dashboards.types";
 import { ExecutiveAnomaliesCard } from "@/features/ai/components/ExecutiveAnomaliesCard";
+import { ExecutiveCharts } from "./ExecutiveCharts";
 import type {
   AiExecutiveAnomaliesStats,
   AiLanguage,
@@ -313,6 +317,17 @@ export function ExecutiveDashboard() {
               <ContractsByMonthChart points={data.trends.contractsCreatedByMonth} />
             </section>
           </div>
+
+          {/* R-EX1 — six Lovable-parity chart sections (spendByCategory /
+              topSuppliers / revenueUnderContract12m / cycleTimeFunnel /
+              contractThroughput12m / expiryCliff). Backed by migration 090. */}
+          {data.charts && (
+            <ExecutiveCharts
+              charts={data.charts}
+              cycleTimeFunnel={data.kpis.cycleTimeFunnel}
+              totalValueAed={data.kpis.totalActiveValueAed}
+            />
+          )}
 
           {anomaliesStats && (
             <ExecutiveAnomaliesCard

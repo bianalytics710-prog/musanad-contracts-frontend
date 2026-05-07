@@ -529,11 +529,53 @@ export interface ExecutiveDashboardTrends {
   contractsCreatedByMonth: TrendMonthCount[];
 }
 
+/** R-EX1 — chart-section payloads from migration 090. */
+export interface ExecutiveSpendByCategoryRow {
+  category: string;
+  valueAed: number;
+  pct: number;
+}
+export interface ExecutiveSupplierSparklinePoint {
+  month: string;
+  valueAed: number;
+}
+export interface ExecutiveTopSupplierRow {
+  counterpartyId: number;
+  name: string;
+  contractCount: number;
+  totalValueAed: number;
+  pctOfSpend: number;
+  sparkline12m: ExecutiveSupplierSparklinePoint[];
+}
+export interface ExecutiveRevenueMonthRow {
+  month: string;
+  activeValueAed: number;
+  pipelineValueAed: number;
+}
+export interface ExecutiveThroughputMonthRow {
+  month: string;
+  initiated: number;
+  signed: number;
+}
+export interface ExecutiveExpiryCliffBucket {
+  horizon: "30d" | "60d" | "90d" | "180d" | "365d" | ">365d";
+  valueAedAtRisk: number;
+}
+export interface ExecutiveDashboardCharts {
+  spendByCategory: ExecutiveSpendByCategoryRow[];
+  topSuppliers: ExecutiveTopSupplierRow[];
+  revenueUnderContract12m: ExecutiveRevenueMonthRow[];
+  contractThroughput12m: ExecutiveThroughputMonthRow[];
+  expiryCliff: ExecutiveExpiryCliffBucket[];
+}
+
 export interface ExecutiveDashboardSnapshot {
   kpis: ExecutiveDashboardKpis;
   /** Optional — present from migration 089 onwards. */
   kpiPrev?: ExecutiveDashboardKpiPrev;
   trends: ExecutiveDashboardTrends;
+  /** Optional — present from migration 090 onwards. */
+  charts?: ExecutiveDashboardCharts;
 }
 
 // ─── Executive anomalies history (S8) ───────────────────────────────────────
