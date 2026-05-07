@@ -131,6 +131,7 @@ export interface AdminSubItem {
 export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin",                      labelKey: "nav.adminOverview", defaultLabel: "Overview",        icon: LayoutGrid },
   { to: "/app/admin/users",                labelKey: "nav.adminUsers",    defaultLabel: "Users",           icon: UsersIcon },
+  { to: "/app/admin/roles",                labelKey: "nav.adminRoles",    defaultLabel: "Roles",           icon: KeyRound },
   { to: "/app/admin/audit",                labelKey: "nav.adminAudit",    defaultLabel: "Audit log",       icon: ScrollText },
   { to: "/app/admin/health",               labelKey: "nav.adminHealth",   defaultLabel: "Health",          icon: Activity },
   { to: "/app/admin/approval-matrix",      labelKey: "nav.adminMatrix",   defaultLabel: "Approval matrix", icon: KeyRound },
