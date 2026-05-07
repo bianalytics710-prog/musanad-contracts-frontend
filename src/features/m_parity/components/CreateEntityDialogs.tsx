@@ -8,13 +8,14 @@
  * BE function gates on contract.edit permission). On success, invalidates
  * the corresponding list query and closes the modal.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFocusTrap } from "@/components/common/useFocusTrap";
 import {
   partiesService,
   templatesService,
@@ -36,6 +37,18 @@ interface DialogShellProps {
 }
 
 function DialogShell({ open, onClose, title, children, busy }: DialogShellProps) {
+  // R-LC9-4 — WCAG focus trap + Escape-to-close.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, open);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, busy, onClose]);
+
   if (!open) return null;
   return (
     <div
@@ -46,7 +59,7 @@ function DialogShell({ open, onClose, title, children, busy }: DialogShellProps)
         if (e.target === e.currentTarget && !busy) onClose();
       }}
     >
-      <div className="w-full max-w-xl rounded-lg border border-border bg-card shadow-xl">
+      <div ref={dialogRef} className="w-full max-w-xl rounded-lg border border-border bg-card shadow-xl">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="text-base font-semibold text-ink">{title}</h2>
           <button

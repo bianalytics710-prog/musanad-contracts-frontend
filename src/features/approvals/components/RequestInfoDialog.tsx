@@ -15,6 +15,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { translateApiError } from "@/lib/translate-api-error";
+import { useFocusTrap } from "@/components/common/useFocusTrap";
 
 interface Props {
   stepId: number | null;
@@ -29,10 +30,21 @@ export function RequestInfoDialog({ stepId, open, onClose, onSuccess }: Props) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [message, setMessage] = useState("");
+  // R-LC9-4 — WCAG focus trap + Escape-to-close.
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     if (open) setMessage("");
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   const m = useMutation({
     mutationFn: async () => {
