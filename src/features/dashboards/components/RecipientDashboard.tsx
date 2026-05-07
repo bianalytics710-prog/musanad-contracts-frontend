@@ -140,7 +140,7 @@ export function RecipientDashboard() {
                   <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-card">
                     <PenLine className="h-4 w-4" />
                     {t("dashboards.recipient.hero.signCta", {
-                      defaultValue: "Open & sign",
+                      defaultValue: "Review and sign",
                     })}
                     <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                   </div>

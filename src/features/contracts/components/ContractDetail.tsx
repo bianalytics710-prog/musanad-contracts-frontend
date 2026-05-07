@@ -131,10 +131,16 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   // R-LC2 LC-E9 — legal counsel may keep Edit (for redlining) but does not
   // need Payments / Signatures tabs (drafter/admin context). Hide both
   // when the active user role is exactly legal_counsel.
+  // R-RC1 — recipients are external counterparty signers. They sign;
+  // they don't draft, edit, version, or audit. Hide every drafter-context
+  // surface (Overview/Edit/Payments/Versions/Activity/Signatures/Tree),
+  // hide the AI insights panel, and narrow the More-actions menu to
+  // export-only.
   const userRole = useAuthStore((s) => s.user?.role.name ?? null);
   const isLegalCounselOnly = userRole === "legal_counsel";
-  const canSeePaymentsTab = canEdit && !isLegalCounselOnly;
-  const canSeeSignaturesTab = canEdit && !isLegalCounselOnly;
+  const isRecipientOnly = userRole === "contract_recipient";
+  const canSeePaymentsTab = canEdit && !isLegalCounselOnly && !isRecipientOnly;
+  const canSeeSignaturesTab = canEdit && !isLegalCounselOnly && !isRecipientOnly;
 
   const { data, isLoading, isError, error, refetch } = useContract(contractId);
 
@@ -252,29 +258,33 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           </div>
         </div>
         <div className="flex items-start gap-2">
-          {/* R5 audit — Watch toggle. */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              watchMutation.mutate({ id: contract.id, value: !(watching ?? false) })
-            }
-            disabled={watchMutation.isPending}
-            className="hidden sm:inline-flex"
-          >
-            {watching ? (
-              <>
-                <EyeOff className="h-3.5 w-3.5" />
-                {t("contracts.detail.actions.unwatch", { defaultValue: "Unwatch" })}
-              </>
-            ) : (
-              <>
-                <Eye className="h-3.5 w-3.5" />
-                {t("contracts.detail.actions.watch", { defaultValue: "Watch" })}
-              </>
-            )}
-          </Button>
+          {/* R5 audit — Watch toggle. R-RC1 — recipients are external
+              counterparty signers; the Watch toggle is a drafter/approver
+              affordance, not relevant to a one-off signer. */}
+          {!isRecipientOnly && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                watchMutation.mutate({ id: contract.id, value: !(watching ?? false) })
+              }
+              disabled={watchMutation.isPending}
+              className="hidden sm:inline-flex"
+            >
+              {watching ? (
+                <>
+                  <EyeOff className="h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.unwatch", { defaultValue: "Unwatch" })}
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3.5 w-3.5" />
+                  {t("contracts.detail.actions.watch", { defaultValue: "Watch" })}
+                </>
+              )}
+            </Button>
+          )}
           {/* R1 audit 8.1.4: approver-perspective top-level Approve CTA. */}
           {myPendingStep && contract.status === "in_approval" && (
             <Button
@@ -287,7 +297,33 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               {t("contracts.detail.actions.approve", { defaultValue: "Approve" })}
             </Button>
           )}
-          {canEdit && (
+          {/* R-RC1 — recipient-perspective top-level Sign CTA. Visible when
+              the user is a contract_recipient AND the contract is in a
+              signable bucket. The actual signing flow (token resolution +
+              navigation to /sign/{token}) is wired in R-RC2; this round
+              ships the affordance + click stub. */}
+          {isRecipientOnly &&
+            ["awaiting_counterparty", "awaiting_signature_employer", "awaiting_signature_counterparty"].includes(
+              contract.status as never,
+            ) && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() =>
+                  toast.info(
+                    t("contracts.detail.actions.signComingSoon", {
+                      defaultValue:
+                        "Signing flow wires to /sign/{token} in the next round.",
+                    }),
+                  )
+                }
+                className="hidden sm:inline-flex"
+              >
+                <FileSignature className="h-3.5 w-3.5" />
+                {t("contracts.detail.actions.sign", { defaultValue: "Sign" })}
+              </Button>
+            )}
+          {!isRecipientOnly && canEdit && (
             <Button
               type="button"
               variant="outline"
@@ -314,32 +350,40 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                 <DropdownMenuLabel>
                   {t("contracts.detail.moreActions", { defaultValue: "More actions" })}
                 </DropdownMenuLabel>
-                <DropdownMenuItem
-                  onSelect={() =>
-                    toast.info(
-                      t("contracts.detail.actions.duplicateComingSoon", {
-                        defaultValue: "Duplicate is coming in a future module.",
-                      }),
-                    )
-                  }
-                >
-                  <Copy className="me-2 h-3.5 w-3.5" />
-                  {t("contracts.detail.actions.duplicate", { defaultValue: "Duplicate" })}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() =>
-                    toast.info(
-                      t("contracts.detail.actions.saveAsTemplateComingSoon", {
-                        defaultValue: "Save as template is coming in a future module.",
-                      }),
-                    )
-                  }
-                >
-                  <FileStack className="me-2 h-3.5 w-3.5" />
-                  {t("contracts.detail.actions.saveAsTemplate", {
-                    defaultValue: "Save as template",
-                  })}
-                </DropdownMenuItem>
+                {/* R-RC1 — recipient More-actions menu narrows to export-only.
+                    Recipients are external counterparty signers; never show
+                    Duplicate / Save-as-template / Amend / Renew / Terminate /
+                    Archive / Delete. */}
+                {!isRecipientOnly && (
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      toast.info(
+                        t("contracts.detail.actions.duplicateComingSoon", {
+                          defaultValue: "Duplicate is coming in a future module.",
+                        }),
+                      )
+                    }
+                  >
+                    <Copy className="me-2 h-3.5 w-3.5" />
+                    {t("contracts.detail.actions.duplicate", { defaultValue: "Duplicate" })}
+                  </DropdownMenuItem>
+                )}
+                {!isRecipientOnly && (
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      toast.info(
+                        t("contracts.detail.actions.saveAsTemplateComingSoon", {
+                          defaultValue: "Save as template is coming in a future module.",
+                        }),
+                      )
+                    }
+                  >
+                    <FileStack className="me-2 h-3.5 w-3.5" />
+                    {t("contracts.detail.actions.saveAsTemplate", {
+                      defaultValue: "Save as template",
+                    })}
+                  </DropdownMenuItem>
+                )}
                 {/* R0 audit bug 8.5.1: Export is read-only — anyone who can
                     read the contract can export it. Lovable shows this for
                     every role. */}
@@ -372,36 +416,41 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                 </DropdownMenuItem>
                 {/* R5 audit 8.5.2 + R-LC2 LC-E13: Amend / Renew items match
                     Lovable. Both items disabled unless contract.status is
-                    fully_signed (Lovable parity). */}
-                <DropdownMenuItem
-                  disabled={contract.status !== "fully_signed"}
-                  onSelect={() =>
-                    toast.info(
-                      t("contracts.detail.actions.amendComingSoon", {
-                        defaultValue:
-                          "Amend will be available when the contract amendment workflow ships.",
-                      }),
-                    )
-                  }
-                >
-                  <FileSignature className="me-2 h-3.5 w-3.5" />
-                  {t("contracts.detail.actions.amend", { defaultValue: "Amend" })}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={contract.status !== "fully_signed"}
-                  onSelect={() =>
-                    toast.info(
-                      t("contracts.detail.actions.renewComingSoon", {
-                        defaultValue:
-                          "Renew will be available when the contract renewal workflow ships.",
-                      }),
-                    )
-                  }
-                >
-                  <RotateCcw className="me-2 h-3.5 w-3.5" />
-                  {t("contracts.detail.actions.renew", { defaultValue: "Renew" })}
-                </DropdownMenuItem>
-                {canChangeStatus && (
+                    fully_signed (Lovable parity).
+                    R-RC1 — hidden for recipient role. */}
+                {!isRecipientOnly && (
+                  <DropdownMenuItem
+                    disabled={contract.status !== "fully_signed"}
+                    onSelect={() =>
+                      toast.info(
+                        t("contracts.detail.actions.amendComingSoon", {
+                          defaultValue:
+                            "Amend will be available when the contract amendment workflow ships.",
+                        }),
+                      )
+                    }
+                  >
+                    <FileSignature className="me-2 h-3.5 w-3.5" />
+                    {t("contracts.detail.actions.amend", { defaultValue: "Amend" })}
+                  </DropdownMenuItem>
+                )}
+                {!isRecipientOnly && (
+                  <DropdownMenuItem
+                    disabled={contract.status !== "fully_signed"}
+                    onSelect={() =>
+                      toast.info(
+                        t("contracts.detail.actions.renewComingSoon", {
+                          defaultValue:
+                            "Renew will be available when the contract renewal workflow ships.",
+                        }),
+                      )
+                    }
+                  >
+                    <RotateCcw className="me-2 h-3.5 w-3.5" />
+                    {t("contracts.detail.actions.renew", { defaultValue: "Renew" })}
+                  </DropdownMenuItem>
+                )}
+                {!isRecipientOnly && canChangeStatus && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -445,7 +494,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                     </DropdownMenuItem>
                   </>
                 )}
-                {canDelete && (
+                {!isRecipientOnly && canDelete && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -486,9 +535,14 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         aria-label={t("contracts.detail.tabsLabel")}
         className="flex flex-wrap gap-1 border-b border-border"
       >
-        <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>
-          {t("contracts.detail.tabs.overview")}
-        </TabButton>
+        {/* R-RC1 — recipients see only Document / Attachments / Comments / Activity.
+            Overview / Edit / Payments / Versions / Signatures / Tree are drafter
+            or admin context surfaces and are hidden here. */}
+        {!isRecipientOnly && (
+          <TabButton active={tab === "overview"} onClick={() => setTab("overview")}>
+            {t("contracts.detail.tabs.overview")}
+          </TabButton>
+        )}
         <TabButton active={tab === "document"} onClick={() => setTab("document")}>
           <FileTextIcon className="h-3.5 w-3.5" />
           {t("contracts.detail.tabs.document", { defaultValue: "Document" })}
@@ -502,7 +556,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         {/* R1 audit 8.2.2: Edit / Payments / Signatures are drafter-context
             tabs. Lovable doesn't surface them to approvers. Gate by canEdit
             (proxy for "can mutate this contract"). */}
-        {canEdit && (
+        {!isRecipientOnly && canEdit && (
           <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
             {t("contracts.detail.tabs.edit")}
           </TabButton>
@@ -513,9 +567,11 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             {t("contracts.detail.tabs.payments")}
           </TabButton>
         )}
-        <TabButton active={tab === "versions"} onClick={() => setTab("versions")}>
-          {t("contracts.detail.tabs.versions")}
-        </TabButton>
+        {!isRecipientOnly && (
+          <TabButton active={tab === "versions"} onClick={() => setTab("versions")}>
+            {t("contracts.detail.tabs.versions")}
+          </TabButton>
+        )}
         <TabButton active={tab === "activity"} onClick={() => setTab("activity")}>
           {t("contracts.detail.tabs.activity")}
         </TabButton>
@@ -524,10 +580,12 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             {t("contracts.detail.tabs.signatures")}
           </TabButton>
         )}
-        <TabButton active={tab === "tree"} onClick={() => setTab("tree")}>
-          <GitBranch className="h-3.5 w-3.5" />
-          {t("contracts.detail.tabs.tree")}
-        </TabButton>
+        {!isRecipientOnly && (
+          <TabButton active={tab === "tree"} onClick={() => setTab("tree")}>
+            <GitBranch className="h-3.5 w-3.5" />
+            {t("contracts.detail.tabs.tree")}
+          </TabButton>
+        )}
       </div>
 
       {/* Tab panels */}
@@ -549,8 +607,11 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       )}
       {tab === "tree" && <ContractTreeTimeline contractId={contract.id} />}
 
-      {/* Inline AI insights — Lovable layout */}
-      <ContractAIInsightsPanel contractId={contract.id} />
+      {/* Inline AI insights — Lovable layout.
+          R-RC1 — recipients are external counterparty signers and don't
+          hold ai.invoke.contract; hide the panel rather than render an
+          empty/forbidden state. */}
+      {!isRecipientOnly && <ContractAIInsightsPanel contractId={contract.id} />}
 
       {/* Modals */}
       {statusOpen && (

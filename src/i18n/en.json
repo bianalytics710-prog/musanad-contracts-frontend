@@ -5508,6 +5508,10 @@
         "invitationSent": "Invitation sent",
         "invitationExpires": "Expires"
       },
+      "hero": {
+        "kicker": "Awaiting your signature",
+        "signCta": "Review and sign"
+      },
       "errors": {
         "loadFailed": "Could not load the recipient dashboard."
       }
