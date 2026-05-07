@@ -230,6 +230,37 @@ export const signatureService = {
     return data;
   },
 
+  // ── R-RC2 — In-app self-service signing-link resolver ────────────────────
+  /**
+   * POST /api/v1/contracts/:id/signing-link/self (authed).
+   * For an authenticated signer (typically a recipient): rolls the existing
+   * pending|viewed|expired invitation to a fresh /sign/{token} URL so the
+   * FE can navigate the user directly into the public signing UI without
+   * making them open the email. Caller-bound on the BE; rejects with 403
+   * if the actor is not a signer on the contract, 410 if the invitation
+   * is in a terminal state.
+   */
+  resolveSigningLinkForSelf: async (
+    contractId: number,
+  ): Promise<{
+    newInvitationId: number;
+    invitationTokenPlaintext: string;
+    expiresAt: string;
+    contractId: number;
+    signaturePartyId: number;
+  }> => {
+    const { data } = await apiClient.post<{
+      data: {
+        newInvitationId: number;
+        invitationTokenPlaintext: string;
+        expiresAt: string;
+        contractId: number;
+        signaturePartyId: number;
+      };
+    }>(`${CONTRACTS_BASE}/${contractId}/signing-link/self`);
+    return data.data;
+  },
+
   // ── S7 — resend invitation ───────────────────────────────────────────────
   /** POST /api/v1/signature-parties/:id/resend (authed). */
   resendInvitation: async (

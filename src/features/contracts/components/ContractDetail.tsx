@@ -87,6 +87,7 @@ import { ContractSignaturesTab } from "@/features/signatures/components/Contract
 import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
 import { approvalService } from "@/services/api/approval.service";
+import { signatureService } from "@/services/api/signature.service";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
@@ -299,9 +300,11 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           )}
           {/* R-RC1 — recipient-perspective top-level Sign CTA. Visible when
               the user is a contract_recipient AND the contract is in a
-              signable bucket. The actual signing flow (token resolution +
-              navigation to /sign/{token}) is wired in R-RC2; this round
-              ships the affordance + click stub. */}
+              signable bucket.
+              R-RC2 — click resolves the actor's pending invitation server-
+              side (caller-bound BE fn), receives a fresh plaintext token,
+              and navigates to the public /sign/{token} signing UI. The
+              old invitation is rolled to invalidate any leaked link. */}
           {isRecipientOnly &&
             ["awaiting_counterparty", "awaiting_signature_employer", "awaiting_signature_counterparty"].includes(
               contract.status as never,
@@ -309,14 +312,16 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               <Button
                 type="button"
                 size="sm"
-                onClick={() =>
-                  toast.info(
-                    t("contracts.detail.actions.signComingSoon", {
-                      defaultValue:
-                        "Signing flow wires to /sign/{token} in the next round.",
-                    }),
-                  )
-                }
+                onClick={async () => {
+                  try {
+                    const r = await signatureService.resolveSigningLinkForSelf(contract.id);
+                    // Navigate to the public /sign/{token} route. Use a
+                    // hard navigation since /sign is outside the auth shell.
+                    window.location.href = `/sign/${encodeURIComponent(r.invitationTokenPlaintext)}`;
+                  } catch (e) {
+                    toast.error(translateApiError(e, t));
+                  }
+                }}
                 className="hidden sm:inline-flex"
               >
                 <FileSignature className="h-3.5 w-3.5" />
