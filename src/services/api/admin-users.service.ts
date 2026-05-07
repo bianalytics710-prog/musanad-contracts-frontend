@@ -16,15 +16,15 @@ export interface AdminUserListItem {
 
 export interface AdminUserListResponse {
   data: AdminUserListItem[];
-  pagination: { total: number; limit: number; offset: number };
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 export const adminUsersService = {
   list: async (params: {
-    q?: string;
+    search?: string;
     roleId?: number;
+    page?: number;
     limit?: number;
-    offset?: number;
   } = {}): Promise<AdminUserListResponse> => {
     const { data } = await apiClient.get<AdminUserListResponse>(
       "/api/v1/users",

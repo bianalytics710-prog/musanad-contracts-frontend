@@ -322,10 +322,10 @@ export function AdminAICostDashboard() {
                           {formatUsdMicros(row.totalCostUsdMicros)}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs">
-                          {row.totalTokensInput.toLocaleString()}
+                          {(row.totalTokensInput ?? 0).toLocaleString()}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs">
-                          {row.totalTokensOutput.toLocaleString()}
+                          {(row.totalTokensOutput ?? 0).toLocaleString()}
                         </td>
                         <td className="px-3 py-2 font-mono text-xs">
                           {row.successCount}

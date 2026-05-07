@@ -36,7 +36,7 @@ function AdminUsersView() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-users", debounced],
     queryFn: () =>
-      adminUsersService.list({ q: debounced || undefined, limit: 200 }),
+      adminUsersService.list({ search: debounced || undefined, limit: 100 }),
     staleTime: 60_000,
   });
 
