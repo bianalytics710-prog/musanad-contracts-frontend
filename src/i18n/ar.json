@@ -357,6 +357,8 @@
     "adminBranding": "الهوية البصرية",
     "adminConfig": "الإعدادات",
     "adminImports": "الاستيراد",
+    "adminSources": "المصادر",
+    "adminSourceHealth": "صحة المصادر",
     "radar": "رادار التأثير",
     "impact": "مراقبة التأثير",
     "impactRadar": "رادار التأثير",
@@ -3588,6 +3590,218 @@
       },
       "pagination": {
         "label": "صفحة {{page}} من {{totalPages}}"
+      }
+    },
+    "sources": {
+      "title": "المصادر",
+      "subtitle": "إدارة مصادر بيانات OSINT الخارجية.",
+      "totalLabel": "الإجمالي",
+      "disabled": "مُعطَّل",
+      "empty": {
+        "title": "لا توجد مصادر مُعدَّة",
+        "body": "أضف مصدر OSINT الأول لبدء استقبال الإشارات.",
+        "cta": "إضافة مصدر"
+      },
+      "filters": {
+        "kind": "النوع",
+        "state": "الصحة",
+        "search": "بحث"
+      },
+      "filter": {
+        "kind": {
+          "all": "الكل",
+          "label": "النوع",
+          "sanctions": "العقوبات",
+          "news": "الأخبار",
+          "weather": "الطقس",
+          "commodity": "السلع",
+          "fx": "العملات الأجنبية",
+          "social": "وسائل التواصل",
+          "regulatory": "تنظيمي",
+          "internal": "داخلي"
+        },
+        "state": {
+          "all": "الكل",
+          "label": "الصحة",
+          "healthy": "سليم",
+          "degraded": "متدهور",
+          "failing": "يفشل",
+          "unauthorised": "غير مُصرَّح"
+        },
+        "search": {
+          "placeholder": "ابحث بمعرّف المصدر أو الاسم المعروض…"
+        }
+      },
+      "actions": {
+        "add": "إضافة مصدر",
+        "edit": "تعديل",
+        "delete": "حذف المصدر",
+        "testPull": "اختبار السحب"
+      },
+      "tile": {
+        "lastSuccess": "آخر نجاح",
+        "signalsLast24h": "الإشارات (24س)",
+        "errorPreview": "خطأ"
+      },
+      "kind": {
+        "sanctions": "العقوبات",
+        "news": "الأخبار",
+        "weather": "الطقس",
+        "commodity": "السلع",
+        "fx": "العملات الأجنبية",
+        "social": "وسائل التواصل",
+        "regulatory": "تنظيمي",
+        "internal": "داخلي"
+      },
+      "format": {
+        "xml": "XML",
+        "csv": "CSV",
+        "json": "JSON",
+        "rss": "RSS",
+        "api": "API"
+      },
+      "severity": {
+        "informational": "إعلامي",
+        "low": "منخفض",
+        "medium": "متوسط",
+        "high": "مرتفع",
+        "critical": "حرج"
+      },
+      "dataClassification": {
+        "demo": "تجريبي",
+        "pilot": "تمهيدي",
+        "production": "إنتاج"
+      },
+      "form": {
+        "sourceId": {
+          "label": "معرّف المصدر",
+          "immutable": "معرّف المصدر غير قابل للتعديل بعد الإنشاء."
+        },
+        "displayName": { "label": "الاسم المعروض" },
+        "displayNameAr": { "label": "الاسم المعروض (عربي)" },
+        "kind": { "label": "النوع" },
+        "url": { "label": "الرابط" },
+        "format": { "label": "الصيغة" },
+        "refreshSeconds": {
+          "label": "تردّد التحديث (ثانية)",
+          "minError": "يجب أن لا تقل عن 60 ثانية."
+        },
+        "sourceReliability": { "label": "الموثوقية (0–1)" },
+        "enabled": { "label": "مُفعَّل" },
+        "licensingNote": { "label": "ملاحظة الترخيص" },
+        "dataClassification": { "label": "تصنيف البيانات" },
+        "rateLimit": {
+          "label": "حدّ المعدّل",
+          "callsPerMinute": "الطلبات / دقيقة",
+          "burst": "الذروة",
+          "minIntervalMs": "أدنى فاصل (ميلي ثانية)",
+          "respectRetryAfter": "احترام رؤوس Retry-After"
+        },
+        "severityMapping": {
+          "label": "تعيين الخطورة",
+          "empty": "لا توجد قواعد. أضف القاعدة الأولى أدناه.",
+          "add": "إضافة قاعدة",
+          "remove": "حذف القاعدة",
+          "titleContains": "العنوان يحتوي على",
+          "programContains": "البرنامج يحتوي على",
+          "severity": "الخطورة",
+          "editRaw": "تعديل JSON خام",
+          "editForm": "التحويل إلى نموذج",
+          "rawHint": "JSON خام ({ rules: [...] })",
+          "invalidShape": "يجب أن يكون التعيين بصيغة { rules: [...] }"
+        },
+        "geographyFilter": {
+          "label": "مُرشِّح الجغرافيا",
+          "countryIn": "أكواد البلدان (مفصولة بفاصلة)",
+          "themeIn": "المواضيع (مفصولة بفاصلة)",
+          "actorIn": "الفاعلون (مفصولون بفاصلة)"
+        }
+      },
+      "credential": {
+        "section": "بيانات الاعتماد",
+        "kindLabel": "النوع",
+        "refLabel": "المرجع",
+        "placeholder": "<مشفر>",
+        "formatHint": "استخدم env:VARNAME أو vault:path — لا تستخدم أسرارًا بنص صريح.",
+        "formatError": "يجب أن يستخدم credentialRef مخطط env: أو vault:.",
+        "replace": "استبدال بيانات الاعتماد",
+        "set": "حفظ بيانات الاعتماد",
+        "update": "تحديث بيانات الاعتماد",
+        "saving": "جارٍ الحفظ…",
+        "lastRotated": "آخر تدوير:",
+        "kind": {
+          "api_key": "مفتاح API",
+          "oauth_token": "رمز OAuth",
+          "basic_auth": "مصادقة أساسية",
+          "none": "بلا"
+        }
+      },
+      "testPull": {
+        "button": "اختبار السحب",
+        "running": "جارٍ التهيئة…",
+        "queued": "تمت جدولة اختبار السحب — يجري جلب أحدث الإشارات.",
+        "success": "اكتمل اختبار السحب — {{added}} إشارة جديدة، {{duplicate}} مكررة",
+        "failed": "فشل اختبار السحب."
+      },
+      "delete": {
+        "confirm": {
+          "title": "حذف المصدر",
+          "body": "هل تريد الحذف الناعم لـ \"{{name}}\"؟ ستظل الإشارات الحالية قابلة للاستعلام."
+        },
+        "confirmCta": "حذف المصدر",
+        "deleting": "جارٍ الحذف…"
+      },
+      "add": {
+        "title": "إضافة مصدر OSINT",
+        "description": "تسجيل تغذية خارجية جديدة. بعد الإنشاء، حدّد بيانات الاعتماد ثم شغّل اختبار سحب من صفحة التفاصيل.",
+        "confirm": "إنشاء المصدر",
+        "saving": "جارٍ الإنشاء…"
+      },
+      "detail": {
+        "back": "العودة إلى المصادر",
+        "basics": "الأساسيات",
+        "saving": "جارٍ الحفظ…",
+        "lastUpdated": "آخر تحديث:",
+        "fetchFailed": "تعذّر تحميل المصدر.",
+        "invalidId": "معرّف المصدر غير صالح."
+      },
+      "health": {
+        "title": "صحة المصادر",
+        "subtitle": "حالة المحوّلات حسب المصدر. يتم التحديث كل 5 دقائق بواسطة مهمة فحص الصحة.",
+        "lastSuccess": "آخر نجاح",
+        "lastFailure": "آخر فشل",
+        "signals24h": "الإشارات (24س)",
+        "lastChecked": "آخر فحص",
+        "summary": "ملخص",
+        "state": {
+          "healthy": "سليم",
+          "degraded": "متدهور",
+          "failing": "يفشل",
+          "unauthorised": "غير مُصرَّح"
+        },
+        "col": {
+          "source": "المصدر",
+          "kind": "النوع",
+          "state": "الحالة",
+          "lastSuccess": "آخر نجاح",
+          "lastFailure": "آخر فشل",
+          "signals24h": "الإشارات (24س)",
+          "error": "خطأ"
+        }
+      },
+      "toast": {
+        "created": "تم إنشاء المصدر.",
+        "updated": "تم تحديث المصدر.",
+        "deleted": "تم تعطيل المصدر. ستظل الإشارات الحالية قابلة للاستعلام.",
+        "credentialSaved": "تم حفظ بيانات الاعتماد.",
+        "createFailed": "تعذّر إنشاء المصدر.",
+        "updateFailed": "تعذّر تحديث المصدر.",
+        "deleteFailed": "تعذّر حذف المصدر.",
+        "credentialFailed": "تعذّر حفظ بيانات الاعتماد."
+      },
+      "error": {
+        "fetch": "تعذّر تحميل المصادر.",
+        "retry": "إعادة المحاولة"
       }
     }
   },

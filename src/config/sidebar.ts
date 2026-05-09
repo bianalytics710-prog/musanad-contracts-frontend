@@ -23,6 +23,7 @@ import {
   Palette,
   Settings as SettingsIcon,
   Activity,
+  Globe,
 } from "lucide-react";
 
 export type AppRole =
@@ -135,6 +136,8 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/audit",                labelKey: "nav.adminAudit",    defaultLabel: "Audit log",       icon: ScrollText },
   { to: "/app/admin/config",               labelKey: "nav.adminConfig",   defaultLabel: "Configuration",   icon: SettingsIcon },
   { to: "/app/admin/health",               labelKey: "nav.adminHealth",   defaultLabel: "Health",          icon: Activity },
+  { to: "/app/admin/sources",              labelKey: "nav.adminSources",  defaultLabel: "Sources",         icon: Globe },
+  { to: "/app/admin/source-health",        labelKey: "nav.adminSourceHealth", defaultLabel: "Source health", icon: Activity },
   { to: "/app/admin/approval-matrix",      labelKey: "nav.adminMatrix",   defaultLabel: "Approval matrix", icon: KeyRound },
   { to: "/app/admin/approval-chains",      labelKey: "nav.adminChains",   defaultLabel: "Approval chains", icon: KeyRound },
   { to: "/app/admin/regulations",          labelKey: "nav.adminRegs",     defaultLabel: "Regulations",     icon: Scale },

@@ -357,6 +357,8 @@
     "adminBranding": "Branding",
     "adminConfig": "Configuration",
     "adminImports": "Imports",
+    "adminSources": "Sources",
+    "adminSourceHealth": "Source health",
     "radar": "Impact Radar",
     "impact": "Impact Watch",
     "impactRadar": "Impact Radar",
@@ -3588,6 +3590,218 @@
       },
       "pagination": {
         "label": "Page {{page}} of {{totalPages}}"
+      }
+    },
+    "sources": {
+      "title": "Sources",
+      "subtitle": "Manage external OSINT data sources.",
+      "totalLabel": "Total",
+      "disabled": "Disabled",
+      "empty": {
+        "title": "No sources configured",
+        "body": "Add your first OSINT source to start ingesting signals.",
+        "cta": "Add source"
+      },
+      "filters": {
+        "kind": "Kind",
+        "state": "Health",
+        "search": "Search"
+      },
+      "filter": {
+        "kind": {
+          "all": "All",
+          "label": "Kind",
+          "sanctions": "Sanctions",
+          "news": "News",
+          "weather": "Weather",
+          "commodity": "Commodity",
+          "fx": "FX",
+          "social": "Social",
+          "regulatory": "Regulatory",
+          "internal": "Internal"
+        },
+        "state": {
+          "all": "All",
+          "label": "Health",
+          "healthy": "Healthy",
+          "degraded": "Degraded",
+          "failing": "Failing",
+          "unauthorised": "Unauthorised"
+        },
+        "search": {
+          "placeholder": "Search by source ID or display name…"
+        }
+      },
+      "actions": {
+        "add": "Add source",
+        "edit": "Edit",
+        "delete": "Delete source",
+        "testPull": "Test pull"
+      },
+      "tile": {
+        "lastSuccess": "Last success",
+        "signalsLast24h": "Signals (24h)",
+        "errorPreview": "Error"
+      },
+      "kind": {
+        "sanctions": "Sanctions",
+        "news": "News",
+        "weather": "Weather",
+        "commodity": "Commodity",
+        "fx": "FX",
+        "social": "Social",
+        "regulatory": "Regulatory",
+        "internal": "Internal"
+      },
+      "format": {
+        "xml": "XML",
+        "csv": "CSV",
+        "json": "JSON",
+        "rss": "RSS",
+        "api": "API"
+      },
+      "severity": {
+        "informational": "Informational",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "dataClassification": {
+        "demo": "Demo",
+        "pilot": "Pilot",
+        "production": "Production"
+      },
+      "form": {
+        "sourceId": {
+          "label": "Source ID",
+          "immutable": "Source ID is immutable after creation."
+        },
+        "displayName": { "label": "Display name" },
+        "displayNameAr": { "label": "Display name (Arabic)" },
+        "kind": { "label": "Kind" },
+        "url": { "label": "URL" },
+        "format": { "label": "Format" },
+        "refreshSeconds": {
+          "label": "Refresh (seconds)",
+          "minError": "Must be at least 60 seconds."
+        },
+        "sourceReliability": { "label": "Reliability (0–1)" },
+        "enabled": { "label": "Enabled" },
+        "licensingNote": { "label": "Licensing note" },
+        "dataClassification": { "label": "Data classification" },
+        "rateLimit": {
+          "label": "Rate limit",
+          "callsPerMinute": "Calls / minute",
+          "burst": "Burst",
+          "minIntervalMs": "Min interval (ms)",
+          "respectRetryAfter": "Respect Retry-After headers"
+        },
+        "severityMapping": {
+          "label": "Severity mapping",
+          "empty": "No rules. Add the first rule below.",
+          "add": "Add rule",
+          "remove": "Remove rule",
+          "titleContains": "Title contains",
+          "programContains": "Program contains",
+          "severity": "Severity",
+          "editRaw": "Edit raw JSON",
+          "editForm": "Switch to form",
+          "rawHint": "Raw JSON ({ rules: [...] })",
+          "invalidShape": "Mapping must be { rules: [...] }"
+        },
+        "geographyFilter": {
+          "label": "Geography filter",
+          "countryIn": "Country codes (comma-separated)",
+          "themeIn": "Themes (comma-separated)",
+          "actorIn": "Actors (comma-separated)"
+        }
+      },
+      "credential": {
+        "section": "Credential",
+        "kindLabel": "Kind",
+        "refLabel": "Reference",
+        "placeholder": "<encrypted>",
+        "formatHint": "Use env:VARNAME or vault:path — never plain-text secrets.",
+        "formatError": "credentialRef must use env: or vault: scheme.",
+        "replace": "Replace credential",
+        "set": "Save credential",
+        "update": "Update credential",
+        "saving": "Saving…",
+        "lastRotated": "Last rotated:",
+        "kind": {
+          "api_key": "API key",
+          "oauth_token": "OAuth token",
+          "basic_auth": "Basic auth",
+          "none": "None"
+        }
+      },
+      "testPull": {
+        "button": "Test pull",
+        "running": "Queueing…",
+        "queued": "Test pull queued — fetching latest signals.",
+        "success": "Test pull complete — {{added}} new signals, {{duplicate}} duplicates",
+        "failed": "Test pull failed."
+      },
+      "delete": {
+        "confirm": {
+          "title": "Delete source",
+          "body": "Soft-delete \"{{name}}\"? Existing signals will remain queryable."
+        },
+        "confirmCta": "Delete source",
+        "deleting": "Deleting…"
+      },
+      "add": {
+        "title": "Add OSINT source",
+        "description": "Register a new external feed. After creation, set the credential and trigger a test pull from the detail page.",
+        "confirm": "Create source",
+        "saving": "Creating…"
+      },
+      "detail": {
+        "back": "Back to sources",
+        "basics": "Basics",
+        "saving": "Saving…",
+        "lastUpdated": "Last updated:",
+        "fetchFailed": "Could not load source.",
+        "invalidId": "Invalid source identifier."
+      },
+      "health": {
+        "title": "Source health",
+        "subtitle": "Adapter status by source. Updated every 5 minutes by the health-check cron.",
+        "lastSuccess": "Last success",
+        "lastFailure": "Last failure",
+        "signals24h": "Signals (24h)",
+        "lastChecked": "Last checked",
+        "summary": "Summary",
+        "state": {
+          "healthy": "Healthy",
+          "degraded": "Degraded",
+          "failing": "Failing",
+          "unauthorised": "Unauthorised"
+        },
+        "col": {
+          "source": "Source",
+          "kind": "Kind",
+          "state": "State",
+          "lastSuccess": "Last success",
+          "lastFailure": "Last failure",
+          "signals24h": "Signals (24h)",
+          "error": "Error"
+        }
+      },
+      "toast": {
+        "created": "Source created.",
+        "updated": "Source updated.",
+        "deleted": "Source deactivated. Existing signals remain queryable.",
+        "credentialSaved": "Credential saved.",
+        "createFailed": "Could not create source.",
+        "updateFailed": "Could not update source.",
+        "deleteFailed": "Could not delete source.",
+        "credentialFailed": "Could not save credential."
+      },
+      "error": {
+        "fetch": "Could not load sources.",
+        "retry": "Retry"
       }
     }
   },
