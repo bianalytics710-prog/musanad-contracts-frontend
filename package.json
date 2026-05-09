@@ -14,7 +14,10 @@
     "format": "prettier --write .",
     "typecheck": "node --max-old-space-size=512 ./node_modules/typescript/bin/tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.13.5",
@@ -64,6 +67,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.59.1",
     "@tanstack/router-plugin": "^1.130.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
