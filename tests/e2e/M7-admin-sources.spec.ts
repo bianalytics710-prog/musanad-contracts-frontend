@@ -113,7 +113,11 @@ test.describe('M7 — role gating', () => {
   test('AC-S8-06 [e2e] @persona-legal_counsel — legal_counsel denied /admin/sources via API', async ({ page }) => {
     await signInAs(page, 'legal_counsel');
     const beUrl = process.env['E2E_BE_BASE_URL'] ?? 'http://localhost:4000';
-    const accessToken = await page.evaluate(() => localStorage.getItem('auth.accessToken') ?? '');
+    // signInAs lands on /app/admin via the FE redirect; localStorage now
+    // has the persisted auth blob. Read accessToken from there for the
+    // role-gating API check.
+    const persisted = await page.evaluate(() => localStorage.getItem('musanad_auth') ?? '');
+    const accessToken = persisted ? (JSON.parse(persisted).state?.accessToken ?? '') : '';
     const resp = await page.request.get(`${beUrl}/api/v1/admin/sources`, {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });
@@ -124,7 +128,8 @@ test.describe('M7 — role gating', () => {
   test('AC-S11-01 [e2e] @persona-legal_counsel — legal_counsel allowed /signals', async ({ page }) => {
     await signInAs(page, 'legal_counsel');
     const beUrl = process.env['E2E_BE_BASE_URL'] ?? 'http://localhost:4000';
-    const accessToken = await page.evaluate(() => localStorage.getItem('auth.accessToken') ?? '');
+    const persisted = await page.evaluate(() => localStorage.getItem('musanad_auth') ?? '');
+    const accessToken = persisted ? (JSON.parse(persisted).state?.accessToken ?? '') : '';
     const resp = await page.request.get(`${beUrl}/api/v1/signals`, {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
     });

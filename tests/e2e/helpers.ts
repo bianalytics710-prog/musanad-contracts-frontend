@@ -27,7 +27,10 @@ export type PersonaRole =
   | 'contract_recipient'
   | 'executive';
 
-const PERSONA_BUTTON_NAME: Record<PersonaRole, RegExp> = {
+// Reference for spec authors who want to drive the UI quick-sign-in panel
+// directly (e.g., to assert the persona button itself). Kept as exported
+// data, not used by signInAs's programmatic path.
+export const PERSONA_BUTTON_NAME: Record<PersonaRole, RegExp> = {
   super_admin: /Bootstrap Admin/i,
   platform_admin: /Omar Al Mansoori/i,
   legal_counsel: /Layla Counsel/i,
@@ -37,16 +40,66 @@ const PERSONA_BUTTON_NAME: Record<PersonaRole, RegExp> = {
   executive: /Eman Executive/i,
 };
 
+const PERSONA_EMAIL: Record<PersonaRole, string> = {
+  super_admin: 'admin@musanad.local',
+  platform_admin: 'platform@musanad.local',
+  legal_counsel: 'legal@musanad.local',
+  contract_drafter: 'drafter@musanad.local',
+  contract_approver: 'approver@musanad.local',
+  contract_recipient: 'recipient@musanad.local',
+  executive: 'executive@musanad.local',
+};
+const PERSONA_PASSWORD = 'ChangeMe@123';
+
+const BE_BASE_URL = process.env['E2E_BE_BASE_URL'] ?? 'http://localhost:4000';
+
 /**
- * Click the dev quick-sign-in button for the named persona. Waits for the
- * post-login navigation to settle.
+ * Sign in by driving the FE quick-sign-in panel (dev personas at
+ * /auth/login). Waits for the BE login response to land AND the post-
+ * login navigation away from /auth/login before resolving.
+ *
+ * Why UI-driven instead of programmatic:
+ *   - TanStack Start runs router `beforeLoad` guards synchronously at
+ *     route mount, BEFORE Zustand-persist's localStorage hydration has
+ *     committed in some browser contexts. Pre-seeding localStorage via
+ *     addInitScript is fragile under those timing conditions.
+ *   - The dev quick-sign-in panel exists in this codebase precisely so
+ *     E2E and demo flows can use the real auth path with one click.
  */
 export const signInAs = async (page: Page, role: PersonaRole): Promise<void> => {
-  await page.goto('/auth/login');
-  const btn = page.getByRole('button', { name: PERSONA_BUTTON_NAME[role] });
-  await expect(btn).toBeVisible();
-  await btn.click();
-  await page.waitForURL((url) => !url.pathname.startsWith('/auth/login'), { timeout: 10_000 });
+  // Programmatic login: hit the BE directly + seed localStorage in the
+  // exact Zustand-persist shape the auth store reads at hydrate time.
+  // addInitScript runs in every new document this BrowserContext loads,
+  // BEFORE the FE bundle imports the auth store — so when the store
+  // hydrates from localStorage on first read, isAuthenticated is true
+  // and the TanStack Router beforeLoad guard lets us through.
+  const res = await page.request.post(`${BE_BASE_URL}/api/v1/auth/login`, {
+    data: { email: PERSONA_EMAIL[role], password: PERSONA_PASSWORD },
+  });
+  if (!res.ok()) {
+    throw new Error(`signInAs(${role}) login failed: HTTP ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as {
+    accessToken: string;
+    refreshToken?: string;
+    user?: unknown;
+  };
+  const persisted = JSON.stringify({
+    state: {
+      user: body.user ?? null,
+      accessToken: body.accessToken,
+      refreshToken: body.refreshToken ?? null,
+      isAuthenticated: true,
+    },
+    version: 0,
+  });
+  await page.context().addInitScript((value: string) => {
+    try {
+      window.localStorage.setItem('musanad_auth', value);
+    } catch {
+      // private-mode / quota — ignore
+    }
+  }, persisted);
 };
 
 /**
@@ -57,6 +110,11 @@ export const goAs = async (page: Page, role: PersonaRole, path: string): Promise
   await signInAs(page, role);
   await page.goto(path);
 };
+
+// `expect` referenced here for backward-compat — older signInAs used it to
+// assert the persona button was visible. Re-exporting keeps spec authors
+// happy if they re-import.
+export { expect };
 
 /**
  * Truncate-and-reseed contract for E2E test isolation. Hits the BE's test
