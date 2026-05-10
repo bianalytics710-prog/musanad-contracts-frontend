@@ -138,6 +138,7 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/health",               labelKey: "nav.adminHealth",   defaultLabel: "Health",          icon: Activity },
   { to: "/app/admin/sources",              labelKey: "nav.adminSources",  defaultLabel: "Sources",         icon: Globe },
   { to: "/app/admin/source-health",        labelKey: "nav.adminSourceHealth", defaultLabel: "Source health", icon: Activity },
+  { to: "/app/admin/internal-signal-kinds", labelKey: "nav.adminInternalSignalKinds", defaultLabel: "Internal signal kinds", icon: Radar },
   { to: "/app/admin/approval-matrix",      labelKey: "nav.adminMatrix",   defaultLabel: "Approval matrix", icon: KeyRound },
   { to: "/app/admin/approval-chains",      labelKey: "nav.adminChains",   defaultLabel: "Approval chains", icon: KeyRound },
   { to: "/app/admin/regulations",          labelKey: "nav.adminRegs",     defaultLabel: "Regulations",     icon: Scale },

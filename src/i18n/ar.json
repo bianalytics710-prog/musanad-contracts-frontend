@@ -365,7 +365,8 @@
     "home": "الرئيسية",
     "more": "المزيد",
     "notifications": "الإشعارات",
-    "enterpriseView": "عرض المؤسسة"
+    "enterpriseView": "عرض المؤسسة",
+    "adminInternalSignalKinds": "أنواع الإشارات الداخلية"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -3677,19 +3678,37 @@
           "label": "معرّف المصدر",
           "immutable": "معرّف المصدر غير قابل للتعديل بعد الإنشاء."
         },
-        "displayName": { "label": "الاسم المعروض" },
-        "displayNameAr": { "label": "الاسم المعروض (عربي)" },
-        "kind": { "label": "النوع" },
-        "url": { "label": "الرابط" },
-        "format": { "label": "الصيغة" },
+        "displayName": {
+          "label": "الاسم المعروض"
+        },
+        "displayNameAr": {
+          "label": "الاسم المعروض (عربي)"
+        },
+        "kind": {
+          "label": "النوع"
+        },
+        "url": {
+          "label": "الرابط"
+        },
+        "format": {
+          "label": "الصيغة"
+        },
         "refreshSeconds": {
           "label": "تردّد التحديث (ثانية)",
           "minError": "يجب أن لا تقل عن 60 ثانية."
         },
-        "sourceReliability": { "label": "الموثوقية (0–1)" },
-        "enabled": { "label": "مُفعَّل" },
-        "licensingNote": { "label": "ملاحظة الترخيص" },
-        "dataClassification": { "label": "تصنيف البيانات" },
+        "sourceReliability": {
+          "label": "الموثوقية (0–1)"
+        },
+        "enabled": {
+          "label": "مُفعَّل"
+        },
+        "licensingNote": {
+          "label": "ملاحظة الترخيص"
+        },
+        "dataClassification": {
+          "label": "تصنيف البيانات"
+        },
         "rateLimit": {
           "label": "حدّ المعدّل",
           "callsPerMinute": "الطلبات / دقيقة",
@@ -3802,6 +3821,52 @@
       "error": {
         "fetch": "تعذّر تحميل المصادر.",
         "retry": "إعادة المحاولة"
+      }
+    },
+    "internalSignalKinds": {
+      "title": "أنواع الإشارات الداخلية",
+      "subtitle": "كتالوج إشارات المخاطر التشغيلية التي تُستوعَب عبر واجهة المحاكاة وتظهر في لوحات المعلومات.",
+      "loading": "جارٍ تحميل أنواع الإشارات الداخلية…",
+      "empty": {
+        "title": "لا توجد أنواع إشارات داخلية مُهيَّأة",
+        "body": "يُعبَّأ الكتالوج من خلال ترحيل M8. إذا كانت القائمة فارغة فلم يُشغَّل البذر لهذا المستأجر."
+      },
+      "error": {
+        "fetch": "تعذَّر تحميل أنواع الإشارات الداخلية.",
+        "retry": "إعادة المحاولة"
+      },
+      "columns": {
+        "signalType": "نوع الإشارة",
+        "displayName": "الاسم المعروض",
+        "defaultSeverity": "الخطورة الافتراضية",
+        "description": "الوصف",
+        "parameterSchema": "مخطَّط المعاملات"
+      },
+      "schema": {
+        "summary": "{{req}} مطلوب · {{opt}} اختياري",
+        "required": "مطلوب",
+        "optional": "اختياري"
+      },
+      "actions": {
+        "showSchema": "إظهار مخطَّط المعاملات",
+        "hideSchema": "إخفاء مخطَّط المعاملات"
+      },
+      "severity": {
+        "informational": "إعلامي",
+        "low": "منخفض",
+        "medium": "متوسط",
+        "high": "مرتفع",
+        "critical": "حرج"
+      },
+      "signalType": {
+        "milestone_slippage": "تأخُّر معلَم زمني",
+        "sla_breach": "خرق اتفاقية مستوى الخدمة",
+        "payment_delay": "تأخُّر السداد",
+        "invoice_dispute": "نزاع على فاتورة",
+        "vendor_incident": "حادث مورِّد",
+        "ics_incident": "حادث أنظمة تحكُّم صناعية",
+        "icv_status_change": "تغيُّر حالة القيمة المضافة داخل الدولة",
+        "certificate_expiry": "انتهاء صلاحية شهادة"
       }
     }
   },

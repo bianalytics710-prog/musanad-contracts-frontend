@@ -365,7 +365,8 @@
     "home": "Home",
     "more": "More",
     "notifications": "Notifications",
-    "enterpriseView": "Enterprise view"
+    "enterpriseView": "Enterprise view",
+    "adminInternalSignalKinds": "Internal signal kinds"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -3677,19 +3678,37 @@
           "label": "Source ID",
           "immutable": "Source ID is immutable after creation."
         },
-        "displayName": { "label": "Display name" },
-        "displayNameAr": { "label": "Display name (Arabic)" },
-        "kind": { "label": "Kind" },
-        "url": { "label": "URL" },
-        "format": { "label": "Format" },
+        "displayName": {
+          "label": "Display name"
+        },
+        "displayNameAr": {
+          "label": "Display name (Arabic)"
+        },
+        "kind": {
+          "label": "Kind"
+        },
+        "url": {
+          "label": "URL"
+        },
+        "format": {
+          "label": "Format"
+        },
         "refreshSeconds": {
           "label": "Refresh (seconds)",
           "minError": "Must be at least 60 seconds."
         },
-        "sourceReliability": { "label": "Reliability (0–1)" },
-        "enabled": { "label": "Enabled" },
-        "licensingNote": { "label": "Licensing note" },
-        "dataClassification": { "label": "Data classification" },
+        "sourceReliability": {
+          "label": "Reliability (0–1)"
+        },
+        "enabled": {
+          "label": "Enabled"
+        },
+        "licensingNote": {
+          "label": "Licensing note"
+        },
+        "dataClassification": {
+          "label": "Data classification"
+        },
         "rateLimit": {
           "label": "Rate limit",
           "callsPerMinute": "Calls / minute",
@@ -3802,6 +3821,52 @@
       "error": {
         "fetch": "Could not load sources.",
         "retry": "Retry"
+      }
+    },
+    "internalSignalKinds": {
+      "title": "Internal Signal Kinds",
+      "subtitle": "Catalogue of operational risk signals ingested via the harness API and consumed by dashboards.",
+      "loading": "Loading internal signal kinds…",
+      "empty": {
+        "title": "No internal signal kinds configured",
+        "body": "The catalogue is seeded by the M8 migration. If this list is empty the seed has not run for this tenant."
+      },
+      "error": {
+        "fetch": "Could not load internal signal kinds.",
+        "retry": "Retry"
+      },
+      "columns": {
+        "signalType": "Signal type",
+        "displayName": "Display name",
+        "defaultSeverity": "Default severity",
+        "description": "Description",
+        "parameterSchema": "Parameter schema"
+      },
+      "schema": {
+        "summary": "{{req}} required · {{opt}} optional",
+        "required": "Required",
+        "optional": "Optional"
+      },
+      "actions": {
+        "showSchema": "Show parameter schema",
+        "hideSchema": "Hide parameter schema"
+      },
+      "severity": {
+        "informational": "Informational",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "signalType": {
+        "milestone_slippage": "Milestone slippage",
+        "sla_breach": "SLA breach",
+        "payment_delay": "Payment delay",
+        "invoice_dispute": "Invoice dispute",
+        "vendor_incident": "Vendor incident",
+        "ics_incident": "ICS incident",
+        "icv_status_change": "ICV status change",
+        "certificate_expiry": "Certificate expiry"
       }
     }
   },
