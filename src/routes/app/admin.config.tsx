@@ -1,17 +1,20 @@
 /**
- * /app/admin/config — 3-tab workspace settings.
+ * /app/admin/config — 7-tab workspace settings (M10/CR-C extended from 3→7).
  *
- *   General   — editable workspace defaults.
- *   UAE Pass  — editable OIDC config (sandbox toggle).
- *   Branding  — read-only display (Q3 / R-PA4 — admin can mutate via the
- *               BE if needed; FE renders read-only to match Lovable).
+ *   General         — editable workspace defaults.
+ *   UAE Pass        — editable OIDC config (sandbox toggle).
+ *   Branding        — links to /admin/branding for logo/color editing.
+ *   Security        — session timeouts, password policy, MFA, IP allowlist.
+ *   Email           — daily limits, from address, enabled toggle.
+ *   Calendar        — weekend days, working hours, holidays.
+ *   Audit Retention — retention_days (1..3650).
  */
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Settings, ShieldCheck, Palette } from "lucide-react";
+import { Settings, ShieldCheck, Palette, Lock, Mail, Calendar, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -23,6 +26,14 @@ import {
 import { translateApiError } from "@/lib/translate-api-error";
 import { toast } from "sonner";
 
+// Extended category type including M10 additions
+type ExtendedSettingCategory =
+  | SettingCategory
+  | 'security'
+  | 'email'
+  | 'calendar'
+  | 'audit_retention';
+
 export const Route = createFileRoute("/app/admin/config")({
   component: () => (
     <ErrorBoundary>
@@ -32,7 +43,7 @@ export const Route = createFileRoute("/app/admin/config")({
 });
 
 const TAB_META: Record<
-  SettingCategory,
+  ExtendedSettingCategory,
   { labelKey: string; defaultLabel: string; icon: React.ComponentType<{ className?: string }> }
 > = {
   general: {
@@ -50,11 +61,31 @@ const TAB_META: Record<
     defaultLabel: "Branding",
     icon: Palette,
   },
+  security: {
+    labelKey: "admin.systemSettings.tabs.security",
+    defaultLabel: "Security",
+    icon: Lock,
+  },
+  email: {
+    labelKey: "admin.systemSettings.tabs.email",
+    defaultLabel: "Email",
+    icon: Mail,
+  },
+  calendar: {
+    labelKey: "admin.systemSettings.tabs.calendar",
+    defaultLabel: "Calendar",
+    icon: Calendar,
+  },
+  audit_retention: {
+    labelKey: "admin.systemSettings.tabs.auditRetention",
+    defaultLabel: "Audit Retention",
+    icon: Archive,
+  },
 };
 
 function AdminConfigView() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<SettingCategory>("general");
+  const [tab, setTab] = useState<ExtendedSettingCategory>("general");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-settings"],
@@ -64,16 +95,31 @@ function AdminConfigView() {
 
   const settings = data?.settings ?? [];
   const grouped = useMemo(() => {
-    const m: Record<SettingCategory, SystemSettingRow[]> = {
+    const m: Record<ExtendedSettingCategory, SystemSettingRow[]> = {
       general: [],
       uae_pass: [],
       branding: [],
+      security: [],
+      email: [],
+      calendar: [],
+      audit_retention: [],
     };
-    for (const s of settings) m[s.category].push(s);
+    for (const s of settings) {
+      const cat = s.category as ExtendedSettingCategory;
+      if (cat in m) m[cat].push(s);
+    }
     return m;
   }, [settings]);
 
-  const tabs: SettingCategory[] = ["general", "uae_pass", "branding"];
+  const tabs: ExtendedSettingCategory[] = [
+    "general",
+    "uae_pass",
+    "branding",
+    "security",
+    "email",
+    "calendar",
+    "audit_retention",
+  ];
 
   return (
     <motion.div
@@ -94,7 +140,7 @@ function AdminConfigView() {
         </p>
       </header>
 
-      <div className="flex gap-1 border-b border-border" role="tablist">
+      <div className="flex flex-wrap gap-1 border-b border-border" role="tablist">
         {tabs.map((c) => {
           const Icon = TAB_META[c].icon;
           const isActive = tab === c;
@@ -127,8 +173,25 @@ function AdminConfigView() {
             />
           ))}
         </div>
+      ) : tab === 'branding' ? (
+        <div className="space-y-3">
+          <div className="rounded-md border border-border bg-surface/40 px-3 py-2 text-xs text-ink-subtle">
+            {t("admin.config.branding.readOnly", {
+              defaultValue:
+                "Branding values (logo, colors, footer) can be edited on the dedicated Branding page.",
+            })}
+          </div>
+          <Link
+            to="/app/admin/branding"
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm text-ink hover:bg-surface"
+          >
+            <Palette className="h-4 w-4 text-gold" />
+            {t("admin.config.branding.editLink", { defaultValue: "Open Branding editor" })}
+          </Link>
+          <SettingsTab category="branding" rows={grouped.branding} />
+        </div>
       ) : (
-        <SettingsTab category={tab} rows={grouped[tab]} />
+        <SettingsTab category={tab} rows={grouped[tab] ?? []} />
       )}
     </motion.div>
   );
@@ -138,7 +201,7 @@ function SettingsTab({
   category,
   rows,
 }: {
-  category: SettingCategory;
+  category: ExtendedSettingCategory;
   rows: SystemSettingRow[];
 }) {
   const { t } = useTranslation();

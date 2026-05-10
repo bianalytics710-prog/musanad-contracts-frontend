@@ -81,6 +81,16 @@
       "showing": "الصفحة {{current}} من {{total}}",
       "previous": "السابق",
       "next": "التالي"
+    },
+    "creating": "جارٍ الإنشاء…",
+    "pageOf": "الصفحة {{page}} من {{total}}",
+    "errorLoading": "فشل التحميل. يرجى المحاولة مرة أخرى.",
+    "forbidden": "ليس لديك صلاحية الوصول إلى هذه الصفحة.",
+    "unknown": "غير معروف",
+    "builtInRole": {
+      "badge": "دور النظام",
+      "tooltip": "لا يمكن حذف الأدوار المضمّنة. يمكن تعديل الصلاحيات.",
+      "cannotDelete": "لا يمكن حذف أدوار النظام."
     }
   },
   "notifications": {
@@ -368,7 +378,20 @@
     "more": "المزيد",
     "notifications": "الإشعارات",
     "enterpriseView": "عرض المؤسسة",
-    "adminInternalSignalKinds": "أنواع الإشارات الداخلية"
+    "adminInternalSignalKinds": "أنواع الإشارات الداخلية",
+    "adminAuditVerify": "التحقق من سجل المراجعة",
+    "adminEmailTemplates": "قوالب البريد الإلكتروني",
+    "adminEmailConfig": "خادم البريد الإلكتروني",
+    "adminTenants": "المستأجرون",
+    "adminDemoPurge": "حذف البيانات التجريبية",
+    "adminMatrix": "مصفوفة الموافقات",
+    "adminChains": "سلاسل الموافقات",
+    "adminRegs": "اللوائح",
+    "adminImpacts": "فئات التأثير",
+    "adminAiCost": "تكلفة الذكاء الاصطناعي",
+    "adminAiPrompts": "موجّهات الذكاء الاصطناعي",
+    "adminAiReqs": "طلبات الذكاء الاصطناعي",
+    "adminHealth": "الحالة الصحية"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -1348,7 +1371,6 @@
     "selectorPlaceholder": "اختر طرفاً…",
     "createNewIndividual": "إنشاء فرد جديد",
     "createNewCompany": "إنشاء شركة جديدة",
-    "editParty": "تعديل الطرف",
     "esgScore": "ESG",
     "tabs": {
       "overview": "نظرة عامة",
@@ -3512,6 +3534,29 @@
         "deleted": "تم حذف الدور",
         "deleteBlocked": "لا يمكن الحذف — لا يزال {{count}} عضوًا مُسندًا. أعِد إسنادهم أولاً.",
         "memberMoved": "تم تحديث دور العضو"
+      },
+      "addRole": "إضافة دور",
+      "editRole": "تعديل {{name}}",
+      "edit": {
+        "title": "تعديل الدور",
+        "backToRoles": "الأدوار",
+        "systemRole": "دور النظام",
+        "notFound": "الدور غير موجود.",
+        "confirmDelete": "هل تريد حذف هذا الدور؟ لا يمكن التراجع عن هذا الإجراء.",
+        "headers": {
+          "module": "الوحدة",
+          "permission": "الصلاحية",
+          "granted": "ممنوحة"
+        },
+        "toast": {
+          "granted": "تم منح الصلاحية.",
+          "revoked": "تم سحب الصلاحية.",
+          "deleted": "تم حذف الدور.",
+          "permissionFailed": "تعذّر تحديث الصلاحية."
+        },
+        "errors": {
+          "deleteFailed": "تعذّر حذف الدور."
+        }
       }
     },
     "imports": {
@@ -3681,7 +3726,8 @@
         "branding": "العلامة التجارية"
       },
       "branding": {
-        "readOnly": "قيم العلامة التجارية للقراءة فقط في هذه الواجهة. يرجى التواصل مع فريق المنصة لتعديلها."
+        "readOnly": "قيم العلامة التجارية للقراءة فقط في هذه الواجهة. يرجى التواصل مع فريق المنصة لتعديلها.",
+        "editLink": "فتح محرر العلامة التجارية"
       },
       "toast": {
         "saved": "تم حفظ الإعداد."
@@ -3986,6 +4032,168 @@
         "ics_incident": "حادث أنظمة تحكُّم صناعية",
         "icv_status_change": "تغيُّر حالة القيمة المضافة داخل الدولة",
         "certificate_expiry": "انتهاء صلاحية شهادة"
+      }
+    },
+    "systemSettings": {
+      "tabs": {
+        "security": "الأمان",
+        "email": "البريد الإلكتروني",
+        "calendar": "التقويم",
+        "auditRetention": "الاحتفاظ بسجل المراجعة"
+      }
+    },
+    "auditVerify": {
+      "title": "التحقق من سلسلة المراجعة",
+      "subtitle": "التحقق من سلامة سلسلة التجزئة المشفرة لسجل المراجعة.",
+      "run": "تشغيل التحقق",
+      "running": "جارٍ التحقق…",
+      "resultTitle": "نتيجة التحقق",
+      "verified": "السلسلة سليمة",
+      "broken": "السلسلة مكسورة",
+      "rowsWalked": "الصفوف التي تم التحقق منها",
+      "elapsedMs": "المدة (مللي ثانية)",
+      "brokenAt": "مكسورة عند التسلسل",
+      "neverRun": "لم يتم إجراء أي تحقق بعد.",
+      "errors": {
+        "failed": "فشل التحقق بشكل غير متوقع."
+      }
+    },
+    "demoPurge": {
+      "title": "حذف البيانات التجريبية",
+      "subtitle": "إزالة جميع البيانات التجريبية والتجريبية الأولية بشكل دائم من هذا الفضاء.",
+      "summaryTitle": "ملخص تصنيف البيانات",
+      "classificationCol": "التصنيف",
+      "countCol": "عدد السجلات",
+      "totalRow": "المجموع",
+      "dryRunBtn": "تشغيل تجريبي",
+      "purgeBtn": "حذف البيانات التجريبية",
+      "purging": "جارٍ الحذف…",
+      "dryRunTitle": "نتيجة التشغيل التجريبي",
+      "dryRunHint": "لم يتم حذف أي بيانات. راجع الأعداد أدناه قبل التأكيد.",
+      "confirmTitle": "تأكيد الحذف",
+      "confirmBody": "سيؤدي هذا إلى حذف جميع البيانات التجريبية والتجريبية الأولية بشكل دائم. لا يمكن التراجع عن هذا الإجراء.",
+      "tokenLabel": "اكتب رمز التأكيد للمتابعة:",
+      "tokenPlaceholder": "PURGE_DEMO_DATA_{{date}}",
+      "tokenHint": "الرمز هو: PURGE_DEMO_DATA_{{date}}",
+      "tokenMismatch": "الرمز غير مطابق. يرجى كتابة الرمز المحدد بدقة.",
+      "confirmBtn": "حذف بشكل دائم",
+      "successTitle": "اكتمل الحذف",
+      "successBody": "تم حذف {{count}} سجل في {{ms}} مللي ثانية.",
+      "superAdminOnly": "حذف البيانات التجريبية مقتصر على المشرف الرئيسي.",
+      "errors": {
+        "dryRunFailed": "فشل التشغيل التجريبي.",
+        "purgeFailed": "فشل الحذف.",
+        "summaryFailed": "تعذّر تحميل ملخص تصنيف البيانات."
+      }
+    },
+    "tenants": {
+      "title": "المستأجرون",
+      "subtitle": "جميع المستأجرين المسجلين في هذا النظام.",
+      "searchPlaceholder": "البحث في المستأجرين…",
+      "headers": {
+        "name": "الاسم",
+        "slug": "المعرّف",
+        "plan": "الخطة",
+        "riskAppetite": "الشهية للمخاطر",
+        "status": "الحالة",
+        "createdAt": "تاريخ الإنشاء"
+      },
+      "empty": "لا يوجد مستأجرون.",
+      "errors": {
+        "loadFailed": "تعذّر تحميل المستأجرين."
+      }
+    },
+    "branding": {
+      "title": "العلامة التجارية",
+      "subtitle": "تخصيص الشعار والألوان ونص التذييل لهذا الفضاء.",
+      "logoSection": "الشعار",
+      "logoHint": "PNG أو SVG، الحد الأقصى 2 ميجابايت.",
+      "dropzone": "اسحب وأفلت الشعار هنا، أو انقر للتصفح",
+      "dropzoneActive": "أفلت للرفع",
+      "colorSection": "الألوان",
+      "primaryColor": "اللون الأساسي",
+      "accentColor": "لون التمييز",
+      "footerSection": "نص التذييل",
+      "footerEn": "نص التذييل (الإنجليزية)",
+      "footerAr": "نص التذييل (العربية)",
+      "preview": "معاينة",
+      "save": "حفظ العلامة التجارية",
+      "saving": "جارٍ الحفظ…",
+      "uploadSuccess": "تم رفع الشعار.",
+      "saveSuccess": "تم حفظ العلامة التجارية.",
+      "errors": {
+        "uploadFailed": "فشل رفع الشعار.",
+        "saveFailed": "تعذّر حفظ العلامة التجارية.",
+        "fileTooLarge": "يتجاوز الملف حد 2 ميجابايت.",
+        "invalidType": "يُقبل فقط ملفات PNG وSVG.",
+        "loadFailed": "تعذّر تحميل إعدادات العلامة التجارية."
+      }
+    },
+    "emailTemplates": {
+      "title": "قوالب البريد الإلكتروني",
+      "subtitle": "إدارة قوالب الإشعارات لجميع القنوات.",
+      "searchPlaceholder": "البحث في القوالب…",
+      "channelFilter": "تصفية حسب القناة",
+      "allChannels": "جميع القنوات",
+      "headers": {
+        "name": "اسم القالب",
+        "channel": "القناة",
+        "locale": "اللغة",
+        "updatedAt": "آخر تحديث"
+      },
+      "empty": "لا توجد قوالب.",
+      "edit": "تعديل",
+      "editTitle": "تعديل القالب",
+      "editSubtitle": "تعديل الموضوع والمحتوى للغتين الإنجليزية والعربية.",
+      "subjectEn": "الموضوع (الإنجليزية)",
+      "subjectAr": "الموضوع (العربية)",
+      "bodyEn": "المحتوى (الإنجليزية)",
+      "bodyAr": "المحتوى (العربية)",
+      "parameters": "المعاملات المتاحة",
+      "previewBtn": "معاينة",
+      "previewTitle": "معاينة مُصيَّرة",
+      "previewLocale": "لغة المعاينة",
+      "saveSuccess": "تم حفظ القالب.",
+      "errors": {
+        "loadFailed": "تعذّر تحميل القالب.",
+        "saveFailed": "تعذّر حفظ القالب.",
+        "previewFailed": "فشل توليد المعاينة."
+      }
+    },
+    "emailConfig": {
+      "title": "خادم البريد الإلكتروني",
+      "subtitle": "تكوين إعدادات خادم SMTP لإشعارات البريد الإلكتروني الصادرة.",
+      "sections": {
+        "connection": "الاتصال",
+        "auth": "المصادقة",
+        "sender": "المرسل",
+        "limits": "حدود الإرسال"
+      },
+      "fields": {
+        "host": "مضيف SMTP",
+        "port": "المنفذ",
+        "encryption": "التشفير",
+        "authUser": "اسم المستخدم",
+        "authPassRef": "كلمة المرور",
+        "authPassRefSet": "كلمة المرور محددة (اتركها فارغة للاحتفاظ بالحالية)",
+        "fromAddress": "عنوان المرسل",
+        "fromName": "اسم المرسل",
+        "dailyLimit": "الحد اليومي",
+        "enabled": "مُفعَّل"
+      },
+      "testSend": {
+        "btn": "إرسال بريد اختباري",
+        "sending": "جارٍ الإرسال…",
+        "recipientLabel": "تجاوز المستلم (اختياري)",
+        "recipientHint": "اتركه فارغاً للإرسال إلى بريدك الإلكتروني.",
+        "success": "تم إرسال البريد الاختباري.",
+        "failed": "فشل إرسال البريد الاختباري."
+      },
+      "save": "حفظ الإعدادات",
+      "saveSuccess": "تم حفظ إعدادات البريد الإلكتروني.",
+      "errors": {
+        "loadFailed": "تعذّر تحميل إعدادات البريد الإلكتروني.",
+        "saveFailed": "تعذّر حفظ إعدادات البريد الإلكتروني."
       }
     }
   },

@@ -24,6 +24,10 @@ import {
   Settings as SettingsIcon,
   Activity,
   Globe,
+  Mail,
+  Building2,
+  ShieldCheck,
+  Trash2,
 } from "lucide-react";
 
 export type AppRole =
@@ -130,23 +134,29 @@ export interface AdminSubItem {
 }
 
 export const ADMIN_SUB_NAV: AdminSubItem[] = [
-  { to: "/app/admin",                      labelKey: "nav.adminOverview", defaultLabel: "Overview",        icon: LayoutGrid },
-  { to: "/app/admin/users",                labelKey: "nav.adminUsers",    defaultLabel: "Users",           icon: UsersIcon },
-  { to: "/app/admin/roles",                labelKey: "nav.adminRoles",    defaultLabel: "Roles",           icon: KeyRound },
-  { to: "/app/admin/audit",                labelKey: "nav.adminAudit",    defaultLabel: "Audit log",       icon: ScrollText },
-  { to: "/app/admin/config",               labelKey: "nav.adminConfig",   defaultLabel: "Configuration",   icon: SettingsIcon },
-  { to: "/app/admin/health",               labelKey: "nav.adminHealth",   defaultLabel: "Health",          icon: Activity },
-  { to: "/app/admin/sources",              labelKey: "nav.adminSources",  defaultLabel: "Sources",         icon: Globe },
-  { to: "/app/admin/source-health",        labelKey: "nav.adminSourceHealth", defaultLabel: "Source health", icon: Activity },
+  { to: "/app/admin",                       labelKey: "nav.adminOverview",        defaultLabel: "Overview",              icon: LayoutGrid },
+  { to: "/app/admin/users",                 labelKey: "nav.adminUsers",           defaultLabel: "Users",                 icon: UsersIcon },
+  { to: "/app/admin/roles",                 labelKey: "nav.adminRoles",           defaultLabel: "Roles & permissions",   icon: KeyRound },
+  { to: "/app/admin/audit",                 labelKey: "nav.adminAudit",           defaultLabel: "Audit log",             icon: ScrollText },
+  { to: "/app/admin/audit/verify",          labelKey: "nav.adminAuditVerify",     defaultLabel: "Audit verify",          icon: ShieldCheck },
+  { to: "/app/admin/config",                labelKey: "nav.adminConfig",          defaultLabel: "Configuration",         icon: SettingsIcon },
+  { to: "/app/admin/branding",              labelKey: "nav.adminBranding",        defaultLabel: "Branding",              icon: Palette },
+  { to: "/app/admin/email-templates",       labelKey: "nav.adminEmailTemplates",  defaultLabel: "Email templates",       icon: Mail },
+  { to: "/app/admin/email-config",          labelKey: "nav.adminEmailConfig",     defaultLabel: "Email server",          icon: Mail },
+  { to: "/app/admin/tenants",               labelKey: "nav.adminTenants",         defaultLabel: "Tenants",               icon: Building2 },
+  { to: "/app/admin/demo/purge",            labelKey: "nav.adminDemoPurge",       defaultLabel: "Demo purge",            icon: Trash2 },
+  { to: "/app/admin/health",                labelKey: "nav.adminHealth",          defaultLabel: "Health",                icon: Activity },
+  { to: "/app/admin/sources",               labelKey: "nav.adminSources",         defaultLabel: "Sources",               icon: Globe },
+  { to: "/app/admin/source-health",         labelKey: "nav.adminSourceHealth",    defaultLabel: "Source health",         icon: Activity },
   { to: "/app/admin/internal-signal-kinds", labelKey: "nav.adminInternalSignalKinds", defaultLabel: "Internal signal kinds", icon: Radar },
-  { to: "/app/admin/approval-matrix",      labelKey: "nav.adminMatrix",   defaultLabel: "Approval matrix", icon: KeyRound },
-  { to: "/app/admin/approval-chains",      labelKey: "nav.adminChains",   defaultLabel: "Approval chains", icon: KeyRound },
-  { to: "/app/admin/regulations",          labelKey: "nav.adminRegs",     defaultLabel: "Regulations",     icon: Scale },
-  { to: "/app/admin/impact-categories",    labelKey: "nav.adminImpacts",  defaultLabel: "Impact cats",     icon: Palette },
-  { to: "/app/admin/imports",              labelKey: "nav.adminImports",  defaultLabel: "Imports",         icon: ScrollText },
-  { to: "/app/admin/ai/cost-report",       labelKey: "nav.adminAiCost",   defaultLabel: "AI cost",         icon: Activity },
-  { to: "/app/admin/ai/prompts",           labelKey: "nav.adminAiPrompts", defaultLabel: "AI prompts",     icon: SettingsIcon },
-  { to: "/app/admin/ai/requests",          labelKey: "nav.adminAiReqs",   defaultLabel: "AI requests",     icon: ScrollText },
+  { to: "/app/admin/approval-matrix",       labelKey: "nav.adminMatrix",          defaultLabel: "Approval matrix",       icon: KeyRound },
+  { to: "/app/admin/approval-chains",       labelKey: "nav.adminChains",          defaultLabel: "Approval chains",       icon: KeyRound },
+  { to: "/app/admin/regulations",           labelKey: "nav.adminRegs",            defaultLabel: "Regulations",           icon: Scale },
+  { to: "/app/admin/impact-categories",     labelKey: "nav.adminImpacts",         defaultLabel: "Impact cats",           icon: Palette },
+  { to: "/app/admin/imports",               labelKey: "nav.adminImports",         defaultLabel: "Imports",               icon: ScrollText },
+  { to: "/app/admin/ai/cost-report",        labelKey: "nav.adminAiCost",          defaultLabel: "AI cost",               icon: Activity },
+  { to: "/app/admin/ai/prompts",            labelKey: "nav.adminAiPrompts",       defaultLabel: "AI prompts",            icon: SettingsIcon },
+  { to: "/app/admin/ai/requests",           labelKey: "nav.adminAiReqs",          defaultLabel: "AI requests",           icon: ScrollText },
 ];
 
 export function modulesForRole(roleName: string | null | undefined): SidebarModule[] {

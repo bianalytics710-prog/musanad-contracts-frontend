@@ -1,18 +1,21 @@
 /**
- * /app/admin/roles — read-only roles + permission grid.
+ * /app/admin/roles — roles + permission grid with edit/create/delete actions.
  *
  * Matrix layout: capability rows (one per permission code, grouped by
  * module) × role columns. Cell = checkmark when the role grants that
- * permission. Pure read-only viewer; mutation lives in /app/admin/users
- * (Change role row action).
+ * permission. Edit button opens /admin/roles/edit/$id per-role editor.
+ * Add button opens CreateRoleDialog modal.
  */
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Check, ShieldCheck, X } from "lucide-react";
+import { Check, Plus, Pencil, ShieldCheck, X } from "lucide-react";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { Button } from "@/components/ui/button";
+import { CreateRoleDialog } from "@/components/admin/CreateRoleDialog";
+import { useAuthStore } from "@/store/auth.store";
 import {
   adminRolesService,
   type AdminRoleListItem,
@@ -33,6 +36,9 @@ export const Route = createFileRoute("/app/admin/roles")({
 
 function AdminRolesView() {
   const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const canManageRoles = user?.permissions.includes('role.manage') ?? false;
 
   const rolesQuery = useQuery({
     queryKey: ["admin-roles"],
@@ -109,11 +115,21 @@ function AdminRolesView() {
           <p className="mt-1 text-sm text-ink-muted">
             {t("admin.roles.subtitle", {
               defaultValue:
-                "Read-only matrix of every role and the permissions it grants. Change a user's role from /admin/users.",
+                "Permission matrix for all roles. Use Edit to manage per-role grants.",
             })}
           </p>
         </div>
+        {canManageRoles && (
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="me-2 h-4 w-4" />
+            {t("admin.roles.addRole", { defaultValue: "Add role" })}
+          </Button>
+        )}
       </header>
+
+      {showCreateDialog && (
+        <CreateRoleDialog onClose={() => setShowCreateDialog(false)} />
+      )}
 
       <section className="grid gap-3 sm:grid-cols-3">
         <StatCard
@@ -170,7 +186,20 @@ function AdminRolesView() {
                     className="px-3 py-3 text-center font-mono text-[10px] font-medium uppercase tracking-wider"
                     title={r.description ?? r.name}
                   >
-                    {r.name.replace(/_/g, " ")}
+                    <div className="flex flex-col items-center gap-1">
+                      <span>{r.name.replace(/_/g, " ")}</span>
+                      {canManageRoles && (
+                        <Link
+                          to="/app/admin/roles/edit/$id"
+                          params={{ id: String(r.id) }}
+                          className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[9px] text-gold hover:bg-gold/10"
+                          aria-label={t("admin.roles.editRole", { defaultValue: "Edit {{name}}", name: r.name })}
+                        >
+                          <Pencil className="h-2.5 w-2.5" />
+                          {t("common.edit", { defaultValue: "Edit" })}
+                        </Link>
+                      )}
+                    </div>
                   </th>
                 ))}
               </tr>

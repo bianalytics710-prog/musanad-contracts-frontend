@@ -81,6 +81,16 @@
       "showing": "Page {{current}} of {{total}}",
       "previous": "Previous",
       "next": "Next"
+    },
+    "creating": "Creating…",
+    "pageOf": "Page {{page}} of {{total}}",
+    "errorLoading": "Failed to load. Please try again.",
+    "forbidden": "You do not have permission to access this page.",
+    "unknown": "Unknown",
+    "builtInRole": {
+      "badge": "System role",
+      "tooltip": "Built-in roles cannot be deleted. Permissions can still be adjusted.",
+      "cannotDelete": "System roles cannot be deleted."
     }
   },
   "notifications": {
@@ -368,7 +378,20 @@
     "more": "More",
     "notifications": "Notifications",
     "enterpriseView": "Enterprise view",
-    "adminInternalSignalKinds": "Internal signal kinds"
+    "adminInternalSignalKinds": "Internal signal kinds",
+    "adminAuditVerify": "Audit verify",
+    "adminEmailTemplates": "Email templates",
+    "adminEmailConfig": "Email server",
+    "adminTenants": "Tenants",
+    "adminDemoPurge": "Demo purge",
+    "adminMatrix": "Approval matrix",
+    "adminChains": "Approval chains",
+    "adminRegs": "Regulations",
+    "adminImpacts": "Impact cats",
+    "adminAiCost": "AI cost",
+    "adminAiPrompts": "AI prompts",
+    "adminAiReqs": "AI requests",
+    "adminHealth": "Health"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -1348,7 +1371,6 @@
     "selectorPlaceholder": "Select a party…",
     "createNewIndividual": "Create new individual",
     "createNewCompany": "Create new company",
-    "editParty": "Edit party",
     "esgScore": "ESG",
     "tabs": {
       "overview": "Overview",
@@ -3512,6 +3534,29 @@
         "deleted": "Role deleted",
         "deleteBlocked": "Cannot delete — {{count}} members are still assigned. Reassign them first.",
         "memberMoved": "Member's role updated"
+      },
+      "addRole": "Add role",
+      "editRole": "Edit {{name}}",
+      "edit": {
+        "title": "Edit role",
+        "backToRoles": "Roles",
+        "systemRole": "System role",
+        "notFound": "Role not found.",
+        "confirmDelete": "Delete this role? This cannot be undone.",
+        "headers": {
+          "module": "Module",
+          "permission": "Permission",
+          "granted": "Granted"
+        },
+        "toast": {
+          "granted": "Permission granted.",
+          "revoked": "Permission revoked.",
+          "deleted": "Role deleted.",
+          "permissionFailed": "Could not update permission."
+        },
+        "errors": {
+          "deleteFailed": "Could not delete role."
+        }
       }
     },
     "imports": {
@@ -3681,7 +3726,8 @@
         "branding": "Branding"
       },
       "branding": {
-        "readOnly": "Branding values are read-only in this UI. Contact the platform team to change them."
+        "readOnly": "Branding values are read-only in this UI. Contact the platform team to change them.",
+        "editLink": "Open Branding editor"
       },
       "toast": {
         "saved": "Setting saved."
@@ -3986,6 +4032,168 @@
         "ics_incident": "ICS incident",
         "icv_status_change": "ICV status change",
         "certificate_expiry": "Certificate expiry"
+      }
+    },
+    "systemSettings": {
+      "tabs": {
+        "security": "Security",
+        "email": "Email",
+        "calendar": "Calendar",
+        "auditRetention": "Audit Retention"
+      }
+    },
+    "auditVerify": {
+      "title": "Audit chain verify",
+      "subtitle": "Verify the cryptographic hash chain integrity of the audit log.",
+      "run": "Run verification",
+      "running": "Verifying…",
+      "resultTitle": "Verification result",
+      "verified": "Chain intact",
+      "broken": "Chain broken",
+      "rowsWalked": "Rows verified",
+      "elapsedMs": "Duration (ms)",
+      "brokenAt": "Broken at sequence",
+      "neverRun": "No verification has been run yet.",
+      "errors": {
+        "failed": "Verification failed unexpectedly."
+      }
+    },
+    "demoPurge": {
+      "title": "Demo data purge",
+      "subtitle": "Permanently remove all demo and pilot seed data from this workspace.",
+      "summaryTitle": "Data classification summary",
+      "classificationCol": "Classification",
+      "countCol": "Record count",
+      "totalRow": "Total",
+      "dryRunBtn": "Dry-run",
+      "purgeBtn": "Purge demo data",
+      "purging": "Purging…",
+      "dryRunTitle": "Dry-run result",
+      "dryRunHint": "No data was deleted. Review the counts below before confirming.",
+      "confirmTitle": "Confirm purge",
+      "confirmBody": "This will permanently delete all demo and pilot data. This action cannot be undone.",
+      "tokenLabel": "Type the confirmation token to proceed:",
+      "tokenPlaceholder": "PURGE_DEMO_DATA_{{date}}",
+      "tokenHint": "The token is: PURGE_DEMO_DATA_{{date}}",
+      "tokenMismatch": "Token does not match. Please type the exact token shown.",
+      "confirmBtn": "Delete permanently",
+      "successTitle": "Purge complete",
+      "successBody": "Deleted {{count}} records in {{ms}} ms.",
+      "superAdminOnly": "Demo purge is restricted to Super Admin.",
+      "errors": {
+        "dryRunFailed": "Dry-run failed.",
+        "purgeFailed": "Purge failed.",
+        "summaryFailed": "Could not load data classification summary."
+      }
+    },
+    "tenants": {
+      "title": "Tenants",
+      "subtitle": "All tenants registered in this platform instance.",
+      "searchPlaceholder": "Search tenants…",
+      "headers": {
+        "name": "Name",
+        "slug": "Slug",
+        "plan": "Plan",
+        "riskAppetite": "Risk appetite",
+        "status": "Status",
+        "createdAt": "Created"
+      },
+      "empty": "No tenants found.",
+      "errors": {
+        "loadFailed": "Could not load tenants."
+      }
+    },
+    "branding": {
+      "title": "Branding",
+      "subtitle": "Customize logo, colors, and footer text for this workspace.",
+      "logoSection": "Logo",
+      "logoHint": "PNG or SVG, max 2 MB.",
+      "dropzone": "Drag and drop a logo here, or click to browse",
+      "dropzoneActive": "Drop to upload",
+      "colorSection": "Colors",
+      "primaryColor": "Primary color",
+      "accentColor": "Accent color",
+      "footerSection": "Footer text",
+      "footerEn": "Footer text (English)",
+      "footerAr": "Footer text (Arabic)",
+      "preview": "Preview",
+      "save": "Save branding",
+      "saving": "Saving…",
+      "uploadSuccess": "Logo uploaded.",
+      "saveSuccess": "Branding saved.",
+      "errors": {
+        "uploadFailed": "Logo upload failed.",
+        "saveFailed": "Could not save branding.",
+        "fileTooLarge": "File exceeds 2 MB limit.",
+        "invalidType": "Only PNG and SVG files are accepted.",
+        "loadFailed": "Could not load branding configuration."
+      }
+    },
+    "emailTemplates": {
+      "title": "Email templates",
+      "subtitle": "Manage notification templates for all channels.",
+      "searchPlaceholder": "Search templates…",
+      "channelFilter": "Filter by channel",
+      "allChannels": "All channels",
+      "headers": {
+        "name": "Template name",
+        "channel": "Channel",
+        "locale": "Locale",
+        "updatedAt": "Last updated"
+      },
+      "empty": "No templates found.",
+      "edit": "Edit",
+      "editTitle": "Edit template",
+      "editSubtitle": "Edit subject and body for English and Arabic locales.",
+      "subjectEn": "Subject (English)",
+      "subjectAr": "Subject (Arabic)",
+      "bodyEn": "Body (English)",
+      "bodyAr": "Body (Arabic)",
+      "parameters": "Available parameters",
+      "previewBtn": "Preview",
+      "previewTitle": "Rendered preview",
+      "previewLocale": "Preview locale",
+      "saveSuccess": "Template saved.",
+      "errors": {
+        "loadFailed": "Could not load template.",
+        "saveFailed": "Could not save template.",
+        "previewFailed": "Preview generation failed."
+      }
+    },
+    "emailConfig": {
+      "title": "Email server",
+      "subtitle": "Configure SMTP server settings for outbound email notifications.",
+      "sections": {
+        "connection": "Connection",
+        "auth": "Authentication",
+        "sender": "Sender",
+        "limits": "Sending limits"
+      },
+      "fields": {
+        "host": "SMTP host",
+        "port": "Port",
+        "encryption": "Encryption",
+        "authUser": "Username",
+        "authPassRef": "Password",
+        "authPassRefSet": "Password is set (leave blank to keep)",
+        "fromAddress": "From address",
+        "fromName": "From name",
+        "dailyLimit": "Daily limit",
+        "enabled": "Enabled"
+      },
+      "testSend": {
+        "btn": "Send test email",
+        "sending": "Sending…",
+        "recipientLabel": "Recipient override (optional)",
+        "recipientHint": "Leave blank to send to your account email.",
+        "success": "Test email sent.",
+        "failed": "Test email failed."
+      },
+      "save": "Save configuration",
+      "saveSuccess": "Email configuration saved.",
+      "errors": {
+        "loadFailed": "Could not load email configuration.",
+        "saveFailed": "Could not save email configuration."
       }
     }
   },

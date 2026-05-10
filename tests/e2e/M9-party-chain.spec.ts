@@ -79,7 +79,7 @@ test.describe('M9 — Party Detail + Ownership Chain (E2E)', () => {
     const accessToken = persisted
       ? JSON.parse(persisted).state?.accessToken ?? ''
       : '';
-    const auth = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+    const auth: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 
     const adnocId = await findPartyIdByName(
       page.request,
@@ -111,7 +111,7 @@ test.describe('M9 — Party Detail + Ownership Chain (E2E)', () => {
     const accessToken = persisted
       ? JSON.parse(persisted).state?.accessToken ?? ''
       : '';
-    const auth = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+    const auth: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 
     const schlumbergerId = await findPartyIdByName(
       page.request,
