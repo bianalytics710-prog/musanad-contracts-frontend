@@ -1,0 +1,120 @@
+/**
+ * Party Graph (M9 / CR-B) FE service. Wraps:
+ *
+ *   GET    /api/v1/parties/:id/relationships
+ *   POST   /api/v1/parties/:id/relationships
+ *   PATCH  /api/v1/parties/:id/relationships/:relId
+ *   DELETE /api/v1/parties/:id/relationships/:relId
+ *   GET    /api/v1/parties/:id/chain
+ *   GET    /api/v1/parties/:id/chain-summary
+ *   POST   /api/v1/admin/parties/sanctions-match
+ *
+ * Per R-PA7 lesson A7: every apiClient call lives in this service file —
+ * never imported into pages, components, or hooks.
+ */
+import { apiClient } from "@/lib/api-client";
+import type {
+  ChainDirection,
+  CreateRelationshipPayload,
+  DeleteRelationshipResponse,
+  ListRelationshipsResponse,
+  PartyChainSummary,
+  PartyChainTraverseResponse,
+  PartyRelationship,
+  PartySanctionsMatchInput,
+  PartySanctionsMatchResponse,
+  UpdateRelationshipPayload,
+} from "@/types/entities/party-graph.types";
+
+export interface ChainQueryParams {
+  direction?: ChainDirection;
+  /** 1..10 inclusive, default 5 (per AC-S5-04 / AC-S6-03). */
+  maxDepth?: number;
+}
+
+export interface ChainSummaryQueryParams {
+  /** 1..10 inclusive, default 5. */
+  maxDepth?: number;
+}
+
+export const partyGraphService = {
+  // ─── Relationships CRUD ─────────────────────────────────────────────────
+
+  listRelationships: async (
+    partyId: number,
+  ): Promise<ListRelationshipsResponse> => {
+    const { data } = await apiClient.get<ListRelationshipsResponse>(
+      `/api/v1/parties/${partyId}/relationships`,
+    );
+    return data;
+  },
+
+  createRelationship: async (
+    partyId: number,
+    payload: CreateRelationshipPayload,
+  ): Promise<PartyRelationship> => {
+    const { data } = await apiClient.post<PartyRelationship>(
+      `/api/v1/parties/${partyId}/relationships`,
+      payload,
+    );
+    return data;
+  },
+
+  updateRelationship: async (
+    partyId: number,
+    relId: number,
+    payload: UpdateRelationshipPayload,
+  ): Promise<PartyRelationship> => {
+    const { data } = await apiClient.patch<PartyRelationship>(
+      `/api/v1/parties/${partyId}/relationships/${relId}`,
+      payload,
+    );
+    return data;
+  },
+
+  deleteRelationship: async (
+    partyId: number,
+    relId: number,
+  ): Promise<DeleteRelationshipResponse> => {
+    const { data } = await apiClient.delete<DeleteRelationshipResponse>(
+      `/api/v1/parties/${partyId}/relationships/${relId}`,
+    );
+    return data;
+  },
+
+  // ─── Chain traversal ────────────────────────────────────────────────────
+
+  getChain: async (
+    partyId: number,
+    params: ChainQueryParams = {},
+  ): Promise<PartyChainTraverseResponse> => {
+    const { data } = await apiClient.get<PartyChainTraverseResponse>(
+      `/api/v1/parties/${partyId}/chain`,
+      { params },
+    );
+    return data;
+  },
+
+  getChainSummary: async (
+    partyId: number,
+    params: ChainSummaryQueryParams = {},
+  ): Promise<PartyChainSummary> => {
+    const { data } = await apiClient.get<PartyChainSummary>(
+      `/api/v1/parties/${partyId}/chain-summary`,
+      { params },
+    );
+    return data;
+  },
+
+  // ─── Sanctions match (admin) ────────────────────────────────────────────
+
+  sanctionsMatch: async (
+    payload: PartySanctionsMatchInput,
+  ): Promise<PartySanctionsMatchResponse> => {
+    const { data } = await apiClient.post<PartySanctionsMatchResponse>(
+      "/api/v1/admin/parties/sanctions-match",
+      payload,
+    );
+    return data;
+  },
+};

@@ -3,6 +3,10 @@
  * introduced in BE migration 058. Mirrors the BE shape exactly.
  */
 import { apiClient } from "@/lib/api-client";
+import type {
+  PartyDetail as PartyDetailExtended,
+  PartyUpdatePayload,
+} from "@/types/entities/party-graph.types";
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -128,6 +132,26 @@ export const partiesService = {
   },
   create: async (input: CreatePartyInput): Promise<PartyDetail> => {
     const { data } = await apiClient.post<PartyDetail>("/api/v1/parties", input);
+    return data;
+  },
+  /**
+   * M9 (CR-B) — PATCH /api/v1/parties/:id (fn_party_update).
+   *
+   * Editable subset only. sanctions_* fields are silently ignored even if
+   * forwarded (Q-DA4 lock — defence in depth alongside the BE controller).
+   * The response is the full PartyDetail SUPERSET shape (Migration 120).
+   *
+   * parentId/uboId convention: undefined = leave alone, null = explicit
+   * unset (BE controller maps null → -1 sentinel).
+   */
+  updateExtended: async (
+    id: number,
+    payload: PartyUpdatePayload,
+  ): Promise<PartyDetailExtended> => {
+    const { data } = await apiClient.patch<PartyDetailExtended>(
+      `/api/v1/parties/${id}`,
+      payload,
+    );
     return data;
   },
 };

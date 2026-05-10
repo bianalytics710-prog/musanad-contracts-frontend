@@ -75,6 +75,8 @@
     "previous": "Previous",
     "copy": "Copy",
     "copied": "Copied to clipboard.",
+    "add": "Add",
+    "refreshing": "Refreshing…",
     "pagination": {
       "showing": "Page {{current}} of {{total}}",
       "previous": "Previous",
@@ -1345,7 +1347,124 @@
     "notFoundDescription": "It may have been deleted or you don't have access.",
     "selectorPlaceholder": "Select a party…",
     "createNewIndividual": "Create new individual",
-    "createNewCompany": "Create new company"
+    "createNewCompany": "Create new company",
+    "editParty": "Edit party",
+    "esgScore": "ESG",
+    "tabs": {
+      "overview": "Overview",
+      "ownershipChain": "Ownership chain"
+    },
+    "sanctions": {
+      "clean": "Clean",
+      "flagged": "Flagged",
+      "sanctioned": "Sanctioned",
+      "underReview": "Under review",
+      "lastChecked": "Last checked"
+    },
+    "icv": {
+      "certified": "ICV certified",
+      "expired": "ICV expired",
+      "downgraded": "ICV downgraded",
+      "pending": "ICV pending",
+      "none": "ICV none"
+    },
+    "aliases": {
+      "title": "Also known as",
+      "addAlias": "Add alias…",
+      "empty": "Type an alias and press Enter",
+      "remove": "Remove alias {{alias}}",
+      "help": "Press Enter or comma to add. Backspace to remove the last."
+    },
+    "chain": {
+      "ancestors": "Ancestors",
+      "descendants": "Descendants",
+      "root": "This party",
+      "depth": "Depth {{depth}}",
+      "depthLabel": "Depth {{depth}}",
+      "directEdges": "Direct edges",
+      "depthReached": "Depth reached",
+      "viaSelfFk": "via self-FK",
+      "esg": "ESG",
+      "addRelationship": "Add relationship",
+      "truncatedBanner": "Chain was truncated — depth or cycle limit reached.",
+      "empty": {
+        "title": "No ownership chain recorded",
+        "description": "Add a parent, subsidiary, sub-contractor, JV, UBO, or controlling-shareholder relationship to start mapping this party's chain."
+      },
+      "error": {
+        "title": "Could not load ownership chain"
+      },
+      "relationshipType": {
+        "parent": "Parent",
+        "ubo": "UBO",
+        "subsidiary": "Subsidiary",
+        "subContractor": "Sub-contractor",
+        "jv": "Joint venture",
+        "controllingShareholder": "Controlling shareholder"
+      }
+    },
+    "dialog": {
+      "addRelationship": {
+        "title": "Add relationship",
+        "description": "Anchor: {{anchor}} (treated as the parent in the new edge).",
+        "childLabel": "Counterparty",
+        "childPlaceholder": "Search parties…",
+        "noPartyResults": "No matching parties.",
+        "relationshipTypeLabel": "Relationship type",
+        "relationshipTypePlaceholder": "Select a type…",
+        "ownershipPctLabel": "Ownership %",
+        "confidenceLabel": "Confidence (0..1)",
+        "effectiveFromLabel": "Effective from",
+        "effectiveToLabel": "Effective to",
+        "sourceLabel": "Source",
+        "metadataLabel": "Metadata (JSON)",
+        "metadataHelp": "Optional JSON object for custom attributes.",
+        "submit": "Create relationship",
+        "success": "Relationship added.",
+        "source": {
+          "dnb": "Dun & Bradstreet",
+          "sayari": "Sayari",
+          "manual": "Manual",
+          "demo_seed": "Demo seed"
+        },
+        "errors": {
+          "childRequired": "Pick a counterparty.",
+          "selfLoop": "A party cannot have a relationship with itself.",
+          "typeRequired": "Pick a relationship type.",
+          "ownershipPctRange": "Ownership % must be between 0 and 100.",
+          "confidenceRange": "Confidence must be between 0 and 1.",
+          "endBeforeStart": "Effective-to must be on or after effective-from.",
+          "metadataInvalidJson": "Metadata must be valid JSON.",
+          "metadataNotObject": "Metadata must be a JSON object."
+        }
+      },
+      "editParty": {
+        "title": "Edit party",
+        "success": "Party updated.",
+        "sanctionsReadOnly": "Sanctions (read-only)",
+        "sanctionsHelp": "Sanctions status is set automatically by the rule engine and cannot be edited manually.",
+        "parentLabel": "Parent party",
+        "uboLabel": "Ultimate beneficial owner",
+        "pickerPlaceholder": "Search parties…",
+        "noPartyResults": "No matching parties.",
+        "esgScoreLabel": "ESG score",
+        "esgScoreHelp": "0..100 manual rating (D&B / Sayari import deferred).",
+        "icvStatusLabel": "ICV status",
+        "icvStatusPlaceholder": "—",
+        "icvPctLabel": "ICV %",
+        "metadataLabel": "Metadata (JSON)",
+        "metadataHelp": "Optional JSON object for custom attributes.",
+        "errors": {
+          "selfReference": "A party cannot be its own parent or UBO.",
+          "email": "Invalid email address.",
+          "esgScoreRange": "ESG score must be between 0 and 100.",
+          "icvPctRange": "ICV % must be between 0 and 100.",
+          "metadataInvalidJson": "Metadata must be valid JSON.",
+          "metadataNotObject": "Metadata must be a JSON object.",
+          "required": "Required."
+        }
+      }
+    }
   },
   "clauses": {
     "title": "Clause Library",

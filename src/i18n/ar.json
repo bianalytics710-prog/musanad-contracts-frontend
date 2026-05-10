@@ -75,6 +75,8 @@
     "previous": "السابق",
     "copy": "نسخ",
     "copied": "تم النسخ إلى الحافظة.",
+    "add": "إضافة",
+    "refreshing": "جارٍ التحديث…",
     "pagination": {
       "showing": "الصفحة {{current}} من {{total}}",
       "previous": "السابق",
@@ -1345,7 +1347,124 @@
     "notFoundDescription": "ربما تم حذفه أو ليس لديك صلاحية الوصول.",
     "selectorPlaceholder": "اختر طرفاً…",
     "createNewIndividual": "إنشاء فرد جديد",
-    "createNewCompany": "إنشاء شركة جديدة"
+    "createNewCompany": "إنشاء شركة جديدة",
+    "editParty": "تعديل الطرف",
+    "esgScore": "ESG",
+    "tabs": {
+      "overview": "نظرة عامة",
+      "ownershipChain": "سلسلة الملكية"
+    },
+    "sanctions": {
+      "clean": "نظيف",
+      "flagged": "مُعلَّم",
+      "sanctioned": "خاضع لعقوبات",
+      "underReview": "قيد المراجعة",
+      "lastChecked": "آخر فحص"
+    },
+    "icv": {
+      "certified": "ICV معتمد",
+      "expired": "ICV منتهي",
+      "downgraded": "ICV مخفّض",
+      "pending": "ICV قيد الانتظار",
+      "none": "لا يوجد ICV"
+    },
+    "aliases": {
+      "title": "معروف أيضاً باسم",
+      "addAlias": "إضافة اسم بديل…",
+      "empty": "اكتب اسماً بديلاً واضغط Enter",
+      "remove": "إزالة الاسم البديل {{alias}}",
+      "help": "اضغط Enter أو فاصلة للإضافة. Backspace لإزالة الأخير."
+    },
+    "chain": {
+      "ancestors": "الأسلاف",
+      "descendants": "الفروع",
+      "root": "هذا الطرف",
+      "depth": "العمق {{depth}}",
+      "depthLabel": "العمق {{depth}}",
+      "directEdges": "الروابط المباشرة",
+      "depthReached": "العمق المُحقَّق",
+      "viaSelfFk": "عبر مرجع ذاتي",
+      "esg": "ESG",
+      "addRelationship": "إضافة علاقة",
+      "truncatedBanner": "تم اقتطاع السلسلة — تم بلوغ حد العمق أو دورة.",
+      "empty": {
+        "title": "لا توجد سلسلة ملكية مسجلة",
+        "description": "أضف علاقة أصل / فرع / مقاول من الباطن / مشروع مشترك / مالك مستفيد نهائي / مساهم مسيطر لبدء رسم سلسلة هذا الطرف."
+      },
+      "error": {
+        "title": "تعذر تحميل سلسلة الملكية"
+      },
+      "relationshipType": {
+        "parent": "الأصل",
+        "ubo": "المالك المستفيد النهائي",
+        "subsidiary": "فرع",
+        "subContractor": "مقاول من الباطن",
+        "jv": "مشروع مشترك",
+        "controllingShareholder": "مساهم مسيطر"
+      }
+    },
+    "dialog": {
+      "addRelationship": {
+        "title": "إضافة علاقة",
+        "description": "المرتكز: {{anchor}} (يُعامَل كأصل في الرابط الجديد).",
+        "childLabel": "الطرف المقابل",
+        "childPlaceholder": "ابحث في الأطراف…",
+        "noPartyResults": "لا توجد أطراف مطابقة.",
+        "relationshipTypeLabel": "نوع العلاقة",
+        "relationshipTypePlaceholder": "اختر نوعاً…",
+        "ownershipPctLabel": "نسبة الملكية %",
+        "confidenceLabel": "الثقة (0..1)",
+        "effectiveFromLabel": "بدء السريان",
+        "effectiveToLabel": "نهاية السريان",
+        "sourceLabel": "المصدر",
+        "metadataLabel": "بيانات وصفية (JSON)",
+        "metadataHelp": "كائن JSON اختياري للسمات المخصصة.",
+        "submit": "إنشاء العلاقة",
+        "success": "تمت إضافة العلاقة.",
+        "source": {
+          "dnb": "Dun & Bradstreet",
+          "sayari": "Sayari",
+          "manual": "يدوي",
+          "demo_seed": "بذرة تجريبية"
+        },
+        "errors": {
+          "childRequired": "اختر الطرف المقابل.",
+          "selfLoop": "لا يمكن للطرف أن يكون له علاقة مع نفسه.",
+          "typeRequired": "اختر نوع العلاقة.",
+          "ownershipPctRange": "يجب أن تكون نسبة الملكية بين 0 و 100.",
+          "confidenceRange": "يجب أن تكون الثقة بين 0 و 1.",
+          "endBeforeStart": "يجب أن يكون تاريخ النهاية في أو بعد تاريخ البداية.",
+          "metadataInvalidJson": "البيانات الوصفية يجب أن تكون JSON صالحاً.",
+          "metadataNotObject": "البيانات الوصفية يجب أن تكون كائن JSON."
+        }
+      },
+      "editParty": {
+        "title": "تعديل الطرف",
+        "success": "تم تحديث الطرف.",
+        "sanctionsReadOnly": "العقوبات (للقراءة فقط)",
+        "sanctionsHelp": "حالة العقوبات يحددها محرك القواعد تلقائياً ولا يمكن تعديلها يدوياً.",
+        "parentLabel": "الطرف الأصل",
+        "uboLabel": "المالك المستفيد النهائي",
+        "pickerPlaceholder": "ابحث في الأطراف…",
+        "noPartyResults": "لا توجد أطراف مطابقة.",
+        "esgScoreLabel": "نقاط ESG",
+        "esgScoreHelp": "تقييم يدوي 0..100 (استيراد D&B / Sayari مؤجل).",
+        "icvStatusLabel": "حالة ICV",
+        "icvStatusPlaceholder": "—",
+        "icvPctLabel": "ICV %",
+        "metadataLabel": "بيانات وصفية (JSON)",
+        "metadataHelp": "كائن JSON اختياري للسمات المخصصة.",
+        "errors": {
+          "selfReference": "لا يمكن للطرف أن يكون أصله أو مالكه المستفيد النهائي.",
+          "email": "بريد إلكتروني غير صالح.",
+          "esgScoreRange": "يجب أن تكون نقاط ESG بين 0 و 100.",
+          "icvPctRange": "يجب أن تكون نسبة ICV بين 0 و 100.",
+          "metadataInvalidJson": "البيانات الوصفية يجب أن تكون JSON صالحاً.",
+          "metadataNotObject": "البيانات الوصفية يجب أن تكون كائن JSON.",
+          "required": "مطلوب."
+        }
+      }
+    }
   },
   "clauses": {
     "title": "مكتبة البنود",
