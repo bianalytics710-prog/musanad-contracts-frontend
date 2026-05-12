@@ -20,7 +20,7 @@
  */
 import { defineConfig, devices } from '@playwright/test';
 
-const FE_BASE_URL = process.env.E2E_FE_BASE_URL ?? 'http://localhost:5173';
+const FE_BASE_URL = process.env.E2E_FE_BASE_URL ?? 'http://localhost:5174';
 
 export default defineConfig({
   testDir: './tests/e2e',

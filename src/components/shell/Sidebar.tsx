@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ADMIN_SUB_NAV, modulesForRole } from "@/config/sidebar";
+import { ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForRole } from "@/config/sidebar";
 import { useNavigate } from "@tanstack/react-router";
 
 function getInitials(firstName: string | undefined, lastName: string | undefined): string {
@@ -99,7 +99,9 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         {items.map((item) => {
           const Icon = item.icon;
           const isAdmin = item.key === "admin";
+          const isClauses = item.key === "clauses";
           const onAdminRoute = path === "/app/admin" || path.startsWith("/app/admin/");
+          const onClausesRoute = path === "/app/clauses" || path.startsWith("/app/clauses/");
           const active = isAdmin
             ? path === item.to
             : path === item.to || path.startsWith(item.to + "/");
@@ -129,6 +131,33 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                 <ul className="mt-1 ms-4 space-y-0.5 border-s border-white/10 ps-2">
                   {ADMIN_SUB_NAV.map((sub) => {
                     const subActive = path === sub.to;
+                    const SubIcon = sub.icon;
+                    return (
+                      <li key={sub.to}>
+                        <Link
+                          to={sub.to}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
+                            subActive
+                              ? "bg-gold/20 text-white font-medium"
+                              : "text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground",
+                          )}
+                        >
+                          <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {t(sub.labelKey, { defaultValue: sub.defaultLabel })}
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {/* M12 — Clauses sub-nav (review queue) when on a /app/clauses/* route */}
+              {isClauses && onClausesRoute && !collapsed && (
+                <ul className="mt-1 ms-4 space-y-0.5 border-s border-white/10 ps-2">
+                  {CLAUSES_SUB_NAV.map((sub) => {
+                    const subActive = path === sub.to || path.startsWith(sub.to + "/");
                     const SubIcon = sub.icon;
                     return (
                       <li key={sub.to}>

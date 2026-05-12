@@ -392,7 +392,10 @@
     "adminAiPrompts": "موجّهات الذكاء الاصطناعي",
     "adminAiReqs": "طلبات الذكاء الاصطناعي",
     "adminHealth": "الحالة الصحية",
-    "admin.ingestionQueue": "قائمة انتظار الاستيعاب"
+    "admin.ingestionQueue": "قائمة انتظار الاستيعاب",
+    "adminClauseTaxonomy": "تصنيف البنود",
+    "adminRules": "قواعد الارتباط",
+    "clausesReview": "قائمة المراجعة"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -1590,7 +1593,122 @@
     "category_dispute_resolution": "تسوية النزاعات",
     "category_governing_law": "القانون الحاكم",
     "category_indemnity": "التعويض",
-    "category_emiratisation": "التوطين"
+    "category_emiratisation": "التوطين",
+    "taxonomy": {
+      "title": "تصنيف البنود",
+      "subtitle": "50 نوعاً من البنود في 8 عائلات — الملحق أ",
+      "searchLabel": "بحث في الأنواع",
+      "searchPlaceholder": "مثال: القوة القاهرة، تعديل السعر…",
+      "filterByFamily": "تصفية حسب العائلة",
+      "typeCount": "{{count}} أنواع",
+      "deprecated": "مهمل",
+      "parametersLabel": "المعاملات",
+      "parameterTable": {
+        "name": "الاسم",
+        "type": "النوع",
+        "required": "مطلوب",
+        "yes": "نعم",
+        "no": "لا"
+      },
+      "requestRevision": "طلب مراجعة",
+      "revisionRequested": "تم تقديم طلب المراجعة",
+      "revisionDialog": {
+        "title": "طلب مراجعة التصنيف",
+        "subtitle": "صف التغيير المطلوب. سيقوم مسؤول المنصة بمراجعته.",
+        "reasonLabel": "السبب",
+        "reasonPlaceholder": "صف التغيير المقترح…",
+        "submit": "تقديم الطلب"
+      },
+      "empty": "لا توجد أنواع بنود تطابق بحثك.",
+      "family": {
+        "force_majeure": "القوة القاهرة",
+        "termination": "الإنهاء",
+        "pricing": "التسعير",
+        "performance": "الأداء",
+        "indemnity": "التعويض",
+        "compliance": "الامتثال",
+        "governance": "الحوكمة",
+        "operational": "التشغيل"
+      }
+    },
+    "review": {
+      "title": "قائمة مراجعة البنود",
+      "subtitle": "مراجعة والتحقق من البنود المستخرجة بالذكاء الاصطناعي في جميع العقود.",
+      "searchLabel": "بحث",
+      "searchPlaceholder": "رقم العقد، نوع البند…",
+      "statusFilter": "الحالة",
+      "filter": {
+        "all": "الكل",
+        "pendingReview": "في انتظار المراجعة",
+        "reviewed": "تمت المراجعة",
+        "rejected": "مرفوض"
+      },
+      "confidenceFilter": "الثقة",
+      "confidenceBand": {
+        "all": "الكل",
+        "low": "منخفض (< 50٪)",
+        "medium": "متوسط (50–70٪)"
+      },
+      "table": {
+        "contract": "العقد",
+        "family": "العائلة",
+        "type": "النوع",
+        "confidence": "الثقة",
+        "page": "الصفحة",
+        "status": "الحالة",
+        "age": "العمر",
+        "actions": "الإجراءات",
+        "review": "مراجعة"
+      },
+      "lowConf": "ثقة منخفضة",
+      "status": {
+        "auto": "تلقائي",
+        "pending_review": "في انتظار المراجعة",
+        "reviewed": "تمت المراجعة",
+        "rejected": "مرفوض",
+        "pending_extraction": "في انتظار الاستخراج"
+      },
+      "empty": "لا توجد بنود في قائمة المراجعة.",
+      "pagination": {
+        "showing": "الصفحة {{page}} من {{totalPages}} · {{total}} بند"
+      },
+      "resolveSuccess": "تم حفظ قرار المراجعة.",
+      "modal": {
+        "title": "مراجعة البند",
+        "parametersSection": "المعاملات المستخرجة",
+        "actionLabel": "القرار",
+        "action": {
+          "confirm": "تأكيد",
+          "correct": "تصحيح",
+          "reject": "رفض"
+        },
+        "excerptFor": "مقتطف النص",
+        "excerptPlaceholder": "أدخل مقتطف النص المصحح…",
+        "noParameters": "لم يتم استخراج أي معاملات.",
+        "sourceSection": "المصدر",
+        "sourcePage": "الصفحة {{page}}",
+        "sourcePageUnknown": "الصفحة غير معروفة",
+        "sourceNotice": "النص مشتق من المستند المُدخل.",
+        "confidenceNote": "الثقة: {{pct}}٪",
+        "confidenceUnknown": "الثقة غير معروفة"
+      }
+    },
+    "tab": {
+      "empty": "لم يتم استخراج أي بنود بعد.",
+      "emptyHint": "قم بتشغيل الاستخراج من تبويب المستند بعد استيعاب المستند.",
+      "moreParams": "+{{count}} أخرى",
+      "table": {
+        "family": "العائلة",
+        "type": "النوع",
+        "confidence": "الثقة",
+        "parameters": "المعاملات",
+        "page": "الصفحة",
+        "status": "الحالة"
+      },
+      "pagination": {
+        "showing": "الصفحة {{page}} من {{totalPages}} · {{total}} بند"
+      }
+    }
   },
   "compose": {
     "title": "عقد جديد",
@@ -4288,6 +4406,74 @@
         "reject": "رفض",
         "saveCorrection": "حفظ التصحيح"
       }
+    },
+    "rules": {
+      "title": "قواعد الارتباط",
+      "subtitle": "إدارة سجل القواعد المستخدم للكشف عن الارتباطات بين العقود.",
+      "createButton": "قاعدة جديدة",
+      "searchLabel": "بحث",
+      "searchPlaceholder": "معرف القاعدة، الاسم…",
+      "scenarioFilter": "السيناريو",
+      "scenarioPlaceholder": "مثال: force_majeure",
+      "table": {
+        "ruleId": "معرف القاعدة",
+        "name": "الاسم",
+        "scenario": "السيناريو",
+        "enabled": "مفعّل",
+        "lastReviewed": "آخر مراجعة",
+        "versionHash": "الإصدار",
+        "actions": "الإجراءات",
+        "toggleAriaLabel": "تبديل {{name}}"
+      },
+      "empty": "لا توجد قواعد.",
+      "pagination": {
+        "showing": "الصفحة {{page}} من {{totalPages}} · {{total}} قاعدة"
+      },
+      "toggleSuccess": "تم تحديث القاعدة.",
+      "saveSuccess": "تم حفظ القاعدة.",
+      "testPassed": "اجتاز الاختبار",
+      "testFailed": "فشل الاختبار",
+      "backToList": "العودة إلى القواعد",
+      "newTitle": "قاعدة جديدة",
+      "editTitle": "تعديل القاعدة",
+      "versionHash": "رمز الإصدار",
+      "lastReviewedBy": "آخر مراجعة بواسطة",
+      "testButton": "تشغيل الاختبار",
+      "tab": {
+        "friendly": "النموذج",
+        "yaml": "YAML متقدم"
+      },
+      "fields": {
+        "name": "الاسم (إنجليزي)",
+        "nameAr": "الاسم (عربي)",
+        "scenario": "السيناريو",
+        "scenarioPlaceholder": "مثال: force_majeure",
+        "enabled": "مفعّل",
+        "metaOwner": "المالك",
+        "metaRationale": "المبرر",
+        "matchYaml": "شروط المطابقة (YAML)",
+        "matchYamlPlaceholder": "# YAML — انظر التوثيق",
+        "produceYaml": "قالب الإخراج (YAML)",
+        "produceYamlPlaceholder": "# YAML — انظر التوثيق"
+      },
+      "testPanel": {
+        "title": "اختبار مقابل حالة محددة",
+        "subtitle": "شغّل هذه القاعدة مقابل حالة محفوظة للتحقق من السلوك.",
+        "fixtureLabel": "الحالة",
+        "fixtureAll": "اختر حالة…",
+        "positive": "إيجابي",
+        "negative": "سلبي",
+        "runButton": "تشغيل",
+        "pass": "نجح",
+        "fail": "فشل",
+        "expected": "المتوقع",
+        "actual": "الفعلي",
+        "match": "تطابق",
+        "noMatch": "لا تطابق",
+        "matchReason": "السبب",
+        "diffNotes": "ملاحظات الفرق",
+        "evidence": "الدليل"
+      }
     }
   },
   "permissions": {
@@ -6482,6 +6668,29 @@
       "errors": {
         "loadFailed": "تعذر تحميل فحص صحة النظام."
       }
+    }
+  },
+  "correlations": {
+    "title": "الارتباطات",
+    "subtitle": "العقود التي تم وضع علامة عليها كمترابطة محتملة بواسطة محرك القواعد.",
+    "table": {
+      "contracts": "العقود",
+      "rule": "القاعدة",
+      "scenario": "السيناريو",
+      "confidence": "الثقة",
+      "status": "الحالة",
+      "detectedAt": "تاريخ الاكتشاف"
+    },
+    "status": {
+      "open": "مفتوح",
+      "dismissed": "مرفوض",
+      "confirmed": "مؤكد"
+    },
+    "dismiss": "رفض",
+    "dismissSuccess": "تم رفض الارتباط.",
+    "empty": "لا توجد ارتباطات مكتشفة.",
+    "pagination": {
+      "showing": "الصفحة {{page}} من {{totalPages}} · {{total}} ارتباط"
     }
   }
 }

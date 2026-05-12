@@ -392,7 +392,10 @@
     "adminAiPrompts": "AI prompts",
     "adminAiReqs": "AI requests",
     "adminHealth": "Health",
-    "admin.ingestionQueue": "Ingestion queue"
+    "admin.ingestionQueue": "Ingestion queue",
+    "adminClauseTaxonomy": "Clause taxonomy",
+    "adminRules": "Correlation rules",
+    "clausesReview": "Review queue"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -1590,7 +1593,122 @@
     "category_dispute_resolution": "Dispute resolution",
     "category_governing_law": "Governing law",
     "category_indemnity": "Indemnity",
-    "category_emiratisation": "Emiratisation"
+    "category_emiratisation": "Emiratisation",
+    "taxonomy": {
+      "title": "Clause Taxonomy",
+      "subtitle": "50 clause types across 8 families — Annex A",
+      "searchLabel": "Search types",
+      "searchPlaceholder": "e.g. force majeure, price adjustment…",
+      "filterByFamily": "Filter by family",
+      "typeCount": "{{count}} types",
+      "deprecated": "Deprecated",
+      "parametersLabel": "Parameters",
+      "parameterTable": {
+        "name": "Name",
+        "type": "Type",
+        "required": "Required",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "requestRevision": "Request revision",
+      "revisionRequested": "Revision request submitted",
+      "revisionDialog": {
+        "title": "Request taxonomy revision",
+        "subtitle": "Describe the change you need. A platform admin will review it.",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Describe the proposed change…",
+        "submit": "Submit request"
+      },
+      "empty": "No clause types match your search.",
+      "family": {
+        "force_majeure": "Force Majeure",
+        "termination": "Termination",
+        "pricing": "Pricing",
+        "performance": "Performance",
+        "indemnity": "Indemnity",
+        "compliance": "Compliance",
+        "governance": "Governance",
+        "operational": "Operational"
+      }
+    },
+    "review": {
+      "title": "Clause Review Queue",
+      "subtitle": "Review and validate AI-extracted clauses across all contracts.",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Contract number, clause type…",
+      "statusFilter": "Status",
+      "filter": {
+        "all": "All",
+        "pendingReview": "Pending review",
+        "reviewed": "Reviewed",
+        "rejected": "Rejected"
+      },
+      "confidenceFilter": "Confidence",
+      "confidenceBand": {
+        "all": "All",
+        "low": "Low (< 50%)",
+        "medium": "Medium (50–70%)"
+      },
+      "table": {
+        "contract": "Contract",
+        "family": "Family",
+        "type": "Type",
+        "confidence": "Confidence",
+        "page": "Page",
+        "status": "Status",
+        "age": "Age",
+        "actions": "Actions",
+        "review": "Review"
+      },
+      "lowConf": "Low confidence",
+      "status": {
+        "auto": "Auto",
+        "pending_review": "Pending review",
+        "reviewed": "Reviewed",
+        "rejected": "Rejected",
+        "pending_extraction": "Pending extraction"
+      },
+      "empty": "No clauses in the review queue.",
+      "pagination": {
+        "showing": "Page {{page}} of {{totalPages}} · {{total}} clauses"
+      },
+      "resolveSuccess": "Review decision saved.",
+      "modal": {
+        "title": "Review clause",
+        "parametersSection": "Extracted parameters",
+        "actionLabel": "Decision",
+        "action": {
+          "confirm": "Confirm",
+          "correct": "Correct",
+          "reject": "Reject"
+        },
+        "excerptFor": "Text excerpt",
+        "excerptPlaceholder": "Enter corrected text excerpt…",
+        "noParameters": "No parameters extracted.",
+        "sourceSection": "Source",
+        "sourcePage": "Page {{page}}",
+        "sourcePageUnknown": "Page unknown",
+        "sourceNotice": "Text is derived from the ingested document.",
+        "confidenceNote": "Confidence: {{pct}}%",
+        "confidenceUnknown": "Confidence unknown"
+      }
+    },
+    "tab": {
+      "empty": "No clauses extracted yet.",
+      "emptyHint": "Trigger extraction from the Document tab once the document is ingested.",
+      "moreParams": "+{{count}} more",
+      "table": {
+        "family": "Family",
+        "type": "Type",
+        "confidence": "Confidence",
+        "parameters": "Parameters",
+        "page": "Page",
+        "status": "Status"
+      },
+      "pagination": {
+        "showing": "Page {{page}} of {{totalPages}} · {{total}} clauses"
+      }
+    }
   },
   "compose": {
     "title": "New contract",
@@ -4288,6 +4406,74 @@
         "reject": "Reject",
         "saveCorrection": "Save correction"
       }
+    },
+    "rules": {
+      "title": "Correlation Rules",
+      "subtitle": "Manage the rule registry used to detect correlations across contracts.",
+      "createButton": "New rule",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Rule ID, name…",
+      "scenarioFilter": "Scenario",
+      "scenarioPlaceholder": "e.g. force_majeure",
+      "table": {
+        "ruleId": "Rule ID",
+        "name": "Name",
+        "scenario": "Scenario",
+        "enabled": "Enabled",
+        "lastReviewed": "Last reviewed",
+        "versionHash": "Version",
+        "actions": "Actions",
+        "toggleAriaLabel": "Toggle {{name}}"
+      },
+      "empty": "No rules found.",
+      "pagination": {
+        "showing": "Page {{page}} of {{totalPages}} · {{total}} rules"
+      },
+      "toggleSuccess": "Rule updated.",
+      "saveSuccess": "Rule saved.",
+      "testPassed": "Test passed",
+      "testFailed": "Test failed",
+      "backToList": "Back to rules",
+      "newTitle": "New rule",
+      "editTitle": "Edit rule",
+      "versionHash": "Version hash",
+      "lastReviewedBy": "Last reviewed by",
+      "testButton": "Run test",
+      "tab": {
+        "friendly": "Form",
+        "yaml": "Advanced YAML"
+      },
+      "fields": {
+        "name": "Name (EN)",
+        "nameAr": "Name (AR)",
+        "scenario": "Scenario",
+        "scenarioPlaceholder": "e.g. force_majeure",
+        "enabled": "Enabled",
+        "metaOwner": "Owner",
+        "metaRationale": "Rationale",
+        "matchYaml": "Match conditions (YAML)",
+        "matchYamlPlaceholder": "# YAML — see documentation",
+        "produceYaml": "Output template (YAML)",
+        "produceYamlPlaceholder": "# YAML — see documentation"
+      },
+      "testPanel": {
+        "title": "Test against fixture",
+        "subtitle": "Run this rule against a saved fixture to verify behaviour.",
+        "fixtureLabel": "Fixture",
+        "fixtureAll": "Select fixture…",
+        "positive": "Positive",
+        "negative": "Negative",
+        "runButton": "Run",
+        "pass": "Pass",
+        "fail": "Fail",
+        "expected": "Expected",
+        "actual": "Actual",
+        "match": "Match",
+        "noMatch": "No match",
+        "matchReason": "Reason",
+        "diffNotes": "Diff notes",
+        "evidence": "Evidence"
+      }
     }
   },
   "permissions": {
@@ -6482,6 +6668,29 @@
       "errors": {
         "loadFailed": "Could not load the system health probe."
       }
+    }
+  },
+  "correlations": {
+    "title": "Correlations",
+    "subtitle": "Contracts flagged as potentially correlated by the rule engine.",
+    "table": {
+      "contracts": "Contracts",
+      "rule": "Rule",
+      "scenario": "Scenario",
+      "confidence": "Confidence",
+      "status": "Status",
+      "detectedAt": "Detected"
+    },
+    "status": {
+      "open": "Open",
+      "dismissed": "Dismissed",
+      "confirmed": "Confirmed"
+    },
+    "dismiss": "Dismiss",
+    "dismissSuccess": "Correlation dismissed.",
+    "empty": "No correlations detected.",
+    "pagination": {
+      "showing": "Page {{page}} of {{totalPages}} · {{total}} correlations"
     }
   }
 }

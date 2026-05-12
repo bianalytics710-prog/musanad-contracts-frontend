@@ -29,6 +29,9 @@ import {
   ShieldCheck,
   Trash2,
   Inbox,
+  BookOpen,
+  GitMerge,
+  ClipboardList,
 } from "lucide-react";
 
 export type AppRole =
@@ -160,6 +163,15 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/ai/requests",           labelKey: "nav.adminAiReqs",          defaultLabel: "AI requests",           icon: ScrollText },
   // M11 — Document Ingestion Pipeline (CR-D0)
   { to: "/app/admin/ingestion-queue",       labelKey: "nav.admin.ingestionQueue", defaultLabel: "Ingestion queue",       icon: Inbox },
+  // M12 — Clause Extraction / Taxonomy (CR-D)
+  { to: "/app/admin/clause-taxonomy",       labelKey: "nav.adminClauseTaxonomy",  defaultLabel: "Clause taxonomy",       icon: BookOpen },
+  // M13 — Correlation Rules (CR-E)
+  { to: "/app/admin/rules",                 labelKey: "nav.adminRules",           defaultLabel: "Correlation rules",     icon: GitMerge },
+];
+
+// M12 — Sub-items shown when the "Clauses" module is active (legal_counsel + platform_admin)
+export const CLAUSES_SUB_NAV: AdminSubItem[] = [
+  { to: "/app/clauses/review", labelKey: "nav.clausesReview", defaultLabel: "Review queue", icon: ClipboardList },
 ];
 
 export function modulesForRole(roleName: string | null | undefined): SidebarModule[] {
