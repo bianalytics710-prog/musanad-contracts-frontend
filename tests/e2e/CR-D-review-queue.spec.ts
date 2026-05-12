@@ -121,7 +121,7 @@ test.describe('AC-S5-01 — Clause Review Queue @persona-legal_counsel', () => {
 
 test.describe('AC-S5-03 — Review Queue route gating @persona-drafter', () => {
   test.beforeEach(async ({ page }) => {
-    await signInAs(page, 'drafter');
+    await signInAs(page, 'contract_drafter');
   });
 
   test('AC-S5-03 [e2e]: drafter without clause.review permission is blocked', async ({ page }) => {

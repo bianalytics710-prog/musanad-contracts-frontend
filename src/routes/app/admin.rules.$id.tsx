@@ -507,7 +507,7 @@ function TestAgainstFixturePanel({
           >
             <option value="">{t('admin.rules.testPanel.fixtureAll')}</option>
             {fixtures.map((f) => (
-              <option key={f.fixtureId} value={f.fixtureId}>
+              <option key={f.id} value={String(f.id)}>
                 {f.fixtureId} — {f.description}
                 {f.expectedMatch ? ` (${t('admin.rules.testPanel.positive')})` : ` (${t('admin.rules.testPanel.negative')})`}
               </option>
