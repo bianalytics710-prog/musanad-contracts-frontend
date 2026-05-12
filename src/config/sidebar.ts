@@ -28,6 +28,7 @@ import {
   Building2,
   ShieldCheck,
   Trash2,
+  Inbox,
 } from "lucide-react";
 
 export type AppRole =
@@ -157,6 +158,8 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/ai/cost-report",        labelKey: "nav.adminAiCost",          defaultLabel: "AI cost",               icon: Activity },
   { to: "/app/admin/ai/prompts",            labelKey: "nav.adminAiPrompts",       defaultLabel: "AI prompts",            icon: SettingsIcon },
   { to: "/app/admin/ai/requests",           labelKey: "nav.adminAiReqs",          defaultLabel: "AI requests",           icon: ScrollText },
+  // M11 — Document Ingestion Pipeline (CR-D0)
+  { to: "/app/admin/ingestion-queue",       labelKey: "nav.admin.ingestionQueue", defaultLabel: "Ingestion queue",       icon: Inbox },
 ];
 
 export function modulesForRole(roleName: string | null | undefined): SidebarModule[] {

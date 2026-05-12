@@ -83,12 +83,17 @@ import { ContractApprovalChainCard } from "./ContractApprovalChainCard";
 import { ContractAIInsightsPanel } from "./ContractAIInsightsPanel";
 import { ContractAttachmentsTab } from "./ContractAttachmentsTab";
 import { ContractCommentsTab } from "./ContractCommentsTab";
+// M11 — Document Ingestion Pipeline
+import { DocumentTabExtension } from "@/components/contracts/DocumentTabExtension";
+import { IngestionStatusBadge } from "@/components/contracts/IngestionStatusBadge";
+import { documentIngestionService } from "@/services/api/document-ingestion.service";
+import { useContractVersions } from "@/features/contracts/hooks/useContracts";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
 import { approvalService } from "@/services/api/approval.service";
 import { signatureService } from "@/services/api/signature.service";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
 
@@ -144,6 +149,28 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const canSeeSignaturesTab = canEdit && !isLegalCounselOnly && !isRecipientOnly;
 
   const { data, isLoading, isError, error, refetch } = useContract(contractId);
+
+  // M11 — fetch versions to obtain the current version's ID for ingestion polling.
+  // The Contract entity only exposes currentVersion (number), not the row ID.
+  const versionsQuery = useContractVersions(contractId, { limit: 1 });
+  const currentVersionId = versionsQuery.data?.data?.[0]?.id ?? null;
+
+  // M11 — ingestion status polling for the Document tab.
+  // Poll every 2s while status is pending/extracting; stop once terminal.
+  const ingestionQuery = useQuery({
+    queryKey: ["ingestionStatus", contractId, currentVersionId],
+    queryFn: () =>
+      documentIngestionService.getIngestionStatus(contractId, currentVersionId!),
+    enabled: currentVersionId !== null,
+    refetchInterval: (queryData) => {
+      const status = queryData.state.data?.ingestionStatus;
+      if (status === "pending" || status === "extracting") return 2_000;
+      return false;
+    },
+    // Poll up to 60 seconds (30 × 2s intervals) then stop
+    staleTime: 5_000,
+    retry: false,
+  });
 
   // R1 audit 8.1.4: surface a top-level Approve CTA on contract detail when
   // (a) the user holds approval.act and (b) they have a pending step on
@@ -256,6 +283,14 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             <span className="ms-2 text-[11px] text-ink-subtle">
               {t("contracts.detail.updatedAt", { when: formatDateTime(contract.updatedAt) })}
             </span>
+            {/* M11 — Ingestion status badge (only when we have status data) */}
+            {ingestionQuery.data?.ingestionStatus && (
+              <IngestionStatusBadge
+                status={ingestionQuery.data.ingestionStatus}
+                engine={ingestionQuery.data.extractionEngine}
+                confidence={ingestionQuery.data.ocrConfidenceAvg}
+              />
+            )}
           </div>
         </div>
         <div className="flex items-start gap-2">
@@ -595,8 +630,26 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
 
       {/* Tab panels */}
       {tab === "overview" && <OverviewPanel contract={contract} canManageTags={canManageTags} />}
-      {tab === "document" && <ContractDocumentTab contract={contract} />}
-      {tab === "attachments" && <ContractAttachmentsTab contractId={contract.id} />}
+      {tab === "document" && (
+        <DocumentTabExtension
+          contractId={contract.id}
+          versionId={currentVersionId ?? 0}
+          ingestionStatus={
+            currentVersionId ? ingestionQuery.data?.ingestionStatus : undefined
+          }
+          extractionEngine={ingestionQuery.data?.extractionEngine}
+          pageCount={ingestionQuery.data?.pageCount}
+          lowConfidencePageCount={ingestionQuery.data?.lowConfidencePageCount}
+        >
+          <ContractDocumentTab contract={contract} />
+        </DocumentTabExtension>
+      )}
+      {tab === "attachments" && (
+        <ContractAttachmentsTab
+          contractId={contract.id}
+          currentVersionId={currentVersionId}
+        />
+      )}
       {tab === "comments" && <ContractCommentsTab contractId={contract.id} />}
       {tab === "edit" && (
         <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />

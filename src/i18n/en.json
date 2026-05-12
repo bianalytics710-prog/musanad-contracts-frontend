@@ -391,7 +391,8 @@
     "adminAiCost": "AI cost",
     "adminAiPrompts": "AI prompts",
     "adminAiReqs": "AI requests",
-    "adminHealth": "Health"
+    "adminHealth": "Health",
+    "admin.ingestionQueue": "Ingestion queue"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -990,6 +991,44 @@
         "successToast": "Excel download started.",
         "truncatedToast": "Export truncated — refine your filters to capture the remaining rows.",
         "errorToast": "Could not export to Excel."
+      }
+    },
+    "documentTab": {
+      "original": "Original",
+      "extractedText": "Extracted text",
+      "viewToggleLabel": "Document view",
+      "extracting": "Extracting document text…",
+      "extractionFailed": "Text extraction failed.",
+      "partialBanner": "AI assisted on {{count}} pages — review recommended.",
+      "reviewLink": "Review",
+      "loadingExtracted": "Loading extracted text…",
+      "extractedLoadError": "Failed to load extracted text.",
+      "extractedEmpty": "No extracted text available.",
+      "extractedVia": "Extracted via {{engine}}",
+      "engine": {
+        "digital_pdf": "Digital PDF",
+        "tesseract": "Tesseract OCR",
+        "gpt4o_vision": "GPT-4o Vision",
+        "mammoth_docx": "Mammoth DOCX",
+        "mixed": "Mixed (OCR + AI)"
+      }
+    },
+    "ingestionStatus": {
+      "pending": "Pending",
+      "extracting": "Extracting",
+      "complete": "Extracted",
+      "failed": "Extraction failed",
+      "partial": "Partial — review needed",
+      "engine": "Engine",
+      "confidence": "Confidence"
+    },
+    "upload": {
+      "extraction": {
+        "inProgress": "Extracting document text…",
+        "success": "Extracted in {{pages}} pages via {{method}}.",
+        "failed": "Text extraction failed. You can retry from the Document tab.",
+        "retry": "Retry extraction",
+        "retryQueued": "Re-extraction queued. The document is being processed."
       }
     }
   },
@@ -4194,6 +4233,60 @@
       "errors": {
         "loadFailed": "Could not load email configuration.",
         "saveFailed": "Could not save email configuration."
+      }
+    },
+    "ingestionQueue": {
+      "title": "Ingestion review queue",
+      "subtitle": "Review low-confidence OCR pages extracted from uploaded contract PDFs.",
+      "filterLabel": "Filter by status",
+      "filter": {
+        "all": "All",
+        "pendingAuto": "Pending auto",
+        "pendingHuman": "Pending review",
+        "resolved": "Resolved",
+        "rejected": "Rejected"
+      },
+      "col": {
+        "contract": "Contract",
+        "pageNo": "Page",
+        "confidence": "Confidence",
+        "gpt4o": "GPT-4o",
+        "status": "Status",
+        "reviewedBy": "Reviewed by",
+        "reviewedAt": "Reviewed at",
+        "createdAt": "Created"
+      },
+      "badge": {
+        "gpt4o": "GPT-4o"
+      },
+      "status": {
+        "pending_auto": "Pending auto",
+        "pending_human": "Pending review",
+        "resolved": "Resolved",
+        "rejected": "Rejected"
+      },
+      "empty": {
+        "title": "No pending ingestions",
+        "description": "Low-confidence OCR pages will appear here after documents are uploaded."
+      },
+      "loadError": "Failed to load ingestion queue.",
+      "totalRows": "{{total}} rows",
+      "resolveSuccess": "Review decision saved.",
+      "correctedTextRequired": "Please enter the corrected text before saving.",
+      "alreadyResolved": "This page has already been reviewed.",
+      "reviewPanelTitle": "Review page {{page}}",
+      "textSourceGpt4o": "GPT-4o extracted text",
+      "textSourceTesseract": "Tesseract extracted text",
+      "textUnavailable": "Extracted text preview not available in list view. Use the admin DB console to review page content.",
+      "pdfPagePreview": "Source PDF page",
+      "pdfPreviewUnavailable": "Page image preview coming in a future release.",
+      "correctedTextLabel": "Corrected text",
+      "correctedTextPlaceholder": "Enter the corrected text for this page…",
+      "action": {
+        "confirm": "Confirm",
+        "correct": "Correct",
+        "reject": "Reject",
+        "saveCorrection": "Save correction"
       }
     }
   },

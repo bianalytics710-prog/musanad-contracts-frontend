@@ -391,7 +391,8 @@
     "adminAiCost": "تكلفة الذكاء الاصطناعي",
     "adminAiPrompts": "موجّهات الذكاء الاصطناعي",
     "adminAiReqs": "طلبات الذكاء الاصطناعي",
-    "adminHealth": "الحالة الصحية"
+    "adminHealth": "الحالة الصحية",
+    "admin.ingestionQueue": "قائمة انتظار الاستيعاب"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -990,6 +991,44 @@
         "successToast": "بدأ تنزيل Excel.",
         "truncatedToast": "تم اقتطاع التصدير — حسّن الفلاتر لالتقاط الصفوف المتبقية.",
         "errorToast": "تعذر التصدير إلى Excel."
+      }
+    },
+    "documentTab": {
+      "original": "الأصلي",
+      "extractedText": "النص المستخرج",
+      "viewToggleLabel": "عرض الوثيقة",
+      "extracting": "جارٍ استخراج نص الوثيقة…",
+      "extractionFailed": "فشل استخراج النص.",
+      "partialBanner": "ساعدت الذكاء الاصطناعي في {{count}} صفحة — يُنصح بالمراجعة.",
+      "reviewLink": "مراجعة",
+      "loadingExtracted": "جارٍ تحميل النص المستخرج…",
+      "extractedLoadError": "فشل تحميل النص المستخرج.",
+      "extractedEmpty": "لا يتوفر نص مستخرج.",
+      "extractedVia": "تم الاستخراج عبر {{engine}}",
+      "engine": {
+        "digital_pdf": "PDF رقمي",
+        "tesseract": "Tesseract OCR",
+        "gpt4o_vision": "GPT-4o Vision",
+        "mammoth_docx": "Mammoth DOCX",
+        "mixed": "مختلط (OCR + AI)"
+      }
+    },
+    "ingestionStatus": {
+      "pending": "في الانتظار",
+      "extracting": "جارٍ الاستخراج",
+      "complete": "تم الاستخراج",
+      "failed": "فشل الاستخراج",
+      "partial": "جزئي — يتطلب المراجعة",
+      "engine": "المحرك",
+      "confidence": "الثقة"
+    },
+    "upload": {
+      "extraction": {
+        "inProgress": "جارٍ استخراج نص الوثيقة…",
+        "success": "تم الاستخراج في {{pages}} صفحة عبر {{method}}.",
+        "failed": "فشل استخراج النص. يمكنك إعادة المحاولة من تبويب الوثيقة.",
+        "retry": "إعادة الاستخراج",
+        "retryQueued": "تمت جدولة إعادة الاستخراج. جارٍ معالجة الوثيقة."
       }
     }
   },
@@ -4194,6 +4233,60 @@
       "errors": {
         "loadFailed": "تعذّر تحميل إعدادات البريد الإلكتروني.",
         "saveFailed": "تعذّر حفظ إعدادات البريد الإلكتروني."
+      }
+    },
+    "ingestionQueue": {
+      "title": "قائمة انتظار مراجعة الاستيعاب",
+      "subtitle": "مراجعة صفحات OCR منخفضة الثقة المستخرجة من مستندات العقود.",
+      "filterLabel": "تصفية حسب الحالة",
+      "filter": {
+        "all": "الكل",
+        "pendingAuto": "في انتظار المعالجة التلقائية",
+        "pendingHuman": "في انتظار المراجعة",
+        "resolved": "تمت المراجعة",
+        "rejected": "مرفوض"
+      },
+      "col": {
+        "contract": "العقد",
+        "pageNo": "الصفحة",
+        "confidence": "الثقة",
+        "gpt4o": "GPT-4o",
+        "status": "الحالة",
+        "reviewedBy": "تمت المراجعة بواسطة",
+        "reviewedAt": "تاريخ المراجعة",
+        "createdAt": "تاريخ الإنشاء"
+      },
+      "badge": {
+        "gpt4o": "GPT-4o"
+      },
+      "status": {
+        "pending_auto": "في انتظار المعالجة التلقائية",
+        "pending_human": "في انتظار المراجعة",
+        "resolved": "تمت المراجعة",
+        "rejected": "مرفوض"
+      },
+      "empty": {
+        "title": "لا توجد استيعابات معلّقة",
+        "description": "ستظهر صفحات OCR منخفضة الثقة هنا بعد رفع المستندات."
+      },
+      "loadError": "فشل تحميل قائمة انتظار الاستيعاب.",
+      "totalRows": "{{total}} صف",
+      "resolveSuccess": "تم حفظ قرار المراجعة.",
+      "correctedTextRequired": "يرجى إدخال النص المصحح قبل الحفظ.",
+      "alreadyResolved": "تمت مراجعة هذه الصفحة بالفعل.",
+      "reviewPanelTitle": "مراجعة الصفحة {{page}}",
+      "textSourceGpt4o": "النص المستخرج بواسطة GPT-4o",
+      "textSourceTesseract": "النص المستخرج بواسطة Tesseract",
+      "textUnavailable": "معاينة النص المستخرج غير متاحة في عرض القائمة. استخدم وحدة تحكم قاعدة البيانات للاطلاع على محتوى الصفحة.",
+      "pdfPagePreview": "صفحة PDF المصدر",
+      "pdfPreviewUnavailable": "معاينة صورة الصفحة قادمة في إصدار مستقبلي.",
+      "correctedTextLabel": "النص المصحح",
+      "correctedTextPlaceholder": "أدخل النص المصحح لهذه الصفحة…",
+      "action": {
+        "confirm": "تأكيد",
+        "correct": "تصحيح",
+        "reject": "رفض",
+        "saveCorrection": "حفظ التصحيح"
       }
     }
   },

@@ -2,8 +2,12 @@
  * ContractAttachmentsTab — list + drag-drop upload + signed-URL download
  * for files attached to a contract. Files live in Supabase Storage; the
  * BE proxies upload (service-role) and signs short-lived download URLs.
+ *
+ * M11 extension: after successful upload, polls ingestion-status every 2s
+ * (max 60s / 30 iterations) and shows inline extraction progress.
+ * Requires currentVersionId prop from ContractDetail (M11 CR-D0).
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,10 +17,12 @@ import {
   FileImage,
   FileSpreadsheet,
   FileText,
+  Loader2,
   Paperclip,
   Trash2,
   Upload,
 } from "lucide-react";
+import { documentIngestionService } from "@/services/api/document-ingestion.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +37,8 @@ import { cn } from "@/lib/utils";
 
 interface ContractAttachmentsTabProps {
   contractId: number;
+  /** M11 — current version ID for ingestion polling after upload. */
+  currentVersionId?: number | null;
 }
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -48,7 +56,7 @@ function iconFor(mime: string) {
   return FileIcon;
 }
 
-export function ContractAttachmentsTab({ contractId }: ContractAttachmentsTabProps) {
+export function ContractAttachmentsTab({ contractId, currentVersionId }: ContractAttachmentsTabProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const canUpload = useAuthStore(selectHasPermission("contract.attachment.write"));
@@ -56,6 +64,33 @@ export function ContractAttachmentsTab({ contractId }: ContractAttachmentsTabPro
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadingName, setUploadingName] = useState<string | null>(null);
+
+  // M11 — extraction progress after upload
+  const [extractionPolling, setExtractionPolling] = useState(false);
+  const [extractionPollStart, setExtractionPollStart] = useState<number | null>(null);
+  const POLL_MAX_MS = 60_000;
+
+  const ingestionQuery = useQuery({
+    queryKey: ["ingestionStatus", contractId, currentVersionId, "attachments-poll"],
+    queryFn: () =>
+      documentIngestionService.getIngestionStatus(contractId, currentVersionId!),
+    enabled: extractionPolling && currentVersionId != null,
+    refetchInterval: extractionPolling ? 2_000 : false,
+    staleTime: 0,
+    retry: false,
+  });
+
+  // Stop polling when terminal status reached or timeout exceeded
+  useEffect(() => {
+    if (!extractionPolling) return;
+    const status = ingestionQuery.data?.ingestionStatus;
+    const elapsed = extractionPollStart != null ? Date.now() - extractionPollStart : 0;
+    if (status && status !== "pending" && status !== "extracting") {
+      setExtractionPolling(false);
+    } else if (elapsed > POLL_MAX_MS) {
+      setExtractionPolling(false);
+    }
+  }, [ingestionQuery.data, extractionPolling, extractionPollStart]);
 
   const { data: attachments, isLoading, isError, error } = useQuery({
     queryKey: ["contract-attachments", contractId],
@@ -70,6 +105,12 @@ export function ContractAttachmentsTab({ contractId }: ContractAttachmentsTabPro
       toast.success(t("contracts.attachments.uploaded", { defaultValue: "Attachment uploaded." }));
       void queryClient.invalidateQueries({ queryKey: ["contract-attachments", contractId] });
       void queryClient.invalidateQueries({ queryKey: ["contracts", contractId] });
+      // M11 — start ingestion polling
+      if (currentVersionId != null) {
+        setExtractionPolling(true);
+        setExtractionPollStart(Date.now());
+        void queryClient.invalidateQueries({ queryKey: ["ingestionStatus", contractId, currentVersionId] });
+      }
     },
     onError: (err: ApiError | Error) => {
       toast.error(err instanceof ApiError ? translateApiError(err, t) : err.message);
@@ -172,6 +213,35 @@ export function ContractAttachmentsTab({ contractId }: ContractAttachmentsTabPro
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* M11 — extraction progress indicator */}
+        {extractionPolling && (
+          <div className="flex items-center gap-2 rounded-md border border-sage/30 bg-sage/10 px-3 py-2 text-xs text-sage">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            {t("contracts.upload.extraction.inProgress", {
+              defaultValue: "Extracting document text…",
+            })}
+          </div>
+        )}
+        {!extractionPolling &&
+          ingestionQuery.data?.ingestionStatus === "complete" &&
+          ingestionQuery.data?.pageCount != null && (
+            <div className="rounded-md border border-gold/30 bg-gold/10 px-3 py-2 text-xs text-gold">
+              {t("contracts.upload.extraction.success", {
+                defaultValue:
+                  "Extracted in {{pages}} pages via {{method}}.",
+                pages: ingestionQuery.data.pageCount,
+                method: ingestionQuery.data.extractionEngine ?? "OCR",
+              })}
+            </div>
+          )}
+        {!extractionPolling &&
+          ingestionQuery.data?.ingestionStatus === "failed" && (
+            <div className="rounded-md border border-terracotta/30 bg-terracotta/10 px-3 py-2 text-xs text-terracotta">
+              {t("contracts.upload.extraction.failed", {
+                defaultValue: "Text extraction failed. You can retry from the Document tab.",
+              })}
+            </div>
+          )}
         {canUpload && (
           <div
             onDragOver={(e) => {
