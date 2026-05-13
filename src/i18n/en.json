@@ -6838,5 +6838,260 @@
     "pagination": {
       "showing": "Page {{page}} of {{totalPages}} · {{total}} correlations"
     }
+  },
+  "nav": {
+    "dashboardsOperations": "Operations",
+    "dashboardsFinanceTreasury": "Finance & Treasury",
+    "dashboardsComplianceEsg": "Compliance & ESG",
+    "dashboardsProcurement": "Procurement Risk"
+  },
+  "dashboards": {
+    "operations": {
+      "title": "Operations dashboard",
+      "subtitle": "SLA breaches, delivery delays, and vendor performance",
+      "kpiGroupLabel": "Operations KPIs",
+      "kpis": {
+        "openSlaBreaches": "Open SLA breaches",
+        "deliveryDelays": "Delivery delays open",
+        "penaltyExposure": "Penalty exposure (AED)",
+        "vendorsWithBreaches": "Vendors with breaches"
+      },
+      "sections": {
+        "slaBreaches": "SLA breaches",
+        "deliveryDelays": "Delivery delay tracker",
+        "penaltyExposure": "Penalty exposure by contract",
+        "opsEvents": "Recent operations events",
+        "vendorScorecards": "Vendor performance scorecards"
+      },
+      "table": {
+        "contract": "Contract",
+        "counterparty": "Counterparty",
+        "breachKind": "Breach kind",
+        "severity": "Severity",
+        "marAed": "MaR (AED)",
+        "occurredAt": "Date",
+        "lastMilestone": "Last delayed milestone",
+        "delayDays": "Delay (days)",
+        "vendor": "Vendor",
+        "riskScore": "Risk score",
+        "performanceTier": "Tier",
+        "slaBreaches180d": "SLA breaches (180d)",
+        "deliveryDelays180d": "Delivery delays (180d)"
+      },
+      "chart": {
+        "exposure": "Exposure (AED)"
+      },
+      "empty": {
+        "noSlaBreaches": "No SLA breach signals in the selected window.",
+        "noDelays": "No delivery delay signals in the selected window.",
+        "noPenalty": "No penalty exposure data available.",
+        "noEvents": "No operational events in the selected window.",
+        "noVendors": "No vendor scorecard data available."
+      },
+      "errors": {
+        "loadFailed": "Failed to load the Operations dashboard. Please try again."
+      }
+    },
+    "financeTreasury": {
+      "title": "Finance & Treasury dashboard",
+      "subtitle": "FX exposure, price-review triggers, and currency breakdown",
+      "kpiGroupLabel": "Finance & Treasury KPIs",
+      "kpis": {
+        "totalExposure": "Total contract value (AED)",
+        "fxExposure": "FX exposure (AED)",
+        "priceReviewTriggered": "Price-review triggered",
+        "paymentDelays": "Payment delays open"
+      },
+      "sections": {
+        "priceReview": "Price-review trigger queue",
+        "paymentDelays": "Payment delay register",
+        "currencyExposure": "Currency exposure breakdown"
+      },
+      "fxTile": {
+        "ariaLabel": "FX volatility tile",
+        "peggedNote": "AED pegged to USD · 0% deviation",
+        "checkedAt": "Last checked {{time}}",
+        "nonAedContracts": "non-AED contracts",
+        "stable": "Stable",
+        "deviation": "Deviation"
+      },
+      "table": {
+        "contract": "Contract",
+        "counterparty": "Counterparty",
+        "index": "Index",
+        "trigger": "Trigger headline",
+        "marAed": "MaR (AED)",
+        "occurredAt": "Date",
+        "currency": "Currency",
+        "contracts": "Contracts",
+        "valueAed": "Value (AED)",
+        "pctPortfolio": "% portfolio"
+      },
+      "chart": {
+        "currencyPieAriaLabel": "Currency exposure pie chart",
+        "exposure": "Exposure (AED)"
+      },
+      "paymentDelayCount": "payment delay records",
+      "empty": {
+        "noPriceReview": "No Brent/Dubai/Murban price-review correlations in the selected window.",
+        "paymentDelaysV1": "No payment delay signals available — deferred to pilot.",
+        "noCurrencies": "No active currency data available."
+      },
+      "errors": {
+        "loadFailed": "Failed to load the Finance & Treasury dashboard. Please try again."
+      }
+    },
+    "complianceEsg": {
+      "title": "Compliance & ESG dashboard",
+      "subtitle": "Sanctions exposure, audit rights, and regulatory updates",
+      "kpiGroupLabel": "Compliance & ESG KPIs",
+      "kpis": {
+        "sanctionsDirect": "Active OFAC / direct sanctions",
+        "sanctionsChain": "Chain-exposure contracts",
+        "auditRightsExpiring": "Audit rights expiring (90d)",
+        "regulatoryUpdates": "Regulatory updates (window)",
+        "esgCorrelations": "ESG correlations open"
+      },
+      "sections": {
+        "sanctionsExposure": "Sanctions exposure",
+        "subContractorChain": "Sub-contractor chain view",
+        "auditRights": "Audit rights tracker",
+        "regulatoryUpdates": "Regulatory updates monitor",
+        "esgCorrelations": "ESG correlations"
+      },
+      "table": {
+        "contract": "Contract",
+        "counterparty": "Counterparty",
+        "sanctionsStatus": "Sanctions status",
+        "exposureKind": "Exposure kind",
+        "marAed": "MaR (AED)",
+        "chainRoot": "Chain root",
+        "depthReached": "Depth",
+        "sanctionedNodes": "Sanctioned nodes",
+        "affectedContracts": "Affected contracts",
+        "expiresOn": "Expires",
+        "daysToExpiry": "Days to expiry",
+        "severity": "Severity"
+      },
+      "chainTruncated": "Chain traversal was silently capped at maximum depth",
+      "truncated": "truncated",
+      "affectedContracts": "affected contracts",
+      "empty": {
+        "noSanctions": "No sanctions exposure detected.",
+        "noChains": "No sub-contractor chain data available.",
+        "noAuditRights": "No audit-rights clauses extracted yet.",
+        "noRegulatoryUpdates": "No regulatory updates in the selected window.",
+        "noEsgCorrelations": "No ESG correlations active — no ESG rules seeded in v1."
+      },
+      "errors": {
+        "loadFailed": "Failed to load the Compliance & ESG dashboard. Please try again."
+      }
+    },
+    "procurement": {
+      "title": "Procurement supplier-risk dashboard",
+      "subtitle": "Supplier risk scores, ICV compliance, and backup alternatives",
+      "kpiGroupLabel": "Procurement KPIs",
+      "kpis": {
+        "totalSuppliers": "Total suppliers",
+        "suppliersAtRisk": "Suppliers at risk",
+        "icvNonCompliant": "ICV non-compliant",
+        "financialDistress": "Financial distress signals"
+      },
+      "sections": {
+        "supplierScorecard": "Supplier risk scorecard",
+        "icvCompliance": "ICV compliance tracker",
+        "backupSuppliers": "Backup supplier suggestions",
+        "financialHealth": "Vendor financial health"
+      },
+      "table": {
+        "supplier": "Supplier",
+        "type": "Type",
+        "riskScore": "Risk score",
+        "riskTier": "Tier",
+        "activeContracts": "Active contracts",
+        "slaBreaches": "SLA breaches (180d)",
+        "totalValue": "Total value (AED)",
+        "icvStatus": "ICV status",
+        "icvPct": "ICV %",
+        "lastChecked": "Last checked",
+        "contractValue": "Contract value (AED)"
+      },
+      "backupSupplier": {
+        "primaryRisk": "Risk score: {{score}}",
+        "alternatives": "Suggested alternatives",
+        "score": "Score: {{score}}",
+        "noAlternatives": "No alternative suppliers found."
+      },
+      "empty": {
+        "noSuppliers": "No supplier data available.",
+        "noIcvIssues": "All suppliers meet ICV requirements.",
+        "noBackupSuggestions": "No distressed primary suppliers — no backup suggestions needed.",
+        "financialHealthV1": "No vendor financial-health signals available — deferred to pilot."
+      },
+      "errors": {
+        "loadFailed": "Failed to load the Procurement dashboard. Please try again."
+      }
+    }
+  },
+  "ai": {
+    "riskAssistant": {
+      "toggleButton": "Ask AI risk assistant",
+      "panelAriaLabel": "AI Risk Assistant panel",
+      "title": "Risk Assistant",
+      "close": "Close Risk Assistant",
+      "aborted": " [cancelled]",
+      "emptyState": {
+        "title": "Ask about your portfolio",
+        "subtitle": "I can answer questions about contracts, correlations, signals, and clauses in your scope.",
+        "examplesLabel": "Try asking"
+      },
+      "examples": {
+        "hormuz": "Which contracts are exposed to Hormuz disruption?",
+        "sanctions": "What's our top sanctions risk?",
+        "icv": "Show me suppliers below ICV minimum"
+      },
+      "input": {
+        "label": "Ask a question",
+        "ariaLabel": "Type your question for the AI Risk Assistant",
+        "placeholder": "Ask about your portfolio… (Enter to send)",
+        "send": "Send question",
+        "abort": "Stop response"
+      },
+      "error": {
+        "generic": "An error occurred while generating the response. Please try again."
+      }
+    }
+  },
+  "executive": {
+    "whatChangedToday": {
+      "title": "What changed today",
+      "sectionAriaLabel": "What changed today section",
+      "viewContract": "View"
+    },
+    "recommendedActions": {
+      "title": "Recommended actions",
+      "sectionAriaLabel": "Recommended actions section",
+      "noAction": "Review correlation",
+      "sla": "SLA: {{hours}}h",
+      "viewContract": "View"
+    },
+    "clausesTriggered": {
+      "title": "Clauses triggered",
+      "sectionAriaLabel": "Clauses triggered section",
+      "windowGroupAriaLabel": "Time window selector",
+      "window": {
+        "last7d": "Last 7d",
+        "last30d": "Last 30d"
+      },
+      "empty": "No clause triggers in the selected window.",
+      "chart": {
+        "count": "Clause count"
+      }
+    }
+  },
+  "dashboards.common.tier": {
+    "high": "High risk",
+    "medium": "Medium risk",
+    "low": "Low risk"
   }
 }

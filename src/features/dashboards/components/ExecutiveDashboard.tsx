@@ -63,10 +63,18 @@ import { ExecutiveLists } from "./ExecutiveLists";
 import { ExecutiveEventsCard } from "./ExecutiveEventsCard";
 // M14 — CR-F: AVaR extension
 import { AvarDashboardSection } from "./AvarDashboardSection";
+// M15 — CR-G: Executive dashboard extension (3 new sections)
+import { ExecutiveCrgExtension } from "./ExecutiveCrgExtension";
 import type {
   AiExecutiveAnomaliesStats,
   AiLanguage,
 } from "@/types/entities/ai.types";
+import type {
+  ExecutiveDashboardCrgAdditions,
+  WhatChangedTodayRow,
+  RecommendedActionRow,
+  ClausesTriggeredPayload,
+} from "@/types/entities/crg-dashboards.types";
 
 const DEFAULT_WINDOW_DAYS = 90;
 
@@ -354,6 +362,15 @@ export function ExecutiveDashboard() {
               autoFetch
             />
           )}
+
+          {/* M15 — CR-G: 3 additive executive sections (whatChangedToday / recommendedActions / clausesTriggered).
+              Defensive guards: sections only render when arrays are non-empty.
+              The existing R-EX payload returns these keys as of migration 180. */}
+          <ExecutiveCrgExtension
+            whatChangedToday={(data as unknown as ExecutiveDashboardCrgAdditions).whatChangedToday ?? []}
+            recommendedActions={(data as unknown as ExecutiveDashboardCrgAdditions).recommendedActions ?? []}
+            clausesTriggered={(data as unknown as ExecutiveDashboardCrgAdditions).clausesTriggered ?? { last7d: [], last30d: [] }}
+          />
         </>
       )}
     </motion.div>

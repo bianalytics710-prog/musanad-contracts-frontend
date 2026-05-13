@@ -33,6 +33,11 @@ import {
   GitMerge,
   ClipboardList,
   SlidersHorizontal,
+  // M15 / CR-G dashboard icons
+  Wrench,
+  TrendingUp,
+  ShieldAlert,
+  Package,
 } from "lucide-react";
 
 export type AppRole =
@@ -43,7 +48,11 @@ export type AppRole =
   | "contract_approver"
   | "contract_approver_2"
   | "contract_recipient"
-  | "executive";
+  | "executive"
+  // M15 / CR-G — 3 new persona roles
+  | "operations"
+  | "finance_treasury"
+  | "compliance_esg";
 
 export type ModuleKey =
   | "insights"
@@ -57,7 +66,12 @@ export type ModuleKey =
   | "queue"
   | "obligations"
   | "parties"
-  | "admin";
+  | "admin"
+  // M15 / CR-G — 4 new persona dashboard modules
+  | "dashboards.operations"
+  | "dashboards.financeTreasury"
+  | "dashboards.complianceEsg"
+  | "dashboards.procurement";
 
 export interface SidebarModule {
   key: ModuleKey;
@@ -80,6 +94,11 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   obligations: { key: "obligations", to: "/app/obligations",         labelKey: "nav.obligations", defaultLabel: "Obligations", icon: CalendarClock },
   parties:     { key: "parties",     to: "/app/parties",             labelKey: "nav.parties",     defaultLabel: "Parties",     icon: UsersIcon },
   admin:       { key: "admin",       to: "/app/admin",               labelKey: "nav.admin",       defaultLabel: "Admin",       icon: Shield },
+  // M15 / CR-G — 4 new persona dashboard modules (gated by permission at render time)
+  "dashboards.operations":       { key: "dashboards.operations",       to: "/app/dashboards/operations",       labelKey: "nav.dashboardsOperations",       defaultLabel: "Operations",         icon: Wrench },
+  "dashboards.financeTreasury":  { key: "dashboards.financeTreasury",  to: "/app/dashboards/finance-treasury", labelKey: "nav.dashboardsFinanceTreasury",  defaultLabel: "Finance & Treasury", icon: TrendingUp },
+  "dashboards.complianceEsg":    { key: "dashboards.complianceEsg",    to: "/app/dashboards/compliance-esg",   labelKey: "nav.dashboardsComplianceEsg",    defaultLabel: "Compliance & ESG",   icon: ShieldAlert },
+  "dashboards.procurement":      { key: "dashboards.procurement",      to: "/app/dashboards/procurement",      labelKey: "nav.dashboardsProcurement",      defaultLabel: "Procurement Risk",   icon: Package },
 };
 
 export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
@@ -91,6 +110,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "clauses",
     "parties",
     "obligations",
+    // M15 / CR-G — procurement risk dashboard accessible to drafter
+    "dashboards.procurement",
   ],
   legal_counsel: [
     "insights",
@@ -105,13 +126,18 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   ],
   // R1 audit: Lovable approver sidebar is narrowly Insights / Approvals /
   // Contracts. Drop Obligations leak (was inherited from drafter mapping).
-  contract_approver: ["insights", "approvals", "contracts"],
-  contract_approver_2: ["insights", "approvals", "contracts"],
+  // M15 / CR-G — procurement risk dashboard accessible to approver
+  contract_approver: ["insights", "approvals", "contracts", "dashboards.procurement"],
+  contract_approver_2: ["insights", "approvals", "contracts", "dashboards.procurement"],
   // R-RC0 audit: Lovable recipient sidebar is Insights / Contracts only.
   // Recipients sign contracts; they do not track obligations. Drop the
   // /app/obligations leak.
   contract_recipient: ["insights", "contracts"],
-  platform_admin: ["admin", "insights", "contracts", "parties", "templates", "clauses"],
+  platform_admin: [
+    "admin", "insights", "contracts", "parties", "templates", "clauses",
+    // M15 / CR-G — all 4 persona dashboards visible to platform_admin for diagnostics
+    "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
+  ],
   "Super Admin": [
     "admin",
     "insights",
@@ -124,11 +150,31 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "obligations",
     "regulations",
     "radar",
+    // M15 / CR-G — all 4 persona dashboards for Super Admin
+    "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
   ],
   // R-EX0 audit: Lovable executive sidebar is Insights / Contracts /
   // Impact Watch only. Drop the Parties leak — executive consumes
   // insights, not raw counterparty CRUD.
   executive: ["insights", "contracts", "regulations"],
+  // M15 / CR-G — 3 new persona roles with dedicated dashboard modules
+  operations: [
+    "insights",
+    "dashboards.operations",
+    "contracts",
+  ],
+  finance_treasury: [
+    "insights",
+    "dashboards.financeTreasury",
+    "contracts",
+  ],
+  compliance_esg: [
+    "insights",
+    "dashboards.complianceEsg",
+    "contracts",
+    "regulations",
+    "radar",
+  ],
 };
 
 export interface AdminSubItem {

@@ -6838,5 +6838,260 @@
     "pagination": {
       "showing": "الصفحة {{page}} من {{totalPages}} · {{total}} ارتباط"
     }
+  },
+  "nav": {
+    "dashboardsOperations": "[NEEDS TRANSLATION]",
+    "dashboardsFinanceTreasury": "[NEEDS TRANSLATION]",
+    "dashboardsComplianceEsg": "[NEEDS TRANSLATION]",
+    "dashboardsProcurement": "[NEEDS TRANSLATION]"
+  },
+  "dashboards": {
+    "operations": {
+      "title": "[NEEDS TRANSLATION]",
+      "subtitle": "[NEEDS TRANSLATION]",
+      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "kpis": {
+        "openSlaBreaches": "[NEEDS TRANSLATION]",
+        "deliveryDelays": "[NEEDS TRANSLATION]",
+        "penaltyExposure": "[NEEDS TRANSLATION]",
+        "vendorsWithBreaches": "[NEEDS TRANSLATION]"
+      },
+      "sections": {
+        "slaBreaches": "[NEEDS TRANSLATION]",
+        "deliveryDelays": "[NEEDS TRANSLATION]",
+        "penaltyExposure": "[NEEDS TRANSLATION]",
+        "opsEvents": "[NEEDS TRANSLATION]",
+        "vendorScorecards": "[NEEDS TRANSLATION]"
+      },
+      "table": {
+        "contract": "[NEEDS TRANSLATION]",
+        "counterparty": "[NEEDS TRANSLATION]",
+        "breachKind": "[NEEDS TRANSLATION]",
+        "severity": "[NEEDS TRANSLATION]",
+        "marAed": "[NEEDS TRANSLATION]",
+        "occurredAt": "[NEEDS TRANSLATION]",
+        "lastMilestone": "[NEEDS TRANSLATION]",
+        "delayDays": "[NEEDS TRANSLATION]",
+        "vendor": "[NEEDS TRANSLATION]",
+        "riskScore": "[NEEDS TRANSLATION]",
+        "performanceTier": "[NEEDS TRANSLATION]",
+        "slaBreaches180d": "[NEEDS TRANSLATION]",
+        "deliveryDelays180d": "[NEEDS TRANSLATION]"
+      },
+      "chart": {
+        "exposure": "[NEEDS TRANSLATION]"
+      },
+      "empty": {
+        "noSlaBreaches": "[NEEDS TRANSLATION]",
+        "noDelays": "[NEEDS TRANSLATION]",
+        "noPenalty": "[NEEDS TRANSLATION]",
+        "noEvents": "[NEEDS TRANSLATION]",
+        "noVendors": "[NEEDS TRANSLATION]"
+      },
+      "errors": {
+        "loadFailed": "[NEEDS TRANSLATION]"
+      }
+    },
+    "financeTreasury": {
+      "title": "[NEEDS TRANSLATION]",
+      "subtitle": "[NEEDS TRANSLATION]",
+      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "kpis": {
+        "totalExposure": "[NEEDS TRANSLATION]",
+        "fxExposure": "[NEEDS TRANSLATION]",
+        "priceReviewTriggered": "[NEEDS TRANSLATION]",
+        "paymentDelays": "[NEEDS TRANSLATION]"
+      },
+      "sections": {
+        "priceReview": "[NEEDS TRANSLATION]",
+        "paymentDelays": "[NEEDS TRANSLATION]",
+        "currencyExposure": "[NEEDS TRANSLATION]"
+      },
+      "fxTile": {
+        "ariaLabel": "[NEEDS TRANSLATION]",
+        "peggedNote": "[NEEDS TRANSLATION]",
+        "checkedAt": "[NEEDS TRANSLATION]",
+        "nonAedContracts": "[NEEDS TRANSLATION]",
+        "stable": "[NEEDS TRANSLATION]",
+        "deviation": "[NEEDS TRANSLATION]"
+      },
+      "table": {
+        "contract": "[NEEDS TRANSLATION]",
+        "counterparty": "[NEEDS TRANSLATION]",
+        "index": "[NEEDS TRANSLATION]",
+        "trigger": "[NEEDS TRANSLATION]",
+        "marAed": "[NEEDS TRANSLATION]",
+        "occurredAt": "[NEEDS TRANSLATION]",
+        "currency": "[NEEDS TRANSLATION]",
+        "contracts": "[NEEDS TRANSLATION]",
+        "valueAed": "[NEEDS TRANSLATION]",
+        "pctPortfolio": "[NEEDS TRANSLATION]"
+      },
+      "chart": {
+        "currencyPieAriaLabel": "[NEEDS TRANSLATION]",
+        "exposure": "[NEEDS TRANSLATION]"
+      },
+      "paymentDelayCount": "[NEEDS TRANSLATION]",
+      "empty": {
+        "noPriceReview": "[NEEDS TRANSLATION]",
+        "paymentDelaysV1": "[NEEDS TRANSLATION]",
+        "noCurrencies": "[NEEDS TRANSLATION]"
+      },
+      "errors": {
+        "loadFailed": "[NEEDS TRANSLATION]"
+      }
+    },
+    "complianceEsg": {
+      "title": "[NEEDS TRANSLATION]",
+      "subtitle": "[NEEDS TRANSLATION]",
+      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "kpis": {
+        "sanctionsDirect": "[NEEDS TRANSLATION]",
+        "sanctionsChain": "[NEEDS TRANSLATION]",
+        "auditRightsExpiring": "[NEEDS TRANSLATION]",
+        "regulatoryUpdates": "[NEEDS TRANSLATION]",
+        "esgCorrelations": "[NEEDS TRANSLATION]"
+      },
+      "sections": {
+        "sanctionsExposure": "[NEEDS TRANSLATION]",
+        "subContractorChain": "[NEEDS TRANSLATION]",
+        "auditRights": "[NEEDS TRANSLATION]",
+        "regulatoryUpdates": "[NEEDS TRANSLATION]",
+        "esgCorrelations": "[NEEDS TRANSLATION]"
+      },
+      "table": {
+        "contract": "[NEEDS TRANSLATION]",
+        "counterparty": "[NEEDS TRANSLATION]",
+        "sanctionsStatus": "[NEEDS TRANSLATION]",
+        "exposureKind": "[NEEDS TRANSLATION]",
+        "marAed": "[NEEDS TRANSLATION]",
+        "chainRoot": "[NEEDS TRANSLATION]",
+        "depthReached": "[NEEDS TRANSLATION]",
+        "sanctionedNodes": "[NEEDS TRANSLATION]",
+        "affectedContracts": "[NEEDS TRANSLATION]",
+        "expiresOn": "[NEEDS TRANSLATION]",
+        "daysToExpiry": "[NEEDS TRANSLATION]",
+        "severity": "[NEEDS TRANSLATION]"
+      },
+      "chainTruncated": "[NEEDS TRANSLATION]",
+      "truncated": "[NEEDS TRANSLATION]",
+      "affectedContracts": "[NEEDS TRANSLATION]",
+      "empty": {
+        "noSanctions": "[NEEDS TRANSLATION]",
+        "noChains": "[NEEDS TRANSLATION]",
+        "noAuditRights": "[NEEDS TRANSLATION]",
+        "noRegulatoryUpdates": "[NEEDS TRANSLATION]",
+        "noEsgCorrelations": "[NEEDS TRANSLATION]"
+      },
+      "errors": {
+        "loadFailed": "[NEEDS TRANSLATION]"
+      }
+    },
+    "procurement": {
+      "title": "[NEEDS TRANSLATION]",
+      "subtitle": "[NEEDS TRANSLATION]",
+      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "kpis": {
+        "totalSuppliers": "[NEEDS TRANSLATION]",
+        "suppliersAtRisk": "[NEEDS TRANSLATION]",
+        "icvNonCompliant": "[NEEDS TRANSLATION]",
+        "financialDistress": "[NEEDS TRANSLATION]"
+      },
+      "sections": {
+        "supplierScorecard": "[NEEDS TRANSLATION]",
+        "icvCompliance": "[NEEDS TRANSLATION]",
+        "backupSuppliers": "[NEEDS TRANSLATION]",
+        "financialHealth": "[NEEDS TRANSLATION]"
+      },
+      "table": {
+        "supplier": "[NEEDS TRANSLATION]",
+        "type": "[NEEDS TRANSLATION]",
+        "riskScore": "[NEEDS TRANSLATION]",
+        "riskTier": "[NEEDS TRANSLATION]",
+        "activeContracts": "[NEEDS TRANSLATION]",
+        "slaBreaches": "[NEEDS TRANSLATION]",
+        "totalValue": "[NEEDS TRANSLATION]",
+        "icvStatus": "[NEEDS TRANSLATION]",
+        "icvPct": "[NEEDS TRANSLATION]",
+        "lastChecked": "[NEEDS TRANSLATION]",
+        "contractValue": "[NEEDS TRANSLATION]"
+      },
+      "backupSupplier": {
+        "primaryRisk": "[NEEDS TRANSLATION]",
+        "alternatives": "[NEEDS TRANSLATION]",
+        "score": "[NEEDS TRANSLATION]",
+        "noAlternatives": "[NEEDS TRANSLATION]"
+      },
+      "empty": {
+        "noSuppliers": "[NEEDS TRANSLATION]",
+        "noIcvIssues": "[NEEDS TRANSLATION]",
+        "noBackupSuggestions": "[NEEDS TRANSLATION]",
+        "financialHealthV1": "[NEEDS TRANSLATION]"
+      },
+      "errors": {
+        "loadFailed": "[NEEDS TRANSLATION]"
+      }
+    }
+  },
+  "ai": {
+    "riskAssistant": {
+      "toggleButton": "[NEEDS TRANSLATION]",
+      "panelAriaLabel": "[NEEDS TRANSLATION]",
+      "title": "[NEEDS TRANSLATION]",
+      "close": "[NEEDS TRANSLATION]",
+      "aborted": "[NEEDS TRANSLATION]",
+      "emptyState": {
+        "title": "[NEEDS TRANSLATION]",
+        "subtitle": "[NEEDS TRANSLATION]",
+        "examplesLabel": "[NEEDS TRANSLATION]"
+      },
+      "examples": {
+        "hormuz": "[NEEDS TRANSLATION]",
+        "sanctions": "[NEEDS TRANSLATION]",
+        "icv": "[NEEDS TRANSLATION]"
+      },
+      "input": {
+        "label": "[NEEDS TRANSLATION]",
+        "ariaLabel": "[NEEDS TRANSLATION]",
+        "placeholder": "[NEEDS TRANSLATION]",
+        "send": "[NEEDS TRANSLATION]",
+        "abort": "[NEEDS TRANSLATION]"
+      },
+      "error": {
+        "generic": "[NEEDS TRANSLATION]"
+      }
+    }
+  },
+  "executive": {
+    "whatChangedToday": {
+      "title": "[NEEDS TRANSLATION]",
+      "sectionAriaLabel": "[NEEDS TRANSLATION]",
+      "viewContract": "[NEEDS TRANSLATION]"
+    },
+    "recommendedActions": {
+      "title": "[NEEDS TRANSLATION]",
+      "sectionAriaLabel": "[NEEDS TRANSLATION]",
+      "noAction": "[NEEDS TRANSLATION]",
+      "sla": "[NEEDS TRANSLATION]",
+      "viewContract": "[NEEDS TRANSLATION]"
+    },
+    "clausesTriggered": {
+      "title": "[NEEDS TRANSLATION]",
+      "sectionAriaLabel": "[NEEDS TRANSLATION]",
+      "windowGroupAriaLabel": "[NEEDS TRANSLATION]",
+      "window": {
+        "last7d": "[NEEDS TRANSLATION]",
+        "last30d": "[NEEDS TRANSLATION]"
+      },
+      "empty": "[NEEDS TRANSLATION]",
+      "chart": {
+        "count": "[NEEDS TRANSLATION]"
+      }
+    }
+  },
+  "dashboards.common.tier": {
+    "high": "[NEEDS TRANSLATION]",
+    "medium": "[NEEDS TRANSLATION]",
+    "low": "[NEEDS TRANSLATION]"
   }
 }

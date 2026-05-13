@@ -6,6 +6,8 @@ import { CommandPaletteProvider } from "./CommandPalette";
 import { NotificationProvider } from "@/components/notifications/NotificationProvider";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { cn } from "@/lib/utils";
+// M15 / CR-G — AI Risk Assistant floating panel (gated by ai.invoke.risk_assistant)
+import { RiskAssistantPanel } from "@/features/ai/components/RiskAssistantPanel";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -28,6 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
           <MobileTabs />
         </div>
+        {/* M15 / CR-G — AI Risk Assistant: permission-gated floating panel, visible on all routes */}
+        <RiskAssistantPanel />
       </CommandPaletteProvider>
     </NotificationProvider>
   );
