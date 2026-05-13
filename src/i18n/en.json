@@ -7,7 +7,105 @@
     "amendmentDrafted": "Amendment {{number}} drafted — awaiting approval"
   },
   "risk": {
-    "clauseNotFound": "Clause not present in this contract"
+    "clauseNotFound": "Clause not present in this contract",
+    "score": {
+      "emptyState": {
+        "title": "No risk score available yet",
+        "description": "Score will appear after the next correlation fires."
+      },
+      "errors": {
+        "loadFailed": "Failed to load risk score. Please try again."
+      },
+      "gauge": {
+        "ariaLabel": "Health score {{score}} — {{risk}} risk",
+        "low": "Low risk",
+        "medium": "Medium risk",
+        "high": "High risk",
+        "subtitle": "Health score"
+      },
+      "dimBreakdown": {
+        "title": "Dimension breakdown",
+        "barAriaLabel": "{{dim}}: {{score}} out of 100"
+      },
+      "dim": {
+        "legal": "Legal",
+        "financial": "Financial",
+        "operational": "Operational",
+        "reputational": "Reputational",
+        "compliance": "Compliance"
+      },
+      "whatif": {
+        "title": "What-if analysis",
+        "description": "Estimated change in Health Score if each correlation were removed.",
+        "probabilityLabel": "Probability: {{value}}%",
+        "deltaLabel": "Without this: {{delta}}",
+        "disclaimer": "Estimates are approximate client-side derivations."
+      },
+      "history": {
+        "title": "Score history",
+        "windowLabel": "History window",
+        "noData": "No score history for this period.",
+        "lines": {
+          "healthScore": "Health score"
+        },
+        "window": {
+          "30d": "30 days",
+          "90d": "90 days",
+          "180d": "180 days"
+        }
+      },
+      "calculatedAt": "Last computed {{when}}",
+      "weightsVersion": "Weights v{{version}}",
+      "triggeredBy": "Trigger: {{trigger}}"
+    },
+    "mar": {
+      "listTitle": "Money at Risk by correlation",
+      "totalLabel": "Total MaR",
+      "noCorrelations": "No active correlations contributing to MaR.",
+      "noContractValue": "AED — (no contract value)",
+      "severity": {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium"
+      },
+      "detail": {
+        "rule": "Rule",
+        "matchReason": "Match reason",
+        "matchedClause": "Matched clause",
+        "noSnippet": "(no snippet)",
+        "noMatchedClause": "No matched clause — rule.sanctions.direct_counterparty",
+        "marFormula": "MaR formula",
+        "probability": "Probability",
+        "impactMultiplier": "Impact multiplier",
+        "contribution": "Contribution",
+        "signal": "Signal",
+        "unknownSignal": "Unknown signal"
+      }
+    },
+    "avar": {
+      "sectionLabel": "Asset Value at Risk",
+      "tile": {
+        "label": "Total AVaR",
+        "vsLastWindow": "vs prior window",
+        "contracts": "contracts",
+        "deltaSubtitle": "Delta vs prior",
+        "noValueLabel": "No-value contracts",
+        "noValueHelper": "Contracts without monetary value"
+      },
+      "breakdown": {
+        "title": "AVaR breakdown",
+        "groupByLabel": "Group by dimension",
+        "noData": "No AVaR data for this window.",
+        "noValueNote": "{{count}} contract(s) excluded — no contract value recorded.",
+        "chartLabel": "AVaR (AED)",
+        "groupBy": {
+          "businessUnit": "Business unit",
+          "counterparty": "Counterparty",
+          "geography": "Geography",
+          "riskKind": "Risk kind"
+        }
+      }
+    }
   },
   "brand": {
     "tagline": "Contract Lifecycle Management for the UAE",
@@ -395,6 +493,7 @@
     "admin.ingestionQueue": "Ingestion queue",
     "adminClauseTaxonomy": "Clause taxonomy",
     "adminRules": "Correlation rules",
+    "adminScoringWeights": "Scoring weights",
     "clausesReview": "Review queue"
   },
   "landing": {
@@ -750,7 +849,8 @@
         "versions": "Versions",
         "activity": "Activity",
         "tree": "Related",
-        "signatures": "Signatures"
+        "signatures": "Signatures",
+        "risk": "Risk"
       },
       "summaryTitle": "Summary",
       "bodyTitle": "Body",
@@ -4473,6 +4573,52 @@
         "matchReason": "Reason",
         "diffNotes": "Diff notes",
         "evidence": "Evidence"
+      }
+    },
+    "scoring": {
+      "title": "Scoring weights",
+      "subtitle": "ADNOC-tunable weights for the 5-dimension risk model.",
+      "currentVersion": "Current version: v{{version}}",
+      "lastUpdated": "Last updated {{when}}",
+      "sliders": {
+        "title": "Dimension weights",
+        "sumLabel": "Total",
+        "sumValid": "(valid — weights sum to 1.0)",
+        "sumInvalid": "(invalid — must sum to 1.0 ± 0.001)",
+        "normalizeButton": "Normalize to 1.0",
+        "saveButton": "Save weights"
+      },
+      "dims": {
+        "legal": "Legal",
+        "financial": "Financial",
+        "operational": "Operational",
+        "reputational": "Reputational",
+        "compliance": "Compliance"
+      },
+      "recompute": {
+        "button": "Recompute all scores",
+        "running": "Recomputing…",
+        "confirmTitle": "Recompute all contract scores",
+        "confirmMessage": "This will recompute every active contract's risk score using the current weights. Estimated time: <120s for 50 contracts. Failures per contract are isolated — partial success is possible.",
+        "confirmButton": "Continue"
+      },
+      "history": {
+        "title": "Version history (last 10)",
+        "cols": {
+          "version": "Version",
+          "changedAt": "Changed at",
+          "changedBy": "Changed by"
+        }
+      },
+      "userId": "User #{{id}}",
+      "toast": {
+        "saved": "Weights updated. Version v{{version}} saved.",
+        "recomputed": "{{count}} contracts recomputed in {{ms}}ms."
+      },
+      "errors": {
+        "loadFailed": "Failed to load scoring weights.",
+        "saveFailed": "Failed to save weights.",
+        "recomputeFailed": "Recompute failed."
       }
     }
   },

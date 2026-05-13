@@ -7,7 +7,105 @@
     "amendmentDrafted": "تم صياغة التعديل {{number}} — بانتظار الاعتماد"
   },
   "risk": {
-    "clauseNotFound": "البند غير موجود في هذا العقد"
+    "clauseNotFound": "البند غير موجود في هذا العقد",
+    "score": {
+      "emptyState": {
+        "title": "[NEEDS TRANSLATION] No risk score available yet",
+        "description": "[NEEDS TRANSLATION] Score will appear after the next correlation fires."
+      },
+      "errors": {
+        "loadFailed": "[NEEDS TRANSLATION] Failed to load risk score. Please try again."
+      },
+      "gauge": {
+        "ariaLabel": "[NEEDS TRANSLATION] Health score {{score}} — {{risk}} risk",
+        "low": "[NEEDS TRANSLATION] Low risk",
+        "medium": "[NEEDS TRANSLATION] Medium risk",
+        "high": "[NEEDS TRANSLATION] High risk",
+        "subtitle": "[NEEDS TRANSLATION] Health score"
+      },
+      "dimBreakdown": {
+        "title": "[NEEDS TRANSLATION] Dimension breakdown",
+        "barAriaLabel": "[NEEDS TRANSLATION] {{dim}}: {{score}} out of 100"
+      },
+      "dim": {
+        "legal": "[NEEDS TRANSLATION] Legal",
+        "financial": "[NEEDS TRANSLATION] Financial",
+        "operational": "[NEEDS TRANSLATION] Operational",
+        "reputational": "[NEEDS TRANSLATION] Reputational",
+        "compliance": "[NEEDS TRANSLATION] Compliance"
+      },
+      "whatif": {
+        "title": "[NEEDS TRANSLATION] What-if analysis",
+        "description": "[NEEDS TRANSLATION] Estimated change in Health Score if each correlation were removed.",
+        "probabilityLabel": "[NEEDS TRANSLATION] Probability: {{value}}%",
+        "deltaLabel": "[NEEDS TRANSLATION] Without this: {{delta}}",
+        "disclaimer": "[NEEDS TRANSLATION] Estimates are approximate client-side derivations."
+      },
+      "history": {
+        "title": "[NEEDS TRANSLATION] Score history",
+        "windowLabel": "[NEEDS TRANSLATION] History window",
+        "noData": "[NEEDS TRANSLATION] No score history for this period.",
+        "lines": {
+          "healthScore": "[NEEDS TRANSLATION] Health score"
+        },
+        "window": {
+          "30d": "[NEEDS TRANSLATION] 30 days",
+          "90d": "[NEEDS TRANSLATION] 90 days",
+          "180d": "[NEEDS TRANSLATION] 180 days"
+        }
+      },
+      "calculatedAt": "[NEEDS TRANSLATION] Last computed {{when}}",
+      "weightsVersion": "[NEEDS TRANSLATION] Weights v{{version}}",
+      "triggeredBy": "[NEEDS TRANSLATION] Trigger: {{trigger}}"
+    },
+    "mar": {
+      "listTitle": "[NEEDS TRANSLATION] Money at Risk by correlation",
+      "totalLabel": "[NEEDS TRANSLATION] Total MaR",
+      "noCorrelations": "[NEEDS TRANSLATION] No active correlations contributing to MaR.",
+      "noContractValue": "[NEEDS TRANSLATION] AED — (no contract value)",
+      "severity": {
+        "critical": "[NEEDS TRANSLATION] Critical",
+        "high": "[NEEDS TRANSLATION] High",
+        "medium": "[NEEDS TRANSLATION] Medium"
+      },
+      "detail": {
+        "rule": "[NEEDS TRANSLATION] Rule",
+        "matchReason": "[NEEDS TRANSLATION] Match reason",
+        "matchedClause": "[NEEDS TRANSLATION] Matched clause",
+        "noSnippet": "[NEEDS TRANSLATION] (no snippet)",
+        "noMatchedClause": "[NEEDS TRANSLATION] No matched clause",
+        "marFormula": "[NEEDS TRANSLATION] MaR formula",
+        "probability": "[NEEDS TRANSLATION] Probability",
+        "impactMultiplier": "[NEEDS TRANSLATION] Impact multiplier",
+        "contribution": "[NEEDS TRANSLATION] Contribution",
+        "signal": "[NEEDS TRANSLATION] Signal",
+        "unknownSignal": "[NEEDS TRANSLATION] Unknown signal"
+      }
+    },
+    "avar": {
+      "sectionLabel": "[NEEDS TRANSLATION] Asset Value at Risk",
+      "tile": {
+        "label": "[NEEDS TRANSLATION] Total AVaR",
+        "vsLastWindow": "[NEEDS TRANSLATION] vs prior window",
+        "contracts": "[NEEDS TRANSLATION] contracts",
+        "deltaSubtitle": "[NEEDS TRANSLATION] Delta vs prior",
+        "noValueLabel": "[NEEDS TRANSLATION] No-value contracts",
+        "noValueHelper": "[NEEDS TRANSLATION] Contracts without monetary value"
+      },
+      "breakdown": {
+        "title": "[NEEDS TRANSLATION] AVaR breakdown",
+        "groupByLabel": "[NEEDS TRANSLATION] Group by dimension",
+        "noData": "[NEEDS TRANSLATION] No AVaR data for this window.",
+        "noValueNote": "[NEEDS TRANSLATION] {{count}} contract(s) excluded — no contract value recorded.",
+        "chartLabel": "[NEEDS TRANSLATION] AVaR (AED)",
+        "groupBy": {
+          "businessUnit": "[NEEDS TRANSLATION] Business unit",
+          "counterparty": "[NEEDS TRANSLATION] Counterparty",
+          "geography": "[NEEDS TRANSLATION] Geography",
+          "riskKind": "[NEEDS TRANSLATION] Risk kind"
+        }
+      }
+    }
   },
   "brand": {
     "tagline": "إدارة دورة حياة العقود لدولة الإمارات",
@@ -395,6 +493,7 @@
     "admin.ingestionQueue": "قائمة انتظار الاستيعاب",
     "adminClauseTaxonomy": "تصنيف البنود",
     "adminRules": "قواعد الارتباط",
+    "adminScoringWeights": "[NEEDS TRANSLATION] Scoring weights",
     "clausesReview": "قائمة المراجعة"
   },
   "landing": {
@@ -750,7 +849,8 @@
         "versions": "الإصدارات",
         "activity": "النشاط",
         "tree": "ذو صلة",
-        "signatures": "التوقيعات"
+        "signatures": "التوقيعات",
+        "risk": "[NEEDS TRANSLATION] Risk"
       },
       "summaryTitle": "ملخص",
       "bodyTitle": "النص",
@@ -4473,6 +4573,52 @@
         "matchReason": "السبب",
         "diffNotes": "ملاحظات الفرق",
         "evidence": "الدليل"
+      }
+    },
+    "scoring": {
+      "title": "[NEEDS TRANSLATION] Scoring weights",
+      "subtitle": "[NEEDS TRANSLATION] ADNOC-tunable weights for the 5-dimension risk model.",
+      "currentVersion": "[NEEDS TRANSLATION] Current version: v{{version}}",
+      "lastUpdated": "[NEEDS TRANSLATION] Last updated {{when}}",
+      "sliders": {
+        "title": "[NEEDS TRANSLATION] Dimension weights",
+        "sumLabel": "[NEEDS TRANSLATION] Total",
+        "sumValid": "[NEEDS TRANSLATION] (valid — weights sum to 1.0)",
+        "sumInvalid": "[NEEDS TRANSLATION] (invalid — must sum to 1.0 ± 0.001)",
+        "normalizeButton": "[NEEDS TRANSLATION] Normalize to 1.0",
+        "saveButton": "[NEEDS TRANSLATION] Save weights"
+      },
+      "dims": {
+        "legal": "[NEEDS TRANSLATION] Legal",
+        "financial": "[NEEDS TRANSLATION] Financial",
+        "operational": "[NEEDS TRANSLATION] Operational",
+        "reputational": "[NEEDS TRANSLATION] Reputational",
+        "compliance": "[NEEDS TRANSLATION] Compliance"
+      },
+      "recompute": {
+        "button": "[NEEDS TRANSLATION] Recompute all scores",
+        "running": "[NEEDS TRANSLATION] Recomputing…",
+        "confirmTitle": "[NEEDS TRANSLATION] Recompute all contract scores",
+        "confirmMessage": "[NEEDS TRANSLATION] This will recompute every active contract's risk score using the current weights.",
+        "confirmButton": "[NEEDS TRANSLATION] Continue"
+      },
+      "history": {
+        "title": "[NEEDS TRANSLATION] Version history (last 10)",
+        "cols": {
+          "version": "[NEEDS TRANSLATION] Version",
+          "changedAt": "[NEEDS TRANSLATION] Changed at",
+          "changedBy": "[NEEDS TRANSLATION] Changed by"
+        }
+      },
+      "userId": "[NEEDS TRANSLATION] User #{{id}}",
+      "toast": {
+        "saved": "[NEEDS TRANSLATION] Weights updated. Version v{{version}} saved.",
+        "recomputed": "[NEEDS TRANSLATION] {{count}} contracts recomputed in {{ms}}ms."
+      },
+      "errors": {
+        "loadFailed": "[NEEDS TRANSLATION] Failed to load scoring weights.",
+        "saveFailed": "[NEEDS TRANSLATION] Failed to save weights.",
+        "recomputeFailed": "[NEEDS TRANSLATION] Recompute failed."
       }
     }
   },

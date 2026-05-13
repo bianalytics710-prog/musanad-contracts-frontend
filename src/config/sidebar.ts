@@ -32,6 +32,7 @@ import {
   BookOpen,
   GitMerge,
   ClipboardList,
+  SlidersHorizontal,
 } from "lucide-react";
 
 export type AppRole =
@@ -167,6 +168,8 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/clause-taxonomy",       labelKey: "nav.adminClauseTaxonomy",  defaultLabel: "Clause taxonomy",       icon: BookOpen },
   // M13 — Correlation Rules (CR-E)
   { to: "/app/admin/rules",                 labelKey: "nav.adminRules",           defaultLabel: "Correlation rules",     icon: GitMerge },
+  // M14 — Scoring Weights (CR-F) — visible to score.weights.manage roles only
+  { to: "/app/admin/scoring-weights",       labelKey: "nav.adminScoringWeights",  defaultLabel: "Scoring weights",       icon: SlidersHorizontal },
 ];
 
 // M12 — Sub-items shown when the "Clauses" module is active (legal_counsel + platform_admin)

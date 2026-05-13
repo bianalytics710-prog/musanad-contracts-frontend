@@ -61,6 +61,8 @@ import { ExecutiveAnomaliesCard } from "@/features/ai/components/ExecutiveAnomal
 import { ExecutiveCharts } from "./ExecutiveCharts";
 import { ExecutiveLists } from "./ExecutiveLists";
 import { ExecutiveEventsCard } from "./ExecutiveEventsCard";
+// M14 — CR-F: AVaR extension
+import { AvarDashboardSection } from "./AvarDashboardSection";
 import type {
   AiExecutiveAnomaliesStats,
   AiLanguage,
@@ -149,6 +151,10 @@ export function ExecutiveDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
+          {/* M14 — CR-F: AVaR section (before existing R-EX KPIs per brief).
+              Defensive: AvarDashboardSection renders nothing on 403 or error. */}
+          <AvarDashboardSection windowDays={windowDays} />
+
           {/* R-EX0 — Top-line KPIs aligned to Lovable.
               5 tiles when AI cost is hidden:
                 Total contract value / Active contracts / Avg cycle time /

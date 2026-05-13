@@ -89,6 +89,8 @@ import { IngestionStatusBadge } from "@/components/contracts/IngestionStatusBadg
 // M12 — Clause Extraction
 import { ContractClausesTab } from "@/components/contracts/ContractClausesTab";
 import { documentIngestionService } from "@/services/api/document-ingestion.service";
+// M14 — CR-F — Risk Scoring
+import { ContractRiskTab } from "./ContractRiskTab";
 import { useContractVersions } from "@/features/contracts/hooks/useContracts";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
@@ -110,7 +112,8 @@ type Tab =
   | "activity"
   | "tree"
   | "signatures"
-  | "clauses";
+  | "clauses"
+  | "risk";
 
 interface ContractDetailProps {
   contractId: number;
@@ -138,6 +141,8 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
   const canApprove = useAuthStore(selectHasPermission("approval.act"));
   const canReviewClauses = useAuthStore(selectHasPermission("clause.review"));
+  // M14 — CR-F: Risk tab visible to roles with score.read (hidden for contract_recipient)
+  const canReadRiskScore = useAuthStore(selectHasPermission("score.read"));
   // R-LC2 LC-E9 — legal counsel may keep Edit (for redlining) but does not
   // need Payments / Signatures tabs (drafter/admin context). Hide both
   // when the active user role is exactly legal_counsel.
@@ -636,6 +641,12 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             {t("contracts.detail.tabs.clauses", { defaultValue: "Clauses" })}
           </TabButton>
         )}
+        {/* M14 — CR-F: Risk tab (score.read; hidden for recipient) */}
+        {canReadRiskScore && !isRecipientOnly && (
+          <TabButton active={tab === "risk"} onClick={() => setTab("risk")}>
+            {t("contracts.detail.tabs.risk", { defaultValue: "Risk" })}
+          </TabButton>
+        )}
       </div>
 
       {/* Tab panels */}
@@ -675,6 +686,8 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       )}
       {tab === "tree" && <ContractTreeTimeline contractId={contract.id} />}
       {tab === "clauses" && <ContractClausesTab contractId={contract.id} />}
+      {/* M14 — CR-F: Risk tab */}
+      {tab === "risk" && <ContractRiskTab contractId={contract.id} />}
 
       {/* Inline AI insights — Lovable layout.
           R-RC1 — recipients are external counterparty signers and don't
