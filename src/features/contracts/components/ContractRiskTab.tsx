@@ -45,14 +45,20 @@ interface ContractRiskTabProps {
 }
 
 // ─── Health score color band ───────────────────────────────────────────────
+// W7 fix: when score is 0 with no contributing correlations, the contract is
+// effectively unscored (bootstrap baseline; no signals fired yet). Surfacing
+// "High risk" in red would mislead — show "Insufficient data" in muted neutral
+// instead. Real high-risk states still surface terracotta below score 20.
 
-function healthScoreColor(score: number): string {
+function healthScoreColor(score: number, hasContributors = true): string {
+  if (!hasContributors && score === 0) return 'var(--ink-subtle)';
   if (score >= 80) return 'var(--sage)';
   if (score >= 50) return 'var(--gold)';
   return 'var(--terracotta)';
 }
 
-function healthScoreLabel(score: number, t: (key: string) => string): string {
+function healthScoreLabel(score: number, t: (key: string) => string, hasContributors = true): string {
+  if (!hasContributors && score === 0) return t('risk.score.gauge.insufficient');
   if (score >= 80) return t('risk.score.gauge.low');
   if (score >= 50) return t('risk.score.gauge.medium');
   return t('risk.score.gauge.high');
@@ -123,7 +129,7 @@ export function ContractRiskTab({ contractId }: ContractRiskTabProps) {
     <div className="space-y-5">
       {/* Row 1 — Gauge + 5-dim breakdown */}
       <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
-        <HealthScoreGauge score={data.healthScore} />
+        <HealthScoreGauge score={data.healthScore} hasContributors={(data.contributingCorrelations?.length ?? 0) > 0} />
         <FiveDimBreakdownBars dimensions={data.dimensions} />
       </div>
 
@@ -195,10 +201,10 @@ export function ContractRiskTab({ contractId }: ContractRiskTabProps) {
 
 // ─── HealthScoreGauge ──────────────────────────────────────────────────────
 
-function HealthScoreGauge({ score }: { score: number }) {
+function HealthScoreGauge({ score, hasContributors = true }: { score: number; hasContributors?: boolean }) {
   const { t } = useTranslation();
-  const color = healthScoreColor(score);
-  const riskLabel = healthScoreLabel(score, t);
+  const color = healthScoreColor(score, hasContributors);
+  const riskLabel = healthScoreLabel(score, t, hasContributors);
 
   // Simple SVG arc gauge
   const radius = 56;
@@ -545,10 +551,24 @@ function ReasonCodeDetail({ correlation }: { correlation: HydratedContributingCo
         <p className="text-ink-subtle">{t('risk.mar.detail.noMatchedClause')}</p>
       )}
 
-      {/* MaR formula */}
+      {/* MaR formula — W6 fix: surface all 4 factors per BRD §11.3 */}
       <div className="rounded-md bg-muted/40 px-3 py-2">
         <p className="mb-1 font-medium text-ink-muted">{t('risk.mar.detail.marFormula')}</p>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[10px] text-ink">
+          {correlation.contractValue != null && (
+            <>
+              <span>{t('risk.mar.detail.contractValue')}</span>
+              <span className="text-end">
+                AED {Number(correlation.contractValue).toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+              </span>
+            </>
+          )}
+          {correlation.exposureFraction != null && (
+            <>
+              <span>{t('risk.mar.detail.exposureFraction')}</span>
+              <span className="text-end">×{Number(correlation.exposureFraction).toFixed(2)}</span>
+            </>
+          )}
           <span>{t('risk.mar.detail.probability')}</span>
           <span className="text-end">{(correlation.probability).toFixed(0)}%</span>
           <span>{t('risk.mar.detail.impactMultiplier')}</span>

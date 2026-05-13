@@ -91,6 +91,11 @@ export interface ContributingCorrelation {
   impactMultiplier: number;
   marContribution: string | null;
   dimensionsAffected: string[];
+  // W6 follow-up: surface base factors (contract value × exposure fraction)
+  // so the FE MaR formula panel can show all 4 BRD §11.3 factors. Both
+  // optional because older snapshots predate this addition.
+  contractValue?: string | null;
+  exposureFraction?: number | null;
 }
 
 // ── RiskScore table row ───────────────────────────────────────────────────────

@@ -17,10 +17,11 @@
         "loadFailed": "[NEEDS TRANSLATION] Failed to load risk score. Please try again."
       },
       "gauge": {
-        "ariaLabel": "[NEEDS TRANSLATION] Health score {{score}} — {{risk}} risk",
+        "ariaLabel": "[NEEDS TRANSLATION] Health score {{score}} — {{risk}}",
         "low": "[NEEDS TRANSLATION] Low risk",
         "medium": "[NEEDS TRANSLATION] Medium risk",
         "high": "[NEEDS TRANSLATION] High risk",
+        "insufficient": "[NEEDS TRANSLATION] Insufficient data",
         "subtitle": "[NEEDS TRANSLATION] Health score"
       },
       "dimBreakdown": {
@@ -75,6 +76,8 @@
         "noSnippet": "[NEEDS TRANSLATION] (no snippet)",
         "noMatchedClause": "[NEEDS TRANSLATION] No matched clause",
         "marFormula": "[NEEDS TRANSLATION] MaR formula",
+        "contractValue": "[NEEDS TRANSLATION] Contract value",
+        "exposureFraction": "[NEEDS TRANSLATION] Exposure fraction",
         "probability": "[NEEDS TRANSLATION] Probability",
         "impactMultiplier": "[NEEDS TRANSLATION] Impact multiplier",
         "contribution": "[NEEDS TRANSLATION] Contribution",

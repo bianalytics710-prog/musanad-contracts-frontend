@@ -17,10 +17,11 @@
         "loadFailed": "Failed to load risk score. Please try again."
       },
       "gauge": {
-        "ariaLabel": "Health score {{score}} — {{risk}} risk",
+        "ariaLabel": "Health score {{score}} — {{risk}}",
         "low": "Low risk",
         "medium": "Medium risk",
         "high": "High risk",
+        "insufficient": "Insufficient data",
         "subtitle": "Health score"
       },
       "dimBreakdown": {
@@ -75,6 +76,8 @@
         "noSnippet": "(no snippet)",
         "noMatchedClause": "No matched clause — rule.sanctions.direct_counterparty",
         "marFormula": "MaR formula",
+        "contractValue": "Contract value",
+        "exposureFraction": "Exposure fraction",
         "probability": "Probability",
         "impactMultiplier": "Impact multiplier",
         "contribution": "Contribution",

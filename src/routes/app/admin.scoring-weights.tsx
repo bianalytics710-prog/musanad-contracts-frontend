@@ -415,7 +415,7 @@ function WeightVersionHistoryTable({
               </td>
               <td className="py-2 text-ink-muted">
                 {entry.changedById
-                  ? t('admin.scoring.history.userId', { id: entry.changedById })
+                  ? t('admin.scoring.userId', { id: entry.changedById })
                   : '—'}
               </td>
             </tr>
