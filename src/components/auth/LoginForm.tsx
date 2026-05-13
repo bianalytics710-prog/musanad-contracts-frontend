@@ -177,7 +177,10 @@ export function LoginForm() {
     { key: "drafter",   name: "Dana Drafter",      role: "Contract Drafter",  initials: "DD", email: "drafter@musanad.local"   },
     { key: "approver",  name: "Aisha Approver",    role: "Contract Approver", initials: "AA", email: "approver@musanad.local"  },
     { key: "recipient", name: "Rashid Recipient",  role: "Contract Recipient", initials: "RR", email: "recipient@musanad.local" },
-    { key: "executive", name: "Eman Executive",    role: "Executive",         initials: "EE", email: "executive@musanad.local" },
+    { key: "executive",  name: "Eman Executive",      role: "Executive",          initials: "EE", email: "executive@musanad.local"  },
+    { key: "operations", name: "Omar Operations",     role: "Operations",         initials: "OO", email: "operations@musanad.local" },
+    { key: "finance",    name: "Fatima Finance",      role: "Finance & Treasury", initials: "FF", email: "finance@musanad.local"    },
+    { key: "compliance", name: "Khalid Compliance",   role: "Compliance & ESG",   initials: "KC", email: "compliance@musanad.local" },
   ];
 
   const signInAs = (email: string) => {
