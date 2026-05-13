@@ -26,7 +26,10 @@ export type PersonaRole =
   | 'contract_drafter'
   | 'contract_approver'
   | 'contract_recipient'
-  | 'executive';
+  | 'executive'
+  | 'operations'
+  | 'finance_treasury'
+  | 'compliance_esg';
 
 export const PERSONA_BUTTON_NAME: Record<PersonaRole, RegExp> = {
   super_admin: /Bootstrap Admin/i,
@@ -36,13 +39,95 @@ export const PERSONA_BUTTON_NAME: Record<PersonaRole, RegExp> = {
   contract_approver: /Aisha Approver/i,
   contract_recipient: /Rashid Recipient/i,
   executive: /Eman Executive/i,
+  // Unit-3 personas (seeded by migration 191)
+  operations: /Omar Operations/i,
+  finance_treasury: /Fatima Finance/i,
+  compliance_esg: /Khalid Compliance/i,
 };
 
+const PERSONA_EMAIL: Record<PersonaRole, string> = {
+  super_admin: 'admin@musanad.local',
+  platform_admin: 'platform.admin@musanad.local',
+  legal_counsel: 'legal@musanad.local',
+  contract_drafter: 'drafter@musanad.local',
+  contract_approver: 'approver@musanad.local',
+  contract_recipient: 'recipient@musanad.local',
+  executive: 'executive@musanad.local',
+  operations: 'operations@musanad.local',
+  finance_treasury: 'finance@musanad.local',
+  compliance_esg: 'compliance@musanad.local',
+};
+
+/**
+ * Sign in by clicking the role's dev-quick-sign-in persona tile. Uses
+ * `force: true` so the click lands regardless of fold position (Unit-3 personas
+ * sit in row 5 of the 5-row persona grid at the 1280×800 viewport and may not
+ * be scrolled into view by Playwright's auto-scroll heuristic).
+ *
+ * Why not seed localStorage directly? TanStack Start uses Cloudflare Workers
+ * SSR — the `/app/*` route guard's `beforeLoad` fires server-side on initial
+ * navigation, where localStorage doesn't exist. A client-side login through
+ * the tile triggers a client-side navigation that the auth-aware guard
+ * permits.
+ */
 export const signInAs = async (page: Page, role: PersonaRole): Promise<void> => {
   await page.goto('/auth/login');
-  await page.getByRole('button', { name: PERSONA_BUTTON_NAME[role] }).click();
+  // Wait for the React bundle to fully hydrate. TanStack Start uses Cloudflare
+  // Workers SSR, so the initial HTML response is server-rendered; React event
+  // handlers (including the persona-tile onClick + react-hook-form onSubmit)
+  // are only bound AFTER the client bundle loads and hydrates. Clicking before
+  // hydration would either no-op or fall through to native HTML form GET.
+  // We wait for networkidle (the bundle script finished loading + executed)
+  // then briefly for handlers to attach.
+  await page.waitForLoadState('networkidle');
+  // Wait for the persona-tile section to be interactive — its presence implies
+  // the React tree mounted and event delegation is in place.
+  await page.getByText(/DEV QUICK SIGN-IN/i).waitFor({ state: 'visible', timeout: 15000 });
+
+  const pattern = PERSONA_BUTTON_NAME[role].source;
+  // Dispatch a native DOM click via page.evaluate — viewport-independent and
+  // bypasses Playwright's auto-scroll heuristic that misjudged Unit-3 tiles
+  // (row 5 of the 5-row persona grid at 1280×800) as already visible.
+  const clicked = await page.evaluate((re) => {
+    const regex = new RegExp(re, 'i');
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+      regex.test(b.textContent ?? ''),
+    );
+    if (!button) return false;
+    button.click();
+    return true;
+  }, pattern);
+  if (!clicked) {
+    throw new Error(`signInAs(${role}): persona tile not found matching /${pattern}/i`);
+  }
   await page.waitForURL((url) => !url.pathname.startsWith('/auth/login'), { timeout: 15000 });
 };
+
+function roleLanding(role: PersonaRole): string {
+  switch (role) {
+    case 'contract_approver':
+      return '/app/approvals';
+    case 'contract_drafter':
+      return '/app/dashboards/drafter';
+    case 'legal_counsel':
+      return '/app/dashboards/legal-counsel';
+    case 'executive':
+      return '/app/dashboards/executive';
+    case 'contract_recipient':
+      return '/app/dashboards/recipient';
+    case 'platform_admin':
+    case 'super_admin':
+      return '/app/admin';
+    case 'operations':
+      return '/app/dashboards/operations';
+    case 'finance_treasury':
+      return '/app/dashboards/finance-treasury';
+    case 'compliance_esg':
+      return '/app/dashboards/compliance-esg';
+    default:
+      return '/app';
+  }
+}
 
 export const goAs = async (page: Page, role: PersonaRole, path: string): Promise<void> => {
   await signInAs(page, role);

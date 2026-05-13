@@ -15,17 +15,10 @@ import { X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useFocusTrap } from "@/components/common/useFocusTrap";
-import { apiClient } from "@/lib/api-client";
+import { personaActionsService } from "@/services/api/persona-actions.service";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 const MAX_FILE_MB = 10;
-
-interface IcvUploadResult {
-  attachmentId: string;
-  contractId: string;
-  kind: "icv_certificate";
-  validUntil?: string;
-}
 
 interface IcvCertificateUploadDialogProps {
   contractId: string | null;
@@ -70,17 +63,11 @@ export function IcvCertificateUploadDialog({
     mutationFn: async () => {
       if (!contractId) throw new Error("missing contractId");
       if (!file) throw new Error("file-required");
-
-      const formData = new FormData();
-      formData.append("file", file);
-      if (validUntil) formData.append("validUntil", validUntil);
-
-      const { data } = await apiClient.post<{ success: boolean; data: IcvUploadResult }>(
-        `/api/v1/compliance/contracts/${contractId}/icv-certificate`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
+      return personaActionsService.uploadIcvCertificate(
+        contractId,
+        file,
+        validUntil || undefined,
       );
-      return data.data;
     },
     onSuccess: () => {
       toast.success(t("compliance.actions.icvUpload.success"));

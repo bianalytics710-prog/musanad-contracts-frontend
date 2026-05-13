@@ -24,7 +24,7 @@ const FE_BASE_URL = process.env.E2E_FE_BASE_URL ?? 'http://localhost:5174';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: /(M\d+|CR-[A-Z]+).*\.spec\.ts$/,
+  testMatch: /(M\d+|CR-[A-Z]+|unit\d+).*\.spec\.ts$/,
   fullyParallel: false, // tests touch a shared test DB; serial keeps state predictable
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

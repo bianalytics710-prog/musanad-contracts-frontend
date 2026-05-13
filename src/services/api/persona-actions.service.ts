@@ -284,4 +284,28 @@ export const personaActionsService = {
     );
     return unwrap<AuditRightsDrilldownResult>(data);
   },
+
+  // ICV certificate multipart upload (R-CES H3). Returns the new attachment.
+  uploadIcvCertificate: async (
+    contractId: string,
+    file: File,
+    validUntil?: string,
+  ): Promise<IcvCertificateUploadResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (validUntil) formData.append('validUntil', validUntil);
+    const { data } = await apiClient.post<{ success: boolean; data: IcvCertificateUploadResult }>(
+      `/api/v1/compliance/contracts/${contractId}/icv-certificate`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return unwrap<IcvCertificateUploadResult>(data);
+  },
 };
+
+export interface IcvCertificateUploadResult {
+  attachmentId: string;
+  contractId: string;
+  kind: 'icv_certificate';
+  validUntil?: string;
+}
