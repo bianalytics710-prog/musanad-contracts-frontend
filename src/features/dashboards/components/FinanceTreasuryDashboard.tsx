@@ -26,11 +26,12 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { DollarSign, Shield } from 'lucide-react';
+import { BarChart2, DollarSign, Shield } from 'lucide-react';
 import { useFinanceTreasuryDashboard } from '../hooks/useCrgDashboards';
 import {
   DashboardEmptyState,
   DashboardErrorState,
+  DashboardFreshness,
   DashboardLoadingSkeleton,
   KpiTile,
   TimeRangeSelector,
@@ -44,6 +45,14 @@ import type {
   CurrencyExposureRow,
   FxVolatilityTile as FxVolatilityTileType,
 } from '@/types/entities/crg-dashboards.types';
+import {
+  InitiatePriceReviewDialog,
+  RecommendPaymentHoldDialog,
+  InitiateHedgeReviewDialog,
+} from '@/features/finance-treasury/components/ActionDialogs';
+import { PaymentDelayRegisterTable } from '@/features/finance-treasury/components/PaymentDelayRegisterTable';
+import { CommodityExposureSection } from '@/features/finance-treasury/components/CommodityExposureSection';
+import { FxHistoryChart } from '@/features/finance-treasury/components/FxHistoryChart';
 
 function formatAedCompact(value: string | number): string {
   const num = typeof value === 'string' ? Number(value) : value;
@@ -103,6 +112,9 @@ export function FinanceTreasuryDashboard() {
 
   const nowISO = new Date().toISOString();
 
+  // L2: first-name only welcome
+  const welcomeName = user ? user.firstName : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -113,8 +125,8 @@ export function FinanceTreasuryDashboard() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs text-ink-subtle">
-            {user
-              ? `${t('dashboards.common.welcome', { defaultValue: 'Welcome back' })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
+            {welcomeName
+              ? `${t('dashboards.common.welcome', { defaultValue: 'Welcome back' })}, ${welcomeName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
               : `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`}
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
@@ -123,6 +135,7 @@ export function FinanceTreasuryDashboard() {
           <p className="mt-1 text-sm text-ink-muted">
             {t('dashboards.financeTreasury.subtitle')}
           </p>
+          {data?.asOf && <DashboardFreshness asOf={data.asOf} className="mt-1" />}
         </div>
         <TimeRangeSelector
           range={range}
@@ -188,22 +201,39 @@ export function FinanceTreasuryDashboard() {
             <PriceReviewList rows={data.priceReviewTriggerQueue} />
           </section>
 
-          {/* Payment Delay Register (empty-state v1) */}
+          {/* Payment Delay Register (H2 — real table) */}
           <section className="rounded-lg border border-border bg-card p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink">
               {t('dashboards.financeTreasury.sections.paymentDelays')}
             </h2>
-            {data.paymentDelayRegister.length === 0 ? (
-              <DashboardEmptyState
-                description={t('dashboards.financeTreasury.empty.paymentDelaysV1')}
-              />
-            ) : (
-              <p className="text-sm text-ink-muted">
-                {formatNumber(data.paymentDelayRegister.length)}{' '}
-                {t('dashboards.financeTreasury.paymentDelayCount')}
-              </p>
-            )}
+            <PaymentDelayRegisterTable rows={data.paymentDelayRegister} />
           </section>
+
+          {/* Commodity Exposure (H3) */}
+          {data.commodityExposure && (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-amber" aria-hidden />
+                <h2 className="text-sm font-semibold text-ink">
+                  {t('dashboards.financeTreasury.sections.commodityExposure')}
+                </h2>
+              </div>
+              <CommodityExposureSection data={data.commodityExposure} />
+            </section>
+          )}
+
+          {/* FX History Chart (H4) */}
+          {data.fxHistory && (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-sage" aria-hidden />
+                <h2 className="text-sm font-semibold text-ink">
+                  {t('dashboards.financeTreasury.sections.fxHistory')}
+                </h2>
+              </div>
+              <FxHistoryChart data={data.fxHistory} />
+            </section>
+          )}
 
           {/* Currency Exposure Breakdown */}
           <section className="rounded-lg border border-border bg-card p-4">
@@ -254,60 +284,137 @@ function FxVolatilityCard({ tile }: { tile: FxVolatilityTileType }) {
 
 function PriceReviewList({ rows }: { rows: PriceReviewRow[] }) {
   const { t } = useTranslation();
+  const [priceReviewContractId, setPriceReviewContractId] = useState<string | null>(null);
+  const [priceReviewCorrId, setPriceReviewCorrId] = useState<string | undefined>(undefined);
+  const [priceReviewOpen, setPriceReviewOpen] = useState(false);
+  const [holdContractId, setHoldContractId] = useState<string | null>(null);
+  const [holdOpen, setHoldOpen] = useState(false);
+  const [hedgeContractId, setHedgeContractId] = useState<string | null>(null);
+  const [hedgeOpen, setHedgeOpen] = useState(false);
+
   if (rows.length === 0) {
     return (
       <DashboardEmptyState description={t('dashboards.financeTreasury.empty.noPriceReview')} />
     );
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-subtle">
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.contract')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.counterparty')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.index')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.trigger')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.financeTreasury.table.marAed')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.occurredAt')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.correlationId} className="border-t border-border/60">
-              <td className="py-2 pe-3">
-                <Link
-                  to="/app/contracts/$id"
-                  params={{ id: row.contractId }}
-                  className="font-mono text-xs text-gold hover:underline"
-                >
-                  {row.contractNumber}
-                </Link>
-              </td>
-              <td className="py-2 pe-3 text-ink">{row.counterpartyName}</td>
-              <td className="py-2 pe-3">
-                {row.indexName ? (
-                  <span className="inline-flex rounded bg-gold/15 px-2 py-0.5 font-mono text-[10px] text-ink">
-                    {row.indexName}
-                  </span>
-                ) : (
-                  <span className="text-ink-subtle">—</span>
-                )}
-              </td>
-              <td className="py-2 pe-3 text-xs text-ink-muted max-w-xs truncate">
-                {row.triggerHeadline}
-              </td>
-              <td className="py-2 pe-3 font-mono tabular-nums text-ink">
-                {formatAedCompact(row.marAed)}
-              </td>
-              <td className="py-2 pe-3 text-xs text-ink-subtle">
-                {formatDateTime(row.occurredAt, { showTime: false })}
-              </td>
+    <>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-subtle">
+              <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.contract')}</th>
+              <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.counterparty')}</th>
+              <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.index')}</th>
+              <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.trigger')}</th>
+              <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.financeTreasury.table.marAed')}</th>
+              <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.occurredAt')}</th>
+              <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.financeTreasury.table.actions')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.correlationId} className="border-t border-border/60">
+                <td className="py-2 pe-3">
+                  <Link
+                    to="/app/contracts/$id"
+                    params={{ id: row.contractId }}
+                    className="font-mono text-xs text-gold hover:underline"
+                  >
+                    {row.contractNumber}
+                  </Link>
+                </td>
+                <td className="py-2 pe-3 text-ink">{row.counterpartyName}</td>
+                <td className="py-2 pe-3">
+                  {row.indexName ? (
+                    <span className="inline-flex rounded bg-gold/15 px-2 py-0.5 font-mono text-[10px] text-ink">
+                      {row.indexName}
+                    </span>
+                  ) : (
+                    <span className="text-ink-subtle">—</span>
+                  )}
+                </td>
+                <td className="py-2 pe-3 text-xs text-ink-muted max-w-xs truncate">
+                  {row.triggerHeadline}
+                </td>
+                <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+                  {formatAedCompact(row.marAed)}
+                </td>
+                <td className="py-2 pe-3 text-xs text-ink-subtle">
+                  {formatDateTime(row.occurredAt, { showTime: false })}
+                </td>
+                {/* H5 per-row actions */}
+                <td className="py-2 pe-3">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPriceReviewContractId(row.contractId);
+                        setPriceReviewCorrId(row.correlationId);
+                        setPriceReviewOpen(true);
+                      }}
+                      className="rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-ink hover:border-gold/60 hover:bg-gold/10"
+                      aria-label={t('finance.actions.priceReview.title')}
+                    >
+                      {t('finance.actions.priceReview.shortLabel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHoldContractId(row.contractId);
+                        setHoldOpen(true);
+                      }}
+                      className="rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-ink hover:border-amber/60 hover:bg-amber/10"
+                      aria-label={t('finance.actions.paymentHold.title')}
+                    >
+                      {t('finance.actions.paymentHold.shortLabel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHedgeContractId(row.contractId);
+                        setHedgeOpen(true);
+                      }}
+                      className="rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-ink hover:border-sage/60 hover:bg-sage/10"
+                      aria-label={t('finance.actions.hedgeReview.title')}
+                    >
+                      {t('finance.actions.hedgeReview.shortLabel')}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <InitiatePriceReviewDialog
+        contractId={priceReviewContractId}
+        correlationId={priceReviewCorrId}
+        open={priceReviewOpen}
+        onClose={() => {
+          setPriceReviewOpen(false);
+          setPriceReviewContractId(null);
+          setPriceReviewCorrId(undefined);
+        }}
+      />
+      <RecommendPaymentHoldDialog
+        contractId={holdContractId}
+        open={holdOpen}
+        onClose={() => {
+          setHoldOpen(false);
+          setHoldContractId(null);
+        }}
+      />
+      <InitiateHedgeReviewDialog
+        contractId={hedgeContractId}
+        open={hedgeOpen}
+        onClose={() => {
+          setHedgeOpen(false);
+          setHedgeContractId(null);
+        }}
+      />
+    </>
   );
 }
 

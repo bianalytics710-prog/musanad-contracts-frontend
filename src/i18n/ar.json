@@ -6447,6 +6447,15 @@
         "medium": "متوسطة",
         "low": "منخفضة",
         "unknown": "غير معروفة"
+      },
+      "freshness": {
+        "updatedAgo": "تم التحديث {{when}}",
+        "updatedJustNow": "تم التحديث للتو"
+      },
+      "tier": {
+        "high": "مرتفع",
+        "medium": "متوسط",
+        "low": "منخفض"
       }
     },
     "admin": {
@@ -6817,38 +6826,7 @@
       "errors": {
         "loadFailed": "تعذر تحميل فحص صحة النظام."
       }
-    }
-  },
-  "correlations": {
-    "title": "الارتباطات",
-    "subtitle": "العقود التي تم وضع علامة عليها كمترابطة محتملة بواسطة محرك القواعد.",
-    "table": {
-      "contracts": "العقود",
-      "rule": "القاعدة",
-      "scenario": "السيناريو",
-      "confidence": "الثقة",
-      "status": "الحالة",
-      "detectedAt": "تاريخ الاكتشاف"
     },
-    "status": {
-      "open": "مفتوح",
-      "dismissed": "مرفوض",
-      "confirmed": "مؤكد"
-    },
-    "dismiss": "رفض",
-    "dismissSuccess": "تم رفض الارتباط.",
-    "empty": "لا توجد ارتباطات مكتشفة.",
-    "pagination": {
-      "showing": "الصفحة {{page}} من {{totalPages}} · {{total}} ارتباط"
-    }
-  },
-  "nav": {
-    "dashboardsOperations": "العمليات",
-    "dashboardsFinanceTreasury": "المالية والخزانة",
-    "dashboardsComplianceEsg": "الامتثال والبيئة والحوكمة",
-    "dashboardsProcurement": "مخاطر المشتريات"
-  },
-  "dashboards": {
     "operations": {
       "title": "لوحة العمليات",
       "subtitle": "خروقات اتفاقيات مستوى الخدمة وتأخيرات التسليم وأداء المورّدين",
@@ -6891,6 +6869,9 @@
         "noEvents": "لا توجد أحداث تشغيلية في النافذة الزمنية المحددة.",
         "noVendors": "لا تتوفر بيانات بطاقة أداء المورّدين."
       },
+      "actions": {
+        "menuAriaLabel": "إجراءات الصف"
+      },
       "errors": {
         "loadFailed": "تعذّر تحميل لوحة العمليات. يُرجى المحاولة مجدداً."
       }
@@ -6908,7 +6889,9 @@
       "sections": {
         "priceReview": "قائمة انتظار محفزات مراجعة الأسعار",
         "paymentDelays": "سجل تأخيرات المدفوعات",
-        "currencyExposure": "تفصيل تعرض العملات"
+        "currencyExposure": "تفصيل تعرض العملات",
+        "commodityExposure": "تعرض السلع",
+        "fxHistory": "تقلبات صرف العملات — تاريخ 30 يوماً"
       },
       "fxTile": {
         "ariaLabel": "بطاقة تقلبات العملات الأجنبية",
@@ -6928,7 +6911,33 @@
         "currency": "العملة",
         "contracts": "العقود",
         "valueAed": "القيمة (درهم)",
-        "pctPortfolio": "% المحفظة"
+        "pctPortfolio": "% المحفظة",
+        "severity": "الخطورة",
+        "actions": "الإجراءات"
+      },
+      "paymentDelay": {
+        "invoiceRef": "مرجع الفاتورة",
+        "daysOverdue": "أيام التأخير",
+        "amountAed": "المبلغ (درهم)",
+        "actions": "الإجراءات"
+      },
+      "commodityExposure": {
+        "brent": "برنت",
+        "dubai": "دبي",
+        "murban": "مربان",
+        "currentPriceUsd": "السعر الحالي (دولار)",
+        "thresholdProximity": "{{bps}} نقطة أساس حتى العتبة",
+        "usdPerBarrel": "دولار/برميل",
+        "threshold": "عتبة ${{value}}",
+        "contractsExposed": "عقود معرّضة",
+        "empty": "لا تتوفر بيانات تعرض للسلع."
+      },
+      "fxHistory": {
+        "deviation": "الانحراف (نقطة أساس)",
+        "currentDeviation": "الحالي: {{bps}} نقطة أساس",
+        "severityThreshold": "عتبة الخطورة",
+        "severityThresholdNote": "عتبة الخطورة: {{bps}} نقطة أساس",
+        "empty": "لا تتوفر بيانات تاريخ صرف العملات."
       },
       "chart": {
         "currencyPieAriaLabel": "مخطط دائري لتعرض العملات",
@@ -6938,7 +6947,8 @@
       "empty": {
         "noPriceReview": "لا توجد ارتباطات مراجعة أسعار برنت/دبي/مربان في النافذة المحددة.",
         "paymentDelaysV1": "لا تتوفر إشارات تأخير مدفوعات — مؤجل إلى التجربة التجريبية.",
-        "noCurrencies": "لا تتوفر بيانات عملات فعّالة."
+        "noCurrencies": "لا تتوفر بيانات عملات فعّالة.",
+        "noPaymentDelays": "لم تُرصد تأخيرات مدفوعات في النافذة الزمنية المحددة."
       },
       "errors": {
         "loadFailed": "تعذّر تحميل لوحة المالية والخزانة. يُرجى المحاولة مجدداً."
@@ -6960,7 +6970,8 @@
         "subContractorChain": "عرض سلسلة المقاولين من الباطن",
         "auditRights": "متابعة حقوق التدقيق",
         "regulatoryUpdates": "مراقب التحديثات التنظيمية",
-        "esgCorrelations": "ارتباطات ESG"
+        "esgCorrelations": "ارتباطات ESG",
+        "icvCertificateSummary": "حالة شهادات ICV"
       },
       "table": {
         "contract": "العقد",
@@ -6974,7 +6985,25 @@
         "affectedContracts": "العقود المتأثرة",
         "expiresOn": "تاريخ الانتهاء",
         "daysToExpiry": "الأيام حتى الانتهاء",
-        "severity": "الخطورة"
+        "severity": "الخطورة",
+        "actions": "الإجراءات"
+      },
+      "icvCertificateSummary": {
+        "upToDate": "سارية",
+        "expiringWithin90d": "تنتهي خلال 90 يوماً",
+        "expired": "منتهية",
+        "missing": "مفقودة",
+        "validUntil": "صالحة حتى",
+        "daysToExpiry": "الأيام حتى الانتهاء",
+        "status": "الحالة",
+        "actions": "الإجراءات",
+        "empty": "لا تتوفر بيانات شهادات ICV.",
+        "statusLabel": {
+          "upToDate": "سارية",
+          "expiringWithin90d": "تنتهي قريباً",
+          "expired": "منتهية",
+          "missing": "مفقودة"
+        }
       },
       "chainTruncated": "تم تقييد اجتياز السلسلة عند الحد الأقصى للعمق",
       "truncated": "مقطوع",
@@ -7036,6 +7065,35 @@
       }
     }
   },
+  "correlations": {
+    "title": "الارتباطات",
+    "subtitle": "العقود التي تم وضع علامة عليها كمترابطة محتملة بواسطة محرك القواعد.",
+    "table": {
+      "contracts": "العقود",
+      "rule": "القاعدة",
+      "scenario": "السيناريو",
+      "confidence": "الثقة",
+      "status": "الحالة",
+      "detectedAt": "تاريخ الاكتشاف"
+    },
+    "status": {
+      "open": "مفتوح",
+      "dismissed": "مرفوض",
+      "confirmed": "مؤكد"
+    },
+    "dismiss": "رفض",
+    "dismissSuccess": "تم رفض الارتباط.",
+    "empty": "لا توجد ارتباطات مكتشفة.",
+    "pagination": {
+      "showing": "الصفحة {{page}} من {{totalPages}} · {{total}} ارتباط"
+    }
+  },
+  "nav": {
+    "dashboardsOperations": "العمليات",
+    "dashboardsFinanceTreasury": "المالية والخزانة",
+    "dashboardsComplianceEsg": "الامتثال والبيئة والحوكمة",
+    "dashboardsProcurement": "مخاطر المشتريات"
+  },
   "ai": {
     "riskAssistant": {
       "toggleButton": "استفسر من مساعد المخاطر الذكي",
@@ -7092,9 +7150,212 @@
       }
     }
   },
-  "dashboards.common.tier": {
-    "high": "مرتفع",
-    "medium": "متوسط",
-    "low": "منخفض"
+  "ops": {
+    "actions": {
+      "acknowledge": {
+        "title": "[NEEDS TRANSLATION] Acknowledge event",
+        "description": "[NEEDS TRANSLATION] Record acknowledgement of this operational event.",
+        "confirm": "[NEEDS TRANSLATION] Acknowledge",
+        "success": "[NEEDS TRANSLATION] Event acknowledged.",
+        "error": "[NEEDS TRANSLATION] Failed to acknowledge.",
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Add context…"
+      },
+      "linkRemedy": {
+        "title": "[NEEDS TRANSLATION] Link contract remedy",
+        "description": "[NEEDS TRANSLATION] Link this event to a contractual remedy.",
+        "confirm": "[NEEDS TRANSLATION] Link remedy",
+        "success": "[NEEDS TRANSLATION] Remedy linked.",
+        "error": "[NEEDS TRANSLATION] Failed to link remedy.",
+        "contractIdLabel": "[NEEDS TRANSLATION] Contract ID",
+        "contractIdPlaceholder": "[NEEDS TRANSLATION] Enter contract UUID",
+        "contractIdRequired": "[NEEDS TRANSLATION] Contract ID is required.",
+        "clauseIdLabel": "[NEEDS TRANSLATION] Clause ID (optional)",
+        "clauseIdPlaceholder": "[NEEDS TRANSLATION] Enter clause UUID",
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Describe the remedy…"
+      },
+      "escalate": {
+        "title": "[NEEDS TRANSLATION] Escalate event",
+        "description": "[NEEDS TRANSLATION] Escalate this event to another team.",
+        "confirm": "[NEEDS TRANSLATION] Escalate",
+        "success": "[NEEDS TRANSLATION] Event escalated.",
+        "error": "[NEEDS TRANSLATION] Failed to escalate.",
+        "toRoleLabel": {
+          "label": "[NEEDS TRANSLATION] Escalate to",
+          "procurement": "[NEEDS TRANSLATION] Procurement",
+          "legal": "[NEEDS TRANSLATION] Legal",
+          "executive": "[NEEDS TRANSLATION] Executive"
+        },
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Reason for escalation…"
+      }
+    }
+  },
+  "finance": {
+    "actions": {
+      "priceReview": {
+        "title": "[NEEDS TRANSLATION] Initiate price review",
+        "description": "[NEEDS TRANSLATION] Trigger a formal price-review process.",
+        "confirm": "[NEEDS TRANSLATION] Initiate review",
+        "shortLabel": "[NEEDS TRANSLATION] Price review",
+        "success": "[NEEDS TRANSLATION] Price review initiated.",
+        "error": "[NEEDS TRANSLATION] Failed to initiate price review.",
+        "correlationIdLabel": "[NEEDS TRANSLATION] Correlation ID",
+        "correlationIdPlaceholder": "[NEEDS TRANSLATION] Enter correlation UUID",
+        "correlationIdRequired": "[NEEDS TRANSLATION] Correlation ID is required.",
+        "reasonLabel": "[NEEDS TRANSLATION] Reason",
+        "reason": {
+          "index_crossed": "[NEEDS TRANSLATION] Index threshold crossed",
+          "escalation": "[NEEDS TRANSLATION] Escalated from operations",
+          "manual": "[NEEDS TRANSLATION] Manual"
+        },
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Additional context…"
+      },
+      "paymentHold": {
+        "title": "[NEEDS TRANSLATION] Recommend payment hold",
+        "description": "[NEEDS TRANSLATION] Flag for a payment hold recommendation.",
+        "confirm": "[NEEDS TRANSLATION] Recommend hold",
+        "shortLabel": "[NEEDS TRANSLATION] Hold payment",
+        "success": "[NEEDS TRANSLATION] Payment hold recommended.",
+        "error": "[NEEDS TRANSLATION] Failed to recommend payment hold.",
+        "invoiceRefLabel": "[NEEDS TRANSLATION] Invoice reference (optional)",
+        "invoiceRefPlaceholder": "[NEEDS TRANSLATION] INV-2026-001",
+        "amountAedLabel": "[NEEDS TRANSLATION] Amount at risk (AED)",
+        "amountAedPlaceholder": "[NEEDS TRANSLATION] 0.00",
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Reason for hold…"
+      },
+      "hedgeReview": {
+        "title": "[NEEDS TRANSLATION] Initiate hedge review",
+        "description": "[NEEDS TRANSLATION] Request a hedging strategy review.",
+        "confirm": "[NEEDS TRANSLATION] Initiate hedge review",
+        "shortLabel": "[NEEDS TRANSLATION] Hedge review",
+        "success": "[NEEDS TRANSLATION] Hedge review initiated.",
+        "error": "[NEEDS TRANSLATION] Failed to initiate hedge review.",
+        "pairLabel": "[NEEDS TRANSLATION] Currency pair (optional)",
+        "pairInvalid": "[NEEDS TRANSLATION] Must be XXX/YYY format.",
+        "exposureAedLabel": "[NEEDS TRANSLATION] Exposure (AED, optional)",
+        "exposureAedPlaceholder": "[NEEDS TRANSLATION] 0.00",
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Hedging context…"
+      }
+    }
+  },
+  "compliance": {
+    "actions": {
+      "raiseFlag": {
+        "title": "[NEEDS TRANSLATION] Raise compliance flag",
+        "description": "[NEEDS TRANSLATION] Record a compliance concern.",
+        "confirm": "[NEEDS TRANSLATION] Raise flag",
+        "shortLabel": "[NEEDS TRANSLATION] Raise flag",
+        "success": "[NEEDS TRANSLATION] Compliance flag raised.",
+        "error": "[NEEDS TRANSLATION] Failed to raise flag.",
+        "flagKindLabel": "[NEEDS TRANSLATION] Flag kind",
+        "flagKind": {
+          "sanctions": "[NEEDS TRANSLATION] Sanctions",
+          "esg": "[NEEDS TRANSLATION] ESG",
+          "audit_rights": "[NEEDS TRANSLATION] Audit rights",
+          "other": "[NEEDS TRANSLATION] Other"
+        },
+        "severityLabel": "[NEEDS TRANSLATION] Severity",
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Describe the concern…"
+      },
+      "supplierAudit": {
+        "title": "[NEEDS TRANSLATION] Initiate supplier audit",
+        "description": "[NEEDS TRANSLATION] Request a formal supplier audit.",
+        "confirm": "[NEEDS TRANSLATION] Initiate audit",
+        "shortLabel": "[NEEDS TRANSLATION] Supplier audit",
+        "success": "[NEEDS TRANSLATION] Supplier audit initiated.",
+        "error": "[NEEDS TRANSLATION] Failed to initiate audit.",
+        "scopeLabel": "[NEEDS TRANSLATION] Audit scope",
+        "scope": {
+          "financial": "[NEEDS TRANSLATION] Financial",
+          "operational": "[NEEDS TRANSLATION] Operational",
+          "esg": "[NEEDS TRANSLATION] ESG",
+          "sanctions": "[NEEDS TRANSLATION] Sanctions screening",
+          "full": "[NEEDS TRANSLATION] Full audit"
+        },
+        "targetDateLabel": "[NEEDS TRANSLATION] Target date (optional)",
+        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
+        "notePlaceholder": "[NEEDS TRANSLATION] Scope details…"
+      },
+      "recommendHold": {
+        "title": "[NEEDS TRANSLATION] Recommend contract hold",
+        "description": "[NEEDS TRANSLATION] Recommend holding contract obligations.",
+        "confirm": "[NEEDS TRANSLATION] Recommend hold",
+        "shortLabel": "[NEEDS TRANSLATION] Recommend hold",
+        "success": "[NEEDS TRANSLATION] Hold recommended.",
+        "error": "[NEEDS TRANSLATION] Failed to recommend hold.",
+        "reasonLabel": "[NEEDS TRANSLATION] Reason",
+        "reasonPlaceholder": "[NEEDS TRANSLATION] Detailed reason…",
+        "reasonRequired": "[NEEDS TRANSLATION] Reason is required.",
+        "holdUntilLabel": "[NEEDS TRANSLATION] Proposed hold until (optional)"
+      },
+      "recommendTermination": {
+        "title": "[NEEDS TRANSLATION] Recommend termination",
+        "description": "[NEEDS TRANSLATION] Recommend contract termination.",
+        "confirm": "[NEEDS TRANSLATION] Recommend termination",
+        "shortLabel": "[NEEDS TRANSLATION] Recommend termination",
+        "success": "[NEEDS TRANSLATION] Termination recommendation logged.",
+        "error": "[NEEDS TRANSLATION] Failed to submit recommendation.",
+        "groundsLabel": "[NEEDS TRANSLATION] Legal grounds",
+        "grounds": {
+          "sanctions": "[NEEDS TRANSLATION] Sanctions exposure",
+          "material_breach": "[NEEDS TRANSLATION] Material breach",
+          "esg_violation": "[NEEDS TRANSLATION] ESG violation",
+          "non_performance": "[NEEDS TRANSLATION] Non-performance",
+          "regulatory_compliance": "[NEEDS TRANSLATION] Regulatory non-compliance",
+          "other": "[NEEDS TRANSLATION] Other"
+        },
+        "reasonLabel": "[NEEDS TRANSLATION] Reason",
+        "reasonPlaceholder": "[NEEDS TRANSLATION] Justification…",
+        "reasonRequired": "[NEEDS TRANSLATION] Reason is required."
+      },
+      "icvUpload": {
+        "title": "[NEEDS TRANSLATION] Upload ICV certificate",
+        "description": "[NEEDS TRANSLATION] Upload ICV certificate. PDF, PNG, JPG (max 10 MB).",
+        "confirm": "[NEEDS TRANSLATION] Upload",
+        "uploading": "[NEEDS TRANSLATION] Uploading…",
+        "success": "[NEEDS TRANSLATION] ICV certificate uploaded.",
+        "error": "[NEEDS TRANSLATION] Failed to upload.",
+        "fileLabel": "[NEEDS TRANSLATION] Certificate file",
+        "filePlaceholder": "[NEEDS TRANSLATION] Click to select file",
+        "fileRequired": "[NEEDS TRANSLATION] Please select a file.",
+        "fileTypeError": "[NEEDS TRANSLATION] Only PDF, PNG or JPG files accepted.",
+        "fileSizeError": "[NEEDS TRANSLATION] File size must be under {{maxMb}} MB.",
+        "validUntilLabel": "[NEEDS TRANSLATION] Valid until (recommended)",
+        "uploadButton": "[NEEDS TRANSLATION] Upload ICV",
+        "uploadButtonAriaLabel": "[NEEDS TRANSLATION] Upload ICV for {{contract}}"
+      }
+    },
+    "sanctionsChain": {
+      "listAriaLabel": "[NEEDS TRANSLATION] Sub-contractor chain",
+      "sanctionedBadge": "[NEEDS TRANSLATION] Sanctioned",
+      "depthLabel": "[NEEDS TRANSLATION] depth {{depth}}",
+      "raiseFlagButton": "[NEEDS TRANSLATION] Flag",
+      "raiseFlagAriaLabel": "[NEEDS TRANSLATION] Raise flag for {{name}}"
+    }
+  },
+  "audit": {
+    "rights": {
+      "drilldown": {
+        "title": "[NEEDS TRANSLATION] Audit rights clauses",
+        "loadFailed": "[NEEDS TRANSLATION] Failed to load audit rights.",
+        "empty": "[NEEDS TRANSLATION] No audit-rights clauses found.",
+        "clauseCount": "[NEEDS TRANSLATION] clauses",
+        "table": {
+          "clauseType": "[NEEDS TRANSLATION] Clause type",
+          "scope": "[NEEDS TRANSLATION] Scope",
+          "frequency": "[NEEDS TRANSLATION] Frequency",
+          "dateRange": "[NEEDS TRANSLATION] Date range",
+          "daysToExpiry": "[NEEDS TRANSLATION] Days to expiry",
+          "severity": "[NEEDS TRANSLATION] Severity",
+          "summary": "[NEEDS TRANSLATION] Summary"
+        }
+      }
+    }
   }
 }

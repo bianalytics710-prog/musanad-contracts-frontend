@@ -77,6 +77,12 @@ function defaultLandingForRole(roleName: string | null | undefined): string {
       return "/app/admin";
     case "Super Admin":
       return "/app/admin";
+    case "operations":
+      return "/app/dashboards/operations";
+    case "finance_treasury":
+      return "/app/dashboards/finance-treasury";
+    case "compliance_esg":
+      return "/app/dashboards/compliance-esg";
     default:
       return "/app";
   }

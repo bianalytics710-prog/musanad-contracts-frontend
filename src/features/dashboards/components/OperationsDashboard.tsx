@@ -18,7 +18,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import {
   Bar,
   BarChart,
@@ -28,11 +28,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertTriangle, Clock, TrendingDown } from 'lucide-react';
+import { AlertTriangle, Clock, MoreHorizontal, TrendingDown } from 'lucide-react';
 import { useOperationsDashboard } from '../hooks/useCrgDashboards';
 import {
   DashboardEmptyState,
   DashboardErrorState,
+  DashboardFreshness,
   DashboardLoadingSkeleton,
   KpiTile,
   TimeRangeSelector,
@@ -48,6 +49,11 @@ import type {
   OpsEventRow,
   VendorScorecardRow,
 } from '@/types/entities/crg-dashboards.types';
+import {
+  AcknowledgeEventDialog,
+  LinkRemedyDialog,
+  EscalateEventDialog,
+} from '@/features/operations/components/ActionDialogs';
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -91,7 +97,8 @@ function SeverityBadge({ severity }: { severity: string }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const DEFAULT_WINDOW = 30;
+// L1: default to last_7d for Operations (SLA breaches need same-week visibility)
+const DEFAULT_WINDOW = 7;
 
 export function OperationsDashboard() {
   const { t } = useTranslation();
@@ -103,6 +110,9 @@ export function OperationsDashboard() {
 
   const nowISO = new Date().toISOString();
 
+  // L2: welcome line first-name only
+  const welcomeName = user ? user.firstName : null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -113,8 +123,8 @@ export function OperationsDashboard() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs text-ink-subtle">
-            {user
-              ? `${t('dashboards.common.welcome', { defaultValue: 'Welcome back' })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
+            {welcomeName
+              ? `${t('dashboards.common.welcome', { defaultValue: 'Welcome back' })}, ${welcomeName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
               : `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`}
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
@@ -123,6 +133,7 @@ export function OperationsDashboard() {
           <p className="mt-1 text-sm text-ink-muted">
             {t('dashboards.operations.subtitle')}
           </p>
+          {data?.asOf && <DashboardFreshness asOf={data.asOf} className="mt-1" />}
         </div>
         <TimeRangeSelector
           range={range}
@@ -331,12 +342,15 @@ function DeliveryDelayList({ rows }: { rows: DeliveryDelayRow[] }) {
 
 function PenaltyExposureChart({ rows }: { rows: PenaltyExposureRow[] }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
   if (rows.length === 0) {
     return <DashboardEmptyState description={t('dashboards.operations.empty.noPenalty')} />;
   }
   const chartData = rows.map((r) => ({
     name: r.contractNumber,
     exposure: Number(r.exposureAed),
+    contractId: r.contractId,
   }));
   return (
     <div className="h-64">
@@ -345,6 +359,13 @@ function PenaltyExposureChart({ rows }: { rows: PenaltyExposureRow[] }) {
           layout="vertical"
           data={chartData}
           margin={{ top: 4, right: 32, left: 4, bottom: 4 }}
+          onClick={(chartState) => {
+            // M2: click bar → navigate to contract detail (risk tab)
+            const payload = chartState?.activePayload?.[0]?.payload as typeof chartData[0] | undefined;
+            if (payload?.contractId) {
+              void navigate({ to: "/app/contracts/$id", params: { id: String(payload.contractId) } });
+            }
+          }}
         >
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
           <XAxis
@@ -362,7 +383,13 @@ function PenaltyExposureChart({ rows }: { rows: PenaltyExposureRow[] }) {
             contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
             formatter={(v: number) => [formatAedCompact(v), t('dashboards.operations.chart.exposure')]}
           />
-          <Bar dataKey="exposure" fill="var(--terracotta)" radius={[0, 4, 4, 0]} />
+          <Bar
+            dataKey="exposure"
+            fill="var(--terracotta)"
+            radius={[0, 4, 4, 0]}
+            style={{ cursor: 'pointer' }}
+            aria-label={t('dashboards.operations.chart.barAriaLabel')}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -371,30 +398,133 @@ function PenaltyExposureChart({ rows }: { rows: PenaltyExposureRow[] }) {
 
 function OpsEventsFeed({ rows }: { rows: OpsEventRow[] }) {
   const { t } = useTranslation();
+  const [acknowledgeId, setAcknowledgeId] = useState<string | null>(null);
+  const [acknowledgeOpen, setAcknowledgeOpen] = useState(false);
+  const [linkRemedyId, setLinkRemedyId] = useState<string | null>(null);
+  const [linkRemedyOpen, setLinkRemedyOpen] = useState(false);
+  const [escalateId, setEscalateId] = useState<string | null>(null);
+  const [escalateOpen, setEscalateOpen] = useState(false);
+  const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
+
   if (rows.length === 0) {
     return <DashboardEmptyState description={t('dashboards.operations.empty.noEvents')} />;
   }
+
+  // correlationId is approximated from sourceRef or contractId+eventType;
+  // OpsEventRow doesn't carry a correlationId natively — use sourceRef as proxy.
+  // If sourceRef is null, fall back to contractId (BE enforces idempotency on acknowledge).
+  function getCorrelationId(row: OpsEventRow): string {
+    return row.sourceRef ?? row.contractId;
+  }
+
   return (
-    <ul className="space-y-2" aria-label={t('dashboards.operations.sections.opsEvents')}>
-      {rows.map((row, idx) => (
-        <li key={`${row.contractId}-${idx}`} className="flex items-start gap-3 rounded-md border border-border/60 bg-surface p-3">
-          <SeverityBadge severity={row.severity} />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-ink">{row.headline}</p>
-            <p className="mt-0.5 text-xs text-ink-muted">
-              {row.counterpartyName} · {formatDateTime(row.occurredAt, { showTime: false })}
-            </p>
-          </div>
-          <Link
-            to="/app/contracts/$id"
-            params={{ id: row.contractId }}
-            className="shrink-0 font-mono text-[10px] text-gold hover:underline"
+    <>
+      <ul className="space-y-2" aria-label={t('dashboards.operations.sections.opsEvents')}>
+        {rows.map((row, idx) => (
+          <li
+            key={`${row.contractId}-${idx}`}
+            className="relative flex items-start gap-3 rounded-md border border-border/60 bg-surface p-3"
           >
-            {row.eventType}
-          </Link>
-        </li>
-      ))}
-    </ul>
+            <SeverityBadge severity={row.severity} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-ink">{row.headline}</p>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                {row.counterpartyName} · {formatDateTime(row.occurredAt, { showTime: false })}
+              </p>
+            </div>
+            <Link
+              to="/app/contracts/$id"
+              params={{ id: row.contractId }}
+              className="shrink-0 font-mono text-[10px] text-gold hover:underline"
+            >
+              {row.eventType}
+            </Link>
+            {/* Row actions menu (H5) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenMenuIdx(openMenuIdx === idx ? null : idx)}
+                className="rounded-md p-1 text-ink-muted hover:bg-surface"
+                aria-label={t('dashboards.operations.actions.menuAriaLabel')}
+                aria-expanded={openMenuIdx === idx}
+                aria-haspopup="menu"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+              {openMenuIdx === idx && (
+                <div
+                  role="menu"
+                  className="absolute end-0 top-7 z-20 min-w-[160px] rounded-md border border-border bg-card shadow-lg"
+                  onBlur={() => setOpenMenuIdx(null)}
+                >
+                  <button
+                    role="menuitem"
+                    type="button"
+                    className="w-full rounded-t-md px-4 py-2 text-left text-sm text-ink hover:bg-muted"
+                    onClick={() => {
+                      setAcknowledgeId(getCorrelationId(row));
+                      setAcknowledgeOpen(true);
+                      setOpenMenuIdx(null);
+                    }}
+                  >
+                    {t('ops.actions.acknowledge.title')}
+                  </button>
+                  <button
+                    role="menuitem"
+                    type="button"
+                    className="w-full px-4 py-2 text-left text-sm text-ink hover:bg-muted"
+                    onClick={() => {
+                      setLinkRemedyId(getCorrelationId(row));
+                      setLinkRemedyOpen(true);
+                      setOpenMenuIdx(null);
+                    }}
+                  >
+                    {t('ops.actions.linkRemedy.title')}
+                  </button>
+                  <button
+                    role="menuitem"
+                    type="button"
+                    className="w-full rounded-b-md px-4 py-2 text-left text-sm text-ink hover:bg-muted"
+                    onClick={() => {
+                      setEscalateId(getCorrelationId(row));
+                      setEscalateOpen(true);
+                      setOpenMenuIdx(null);
+                    }}
+                  >
+                    {t('ops.actions.escalate.title')}
+                  </button>
+                </div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <AcknowledgeEventDialog
+        correlationId={acknowledgeId}
+        open={acknowledgeOpen}
+        onClose={() => {
+          setAcknowledgeOpen(false);
+          setAcknowledgeId(null);
+        }}
+      />
+      <LinkRemedyDialog
+        correlationId={linkRemedyId}
+        open={linkRemedyOpen}
+        onClose={() => {
+          setLinkRemedyOpen(false);
+          setLinkRemedyId(null);
+        }}
+      />
+      <EscalateEventDialog
+        correlationId={escalateId}
+        open={escalateOpen}
+        onClose={() => {
+          setEscalateOpen(false);
+          setEscalateId(null);
+        }}
+      />
+    </>
   );
 }
 

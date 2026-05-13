@@ -181,6 +181,45 @@ export interface CurrencyExposureRow {
   percentOfTotal: number;
 }
 
+// ─── Finance & Treasury extensions (Unit-3) ──────────────────────────────────
+
+export interface CommodityTrend30dPoint {
+  date: string;
+  priceUsd: number;
+}
+
+export interface CommodityExposedContract {
+  contractId: string;
+  contractNumber: string;
+  threshold: number;
+  clauseRef: string;
+}
+
+export interface CommodityCard {
+  currentPriceUsd: number | null;
+  trend30d: CommodityTrend30dPoint[];
+  thresholdProximityBps: number | null;
+  contractsExposed: CommodityExposedContract[];
+}
+
+export interface CommodityExposureData {
+  brent: CommodityCard;
+  dubai: CommodityCard;
+  murban: CommodityCard;
+}
+
+export interface FxHistoryPoint {
+  date: string;
+  deviationBps: number;
+}
+
+export interface FxHistoryData {
+  pair: string;
+  currentDeviationBps: number | null;
+  series30d: FxHistoryPoint[];
+  severityThresholdBps: number;
+}
+
 export interface FinanceTreasuryDashboardResponse {
   windowDays: number;
   asOf: string;
@@ -190,6 +229,8 @@ export interface FinanceTreasuryDashboardResponse {
   priceReviewTriggerQueue: PriceReviewRow[];
   paymentDelayRegister: PaymentDelayRow[];
   currencyExposureBreakdown: CurrencyExposureRow[];
+  commodityExposure?: CommodityExposureData;
+  fxHistory?: FxHistoryData;
 }
 
 // ─── Compliance & ESG dashboard ──────────────────────────────────────────────
@@ -252,6 +293,26 @@ export interface EsgCorrelationRow {
   severity: string;
 }
 
+// ─── Compliance & ESG extensions (Unit-3) ────────────────────────────────────
+
+export interface IcvCertificateItem {
+  contractId: string;
+  contractNumber: string;
+  counterpartyName: string;
+  validUntil: string | null;
+  daysToExpiry: number | null;
+  status: "upToDate" | "expiringWithin90d" | "expired" | "missing";
+}
+
+export interface IcvCertificateSummaryData {
+  upToDate: number;
+  expiringWithin90d: number;
+  expired: number;
+  missing: number;
+  totalContractsScoped: number;
+  list: IcvCertificateItem[];
+}
+
 export interface ComplianceEsgDashboardResponse {
   windowDays: number;
   asOf: string;
@@ -262,6 +323,7 @@ export interface ComplianceEsgDashboardResponse {
   subContractorChainView: SubContractorChainRow[];
   regulatoryUpdatesMonitor: RegulatoryUpdateRow[];
   esgCorrelations: EsgCorrelationRow[];
+  icvCertificateSummary?: IcvCertificateSummaryData;
 }
 
 // ─── Procurement supplier-risk dashboard ─────────────────────────────────────

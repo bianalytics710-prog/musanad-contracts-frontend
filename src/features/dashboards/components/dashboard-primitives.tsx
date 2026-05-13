@@ -22,7 +22,7 @@
  * tokens only. T11 wrapping happens at the route file (route -> ErrorBoundary).
  */
 
-import type { ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle } from "lucide-react";
 import type { TFunction } from "i18next";
@@ -420,4 +420,48 @@ export function formatNumber(
   } catch {
     return String(value);
   }
+}
+
+// ─── DashboardFreshness ─────────────────────────────────────────────────────
+
+function fromNowText(asOf: string): string {
+  const diffMs = Date.now() - new Date(asOf).getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 10) return "just now";
+  if (diffSec < 60) return `${diffSec}s ago`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.floor(diffMin / 60);
+  return `${diffH}h ago`;
+}
+
+export interface DashboardFreshnessProps {
+  asOf: string;
+  className?: string;
+}
+
+/**
+ * "Updated Xs ago" indicator. Re-renders every 30 s using setInterval.
+ * Uses the asOf ISO string from the dashboard response envelope.
+ */
+export function DashboardFreshness({ asOf, className }: DashboardFreshnessProps) {
+  const { t } = useTranslation();
+  const [label, setLabel] = useState(() => fromNowText(asOf));
+
+  useEffect(() => {
+    setLabel(fromNowText(asOf));
+    const id = setInterval(() => setLabel(fromNowText(asOf)), 30_000);
+    return () => clearInterval(id);
+  }, [asOf]);
+
+  const displayText =
+    label === "just now"
+      ? t("dashboards.common.freshness.updatedJustNow", { defaultValue: "Updated just now" })
+      : t("dashboards.common.freshness.updatedAgo", { when: label, defaultValue: `Updated ${label}` });
+
+  return (
+    <p className={cn("text-[11px] text-ink-subtle tabular-nums", className)}>
+      {displayText}
+    </p>
+  );
 }
