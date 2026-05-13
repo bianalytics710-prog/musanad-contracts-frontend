@@ -7064,7 +7064,9 @@
         "supplierScorecard": "بطاقة تقييم مخاطر المورّدين",
         "icvCompliance": "متابعة امتثال ICV",
         "backupSuppliers": "اقتراحات المورّدين البديلين",
-        "financialHealth": "الصحة المالية للمورّدين"
+        "financialHealth": "الصحة المالية للمورّدين",
+        "cureNoticeAffordance": "إشعار العلاج — البدء للموردين الذين انتهكوا اتفاقية مستوى الخدمة",
+        "cureNoticeHelp": "هؤلاء الموردون لديهم انتهاكات حديثة لاتفاقية مستوى الخدمة. انقر لتسجيل نية إشعار العلاج."
       },
       "table": {
         "supplier": "المورّد",
@@ -7077,7 +7079,8 @@
         "icvStatus": "حالة ICV",
         "icvPct": "نسبة ICV",
         "lastChecked": "آخر فحص",
-        "contractValue": "قيمة العقد (درهم)"
+        "contractValue": "قيمة العقد (درهم)",
+        "actions": "الإجراءات"
       },
       "backupSupplier": {
         "primaryRisk": "درجة المخاطرة: {{score}}",
@@ -7093,6 +7096,9 @@
       },
       "errors": {
         "loadFailed": "تعذّر تحميل لوحة المشتريات. يُرجى المحاولة مجدداً."
+      },
+      "financialHealth": {
+        "sourceCaption": "المصدر: D&B (تجريبي — التكامل المباشر في المرحلة التجريبية)"
       }
     }
   },
@@ -7351,6 +7357,61 @@
           "severity": "[NEEDS TRANSLATION] Severity",
           "summary": "[NEEDS TRANSLATION] Summary"
         }
+      }
+    }
+  },
+  "procurement": {
+    "actions": {
+      "activateAlternate": {
+        "title": "تفعيل مورد بديل",
+        "shortLabel": "بديل",
+        "subtitle": "تفعيل مورد احتياطي لمورد معرض للخطر.",
+        "subtitleNamed": "تفعيل مورد احتياطي لـ {{vendor}}.",
+        "alternateVendorLabel": "اسم المورد البديل (اختياري)",
+        "forContractLabel": "لرقم العقد (اختياري)",
+        "noteLabel": "ملاحظة",
+        "submit": "تفعيل",
+        "success": "تم تسجيل تفعيل المورد البديل"
+      },
+      "escalateVendor": {
+        "title": "تصعيد أداء المورد",
+        "shortLabel": "تصعيد",
+        "subtitle": "تصعيد مشكلة أداء المورد إلى فريق آخر.",
+        "subtitleNamed": "تصعيد مشكلة أداء {{vendor}}.",
+        "reasonLabel": "السبب",
+        "toRoleLabel": "تصعيد إلى",
+        "toRoleAny": "— أي —",
+        "toRoleLegal": "القانون",
+        "toRoleExecutive": "تنفيذي",
+        "toRoleCompliance": "الامتثال",
+        "toRoleFinanceTreasury": "الخزينة والمالية",
+        "submit": "تصعيد",
+        "success": "تم تسجيل تصعيد أداء المورد"
+      },
+      "cureNotice": {
+        "title": "بدء إشعار العلاج",
+        "shortLabel": "إشعار علاج",
+        "subtitle": "تسجيل نية إشعار العلاج. سيتم تسليم محرر الاستشارات في CR-H.",
+        "subtitleNamed": "تسجيل نية إشعار العلاج لـ {{contract}}.",
+        "stubNotice": "تجريبي: سيتم تسليم محرر الاستشارات في CR-H. سيتم تسجيل النية في سجل التدقيق.",
+        "contractIdLabel": "رقم العقد",
+        "breachLabel": "وصف المخالفة",
+        "curePeriodLabel": "فترة العلاج (أيام)",
+        "noteLabel": "ملاحظة",
+        "submit": "تسجيل النية",
+        "success": "تم تسجيل نية إشعار العلاج"
+      },
+      "icvRemediation": {
+        "title": "بدء معالجة شهادة القيمة المضافة",
+        "shortLabel": "بدء معالجة شهادة القيمة المضافة",
+        "subtitle": "تسجيل نية معالجة شهادة القيمة المضافة لعقد به نقص.",
+        "subtitleNamed": "تسجيل نية معالجة شهادة القيمة المضافة لـ {{contract}}.",
+        "contractIdLabel": "رقم العقد",
+        "shortfallLabel": "وصف النقص",
+        "stepsLabel": "خطوات المعالجة المقترحة (اختياري)",
+        "forwardToCompliance": "إرسال إلى الامتثال لتحميل شهادة القيمة المضافة",
+        "submit": "بدء",
+        "success": "تم بدء معالجة شهادة القيمة المضافة"
       }
     }
   }

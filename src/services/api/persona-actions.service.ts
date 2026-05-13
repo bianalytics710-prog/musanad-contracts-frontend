@@ -301,6 +301,54 @@ export const personaActionsService = {
     );
     return unwrap<IcvCertificateUploadResult>(data);
   },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Unit-4 / R-PROC — Procurement persona actions
+  // ──────────────────────────────────────────────────────────────────────────
+
+  activateAlternateVendor: async (
+    partyId: string,
+    input: ActivateAlternateInput,
+  ): Promise<ActivateAlternateResult> => {
+    const { data } = await apiClient.post<{ success: boolean; data: ActivateAlternateResult }>(
+      `${BASE}/procurement/vendors/${partyId}/activate-alternate`,
+      input,
+    );
+    return unwrap<ActivateAlternateResult>(data);
+  },
+
+  escalateVendorPerformance: async (
+    partyId: string,
+    input: EscalateVendorInput,
+  ): Promise<EscalateVendorResult> => {
+    const { data } = await apiClient.post<{ success: boolean; data: EscalateVendorResult }>(
+      `${BASE}/procurement/vendors/${partyId}/escalate`,
+      input,
+    );
+    return unwrap<EscalateVendorResult>(data);
+  },
+
+  recordCureNoticeIntent: async (
+    contractId: string,
+    input: CureNoticeIntentInput,
+  ): Promise<CureNoticeIntentResult> => {
+    const { data } = await apiClient.post<{ success: boolean; data: CureNoticeIntentResult }>(
+      `${BASE}/procurement/contracts/${contractId}/cure-notice-intent`,
+      input,
+    );
+    return unwrap<CureNoticeIntentResult>(data);
+  },
+
+  initiateIcvRemediation: async (
+    contractId: string,
+    input: IcvRemediationInput,
+  ): Promise<IcvRemediationResult> => {
+    const { data } = await apiClient.post<{ success: boolean; data: IcvRemediationResult }>(
+      `${BASE}/procurement/contracts/${contractId}/icv-remediation`,
+      input,
+    );
+    return unwrap<IcvRemediationResult>(data);
+  },
 };
 
 export interface IcvCertificateUploadResult {
@@ -308,4 +356,47 @@ export interface IcvCertificateUploadResult {
   contractId: string;
   kind: 'icv_certificate';
   validUntil?: string;
+}
+
+export interface ActivateAlternateInput {
+  alternatePartyId?: number;
+  alternateVendorName?: string;
+  forContractId?: number;
+  note?: string;
+}
+export interface ActivateAlternateResult {
+  partyId: string;
+  activatedAt: string;
+}
+
+export interface EscalateVendorInput {
+  reason: string;
+  toRole?: 'legal' | 'executive' | 'compliance' | 'finance_treasury';
+}
+export interface EscalateVendorResult {
+  partyId: string;
+  escalatedAt: string;
+  escalatedTo: string | null;
+}
+
+export interface CureNoticeIntentInput {
+  breachDescription: string;
+  curePeriodDays?: number;
+  note?: string;
+}
+export interface CureNoticeIntentResult {
+  contractId: string;
+  recordedAt: string;
+  note?: string;
+}
+
+export interface IcvRemediationInput {
+  shortfallDescription: string;
+  proposedRemediationSteps?: string;
+  forwardToCompliance?: boolean;
+}
+export interface IcvRemediationResult {
+  contractId: string;
+  initiatedAt: string;
+  forwardedToCompliance: boolean;
 }

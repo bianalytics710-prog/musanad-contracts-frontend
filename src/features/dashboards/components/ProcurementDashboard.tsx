@@ -19,16 +19,23 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from '@tanstack/react-router';
-import { Users, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Users, ShieldCheck, TrendingUp, AlertTriangle, ArrowUpRight } from 'lucide-react';
 import { useProcurementDashboard } from '../hooks/useCrgDashboards';
 import {
   DashboardEmptyState,
   DashboardErrorState,
+  DashboardFreshness,
   DashboardLoadingSkeleton,
   KpiTile,
   TimeRangeSelector,
   rangeFromWindowDays,
 } from './dashboard-primitives';
+import {
+  ActivateAlternateVendorDialog,
+  EscalateVendorPerformanceDialog,
+  InitiateCureNoticeDialog,
+  InitiateIcvRemediationDialog,
+} from '@/features/procurement/components/ActionDialogs';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { formatDateTime, formatDate, formatHijriDate } from '@/utils/datetime';
 import type { DashboardRangeKey } from '@/types/entities/dashboards.types';
@@ -85,6 +92,12 @@ export function ProcurementDashboard() {
 
   const nowISO = new Date().toISOString();
 
+  // Action dialog state — only one dialog open at a time.
+  const [activateDialog, setActivateDialog] = useState<{ partyId: string; vendorName?: string } | null>(null);
+  const [escalateDialog, setEscalateDialog] = useState<{ partyId: string; vendorName?: string } | null>(null);
+  const [cureDialog, setCureDialog] = useState<{ contractId: string; label?: string } | null>(null);
+  const [icvDialog, setIcvDialog] = useState<{ contractId: string; label?: string } | null>(null);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -96,7 +109,7 @@ export function ProcurementDashboard() {
         <div>
           <p className="text-xs text-ink-subtle">
             {user
-              ? `${t('dashboards.common.welcome', { defaultValue: 'Welcome back' })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
+              ? `${t('dashboards.common.welcome', { defaultValue: 'Welcome back' })}, ${user.firstName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
               : `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`}
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
@@ -105,6 +118,11 @@ export function ProcurementDashboard() {
           <p className="mt-1 text-sm text-ink-muted">
             {t('dashboards.procurement.subtitle')}
           </p>
+          {data?.asOf && (
+            <div className="mt-2">
+              <DashboardFreshness asOf={data.asOf} />
+            </div>
+          )}
         </div>
         <TimeRangeSelector
           range={range}
@@ -163,16 +181,36 @@ export function ProcurementDashboard() {
                 {t('dashboards.procurement.sections.supplierScorecard')}
               </h2>
             </div>
-            <SupplierScorecardTable rows={data.supplierRiskScorecard} />
+            <SupplierScorecardTable
+              rows={data.supplierRiskScorecard}
+              onActivateAlternate={(row) =>
+                setActivateDialog({ partyId: row.counterpartyId, vendorName: row.counterpartyName })
+              }
+              onEscalate={(row) =>
+                setEscalateDialog({ partyId: row.counterpartyId, vendorName: row.counterpartyName })
+              }
+            />
           </section>
 
           {/* ICV Compliance Tracker */}
           <section className="rounded-lg border border-border bg-card p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-sage" aria-hidden />
-              <h2 className="text-sm font-semibold text-ink">
-                {t('dashboards.procurement.sections.icvCompliance')}
-              </h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-sage" aria-hidden />
+                <h2 className="text-sm font-semibold text-ink">
+                  {t('dashboards.procurement.sections.icvCompliance')}
+                </h2>
+              </div>
+              {data.icvComplianceTracker.some((r) => r.icvStatus === 'non_compliant') && (
+                <button
+                  type="button"
+                  onClick={() => setIcvDialog({ contractId: '' })}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-sage/50 bg-card px-3 py-1 text-xs font-medium text-sage hover:bg-sage/10"
+                >
+                  <ShieldCheck className="h-3 w-3" aria-hidden />
+                  {t('procurement.actions.icvRemediation.shortLabel')}
+                </button>
+              )}
             </div>
             <IcvComplianceTrackerList rows={data.icvComplianceTracker} />
           </section>
@@ -188,11 +226,16 @@ export function ProcurementDashboard() {
             <BackupSupplierSuggestionsList groups={data.backupSupplierSuggestions} />
           </section>
 
-          {/* Vendor Financial Health — empty-state v1 */}
+          {/* Vendor Financial Health — D&B mock data per brief Out-of-Scope */}
           <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="mb-3 text-sm font-semibold text-ink">
-              {t('dashboards.procurement.sections.financialHealth')}
-            </h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-ink">
+                {t('dashboards.procurement.sections.financialHealth')}
+              </h2>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                {t('dashboards.procurement.financialHealth.sourceCaption')}
+              </span>
+            </div>
             {data.vendorFinancialHealthSummary.length === 0 ? (
               <DashboardEmptyState
                 description={t('dashboards.procurement.empty.financialHealthV1')}
@@ -215,13 +258,82 @@ export function ProcurementDashboard() {
               </ul>
             )}
           </section>
+
+          {/* Cure-notice trigger affordance — surfaces when there are high-risk SLA breach signals. */}
+          {data.supplierRiskScorecard.some((r) => r.slaBreachCount180d > 0) && (
+            <section className="rounded-lg border border-amber/40 bg-amber/5 p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber" aria-hidden />
+                <h2 className="text-sm font-semibold text-ink">
+                  {t('dashboards.procurement.sections.cureNoticeAffordance')}
+                </h2>
+              </div>
+              <p className="mb-3 text-xs text-ink-muted">
+                {t('dashboards.procurement.sections.cureNoticeHelp')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {data.supplierRiskScorecard
+                  .filter((r) => r.slaBreachCount180d > 0)
+                  .slice(0, 5)
+                  .map((r) => (
+                    <button
+                      key={`cure-${r.counterpartyId}`}
+                      type="button"
+                      onClick={() =>
+                        setCureDialog({
+                          contractId: '', // user enters contract id in dialog
+                          label: r.counterpartyName,
+                        })
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber/50 bg-card px-3 py-1 text-xs font-medium text-ink hover:border-amber hover:bg-amber/10"
+                    >
+                      <ArrowUpRight className="h-3 w-3" aria-hidden />
+                      {r.counterpartyName}
+                    </button>
+                  ))}
+              </div>
+            </section>
+          )}
         </>
       )}
+
+      <ActivateAlternateVendorDialog
+        partyId={activateDialog?.partyId ?? null}
+        vendorName={activateDialog?.vendorName}
+        open={!!activateDialog}
+        onClose={() => setActivateDialog(null)}
+      />
+      <EscalateVendorPerformanceDialog
+        partyId={escalateDialog?.partyId ?? null}
+        vendorName={escalateDialog?.vendorName}
+        open={!!escalateDialog}
+        onClose={() => setEscalateDialog(null)}
+      />
+      <InitiateCureNoticeDialog
+        contractId={cureDialog?.contractId ?? null}
+        contractLabel={cureDialog?.label}
+        open={!!cureDialog}
+        onClose={() => setCureDialog(null)}
+      />
+      <InitiateIcvRemediationDialog
+        contractId={icvDialog?.contractId ?? null}
+        contractLabel={icvDialog?.label}
+        open={!!icvDialog}
+        onClose={() => setIcvDialog(null)}
+      />
     </motion.div>
   );
 }
 
-function SupplierScorecardTable({ rows }: { rows: SupplierScorecardRow[] }) {
+function SupplierScorecardTable({
+  rows,
+  onActivateAlternate,
+  onEscalate,
+}: {
+  rows: SupplierScorecardRow[];
+  onActivateAlternate: (row: SupplierScorecardRow) => void;
+  onEscalate: (row: SupplierScorecardRow) => void;
+}) {
   const { t } = useTranslation();
   if (rows.length === 0) {
     return <DashboardEmptyState description={t('dashboards.procurement.empty.noSuppliers')} />;
@@ -238,6 +350,7 @@ function SupplierScorecardTable({ rows }: { rows: SupplierScorecardRow[] }) {
             <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.procurement.table.activeContracts')}</th>
             <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.procurement.table.slaBreaches')}</th>
             <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.procurement.table.totalValue')}</th>
+            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.procurement.table.actions', { defaultValue: 'Actions' })}</th>
           </tr>
         </thead>
         <tbody>
@@ -267,6 +380,26 @@ function SupplierScorecardTable({ rows }: { rows: SupplierScorecardRow[] }) {
               <td className="py-2 pe-3 font-mono tabular-nums text-ink">{row.slaBreachCount180d}</td>
               <td className="py-2 pe-3 font-mono tabular-nums text-ink">
                 {formatAedCompact(row.totalContractValueAed)}
+              </td>
+              <td className="py-2 pe-3">
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onActivateAlternate(row)}
+                    aria-label={t('procurement.actions.activateAlternate.title')}
+                    className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium text-ink hover:border-gold hover:text-gold"
+                  >
+                    {t('procurement.actions.activateAlternate.shortLabel')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onEscalate(row)}
+                    aria-label={t('procurement.actions.escalateVendor.title')}
+                    className="rounded-full border border-amber/60 bg-card px-2 py-0.5 text-[10px] font-medium text-amber hover:bg-amber/10"
+                  >
+                    {t('procurement.actions.escalateVendor.shortLabel')}
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

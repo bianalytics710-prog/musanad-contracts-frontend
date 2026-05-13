@@ -7064,7 +7064,9 @@
         "supplierScorecard": "Supplier risk scorecard",
         "icvCompliance": "ICV compliance tracker",
         "backupSuppliers": "Backup supplier suggestions",
-        "financialHealth": "Vendor financial health"
+        "financialHealth": "Vendor financial health",
+        "cureNoticeAffordance": "Cure notice — initiate for SLA-breached vendors",
+        "cureNoticeHelp": "These vendors have recent SLA breaches. Click to record a cure-notice intent (advisory drafter ships in CR-H)."
       },
       "table": {
         "supplier": "Supplier",
@@ -7077,7 +7079,8 @@
         "icvStatus": "ICV status",
         "icvPct": "ICV %",
         "lastChecked": "Last checked",
-        "contractValue": "Contract value (AED)"
+        "contractValue": "Contract value (AED)",
+        "actions": "Actions"
       },
       "backupSupplier": {
         "primaryRisk": "Risk score: {{score}}",
@@ -7093,6 +7096,9 @@
       },
       "errors": {
         "loadFailed": "Failed to load the Procurement dashboard. Please try again."
+      },
+      "financialHealth": {
+        "sourceCaption": "Source: D&B (mock — live integration in pilot)"
       }
     }
   },
@@ -7351,6 +7357,61 @@
           "severity": "Severity",
           "summary": "Summary"
         }
+      }
+    }
+  },
+  "procurement": {
+    "actions": {
+      "activateAlternate": {
+        "title": "Activate alternate vendor",
+        "shortLabel": "Alternate",
+        "subtitle": "Activate a backup supplier for an at-risk vendor.",
+        "subtitleNamed": "Activate a backup supplier for {{vendor}}.",
+        "alternateVendorLabel": "Alternate vendor name (optional)",
+        "forContractLabel": "For contract id (optional)",
+        "noteLabel": "Note",
+        "submit": "Activate",
+        "success": "Backup supplier activation recorded"
+      },
+      "escalateVendor": {
+        "title": "Escalate vendor performance",
+        "shortLabel": "Escalate",
+        "subtitle": "Escalate a vendor performance issue to another team.",
+        "subtitleNamed": "Escalate performance issue for {{vendor}}.",
+        "reasonLabel": "Reason",
+        "toRoleLabel": "Escalate to",
+        "toRoleAny": "— Any —",
+        "toRoleLegal": "Legal",
+        "toRoleExecutive": "Executive",
+        "toRoleCompliance": "Compliance",
+        "toRoleFinanceTreasury": "Finance & Treasury",
+        "submit": "Escalate",
+        "success": "Vendor performance escalation recorded"
+      },
+      "cureNotice": {
+        "title": "Initiate cure notice",
+        "shortLabel": "Cure notice",
+        "subtitle": "Record cure-notice intent. Advisory drafter ships in CR-H (Unit 5).",
+        "subtitleNamed": "Record cure-notice intent for {{contract}}.",
+        "stubNotice": "Stub: advisory drafter ships in CR-H (Unit 5). Intent will be recorded in audit log.",
+        "contractIdLabel": "Contract id",
+        "breachLabel": "Breach description",
+        "curePeriodLabel": "Cure period (days)",
+        "noteLabel": "Note",
+        "submit": "Record intent",
+        "success": "Cure notice intent recorded"
+      },
+      "icvRemediation": {
+        "title": "Initiate ICV remediation",
+        "shortLabel": "Initiate ICV remediation",
+        "subtitle": "Record ICV remediation intent for a contract with ICV shortfall.",
+        "subtitleNamed": "Record ICV remediation intent for {{contract}}.",
+        "contractIdLabel": "Contract id",
+        "shortfallLabel": "Shortfall description",
+        "stepsLabel": "Proposed remediation steps (optional)",
+        "forwardToCompliance": "Forward to compliance to upload ICV certificate",
+        "submit": "Initiate",
+        "success": "ICV remediation initiated"
       }
     }
   }
