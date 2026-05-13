@@ -497,7 +497,11 @@
     "adminClauseTaxonomy": "Clause taxonomy",
     "adminRules": "Correlation rules",
     "adminScoringWeights": "Scoring weights",
-    "clausesReview": "Review queue"
+    "clausesReview": "Review queue",
+    "dashboardsOperations": "Operations",
+    "dashboardsFinanceTreasury": "Finance & Treasury",
+    "dashboardsComplianceEsg": "Compliance & ESG",
+    "dashboardsProcurement": "Procurement Risk"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -5784,6 +5788,33 @@
       "regenerate": "Regenerate",
       "notRunYet": "Generate an AI summary of the differences between these versions.",
       "cacheHit": "Loaded from cache."
+    },
+    "riskAssistant": {
+      "toggleButton": "Ask AI risk assistant",
+      "panelAriaLabel": "AI Risk Assistant panel",
+      "title": "Risk Assistant",
+      "close": "Close Risk Assistant",
+      "aborted": " [cancelled]",
+      "emptyState": {
+        "title": "Ask about your portfolio",
+        "subtitle": "I can answer questions about contracts, correlations, signals, and clauses in your scope.",
+        "examplesLabel": "Try asking"
+      },
+      "examples": {
+        "hormuz": "Which contracts are exposed to Hormuz disruption?",
+        "sanctions": "What's our top sanctions risk?",
+        "icv": "Show me suppliers below ICV minimum"
+      },
+      "input": {
+        "label": "Ask a question",
+        "ariaLabel": "Type your question for the AI Risk Assistant",
+        "placeholder": "Ask about your portfolio… (Enter to send)",
+        "send": "Send question",
+        "abort": "Stop response"
+      },
+      "error": {
+        "generic": "An error occurred while generating the response. Please try again."
+      }
     }
   },
   "approval": {
@@ -7086,41 +7117,6 @@
     "empty": "No correlations detected.",
     "pagination": {
       "showing": "Page {{page}} of {{totalPages}} · {{total}} correlations"
-    }
-  },
-  "nav": {
-    "dashboardsOperations": "Operations",
-    "dashboardsFinanceTreasury": "Finance & Treasury",
-    "dashboardsComplianceEsg": "Compliance & ESG",
-    "dashboardsProcurement": "Procurement Risk"
-  },
-  "ai": {
-    "riskAssistant": {
-      "toggleButton": "Ask AI risk assistant",
-      "panelAriaLabel": "AI Risk Assistant panel",
-      "title": "Risk Assistant",
-      "close": "Close Risk Assistant",
-      "aborted": " [cancelled]",
-      "emptyState": {
-        "title": "Ask about your portfolio",
-        "subtitle": "I can answer questions about contracts, correlations, signals, and clauses in your scope.",
-        "examplesLabel": "Try asking"
-      },
-      "examples": {
-        "hormuz": "Which contracts are exposed to Hormuz disruption?",
-        "sanctions": "What's our top sanctions risk?",
-        "icv": "Show me suppliers below ICV minimum"
-      },
-      "input": {
-        "label": "Ask a question",
-        "ariaLabel": "Type your question for the AI Risk Assistant",
-        "placeholder": "Ask about your portfolio… (Enter to send)",
-        "send": "Send question",
-        "abort": "Stop response"
-      },
-      "error": {
-        "generic": "An error occurred while generating the response. Please try again."
-      }
     }
   },
   "executive": {
