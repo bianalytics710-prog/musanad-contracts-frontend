@@ -10,102 +10,102 @@
     "clauseNotFound": "البند غير موجود في هذا العقد",
     "score": {
       "emptyState": {
-        "title": "[NEEDS TRANSLATION] No risk score available yet",
-        "description": "[NEEDS TRANSLATION] Score will appear after the next correlation fires."
+        "title": "لا تتوفر درجة مخاطرة بعد",
+        "description": "ستظهر الدرجة بعد تفعيل الارتباط التالي."
       },
       "errors": {
-        "loadFailed": "[NEEDS TRANSLATION] Failed to load risk score. Please try again."
+        "loadFailed": "تعذّر تحميل درجة المخاطرة. يُرجى المحاولة مجدداً."
       },
       "gauge": {
-        "ariaLabel": "[NEEDS TRANSLATION] Health score {{score}} — {{risk}}",
-        "low": "[NEEDS TRANSLATION] Low risk",
-        "medium": "[NEEDS TRANSLATION] Medium risk",
-        "high": "[NEEDS TRANSLATION] High risk",
-        "insufficient": "[NEEDS TRANSLATION] Insufficient data",
-        "subtitle": "[NEEDS TRANSLATION] Health score"
+        "ariaLabel": "درجة الصحة {{score}} — {{risk}}",
+        "low": "مخاطرة منخفضة",
+        "medium": "مخاطرة متوسطة",
+        "high": "مخاطرة مرتفعة",
+        "insufficient": "بيانات غير كافية",
+        "subtitle": "درجة الصحة"
       },
       "dimBreakdown": {
-        "title": "[NEEDS TRANSLATION] Dimension breakdown",
-        "barAriaLabel": "[NEEDS TRANSLATION] {{dim}}: {{score}} out of 100"
+        "title": "تفصيل الأبعاد",
+        "barAriaLabel": "{{dim}}: {{score}} من 100"
       },
       "dim": {
-        "legal": "[NEEDS TRANSLATION] Legal",
-        "financial": "[NEEDS TRANSLATION] Financial",
-        "operational": "[NEEDS TRANSLATION] Operational",
-        "reputational": "[NEEDS TRANSLATION] Reputational",
-        "compliance": "[NEEDS TRANSLATION] Compliance"
+        "legal": "قانوني",
+        "financial": "مالي",
+        "operational": "تشغيلي",
+        "reputational": "سمعة",
+        "compliance": "الامتثال"
       },
       "whatif": {
-        "title": "[NEEDS TRANSLATION] What-if analysis",
-        "description": "[NEEDS TRANSLATION] Estimated change in Health Score if each correlation were removed.",
-        "probabilityLabel": "[NEEDS TRANSLATION] Probability: {{value}}%",
-        "deltaLabel": "[NEEDS TRANSLATION] Without this: {{delta}}",
-        "disclaimer": "[NEEDS TRANSLATION] Estimates are approximate client-side derivations."
+        "title": "تحليل الحالات الافتراضية",
+        "description": "التغيير التقديري في درجة الصحة عند حذف كل ارتباط.",
+        "probabilityLabel": "الاحتمالية: {{value}}%",
+        "deltaLabel": "بدون هذا: {{delta}}",
+        "disclaimer": "التقديرات مشتقة تقريبية من جانب العميل."
       },
       "history": {
-        "title": "[NEEDS TRANSLATION] Score history",
-        "windowLabel": "[NEEDS TRANSLATION] History window",
-        "noData": "[NEEDS TRANSLATION] No score history for this period.",
+        "title": "سجل الدرجات",
+        "windowLabel": "نافذة السجل",
+        "noData": "لا يوجد سجل درجات لهذه الفترة.",
         "lines": {
-          "healthScore": "[NEEDS TRANSLATION] Health score"
+          "healthScore": "درجة الصحة"
         },
         "window": {
-          "30d": "[NEEDS TRANSLATION] 30 days",
-          "90d": "[NEEDS TRANSLATION] 90 days",
-          "180d": "[NEEDS TRANSLATION] 180 days"
+          "30d": "30 يوماً",
+          "90d": "90 يوماً",
+          "180d": "180 يوماً"
         }
       },
-      "calculatedAt": "[NEEDS TRANSLATION] Last computed {{when}}",
-      "weightsVersion": "[NEEDS TRANSLATION] Weights v{{version}}",
-      "triggeredBy": "[NEEDS TRANSLATION] Trigger: {{trigger}}"
+      "calculatedAt": "آخر احتساب {{when}}",
+      "weightsVersion": "الأوزان v{{version}}",
+      "triggeredBy": "المحفّز: {{trigger}}"
     },
     "mar": {
-      "listTitle": "[NEEDS TRANSLATION] Money at Risk by correlation",
-      "totalLabel": "[NEEDS TRANSLATION] Total MaR",
-      "noCorrelations": "[NEEDS TRANSLATION] No active correlations contributing to MaR.",
-      "noContractValue": "[NEEDS TRANSLATION] AED — (no contract value)",
+      "listTitle": "الأموال في خطر حسب الارتباط",
+      "totalLabel": "إجمالي MaR",
+      "noCorrelations": "لا توجد ارتباطات فعّالة تُسهم في MaR.",
+      "noContractValue": "درهم — (لا قيمة للعقد)",
       "severity": {
-        "critical": "[NEEDS TRANSLATION] Critical",
-        "high": "[NEEDS TRANSLATION] High",
-        "medium": "[NEEDS TRANSLATION] Medium"
+        "critical": "حرج",
+        "high": "مرتفع",
+        "medium": "متوسط"
       },
       "detail": {
-        "rule": "[NEEDS TRANSLATION] Rule",
-        "matchReason": "[NEEDS TRANSLATION] Match reason",
-        "matchedClause": "[NEEDS TRANSLATION] Matched clause",
-        "noSnippet": "[NEEDS TRANSLATION] (no snippet)",
-        "noMatchedClause": "[NEEDS TRANSLATION] No matched clause",
-        "marFormula": "[NEEDS TRANSLATION] MaR formula",
-        "contractValue": "[NEEDS TRANSLATION] Contract value",
-        "exposureFraction": "[NEEDS TRANSLATION] Exposure fraction",
-        "probability": "[NEEDS TRANSLATION] Probability",
-        "impactMultiplier": "[NEEDS TRANSLATION] Impact multiplier",
-        "contribution": "[NEEDS TRANSLATION] Contribution",
-        "signal": "[NEEDS TRANSLATION] Signal",
-        "unknownSignal": "[NEEDS TRANSLATION] Unknown signal"
+        "rule": "القاعدة",
+        "matchReason": "سبب التطابق",
+        "matchedClause": "البند المتطابق",
+        "noSnippet": "(لا يوجد مقتطف)",
+        "noMatchedClause": "لا يوجد بند متطابق",
+        "marFormula": "صيغة MaR",
+        "contractValue": "قيمة العقد",
+        "exposureFraction": "نسبة التعرض",
+        "probability": "الاحتمالية",
+        "impactMultiplier": "مضاعف الأثر",
+        "contribution": "المساهمة",
+        "signal": "الإشارة",
+        "unknownSignal": "إشارة غير معروفة"
       }
     },
     "avar": {
-      "sectionLabel": "[NEEDS TRANSLATION] Asset Value at Risk",
+      "sectionLabel": "قيمة الأصول في خطر",
       "tile": {
-        "label": "[NEEDS TRANSLATION] Total AVaR",
-        "vsLastWindow": "[NEEDS TRANSLATION] vs prior window",
-        "contracts": "[NEEDS TRANSLATION] contracts",
-        "deltaSubtitle": "[NEEDS TRANSLATION] Delta vs prior",
-        "noValueLabel": "[NEEDS TRANSLATION] No-value contracts",
-        "noValueHelper": "[NEEDS TRANSLATION] Contracts without monetary value"
+        "label": "إجمالي AVaR",
+        "vsLastWindow": "مقارنةً بالنافذة السابقة",
+        "contracts": "عقود",
+        "deltaSubtitle": "الفارق مقارنةً بالسابق",
+        "noValueLabel": "عقود بلا قيمة",
+        "noValueHelper": "عقود لا تحمل قيمة نقدية"
       },
       "breakdown": {
-        "title": "[NEEDS TRANSLATION] AVaR breakdown",
-        "groupByLabel": "[NEEDS TRANSLATION] Group by dimension",
-        "noData": "[NEEDS TRANSLATION] No AVaR data for this window.",
-        "noValueNote": "[NEEDS TRANSLATION] {{count}} contract(s) excluded — no contract value recorded.",
-        "chartLabel": "[NEEDS TRANSLATION] AVaR (AED)",
+        "title": "تفصيل AVaR",
+        "groupByLabel": "تجميع حسب البُعد",
+        "noData": "لا تتوفر بيانات AVaR لهذه النافذة.",
+        "noValueNote": "{{count}} عقد مستثنى — لم تُسجَّل قيمة للعقد.",
+        "chartLabel": "AVaR (درهم)",
         "groupBy": {
-          "businessUnit": "[NEEDS TRANSLATION] Business unit",
-          "counterparty": "[NEEDS TRANSLATION] Counterparty",
-          "geography": "[NEEDS TRANSLATION] Geography",
-          "riskKind": "[NEEDS TRANSLATION] Risk kind"
+          "businessUnit": "وحدة الأعمال",
+          "counterparty": "الطرف المقابل",
+          "geography": "الموقع الجغرافي",
+          "riskKind": "نوع المخاطرة"
         }
       }
     }
@@ -496,7 +496,7 @@
     "admin.ingestionQueue": "قائمة انتظار الاستيعاب",
     "adminClauseTaxonomy": "تصنيف البنود",
     "adminRules": "قواعد الارتباط",
-    "adminScoringWeights": "[NEEDS TRANSLATION] Scoring weights",
+    "adminScoringWeights": "أوزان التقييم",
     "clausesReview": "قائمة المراجعة"
   },
   "landing": {
@@ -853,7 +853,7 @@
         "activity": "النشاط",
         "tree": "ذو صلة",
         "signatures": "التوقيعات",
-        "risk": "[NEEDS TRANSLATION] Risk"
+        "risk": "المخاطر"
       },
       "summaryTitle": "ملخص",
       "bodyTitle": "النص",
@@ -4579,49 +4579,49 @@
       }
     },
     "scoring": {
-      "title": "[NEEDS TRANSLATION] Scoring weights",
-      "subtitle": "[NEEDS TRANSLATION] ADNOC-tunable weights for the 5-dimension risk model.",
-      "currentVersion": "[NEEDS TRANSLATION] Current version: v{{version}}",
-      "lastUpdated": "[NEEDS TRANSLATION] Last updated {{when}}",
+      "title": "أوزان التقييم",
+      "subtitle": "أوزان قابلة للضبط من قِبَل ADNOC لنموذج المخاطر ذي الأبعاد الخمسة.",
+      "currentVersion": "الإصدار الحالي: v{{version}}",
+      "lastUpdated": "آخر تحديث {{when}}",
       "sliders": {
-        "title": "[NEEDS TRANSLATION] Dimension weights",
-        "sumLabel": "[NEEDS TRANSLATION] Total",
-        "sumValid": "[NEEDS TRANSLATION] (valid — weights sum to 1.0)",
-        "sumInvalid": "[NEEDS TRANSLATION] (invalid — must sum to 1.0 ± 0.001)",
-        "normalizeButton": "[NEEDS TRANSLATION] Normalize to 1.0",
-        "saveButton": "[NEEDS TRANSLATION] Save weights"
+        "title": "أوزان الأبعاد",
+        "sumLabel": "المجموع",
+        "sumValid": "(صحيح — مجموع الأوزان يساوي 1.0)",
+        "sumInvalid": "(غير صحيح — يجب أن يساوي المجموع 1.0 ± 0.001)",
+        "normalizeButton": "تسوية إلى 1.0",
+        "saveButton": "حفظ الأوزان"
       },
       "dims": {
-        "legal": "[NEEDS TRANSLATION] Legal",
-        "financial": "[NEEDS TRANSLATION] Financial",
-        "operational": "[NEEDS TRANSLATION] Operational",
-        "reputational": "[NEEDS TRANSLATION] Reputational",
-        "compliance": "[NEEDS TRANSLATION] Compliance"
+        "legal": "قانوني",
+        "financial": "مالي",
+        "operational": "تشغيلي",
+        "reputational": "سمعة",
+        "compliance": "الامتثال"
       },
       "recompute": {
-        "button": "[NEEDS TRANSLATION] Recompute all scores",
-        "running": "[NEEDS TRANSLATION] Recomputing…",
-        "confirmTitle": "[NEEDS TRANSLATION] Recompute all contract scores",
-        "confirmMessage": "[NEEDS TRANSLATION] This will recompute every active contract's risk score using the current weights.",
-        "confirmButton": "[NEEDS TRANSLATION] Continue"
+        "button": "إعادة احتساب جميع الدرجات",
+        "running": "جارٍ إعادة الاحتساب…",
+        "confirmTitle": "إعادة احتساب درجات جميع العقود",
+        "confirmMessage": "سيُعيد هذا الإجراء احتساب درجة المخاطرة لكل عقد فعّال باستخدام الأوزان الحالية.",
+        "confirmButton": "متابعة"
       },
       "history": {
-        "title": "[NEEDS TRANSLATION] Version history (last 10)",
+        "title": "سجل الإصدارات (آخر 10)",
         "cols": {
-          "version": "[NEEDS TRANSLATION] Version",
-          "changedAt": "[NEEDS TRANSLATION] Changed at",
-          "changedBy": "[NEEDS TRANSLATION] Changed by"
+          "version": "الإصدار",
+          "changedAt": "تاريخ التغيير",
+          "changedBy": "بواسطة"
         }
       },
-      "userId": "[NEEDS TRANSLATION] User #{{id}}",
+      "userId": "المستخدم #{{id}}",
       "toast": {
-        "saved": "[NEEDS TRANSLATION] Weights updated. Version v{{version}} saved.",
-        "recomputed": "[NEEDS TRANSLATION] {{count}} contracts recomputed in {{ms}}ms."
+        "saved": "تم تحديث الأوزان. تم حفظ الإصدار v{{version}}.",
+        "recomputed": "تمت إعادة احتساب {{count}} عقد في {{ms}} مللي ثانية."
       },
       "errors": {
-        "loadFailed": "[NEEDS TRANSLATION] Failed to load scoring weights.",
-        "saveFailed": "[NEEDS TRANSLATION] Failed to save weights.",
-        "recomputeFailed": "[NEEDS TRANSLATION] Recompute failed."
+        "loadFailed": "تعذّر تحميل أوزان التقييم.",
+        "saveFailed": "تعذّر حفظ الأوزان.",
+        "recomputeFailed": "فشلت إعادة الاحتساب."
       }
     }
   },
@@ -6843,258 +6843,258 @@
     }
   },
   "nav": {
-    "dashboardsOperations": "[NEEDS TRANSLATION]",
-    "dashboardsFinanceTreasury": "[NEEDS TRANSLATION]",
-    "dashboardsComplianceEsg": "[NEEDS TRANSLATION]",
-    "dashboardsProcurement": "[NEEDS TRANSLATION]"
+    "dashboardsOperations": "العمليات",
+    "dashboardsFinanceTreasury": "المالية والخزانة",
+    "dashboardsComplianceEsg": "الامتثال والبيئة والحوكمة",
+    "dashboardsProcurement": "مخاطر المشتريات"
   },
   "dashboards": {
     "operations": {
-      "title": "[NEEDS TRANSLATION]",
-      "subtitle": "[NEEDS TRANSLATION]",
-      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "title": "لوحة العمليات",
+      "subtitle": "خروقات اتفاقيات مستوى الخدمة وتأخيرات التسليم وأداء المورّدين",
+      "kpiGroupLabel": "مؤشرات أداء العمليات",
       "kpis": {
-        "openSlaBreaches": "[NEEDS TRANSLATION]",
-        "deliveryDelays": "[NEEDS TRANSLATION]",
-        "penaltyExposure": "[NEEDS TRANSLATION]",
-        "vendorsWithBreaches": "[NEEDS TRANSLATION]"
+        "openSlaBreaches": "خروقات SLA المفتوحة",
+        "deliveryDelays": "تأخيرات التسليم المفتوحة",
+        "penaltyExposure": "التعرض للغرامات (درهم)",
+        "vendorsWithBreaches": "المورّدون ذوو الخروقات"
       },
       "sections": {
-        "slaBreaches": "[NEEDS TRANSLATION]",
-        "deliveryDelays": "[NEEDS TRANSLATION]",
-        "penaltyExposure": "[NEEDS TRANSLATION]",
-        "opsEvents": "[NEEDS TRANSLATION]",
-        "vendorScorecards": "[NEEDS TRANSLATION]"
+        "slaBreaches": "خروقات SLA",
+        "deliveryDelays": "متابعة تأخيرات التسليم",
+        "penaltyExposure": "التعرض للغرامات حسب العقد",
+        "opsEvents": "أحداث العمليات الأخيرة",
+        "vendorScorecards": "بطاقات أداء المورّدين"
       },
       "table": {
-        "contract": "[NEEDS TRANSLATION]",
-        "counterparty": "[NEEDS TRANSLATION]",
-        "breachKind": "[NEEDS TRANSLATION]",
-        "severity": "[NEEDS TRANSLATION]",
-        "marAed": "[NEEDS TRANSLATION]",
-        "occurredAt": "[NEEDS TRANSLATION]",
-        "lastMilestone": "[NEEDS TRANSLATION]",
-        "delayDays": "[NEEDS TRANSLATION]",
-        "vendor": "[NEEDS TRANSLATION]",
-        "riskScore": "[NEEDS TRANSLATION]",
-        "performanceTier": "[NEEDS TRANSLATION]",
-        "slaBreaches180d": "[NEEDS TRANSLATION]",
-        "deliveryDelays180d": "[NEEDS TRANSLATION]"
+        "contract": "العقد",
+        "counterparty": "الطرف المقابل",
+        "breachKind": "نوع الخرق",
+        "severity": "الخطورة",
+        "marAed": "MaR (درهم)",
+        "occurredAt": "التاريخ",
+        "lastMilestone": "آخر معلم متأخر",
+        "delayDays": "التأخير (أيام)",
+        "vendor": "المورّد",
+        "riskScore": "درجة المخاطرة",
+        "performanceTier": "مستوى الأداء",
+        "slaBreaches180d": "خروقات SLA (180 يوماً)",
+        "deliveryDelays180d": "تأخيرات التسليم (180 يوماً)"
       },
       "chart": {
-        "exposure": "[NEEDS TRANSLATION]"
+        "exposure": "التعرض (درهم)"
       },
       "empty": {
-        "noSlaBreaches": "[NEEDS TRANSLATION]",
-        "noDelays": "[NEEDS TRANSLATION]",
-        "noPenalty": "[NEEDS TRANSLATION]",
-        "noEvents": "[NEEDS TRANSLATION]",
-        "noVendors": "[NEEDS TRANSLATION]"
+        "noSlaBreaches": "لا توجد إشارات خرق SLA في النافذة الزمنية المحددة.",
+        "noDelays": "لا توجد إشارات تأخير تسليم في النافذة الزمنية المحددة.",
+        "noPenalty": "لا تتوفر بيانات تعرض للغرامات.",
+        "noEvents": "لا توجد أحداث تشغيلية في النافذة الزمنية المحددة.",
+        "noVendors": "لا تتوفر بيانات بطاقة أداء المورّدين."
       },
       "errors": {
-        "loadFailed": "[NEEDS TRANSLATION]"
+        "loadFailed": "تعذّر تحميل لوحة العمليات. يُرجى المحاولة مجدداً."
       }
     },
     "financeTreasury": {
-      "title": "[NEEDS TRANSLATION]",
-      "subtitle": "[NEEDS TRANSLATION]",
-      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "title": "لوحة المالية والخزانة",
+      "subtitle": "تعرض العملات الأجنبية ومحفزات مراجعة الأسعار وتفصيل العملات",
+      "kpiGroupLabel": "مؤشرات أداء المالية والخزانة",
       "kpis": {
-        "totalExposure": "[NEEDS TRANSLATION]",
-        "fxExposure": "[NEEDS TRANSLATION]",
-        "priceReviewTriggered": "[NEEDS TRANSLATION]",
-        "paymentDelays": "[NEEDS TRANSLATION]"
+        "totalExposure": "إجمالي قيمة العقود (درهم)",
+        "fxExposure": "تعرض العملات الأجنبية (درهم)",
+        "priceReviewTriggered": "مراجعات الأسعار المحفَّزة",
+        "paymentDelays": "تأخيرات المدفوعات المفتوحة"
       },
       "sections": {
-        "priceReview": "[NEEDS TRANSLATION]",
-        "paymentDelays": "[NEEDS TRANSLATION]",
-        "currencyExposure": "[NEEDS TRANSLATION]"
+        "priceReview": "قائمة انتظار محفزات مراجعة الأسعار",
+        "paymentDelays": "سجل تأخيرات المدفوعات",
+        "currencyExposure": "تفصيل تعرض العملات"
       },
       "fxTile": {
-        "ariaLabel": "[NEEDS TRANSLATION]",
-        "peggedNote": "[NEEDS TRANSLATION]",
-        "checkedAt": "[NEEDS TRANSLATION]",
-        "nonAedContracts": "[NEEDS TRANSLATION]",
-        "stable": "[NEEDS TRANSLATION]",
-        "deviation": "[NEEDS TRANSLATION]"
+        "ariaLabel": "بطاقة تقلبات العملات الأجنبية",
+        "peggedNote": "الدرهم مرتبط بالدولار الأمريكي · انحراف 0%",
+        "checkedAt": "آخر فحص {{time}}",
+        "nonAedContracts": "عقود بغير الدرهم",
+        "stable": "مستقر",
+        "deviation": "الانحراف"
       },
       "table": {
-        "contract": "[NEEDS TRANSLATION]",
-        "counterparty": "[NEEDS TRANSLATION]",
-        "index": "[NEEDS TRANSLATION]",
-        "trigger": "[NEEDS TRANSLATION]",
-        "marAed": "[NEEDS TRANSLATION]",
-        "occurredAt": "[NEEDS TRANSLATION]",
-        "currency": "[NEEDS TRANSLATION]",
-        "contracts": "[NEEDS TRANSLATION]",
-        "valueAed": "[NEEDS TRANSLATION]",
-        "pctPortfolio": "[NEEDS TRANSLATION]"
+        "contract": "العقد",
+        "counterparty": "الطرف المقابل",
+        "index": "المؤشر",
+        "trigger": "عنوان المحفز",
+        "marAed": "MaR (درهم)",
+        "occurredAt": "التاريخ",
+        "currency": "العملة",
+        "contracts": "العقود",
+        "valueAed": "القيمة (درهم)",
+        "pctPortfolio": "% المحفظة"
       },
       "chart": {
-        "currencyPieAriaLabel": "[NEEDS TRANSLATION]",
-        "exposure": "[NEEDS TRANSLATION]"
+        "currencyPieAriaLabel": "مخطط دائري لتعرض العملات",
+        "exposure": "التعرض (درهم)"
       },
-      "paymentDelayCount": "[NEEDS TRANSLATION]",
+      "paymentDelayCount": "سجلات تأخير المدفوعات",
       "empty": {
-        "noPriceReview": "[NEEDS TRANSLATION]",
-        "paymentDelaysV1": "[NEEDS TRANSLATION]",
-        "noCurrencies": "[NEEDS TRANSLATION]"
+        "noPriceReview": "لا توجد ارتباطات مراجعة أسعار برنت/دبي/مربان في النافذة المحددة.",
+        "paymentDelaysV1": "لا تتوفر إشارات تأخير مدفوعات — مؤجل إلى التجربة التجريبية.",
+        "noCurrencies": "لا تتوفر بيانات عملات فعّالة."
       },
       "errors": {
-        "loadFailed": "[NEEDS TRANSLATION]"
+        "loadFailed": "تعذّر تحميل لوحة المالية والخزانة. يُرجى المحاولة مجدداً."
       }
     },
     "complianceEsg": {
-      "title": "[NEEDS TRANSLATION]",
-      "subtitle": "[NEEDS TRANSLATION]",
-      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "title": "لوحة الامتثال والبيئة والحوكمة",
+      "subtitle": "التعرض للعقوبات وحقوق التدقيق والتحديثات التنظيمية",
+      "kpiGroupLabel": "مؤشرات أداء الامتثال والبيئة والحوكمة",
       "kpis": {
-        "sanctionsDirect": "[NEEDS TRANSLATION]",
-        "sanctionsChain": "[NEEDS TRANSLATION]",
-        "auditRightsExpiring": "[NEEDS TRANSLATION]",
-        "regulatoryUpdates": "[NEEDS TRANSLATION]",
-        "esgCorrelations": "[NEEDS TRANSLATION]"
+        "sanctionsDirect": "عقوبات OFAC / المباشرة الفعّالة",
+        "sanctionsChain": "عقود تعرض سلسلة التوريد",
+        "auditRightsExpiring": "حقوق التدقيق المنتهية (90 يوماً)",
+        "regulatoryUpdates": "التحديثات التنظيمية (النافذة)",
+        "esgCorrelations": "ارتباطات ESG المفتوحة"
       },
       "sections": {
-        "sanctionsExposure": "[NEEDS TRANSLATION]",
-        "subContractorChain": "[NEEDS TRANSLATION]",
-        "auditRights": "[NEEDS TRANSLATION]",
-        "regulatoryUpdates": "[NEEDS TRANSLATION]",
-        "esgCorrelations": "[NEEDS TRANSLATION]"
+        "sanctionsExposure": "التعرض للعقوبات",
+        "subContractorChain": "عرض سلسلة المقاولين من الباطن",
+        "auditRights": "متابعة حقوق التدقيق",
+        "regulatoryUpdates": "مراقب التحديثات التنظيمية",
+        "esgCorrelations": "ارتباطات ESG"
       },
       "table": {
-        "contract": "[NEEDS TRANSLATION]",
-        "counterparty": "[NEEDS TRANSLATION]",
-        "sanctionsStatus": "[NEEDS TRANSLATION]",
-        "exposureKind": "[NEEDS TRANSLATION]",
-        "marAed": "[NEEDS TRANSLATION]",
-        "chainRoot": "[NEEDS TRANSLATION]",
-        "depthReached": "[NEEDS TRANSLATION]",
-        "sanctionedNodes": "[NEEDS TRANSLATION]",
-        "affectedContracts": "[NEEDS TRANSLATION]",
-        "expiresOn": "[NEEDS TRANSLATION]",
-        "daysToExpiry": "[NEEDS TRANSLATION]",
-        "severity": "[NEEDS TRANSLATION]"
+        "contract": "العقد",
+        "counterparty": "الطرف المقابل",
+        "sanctionsStatus": "حالة العقوبات",
+        "exposureKind": "نوع التعرض",
+        "marAed": "MaR (درهم)",
+        "chainRoot": "جذر السلسلة",
+        "depthReached": "العمق",
+        "sanctionedNodes": "العقد المعاقبة",
+        "affectedContracts": "العقود المتأثرة",
+        "expiresOn": "تاريخ الانتهاء",
+        "daysToExpiry": "الأيام حتى الانتهاء",
+        "severity": "الخطورة"
       },
-      "chainTruncated": "[NEEDS TRANSLATION]",
-      "truncated": "[NEEDS TRANSLATION]",
-      "affectedContracts": "[NEEDS TRANSLATION]",
+      "chainTruncated": "تم تقييد اجتياز السلسلة عند الحد الأقصى للعمق",
+      "truncated": "مقطوع",
+      "affectedContracts": "عقود متأثرة",
       "empty": {
-        "noSanctions": "[NEEDS TRANSLATION]",
-        "noChains": "[NEEDS TRANSLATION]",
-        "noAuditRights": "[NEEDS TRANSLATION]",
-        "noRegulatoryUpdates": "[NEEDS TRANSLATION]",
-        "noEsgCorrelations": "[NEEDS TRANSLATION]"
+        "noSanctions": "لم يُكتشف تعرض للعقوبات.",
+        "noChains": "لا تتوفر بيانات سلسلة المقاولين من الباطن.",
+        "noAuditRights": "لم تُستخرج بنود حقوق التدقيق بعد.",
+        "noRegulatoryUpdates": "لا توجد تحديثات تنظيمية في النافذة الزمنية المحددة.",
+        "noEsgCorrelations": "لا توجد ارتباطات ESG فعّالة — لم تُبذَر قواعد ESG في الإصدار 1."
       },
       "errors": {
-        "loadFailed": "[NEEDS TRANSLATION]"
+        "loadFailed": "تعذّر تحميل لوحة الامتثال والبيئة والحوكمة. يُرجى المحاولة مجدداً."
       }
     },
     "procurement": {
-      "title": "[NEEDS TRANSLATION]",
-      "subtitle": "[NEEDS TRANSLATION]",
-      "kpiGroupLabel": "[NEEDS TRANSLATION]",
+      "title": "لوحة مخاطر مورّدي المشتريات",
+      "subtitle": "درجات مخاطر المورّدين وامتثال ICV والبدائل الاحتياطية",
+      "kpiGroupLabel": "مؤشرات أداء المشتريات",
       "kpis": {
-        "totalSuppliers": "[NEEDS TRANSLATION]",
-        "suppliersAtRisk": "[NEEDS TRANSLATION]",
-        "icvNonCompliant": "[NEEDS TRANSLATION]",
-        "financialDistress": "[NEEDS TRANSLATION]"
+        "totalSuppliers": "إجمالي المورّدين",
+        "suppliersAtRisk": "المورّدون في خطر",
+        "icvNonCompliant": "غير ملتزمون بـ ICV",
+        "financialDistress": "إشارات ضائقة مالية"
       },
       "sections": {
-        "supplierScorecard": "[NEEDS TRANSLATION]",
-        "icvCompliance": "[NEEDS TRANSLATION]",
-        "backupSuppliers": "[NEEDS TRANSLATION]",
-        "financialHealth": "[NEEDS TRANSLATION]"
+        "supplierScorecard": "بطاقة تقييم مخاطر المورّدين",
+        "icvCompliance": "متابعة امتثال ICV",
+        "backupSuppliers": "اقتراحات المورّدين البديلين",
+        "financialHealth": "الصحة المالية للمورّدين"
       },
       "table": {
-        "supplier": "[NEEDS TRANSLATION]",
-        "type": "[NEEDS TRANSLATION]",
-        "riskScore": "[NEEDS TRANSLATION]",
-        "riskTier": "[NEEDS TRANSLATION]",
-        "activeContracts": "[NEEDS TRANSLATION]",
-        "slaBreaches": "[NEEDS TRANSLATION]",
-        "totalValue": "[NEEDS TRANSLATION]",
-        "icvStatus": "[NEEDS TRANSLATION]",
-        "icvPct": "[NEEDS TRANSLATION]",
-        "lastChecked": "[NEEDS TRANSLATION]",
-        "contractValue": "[NEEDS TRANSLATION]"
+        "supplier": "المورّد",
+        "type": "النوع",
+        "riskScore": "درجة المخاطرة",
+        "riskTier": "المستوى",
+        "activeContracts": "العقود الفعّالة",
+        "slaBreaches": "خروقات SLA (180 يوماً)",
+        "totalValue": "القيمة الإجمالية (درهم)",
+        "icvStatus": "حالة ICV",
+        "icvPct": "نسبة ICV",
+        "lastChecked": "آخر فحص",
+        "contractValue": "قيمة العقد (درهم)"
       },
       "backupSupplier": {
-        "primaryRisk": "[NEEDS TRANSLATION]",
-        "alternatives": "[NEEDS TRANSLATION]",
-        "score": "[NEEDS TRANSLATION]",
-        "noAlternatives": "[NEEDS TRANSLATION]"
+        "primaryRisk": "درجة المخاطرة: {{score}}",
+        "alternatives": "البدائل المقترحة",
+        "score": "الدرجة: {{score}}",
+        "noAlternatives": "لم يُعثر على موردين بديلين."
       },
       "empty": {
-        "noSuppliers": "[NEEDS TRANSLATION]",
-        "noIcvIssues": "[NEEDS TRANSLATION]",
-        "noBackupSuggestions": "[NEEDS TRANSLATION]",
-        "financialHealthV1": "[NEEDS TRANSLATION]"
+        "noSuppliers": "لا تتوفر بيانات مورّدين.",
+        "noIcvIssues": "جميع المورّدين ملتزمون بمتطلبات ICV.",
+        "noBackupSuggestions": "لا يوجد موردون رئيسيون في ضائقة — لا حاجة لاقتراحات بديلة.",
+        "financialHealthV1": "لا تتوفر إشارات صحة مالية للمورّدين — مؤجل إلى التجربة التجريبية."
       },
       "errors": {
-        "loadFailed": "[NEEDS TRANSLATION]"
+        "loadFailed": "تعذّر تحميل لوحة المشتريات. يُرجى المحاولة مجدداً."
       }
     }
   },
   "ai": {
     "riskAssistant": {
-      "toggleButton": "[NEEDS TRANSLATION]",
-      "panelAriaLabel": "[NEEDS TRANSLATION]",
-      "title": "[NEEDS TRANSLATION]",
-      "close": "[NEEDS TRANSLATION]",
-      "aborted": "[NEEDS TRANSLATION]",
+      "toggleButton": "استفسر من مساعد المخاطر الذكي",
+      "panelAriaLabel": "لوحة مساعد المخاطر الذكي",
+      "title": "مساعد المخاطر",
+      "close": "إغلاق مساعد المخاطر",
+      "aborted": " [تم الإلغاء]",
       "emptyState": {
-        "title": "[NEEDS TRANSLATION]",
-        "subtitle": "[NEEDS TRANSLATION]",
-        "examplesLabel": "[NEEDS TRANSLATION]"
+        "title": "استفسر عن محفظتك",
+        "subtitle": "يمكنني الإجابة عن أسئلة تتعلق بالعقود والارتباطات والإشارات والبنود ضمن نطاق صلاحياتك.",
+        "examplesLabel": "جرّب أن تسأل"
       },
       "examples": {
-        "hormuz": "[NEEDS TRANSLATION]",
-        "sanctions": "[NEEDS TRANSLATION]",
-        "icv": "[NEEDS TRANSLATION]"
+        "hormuz": "ما العقود المعرضة لاضطرابات مضيق هرمز؟",
+        "sanctions": "ما أعلى مخاطر العقوبات لدينا؟",
+        "icv": "أرِني المورّدين الذين يقلّون عن الحد الأدنى لـ ICV"
       },
       "input": {
-        "label": "[NEEDS TRANSLATION]",
-        "ariaLabel": "[NEEDS TRANSLATION]",
-        "placeholder": "[NEEDS TRANSLATION]",
-        "send": "[NEEDS TRANSLATION]",
-        "abort": "[NEEDS TRANSLATION]"
+        "label": "طرح سؤال",
+        "ariaLabel": "اكتب سؤالك لمساعد المخاطر الذكي",
+        "placeholder": "استفسر عن محفظتك… (Enter للإرسال)",
+        "send": "إرسال السؤال",
+        "abort": "إيقاف الرد"
       },
       "error": {
-        "generic": "[NEEDS TRANSLATION]"
+        "generic": "حدث خطأ أثناء توليد الرد. يُرجى المحاولة مجدداً."
       }
     }
   },
   "executive": {
     "whatChangedToday": {
-      "title": "[NEEDS TRANSLATION]",
-      "sectionAriaLabel": "[NEEDS TRANSLATION]",
-      "viewContract": "[NEEDS TRANSLATION]"
+      "title": "ما الذي تغيّر اليوم",
+      "sectionAriaLabel": "قسم ما الذي تغيّر اليوم",
+      "viewContract": "عرض"
     },
     "recommendedActions": {
-      "title": "[NEEDS TRANSLATION]",
-      "sectionAriaLabel": "[NEEDS TRANSLATION]",
-      "noAction": "[NEEDS TRANSLATION]",
-      "sla": "[NEEDS TRANSLATION]",
-      "viewContract": "[NEEDS TRANSLATION]"
+      "title": "الإجراءات الموصى بها",
+      "sectionAriaLabel": "قسم الإجراءات الموصى بها",
+      "noAction": "مراجعة الارتباط",
+      "sla": "SLA: {{hours}} ساعة",
+      "viewContract": "عرض"
     },
     "clausesTriggered": {
-      "title": "[NEEDS TRANSLATION]",
-      "sectionAriaLabel": "[NEEDS TRANSLATION]",
-      "windowGroupAriaLabel": "[NEEDS TRANSLATION]",
+      "title": "البنود المحفَّزة",
+      "sectionAriaLabel": "قسم البنود المحفَّزة",
+      "windowGroupAriaLabel": "محدد النافذة الزمنية",
       "window": {
-        "last7d": "[NEEDS TRANSLATION]",
-        "last30d": "[NEEDS TRANSLATION]"
+        "last7d": "آخر 7 أيام",
+        "last30d": "آخر 30 يوماً"
       },
-      "empty": "[NEEDS TRANSLATION]",
+      "empty": "لا توجد بنود محفَّزة في النافذة الزمنية المحددة.",
       "chart": {
-        "count": "[NEEDS TRANSLATION]"
+        "count": "عدد البنود"
       }
     }
   },
   "dashboards.common.tier": {
-    "high": "[NEEDS TRANSLATION]",
-    "medium": "[NEEDS TRANSLATION]",
-    "low": "[NEEDS TRANSLATION]"
+    "high": "مرتفع",
+    "medium": "متوسط",
+    "low": "منخفض"
   }
 }
