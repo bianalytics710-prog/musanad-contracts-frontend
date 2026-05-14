@@ -42,6 +42,8 @@ import {
   FileEdit,
   Bell,
   BellRing,
+  // M17-M18 / CR-I+CR-J demo harness icon
+  FlaskConical,
 } from "lucide-react";
 
 export type AppRole =
@@ -229,6 +231,8 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   // M16 / CR-H — Advisory Templates + Notification Dispatch Log
   { to: "/app/admin/advisory-templates",    labelKey: "nav.adminAdvisoryTemplates", defaultLabel: "Advisory templates",  icon: FileEdit },
   { to: "/app/admin/notifications",         labelKey: "nav.adminNotifications",     defaultLabel: "Notifications",       icon: Bell },
+  // M17-M18 / CR-I+CR-J — Demo Control Panel (gated by demo.scenario.trigger in route)
+  { to: "/app/admin/demo",                 labelKey: "nav.adminDemo",              defaultLabel: "Demo Control",        icon: FlaskConical },
 ];
 
 // M12 — Sub-items shown when the "Clauses" module is active (legal_counsel + platform_admin)

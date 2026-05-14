@@ -505,7 +505,8 @@
     "legalAdvisoryQueue": "Advisory Queue",
     "adminAdvisoryTemplates": "Advisory templates",
     "adminNotifications": "Notifications",
-    "profileNotificationPreferences": "Notification preferences"
+    "profileNotificationPreferences": "Notification preferences",
+    "adminDemo": "Demo Control"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -4742,6 +4743,102 @@
         "captureNote": "This is the {{channel}} payload that would have been delivered.",
         "empty": "(No payload captured)",
         "loadError": "Failed to load payload details."
+      }
+    },
+    "demo": {
+      "title": "Demo Control Panel",
+      "subtitle": "Manage demo scenarios, time freeze, health checks and reset.",
+      "sidebarLabel": "Demo Control",
+      "scenarioCards": {
+        "sectionTitle": "Hero Scenarios",
+        "empty": "No scenarios found.",
+        "trigger": "Trigger",
+        "running": "Running…",
+        "triggerAriaLabel": "Trigger scenario {{name}}",
+        "tier": "Tier {{tier}}",
+        "lastRun": "Last run:",
+        "status": {
+          "success": "Success",
+          "failed": "Failed",
+          "running": "Running",
+          "neverRun": "Never run",
+          "pending": "Pending"
+        },
+        "scenarios": {
+          "hormuz": "Strait of Hormuz Disruption",
+          "ofac_sanctions": "OFAC Sanctions Alert",
+          "brent_review": "Brent Price Review",
+          "epc_sla": "EPC SLA Breach",
+          "renewal": "Contract Renewal",
+          "cyclone": "Cyclone Force Majeure",
+          "icv_shortfall": "ICV Shortfall",
+          "esg_subcontractor": "ESG Sub-Contractor"
+        }
+      },
+      "reset": {
+        "sectionTitle": "Reset Demo Data",
+        "description": "Reset Demo Data",
+        "warning": "This will purge all demo data and reload from seed packs. This action cannot be undone.",
+        "button": "Reset Demo Data",
+        "modal": {
+          "title": "Confirm Demo Reset",
+          "body": "Type {{token}} to confirm the reset. All demo data will be permanently purged and reloaded from seed packs.",
+          "inputLabel": "Type: {{expected}}",
+          "confirm": "Reset Now",
+          "resetting": "Resetting…",
+          "cancel": "Cancel"
+        }
+      },
+      "timeFreeze": {
+        "sectionTitle": "Time Freeze",
+        "label": "Demo Time (fn_demo_now)",
+        "currentlyFrozen": "Time is currently frozen",
+        "notFrozen": "System time is running normally.",
+        "targetLabel": "Freeze to date/time",
+        "freeze": "Freeze",
+        "unfreeze": "Unfreeze",
+        "frozenAt": "Frozen at",
+        "actualNow": "Actual now"
+      },
+      "healthCheck": {
+        "sectionTitle": "Pre-Demo Health Check",
+        "overall": "Overall:",
+        "refresh": "Refresh health",
+        "lastChecked": "Last checked:",
+        "status": {
+          "ok": "OK",
+          "degraded": "Degraded",
+          "down": "Down"
+        },
+        "subsystems": {
+          "db": "Database",
+          "sources": "Data Sources",
+          "rules": "Correlation Rules",
+          "scoring": "Scoring Engine",
+          "advisory": "Advisory Dispatcher",
+          "storage": "Storage",
+          "openai": "OpenAI",
+          "smtp": "SMTP",
+          "notification": "Notification Worker"
+        }
+      },
+      "runs": {
+        "sectionTitle": "Scenario Run History",
+        "empty": "No scenario runs yet.",
+        "filterByScenario": "Filter by scenario…",
+        "filterBySuccess": "Filter by outcome",
+        "allOutcomes": "All outcomes",
+        "successOnly": "Success only",
+        "failedOnly": "Failed only",
+        "success": "Success",
+        "failed": "Failed",
+        "columns": {
+          "scenario": "Scenario",
+          "triggeredBy": "Triggered by",
+          "triggeredAt": "Triggered at",
+          "elapsed": "Elapsed (ms)",
+          "outcome": "Outcome"
+        }
       }
     }
   },

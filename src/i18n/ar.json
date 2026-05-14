@@ -505,7 +505,8 @@
     "legalAdvisoryQueue": "قائمة الاستشارات",
     "adminAdvisoryTemplates": "قوالب الاستشارات",
     "adminNotifications": "الإشعارات",
-    "profileNotificationPreferences": "تفضيلات الإشعارات"
+    "profileNotificationPreferences": "تفضيلات الإشعارات",
+    "adminDemo": "لوحة تحكم العرض التجريبي"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -4742,6 +4743,102 @@
         "captureNote": "هذه هي حمولة {{channel}} التي كانت ستُرسَل.",
         "empty": "(لا توجد حمولة مسجَّلة)",
         "loadError": "فشل تحميل تفاصيل الحمولة."
+      }
+    },
+    "demo": {
+      "title": "لوحة تحكم العرض التجريبي",
+      "subtitle": "إدارة سيناريوهات العرض التجريبي وتجميد الوقت والفحوصات الصحية وإعادة الضبط.",
+      "sidebarLabel": "تحكم العرض التجريبي",
+      "scenarioCards": {
+        "sectionTitle": "السيناريوهات الرئيسية",
+        "empty": "لم يتم العثور على سيناريوهات.",
+        "trigger": "تشغيل",
+        "running": "جارٍ التشغيل…",
+        "triggerAriaLabel": "تشغيل السيناريو {{name}}",
+        "tier": "المستوى {{tier}}",
+        "lastRun": "آخر تشغيل:",
+        "status": {
+          "success": "نجاح",
+          "failed": "فشل",
+          "running": "جارٍ",
+          "neverRun": "لم يُشغَّل بعد",
+          "pending": "قيد الانتظار"
+        },
+        "scenarios": {
+          "hormuz": "تعطل مضيق هرمز",
+          "ofac_sanctions": "تنبيه عقوبات OFAC",
+          "brent_review": "مراجعة سعر برنت",
+          "epc_sla": "خرق اتفاقية مستوى الخدمة EPC",
+          "renewal": "تجديد العقد",
+          "cyclone": "قوة قاهرة للإعصار",
+          "icv_shortfall": "عجز القيمة الإضافية المحلية",
+          "esg_subcontractor": "مقاول فرعي - حوكمة بيئية"
+        }
+      },
+      "reset": {
+        "sectionTitle": "إعادة ضبط بيانات العرض التجريبي",
+        "description": "إعادة ضبط بيانات العرض التجريبي",
+        "warning": "سيؤدي هذا إلى محو جميع بيانات العرض التجريبي وإعادة تحميلها من حزم البيانات الأولية. لا يمكن التراجع عن هذا الإجراء.",
+        "button": "إعادة ضبط بيانات العرض التجريبي",
+        "modal": {
+          "title": "تأكيد إعادة ضبط العرض التجريبي",
+          "body": "اكتب {{token}} لتأكيد إعادة الضبط. ستُمحى جميع بيانات العرض التجريبي نهائياً وتُعاد تحميلها من حزم البيانات الأولية.",
+          "inputLabel": "اكتب: {{expected}}",
+          "confirm": "إعادة الضبط الآن",
+          "resetting": "جارٍ إعادة الضبط…",
+          "cancel": "إلغاء"
+        }
+      },
+      "timeFreeze": {
+        "sectionTitle": "تجميد الوقت",
+        "label": "وقت العرض التجريبي (fn_demo_now)",
+        "currentlyFrozen": "الوقت مجمَّد حالياً",
+        "notFrozen": "وقت النظام يعمل بصورة طبيعية.",
+        "targetLabel": "تجميد إلى التاريخ/الوقت",
+        "freeze": "تجميد",
+        "unfreeze": "إلغاء التجميد",
+        "frozenAt": "مجمَّد في",
+        "actualNow": "الوقت الفعلي الآن"
+      },
+      "healthCheck": {
+        "sectionTitle": "فحص صحة ما قبل العرض التجريبي",
+        "overall": "الحالة الإجمالية:",
+        "refresh": "تحديث حالة الصحة",
+        "lastChecked": "آخر فحص:",
+        "status": {
+          "ok": "جيد",
+          "degraded": "متدهور",
+          "down": "متوقف"
+        },
+        "subsystems": {
+          "db": "قاعدة البيانات",
+          "sources": "مصادر البيانات",
+          "rules": "قواعد الترابط",
+          "scoring": "محرك التسجيل",
+          "advisory": "موزع الاستشارات",
+          "storage": "التخزين",
+          "openai": "OpenAI",
+          "smtp": "SMTP",
+          "notification": "عامل الإشعارات"
+        }
+      },
+      "runs": {
+        "sectionTitle": "سجل تشغيل السيناريوهات",
+        "empty": "لا يوجد تشغيل للسيناريوهات حتى الآن.",
+        "filterByScenario": "تصفية حسب السيناريو…",
+        "filterBySuccess": "تصفية حسب النتيجة",
+        "allOutcomes": "جميع النتائج",
+        "successOnly": "ناجحة فقط",
+        "failedOnly": "فاشلة فقط",
+        "success": "نجاح",
+        "failed": "فشل",
+        "columns": {
+          "scenario": "السيناريو",
+          "triggeredBy": "شغَّله",
+          "triggeredAt": "وقت التشغيل",
+          "elapsed": "المدة (مللي ثانية)",
+          "outcome": "النتيجة"
+        }
       }
     }
   },
