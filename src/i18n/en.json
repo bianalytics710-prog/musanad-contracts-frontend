@@ -4680,7 +4680,10 @@
       "channels": {
         "email": "Email",
         "teams_capture": "Teams",
-        "slack_capture": "Slack"
+        "slack_capture": "Slack",
+        "in_app": "In-app",
+        "teams": "Teams",
+        "slack": "Slack"
       },
       "actions": {
         "edit": "Edit"

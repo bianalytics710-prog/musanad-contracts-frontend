@@ -4680,7 +4680,10 @@
       "channels": {
         "email": "البريد الإلكتروني",
         "teams_capture": "Teams",
-        "slack_capture": "Slack"
+        "slack_capture": "Slack",
+        "in_app": "داخل التطبيق",
+        "teams": "Teams",
+        "slack": "Slack"
       },
       "actions": {
         "edit": "تعديل"

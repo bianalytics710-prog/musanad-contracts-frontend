@@ -497,10 +497,15 @@ function TimeFreezePanel() {
   const isFrozen = Boolean(freezeState?.frozenAt);
   const isBusy = freezeMutation.isPending || unfreezeMutation.isPending;
 
+  // DEFECT-CRIJ-FE-3 fix: also read from DOM on submit. React 19 controlled-input
+  // doesn't pick up programmatic .value = ... assignment from automation tools;
+  // reading DOM at submit time keeps real-user typing AND automated test flows
+  // both functional.
   const handleFreeze = () => {
-    if (!targetValue) return;
-    // Convert datetime-local value (no timezone) to ISO string
-    const ts = new Date(targetValue).toISOString();
+    const domInput = document.getElementById('demo-time-freeze-picker') as HTMLInputElement | null;
+    const value = targetValue || domInput?.value || '';
+    if (!value) return;
+    const ts = new Date(value).toISOString();
     freezeMutation.mutate(ts);
   };
 
@@ -550,7 +555,7 @@ function TimeFreezePanel() {
                 size="sm"
                 variant="default"
                 onClick={handleFreeze}
-                disabled={isBusy || !targetValue}
+                disabled={isBusy}
                 className="flex-1"
               >
                 <Thermometer className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
