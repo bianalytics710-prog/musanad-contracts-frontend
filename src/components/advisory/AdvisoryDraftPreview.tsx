@@ -125,9 +125,9 @@ export function AdvisoryDraftPreview({ draft }: Props) {
               <p className="text-xs font-medium text-ink-muted">
                 {t('legal.advisoryQueue.traceability.clause')}
               </p>
-              {draft.matchedClauses.length > 0 ? (
+              {(draft.matchedClauses?.length ?? 0) > 0 ? (
                 <ul className="space-y-1">
-                  {draft.matchedClauses.map((c) => (
+                  {(draft.matchedClauses ?? []).map((c) => (
                     <li key={c.id} className="text-sm text-ink">
                       {c.clauseTitle ?? `#${c.id}`}
                       {c.snippet && (
