@@ -38,6 +38,10 @@ import {
   TrendingUp,
   ShieldAlert,
   Package,
+  // M16 / CR-H advisory + notification icons
+  FileEdit,
+  Bell,
+  BellRing,
 } from "lucide-react";
 
 export type AppRole =
@@ -71,7 +75,9 @@ export type ModuleKey =
   | "dashboards.operations"
   | "dashboards.financeTreasury"
   | "dashboards.complianceEsg"
-  | "dashboards.procurement";
+  | "dashboards.procurement"
+  // M16 / CR-H — advisory queue for legal counsel
+  | "legal.advisoryQueue";
 
 export interface SidebarModule {
   key: ModuleKey;
@@ -99,6 +105,8 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   "dashboards.financeTreasury":  { key: "dashboards.financeTreasury",  to: "/app/dashboards/finance-treasury", labelKey: "nav.dashboardsFinanceTreasury",  defaultLabel: "Finance & Treasury", icon: TrendingUp },
   "dashboards.complianceEsg":    { key: "dashboards.complianceEsg",    to: "/app/dashboards/compliance-esg",   labelKey: "nav.dashboardsComplianceEsg",    defaultLabel: "Compliance & ESG",   icon: ShieldAlert },
   "dashboards.procurement":      { key: "dashboards.procurement",      to: "/app/dashboards/procurement",      labelKey: "nav.dashboardsProcurement",      defaultLabel: "Procurement Risk",   icon: Package },
+  // M16 / CR-H
+  "legal.advisoryQueue": { key: "legal.advisoryQueue", to: "/app/legal/advisory-queue", labelKey: "nav.legalAdvisoryQueue", defaultLabel: "Advisory Queue", icon: FileEdit },
 };
 
 export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
@@ -123,6 +131,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "radar",
     "obligations",
     "parties",
+    // M16 / CR-H — advisory queue for legal counsel
+    "legal.advisoryQueue",
   ],
   // R1 audit: Lovable approver sidebar is narrowly Insights / Approvals /
   // Contracts. Drop Obligations leak (was inherited from drafter mapping).
@@ -216,6 +226,9 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/rules",                 labelKey: "nav.adminRules",           defaultLabel: "Correlation rules",     icon: GitMerge },
   // M14 — Scoring Weights (CR-F) — visible to score.weights.manage roles only
   { to: "/app/admin/scoring-weights",       labelKey: "nav.adminScoringWeights",  defaultLabel: "Scoring weights",       icon: SlidersHorizontal },
+  // M16 / CR-H — Advisory Templates + Notification Dispatch Log
+  { to: "/app/admin/advisory-templates",    labelKey: "nav.adminAdvisoryTemplates", defaultLabel: "Advisory templates",  icon: FileEdit },
+  { to: "/app/admin/notifications",         labelKey: "nav.adminNotifications",     defaultLabel: "Notifications",       icon: Bell },
 ];
 
 // M12 — Sub-items shown when the "Clauses" module is active (legal_counsel + platform_admin)

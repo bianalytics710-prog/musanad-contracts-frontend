@@ -501,7 +501,11 @@
     "dashboardsOperations": "العمليات",
     "dashboardsFinanceTreasury": "المالية والخزانة",
     "dashboardsComplianceEsg": "الامتثال والبيئة والحوكمة",
-    "dashboardsProcurement": "مخاطر المشتريات"
+    "dashboardsProcurement": "مخاطر المشتريات",
+    "legalAdvisoryQueue": "قائمة الاستشارات",
+    "adminAdvisoryTemplates": "قوالب الاستشارات",
+    "adminNotifications": "الإشعارات",
+    "profileNotificationPreferences": "تفضيلات الإشعارات"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -4627,6 +4631,118 @@
         "saveFailed": "تعذّر حفظ الأوزان.",
         "recomputeFailed": "فشلت إعادة الاحتساب."
       }
+    },
+    "advisoryTemplates": {
+      "title": "قوالب الاستشارات",
+      "subtitle": "إدارة قوالب الاستشارات بالإنجليزية والعربية وأدوار المعتمدين وقنوات الإرسال.",
+      "backToList": "العودة إلى القوالب",
+      "editTitle": "تعديل قالب الاستشارة",
+      "searchPlaceholder": "بحث في القوالب...",
+      "searchLabel": "البحث في قوالب الاستشارات",
+      "emptyState": "لا توجد قوالب استشارات.",
+      "columns": {
+        "templateId": "معرّف القالب",
+        "displayName": "الاسم المعروض",
+        "draftType": "النوع",
+        "version": "الإصدار",
+        "approverRole": "دور المعتمِد",
+        "channels": "القنوات",
+        "lastModified": "آخر تعديل"
+      },
+      "fields": {
+        "displayNameEn": "الاسم المعروض (إنجليزي)",
+        "displayNameAr": "الاسم المعروض (عربي)",
+        "description": "الوصف (اختياري)",
+        "draftType": "نوع المسودة",
+        "version": "الإصدار",
+        "templateId": "معرّف القالب",
+        "bodyTemplateEn": "نص القالب (إنجليزي)",
+        "bodyTemplateAr": "نص القالب (عربي)",
+        "assignedApproverRole": "دور المعتمِد المخصّص",
+        "dispatchChannels": "قنوات الإرسال",
+        "parameters": "معاملات القالب (للقراءة فقط)"
+      },
+      "filters": {
+        "draftType": "تصفية حسب النوع",
+        "allTypes": "جميع الأنواع"
+      },
+      "draftTypes": {
+        "fm_invocation": "استدعاء قوة قاهرة",
+        "cure_notice": "إشعار علاج الإخلال",
+        "sanctions_hold": "تجميد بسبب العقوبات",
+        "price_review": "مراجعة السعر",
+        "icv_rectification": "تصحيح شهادة القيمة المضافة",
+        "insurance_renewal": "تجديد التأمين",
+        "esg_concern": "مخاوف ESG",
+        "custom": "مخصّص"
+      },
+      "channels": {
+        "email": "البريد الإلكتروني",
+        "teams_capture": "Teams",
+        "slack_capture": "Slack"
+      },
+      "actions": {
+        "edit": "تعديل"
+      },
+      "toast": {
+        "saved": "تمّ حفظ القالب."
+      },
+      "errors": {
+        "saveFailed": "فشل حفظ القالب.",
+        "channelsRequired": "يجب اختيار قناة إرسال واحدة على الأقل."
+      }
+    },
+    "notifications": {
+      "title": "سجل إرسال الإشعارات",
+      "subtitle": "عرض جميع محاولات إرسال الإشعارات عبر القنوات المختلفة.",
+      "emptyState": "لا توجد إشعارات تطابق المرشّحات المحددة.",
+      "columns": {
+        "id": "الرقم",
+        "channel": "القناة",
+        "kind": "النوع",
+        "priority": "الأولوية",
+        "status": "الحالة",
+        "attemptedAt": "وقت المحاولة",
+        "preview": "الحمولة"
+      },
+      "filters": {
+        "allChannels": "جميع القنوات",
+        "allStatuses": "جميع الحالات",
+        "channel": "تصفية حسب القناة",
+        "status": "تصفية حسب الحالة",
+        "from": "من",
+        "to": "إلى"
+      },
+      "channels": {
+        "email": "البريد الإلكتروني",
+        "in_app": "داخل التطبيق",
+        "teams_capture": "Teams (مسجَّل)",
+        "slack_capture": "Slack (مسجَّل)"
+      },
+      "kinds": {
+        "alert": "تنبيه",
+        "advisory": "استشارة",
+        "approval_request": "طلب اعتماد",
+        "signature_request": "طلب توقيع",
+        "system": "نظام",
+        "risk_case": "حالة مخاطرة",
+        "report": "تقرير"
+      },
+      "statuses": {
+        "sent": "مُرسَل",
+        "failed": "فشل",
+        "captured_only": "مسجَّل",
+        "pending_retry": "قيد إعادة المحاولة",
+        "final_failed": "فشل نهائي",
+        "suppressed_by_preference": "مكتوم"
+      },
+      "previewPayload": "معاينة الحمولة",
+      "payloadPreview": {
+        "title": "معاينة الحمولة",
+        "captureNote": "هذه هي حمولة {{channel}} التي كانت ستُرسَل.",
+        "empty": "(لا توجد حمولة مسجَّلة)",
+        "loadError": "فشل تحميل تفاصيل الحمولة."
+      }
     }
   },
   "permissions": {
@@ -7412,6 +7528,129 @@
         "forwardToCompliance": "إرسال إلى الامتثال لتحميل شهادة القيمة المضافة",
         "submit": "بدء",
         "success": "تم بدء معالجة شهادة القيمة المضافة"
+      }
+    }
+  },
+  "legal": {
+    "advisoryQueue": {
+      "title": "قائمة الاستشارات",
+      "subtitle": "مراجعة واعتماد وإرسال مسودات الاستشارات المولّدة بالذكاء الاصطناعي.",
+      "backToList": "العودة إلى القائمة",
+      "emptyState": "لا توجد مسودات استشارات.",
+      "detailTitle": "مسودة استشارة #{{id}}",
+      "selfApprovalNotice": "أنت أنشأت هذه المسودة — لا يمكنك اعتماد استشارتك الخاصة (مبدأ الفصل بين المهام).",
+      "bodyEn": "المسودة (إنجليزي)",
+      "bodyAr": "المسودة (عربي)",
+      "columns": {
+        "contract": "العقد",
+        "counterparty": "الطرف المقابل",
+        "draftType": "النوع",
+        "generatedAt": "تاريخ التوليد",
+        "status": "الحالة"
+      },
+      "fields": {
+        "approvalStatus": "الحالة",
+        "generatedAt": "وقت التوليد",
+        "approvedAt": "وقت الاعتماد",
+        "rejectionReason": "سبب الرفض"
+      },
+      "filters": {
+        "allStatuses": "جميع الحالات",
+        "status": "تصفية حسب الحالة",
+        "myQueue": "قائمتي فقط"
+      },
+      "status": {
+        "unapproved": "قيد المراجعة",
+        "approved": "معتمد",
+        "rejected": "مرفوض",
+        "modified": "معدّل"
+      },
+      "actions": {
+        "view": "عرض",
+        "modify": "تعديل",
+        "approve": "اعتماد",
+        "reject": "رفض",
+        "dispatch": "إرسال"
+      },
+      "toast": {
+        "approved": "تمّ اعتماد المسودة.",
+        "rejected": "تمّ رفض المسودة.",
+        "modified": "تمّ تعديل المسودة.",
+        "dispatched": "تمّ إرسال الاستشارة بنجاح."
+      },
+      "errors": {
+        "approveFailed": "فشل اعتماد المسودة.",
+        "rejectFailed": "فشل رفض المسودة.",
+        "modifyFailed": "فشل تعديل المسودة.",
+        "dispatchFailed": "فشل إرسال الاستشارة."
+      },
+      "modifyDialog": {
+        "title": "تعديل مسودة الاستشارة",
+        "description": "تعديل النص الإنجليزي والعربي. كلا الحقلين مطلوبان. بعد الحفظ، يلزم إعادة الاعتماد.",
+        "submit": "حفظ التعديلات"
+      },
+      "rejectDialog": {
+        "title": "رفض مسودة الاستشارة",
+        "description": "أدخل سبب الرفض. سيتمّ إشعار مُنشئ المسودة.",
+        "reasonLabel": "سبب الرفض",
+        "reasonPlaceholder": "صِف سبب رفض هذه المسودة (10 أحرف على الأقل)...",
+        "submit": "رفض المسودة"
+      },
+      "dispatchPanel": {
+        "title": "إرسال الاستشارة",
+        "description": "أدخل بيانات المستلم لإرسال الاستشارة المعتمدة.",
+        "emailLabel": "البريد الإلكتروني للمستلم",
+        "emailPlaceholder": "name@example.com",
+        "nameLabel": "اسم المستلم",
+        "namePlaceholder": "الاسم الكامل",
+        "confirm": "إرسال الآن"
+      },
+      "traceability": {
+        "title": "إمكانية التتبع",
+        "correlation": "الارتباط",
+        "clause": "البند/البنود المطابق(ة)",
+        "signal": "الإشارة المطابقة",
+        "riskScore": "درجة المخاطرة"
+      }
+    }
+  },
+  "profile": {
+    "notificationPreferences": {
+      "title": "تفضيلات الإشعارات",
+      "subtitle": "اختر الإشعارات التي تريد استقبالها والقنوات المفضّلة.",
+      "description": "فعّل أو عطّل كل خلية. حدّد أدنى أولوية لتجاهل الإشعارات المنخفضة الأولوية.",
+      "columns": {
+        "kind": "نوع الإشعار"
+      },
+      "channels": {
+        "email": "البريد الإلكتروني",
+        "in_app": "داخل التطبيق",
+        "teams_capture": "Teams",
+        "slack_capture": "Slack"
+      },
+      "kinds": {
+        "alert": "التنبيهات",
+        "advisory": "مسودات الاستشارات",
+        "approval_request": "طلبات الاعتماد",
+        "signature_request": "طلبات التوقيع",
+        "system": "إشعارات النظام",
+        "risk_case": "حالات المخاطر",
+        "report": "التقارير"
+      },
+      "priorities": {
+        "low": "منخفض+",
+        "medium": "متوسط+",
+        "high": "مرتفع+",
+        "critical": "حرج"
+      },
+      "toggleLabel": "تبديل {{kind}} عبر {{channel}}",
+      "priorityMinLabel": "الأولوية الدنيا",
+      "priorityNote": "الأولوية الدنيا = إرسال الإشعارات بهذه الأولوية أو أعلى فقط.",
+      "toast": {
+        "saved": "تمّ حفظ التفضيل."
+      },
+      "errors": {
+        "saveFailed": "فشل حفظ التفضيل."
       }
     }
   }

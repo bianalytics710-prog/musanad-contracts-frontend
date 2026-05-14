@@ -501,7 +501,11 @@
     "dashboardsOperations": "Operations",
     "dashboardsFinanceTreasury": "Finance & Treasury",
     "dashboardsComplianceEsg": "Compliance & ESG",
-    "dashboardsProcurement": "Procurement Risk"
+    "dashboardsProcurement": "Procurement Risk",
+    "legalAdvisoryQueue": "Advisory Queue",
+    "adminAdvisoryTemplates": "Advisory templates",
+    "adminNotifications": "Notifications",
+    "profileNotificationPreferences": "Notification preferences"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -4627,6 +4631,118 @@
         "saveFailed": "Failed to save weights.",
         "recomputeFailed": "Recompute failed."
       }
+    },
+    "advisoryTemplates": {
+      "title": "Advisory Templates",
+      "subtitle": "Manage EN/AR advisory template body templates, approver roles, and dispatch channels.",
+      "backToList": "Back to Templates",
+      "editTitle": "Edit Advisory Template",
+      "searchPlaceholder": "Search templates...",
+      "searchLabel": "Search advisory templates",
+      "emptyState": "No advisory templates found.",
+      "columns": {
+        "templateId": "Template ID",
+        "displayName": "Display name",
+        "draftType": "Type",
+        "version": "Version",
+        "approverRole": "Approver role",
+        "channels": "Channels",
+        "lastModified": "Last modified"
+      },
+      "fields": {
+        "displayNameEn": "Display name (EN)",
+        "displayNameAr": "Display name (AR)",
+        "description": "Description (optional)",
+        "draftType": "Draft type",
+        "version": "Version",
+        "templateId": "Template ID",
+        "bodyTemplateEn": "Body template (EN)",
+        "bodyTemplateAr": "Body template (AR)",
+        "assignedApproverRole": "Assigned approver role",
+        "dispatchChannels": "Dispatch channels",
+        "parameters": "Template parameters (read-only)"
+      },
+      "filters": {
+        "draftType": "Filter by type",
+        "allTypes": "All types"
+      },
+      "draftTypes": {
+        "fm_invocation": "FM Invocation",
+        "cure_notice": "Cure Notice",
+        "sanctions_hold": "Sanctions Hold",
+        "price_review": "Price Review",
+        "icv_rectification": "ICV Rectification",
+        "insurance_renewal": "Insurance Renewal",
+        "esg_concern": "ESG Concern",
+        "custom": "Custom"
+      },
+      "channels": {
+        "email": "Email",
+        "teams_capture": "Teams",
+        "slack_capture": "Slack"
+      },
+      "actions": {
+        "edit": "Edit"
+      },
+      "toast": {
+        "saved": "Template saved."
+      },
+      "errors": {
+        "saveFailed": "Failed to save template.",
+        "channelsRequired": "At least one dispatch channel is required."
+      }
+    },
+    "notifications": {
+      "title": "Notification Dispatch Log",
+      "subtitle": "View all notification dispatch attempts across channels.",
+      "emptyState": "No notifications found for the selected filters.",
+      "columns": {
+        "id": "ID",
+        "channel": "Channel",
+        "kind": "Kind",
+        "priority": "Priority",
+        "status": "Status",
+        "attemptedAt": "Attempted at",
+        "preview": "Payload"
+      },
+      "filters": {
+        "allChannels": "All channels",
+        "allStatuses": "All statuses",
+        "channel": "Filter by channel",
+        "status": "Filter by status",
+        "from": "From",
+        "to": "To"
+      },
+      "channels": {
+        "email": "Email",
+        "in_app": "In-app",
+        "teams_capture": "Teams (captured)",
+        "slack_capture": "Slack (captured)"
+      },
+      "kinds": {
+        "alert": "Alert",
+        "advisory": "Advisory",
+        "approval_request": "Approval request",
+        "signature_request": "Signature request",
+        "system": "System",
+        "risk_case": "Risk case",
+        "report": "Report"
+      },
+      "statuses": {
+        "sent": "Sent",
+        "failed": "Failed",
+        "captured_only": "Captured",
+        "pending_retry": "Pending retry",
+        "final_failed": "Final failed",
+        "suppressed_by_preference": "Suppressed"
+      },
+      "previewPayload": "Preview payload",
+      "payloadPreview": {
+        "title": "Payload Preview",
+        "captureNote": "This is the {{channel}} payload that would have been delivered.",
+        "empty": "(No payload captured)",
+        "loadError": "Failed to load payload details."
+      }
     }
   },
   "permissions": {
@@ -7412,6 +7528,129 @@
         "forwardToCompliance": "Forward to compliance to upload ICV certificate",
         "submit": "Initiate",
         "success": "ICV remediation initiated"
+      }
+    }
+  },
+  "legal": {
+    "advisoryQueue": {
+      "title": "Advisory Queue",
+      "subtitle": "Review, approve, and dispatch AI-generated advisory drafts.",
+      "backToList": "Back to Advisory Queue",
+      "emptyState": "No advisory drafts found.",
+      "detailTitle": "Advisory Draft #{{id}}",
+      "selfApprovalNotice": "You created this draft — you cannot approve your own advisory (separation of duties).",
+      "bodyEn": "Draft (English)",
+      "bodyAr": "Draft (Arabic)",
+      "columns": {
+        "contract": "Contract",
+        "counterparty": "Counterparty",
+        "draftType": "Type",
+        "generatedAt": "Generated",
+        "status": "Status"
+      },
+      "fields": {
+        "approvalStatus": "Status",
+        "generatedAt": "Generated at",
+        "approvedAt": "Approved at",
+        "rejectionReason": "Rejection reason"
+      },
+      "filters": {
+        "allStatuses": "All statuses",
+        "status": "Filter by status",
+        "myQueue": "My queue only"
+      },
+      "status": {
+        "unapproved": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "modified": "Modified"
+      },
+      "actions": {
+        "view": "View",
+        "modify": "Edit/Modify",
+        "approve": "Approve",
+        "reject": "Reject",
+        "dispatch": "Dispatch"
+      },
+      "toast": {
+        "approved": "Draft approved.",
+        "rejected": "Draft rejected.",
+        "modified": "Draft modified.",
+        "dispatched": "Advisory dispatched successfully."
+      },
+      "errors": {
+        "approveFailed": "Failed to approve draft.",
+        "rejectFailed": "Failed to reject draft.",
+        "modifyFailed": "Failed to modify draft.",
+        "dispatchFailed": "Failed to dispatch advisory."
+      },
+      "modifyDialog": {
+        "title": "Modify Advisory Draft",
+        "description": "Edit the English and Arabic text. Both fields are required. After saving, re-approval will be required.",
+        "submit": "Save changes"
+      },
+      "rejectDialog": {
+        "title": "Reject Advisory Draft",
+        "description": "Provide a reason for rejection. The draft author will be notified.",
+        "reasonLabel": "Rejection reason",
+        "reasonPlaceholder": "Describe why this draft is being rejected (min. 10 characters)...",
+        "submit": "Reject draft"
+      },
+      "dispatchPanel": {
+        "title": "Dispatch Advisory",
+        "description": "Enter recipient details to dispatch this approved advisory.",
+        "emailLabel": "Recipient email",
+        "emailPlaceholder": "name@example.com",
+        "nameLabel": "Recipient name",
+        "namePlaceholder": "Full name",
+        "confirm": "Dispatch now"
+      },
+      "traceability": {
+        "title": "Source traceability",
+        "correlation": "Correlation",
+        "clause": "Matched clause(s)",
+        "signal": "Matched signal",
+        "riskScore": "Risk score"
+      }
+    }
+  },
+  "profile": {
+    "notificationPreferences": {
+      "title": "Notification Preferences",
+      "subtitle": "Choose which notifications you receive and on which channels.",
+      "description": "Toggle each cell to enable or disable notifications. Set a minimum priority to suppress low-priority notifications.",
+      "columns": {
+        "kind": "Notification type"
+      },
+      "channels": {
+        "email": "Email",
+        "in_app": "In-app",
+        "teams_capture": "Teams",
+        "slack_capture": "Slack"
+      },
+      "kinds": {
+        "alert": "Alerts",
+        "advisory": "Advisory drafts",
+        "approval_request": "Approval requests",
+        "signature_request": "Signature requests",
+        "system": "System",
+        "risk_case": "Risk cases",
+        "report": "Reports"
+      },
+      "priorities": {
+        "low": "Low+",
+        "medium": "Med+",
+        "high": "High+",
+        "critical": "Crit"
+      },
+      "toggleLabel": "Toggle {{kind}} via {{channel}}",
+      "priorityMinLabel": "Minimum priority",
+      "priorityNote": "Priority min = only deliver notifications at this priority or above.",
+      "toast": {
+        "saved": "Preference saved."
+      },
+      "errors": {
+        "saveFailed": "Failed to save preference."
       }
     }
   }
