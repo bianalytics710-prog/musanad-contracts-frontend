@@ -181,7 +181,8 @@
     "pagination": {
       "showing": "Page {{current}} of {{total}}",
       "previous": "Previous",
-      "next": "Next"
+      "next": "Next",
+      "prev": "Previous"
     },
     "creating": "Creating…",
     "pageOf": "Page {{page}} of {{total}}",
@@ -192,7 +193,10 @@
       "badge": "System role",
       "tooltip": "Built-in roles cannot be deleted. Permissions can still be adjusted.",
       "cannotDelete": "System roles cannot be deleted."
-    }
+    },
+    "posting": "Posting…",
+    "uploading": "Uploading…",
+    "queueing": "Queueing…"
   },
   "notifications": {
     "title": "Notifications",
@@ -506,7 +510,10 @@
     "adminAdvisoryTemplates": "Advisory templates",
     "adminNotifications": "Notifications",
     "profileNotificationPreferences": "Notification preferences",
-    "adminDemo": "Demo Control"
+    "adminDemo": "Demo Control",
+    "riskCases": "Risk Cases",
+    "reports": "Reports",
+    "adminReportTemplates": "Report templates"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -598,7 +605,12 @@
     "contract_approver": "Contract Approver",
     "contract_approver_2": "Contract Approver (Stage 2)",
     "contract_recipient": "Contract Recipient",
-    "executive": "Executive"
+    "executive": "Executive",
+    "Super Admin": "Super Admin",
+    "operations": "Operations",
+    "finance_treasury": "Finance & Treasury",
+    "compliance_esg": "Compliance & ESG",
+    "procurement_supplier_risk": "Procurement & Supplier Risk"
   },
   "rolesShort": {
     "contract_approver": "Approver",
@@ -4843,6 +4855,77 @@
           "outcome": "Outcome"
         }
       }
+    },
+    "reportTemplates": {
+      "list": {
+        "title": "Report templates",
+        "subtitle": "Manage tenant report templates, scheduling and role assignments.",
+        "empty": "No templates yet — click New template to create one.",
+        "manual": "Manual"
+      },
+      "create": {
+        "title": "New report template",
+        "subtitle": "Define a new report — assigned roles, data source and optional schedule."
+      },
+      "edit": {
+        "title": "Edit report template",
+        "subtitle": "Update the template configuration. Template id, kind and tenant id are immutable."
+      },
+      "columns": {
+        "template": "Template",
+        "kind": "Kind",
+        "dataSource": "Data source",
+        "roles": "Roles",
+        "schedule": "Schedule",
+        "enabled": "Status",
+        "lastRun": "Last run"
+      },
+      "filters": {
+        "searchLabel": "Search templates",
+        "searchPlaceholder": "Search by id or name…"
+      },
+      "actions": {
+        "create": "New template",
+        "backToList": "Back to report templates",
+        "delete": "Delete template",
+        "confirmDelete": "Delete “{{name}}”?"
+      },
+      "fields": {
+        "templateId": "Template id",
+        "templateIdHint": "Lower-snake_case — e.g. executive_weekly_brief",
+        "templateIdImmutable": "Template id cannot be changed after creation.",
+        "reportKind": "Kind",
+        "reportKindImmutable": "Kind cannot be changed after creation.",
+        "displayNameEn": "Display name (EN)",
+        "displayNameAr": "Display name (AR)",
+        "description": "Description",
+        "dataSource": "Data source",
+        "dataSourceHint": "Maps 1:1 to fn_report_data_<slug>. New slugs require a backend migration.",
+        "assignedRoles": "Assigned roles",
+        "scheduling": "Scheduling",
+        "isScheduled": "Enable scheduled runs",
+        "scheduleCron": "Cron expression (UTC)",
+        "cronHint": "5-field cron, e.g. 0 9 * * 1 (Mondays 09:00 UTC).",
+        "scheduleRecipients": "Schedule recipients",
+        "recipientsHint": "Comma- or newline-separated email addresses",
+        "enabled": "Enabled"
+      },
+      "toasts": {
+        "created": "Template created",
+        "updated": "Template updated",
+        "deleted": "Template deleted"
+      },
+      "errors": {
+        "createFailed": "Failed to create template",
+        "updateFailed": "Failed to update template",
+        "deleteFailed": "Failed to delete template",
+        "displayNameRequired": "Display name (EN) is required",
+        "rolesRequired": "At least one assigned role is required",
+        "templateIdInvalid": "Template id must match ^[a-z0-9_]+$",
+        "cronInvalid": "Invalid cron expression",
+        "recipientsRequired": "Recipients are required when scheduling is enabled",
+        "invalidId": "Invalid template id"
+      }
     }
   },
   "permissions": {
@@ -7752,6 +7835,290 @@
       "errors": {
         "saveFailed": "Failed to save preference."
       }
+    }
+  },
+  "riskCases": {
+    "list": {
+      "title": "Risk Cases",
+      "subtitle": "Active risk-management workflow for correlation alerts, obligations and SLA breaches.",
+      "empty": "No risk cases match your filters",
+      "unassigned": "Unassigned"
+    },
+    "detail": {
+      "actionsTitle": "Actions",
+      "terminal": "This case is in a terminal state. No further actions are available.",
+      "slaCountdown": "SLA countdown",
+      "createdAt": "Created {{date}}",
+      "closureBanner": "Closed — outcome: {{outcome}} · {{date}}",
+      "tabsAria": "Risk case detail tabs",
+      "tabs": {
+        "overview": "Overview",
+        "timeline": "Timeline",
+        "evidence": "Evidence"
+      },
+      "overview": {
+        "body": "Case body",
+        "assignment": "Assignment",
+        "linked": "Linked records",
+        "contract": "Contract",
+        "correlation": "Correlation",
+        "advisories": "Advisory drafts",
+        "noLinks": "No linked records."
+      }
+    },
+    "columns": {
+      "title": "Title",
+      "priority": "Priority",
+      "status": "Status",
+      "caseType": "Type",
+      "assignedTo": "Assigned to",
+      "sla": "SLA",
+      "dueAt": "Due"
+    },
+    "filters": {
+      "searchLabel": "Search risk cases",
+      "searchPlaceholder": "Search by title…",
+      "allStatuses": "All statuses",
+      "openAll": "All open",
+      "allPriorities": "All priorities",
+      "allCaseTypes": "All types",
+      "anySla": "Any SLA",
+      "slaWithin": "Due ≤ {{hours}}h",
+      "assignedToMe": "Assigned to me",
+      "status": "Status",
+      "priority": "Priority",
+      "caseType": "Type",
+      "slaDueWithin": "SLA window"
+    },
+    "statuses": {
+      "open": "Open",
+      "in_review": "In review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "escalated": "Escalated",
+      "accept_risk": "Risk accepted",
+      "snoozed": "Snoozed",
+      "closed": "Closed"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "caseTypes": {
+      "correlation_alert": "Correlation alert",
+      "obligation_due": "Obligation due",
+      "sla_breach": "SLA breach",
+      "system": "System",
+      "manual": "Manual"
+    },
+    "outcomes": {
+      "mitigated": "Mitigated",
+      "accepted": "Accepted",
+      "no_action": "No action",
+      "advisory_dispatched": "Advisory dispatched"
+    },
+    "actions": {
+      "createManual": "New case",
+      "view": "View",
+      "backToList": "Back to risk cases",
+      "assign": "Assign",
+      "statusTransition": "Update status",
+      "escalate": "Escalate",
+      "acceptRisk": "Accept risk",
+      "snooze": "Snooze",
+      "close": "Close case",
+      "uploadEvidence": "Upload evidence",
+      "addComment": "Post comment"
+    },
+    "sla": {
+      "title": "SLA countdown",
+      "overdue": "Overdue {{duration}}",
+      "days": "{{days}}d"
+    },
+    "create": {
+      "title": "Create risk case",
+      "description": "Manually open a risk case to track an issue not auto-created from a correlation."
+    },
+    "assign": {
+      "title": "Assign risk case",
+      "description": "Assign this case to a role and/or specific user. At least one is required."
+    },
+    "transition": {
+      "title": "Update status",
+      "description": "Current status: {{status}}. Choose the next status from the strict matrix.",
+      "noneAvailable": "No status transitions are available from the current state."
+    },
+    "escalate": {
+      "title": "Escalate risk case",
+      "description": "Escalate to the next role per the configured matrix."
+    },
+    "acceptRisk": {
+      "title": "Accept risk",
+      "description": "Record an Accept-Risk decision with a named approver and justification."
+    },
+    "snooze": {
+      "title": "Snooze risk case",
+      "description": "Pause SLA escalation until a future time (max 30 days)."
+    },
+    "close": {
+      "title": "Close risk case",
+      "description": "Choose a closure outcome. Closed cases cannot be reopened in v1."
+    },
+    "evidence": {
+      "title": "Upload evidence",
+      "description": "Attach a supporting file (≤ 50 MB) to this risk case.",
+      "dropHint": "Drop a file here or click Browse",
+      "browse": "Browse files",
+      "fileLabel": "Evidence file",
+      "maxSize": "Max size: {{size}}",
+      "removeFile": "Remove file",
+      "download": "Download",
+      "empty": "No evidence has been uploaded for this case.",
+      "unknownUploader": "Unknown uploader"
+    },
+    "timeline": {
+      "empty": "No activity yet",
+      "system": "System",
+      "events": {
+        "created": "Case created",
+        "assigned": "Assigned to role {{role}} / user {{userId}}",
+        "statusChanged": "Status changed: {{from}} → {{to}}",
+        "comment": "Comment added",
+        "evidence": "Evidence uploaded: {{fileName}}",
+        "escalated": "Escalated to {{role}}",
+        "acceptedRisk": "Risk accepted",
+        "snoozed": "Case snoozed",
+        "closed": "Case closed — outcome: {{outcome}}",
+        "reopened": "Case reopened"
+      }
+    },
+    "fields": {
+      "title": "Title",
+      "priority": "Priority",
+      "body": "Description",
+      "bodyPlaceholder": "What is the issue?",
+      "slaHours": "SLA hours",
+      "slaHoursHint": "Optional — sets due_at = now + hours",
+      "assignedRole": "Assigned role",
+      "assignedUserId": "Assigned user id",
+      "userIdHint": "Numeric user id",
+      "userIdNote": "Provide either a role or a user id (or both).",
+      "noRole": "No role",
+      "toStatus": "Target status",
+      "decisionNote": "Decision note",
+      "decisionNoteHint": "Optional context for the audit trail.",
+      "escalationReason": "Escalation reason",
+      "escalationReasonHint": "Optional — included in the timeline.",
+      "approverUserId": "Approver user id",
+      "approverUserIdHint": "User id of the role-eligible approver.",
+      "justification": "Justification",
+      "justificationCount": "{{count}} / minimum {{min}} characters",
+      "snoozedUntil": "Snoozed until",
+      "closureOutcome": "Closure outcome",
+      "closureNote": "Closure note",
+      "dueAt": "Due at",
+      "comment": "Comment",
+      "commentPlaceholder": "Add a comment to the timeline…"
+    },
+    "toasts": {
+      "created": "Risk case created",
+      "assigned": "Risk case assigned",
+      "statusUpdated": "Status updated",
+      "escalatedTo": "Escalated to {{role}}",
+      "acceptedRisk": "Risk accepted",
+      "snoozed": "Risk case snoozed",
+      "closed": "Risk case closed",
+      "commentAdded": "Comment added",
+      "evidenceUploaded": "Evidence uploaded"
+    },
+    "errors": {
+      "createFailed": "Failed to create risk case",
+      "titleRequired": "Title is required",
+      "invalidInput": "Invalid input — check the form",
+      "assignFailed": "Failed to assign",
+      "assignAtLeastOne": "Provide a role and/or user id",
+      "statusUpdateFailed": "Failed to update status",
+      "toStatusRequired": "Target status is required",
+      "escalateFailed": "Failed to escalate",
+      "acceptRiskFailed": "Failed to accept risk",
+      "approverUserIdRequired": "Approver user id is required",
+      "cannotSelfApprove": "You cannot approve your own case",
+      "justificationTooShort": "Justification must be at least 10 characters",
+      "snoozeFailed": "Failed to snooze",
+      "invalidDate": "Invalid date",
+      "snoozeMustBeFuture": "Snooze time must be in the future",
+      "snoozeMax30Days": "Snooze cannot exceed 30 days",
+      "closeFailed": "Failed to close case",
+      "commentFailed": "Failed to add comment",
+      "evidenceUploadFailed": "Failed to upload evidence",
+      "evidenceTooBig": "File exceeds the 50 MB cap",
+      "evidenceEmpty": "File is empty",
+      "evidenceRequired": "Please select a file",
+      "signedUrlMissing": "Download URL not available",
+      "downloadFailed": "Failed to fetch download URL",
+      "invalidId": "Invalid risk case id"
+    }
+  },
+  "reports": {
+    "library": {
+      "title": "Reports",
+      "subtitle": "Generate and download role-specific operational and briefing reports.",
+      "empty": "No reports available for your role",
+      "lastRun": "Last run: {{date}}"
+    },
+    "run": {
+      "title": "Report run #{{id}}",
+      "subtitle": "Status updates automatically while the report is generated.",
+      "format": "Format",
+      "startedAt": "Started at",
+      "completedAt": "Completed at",
+      "outputSize": "Output size",
+      "runId": "Run id",
+      "urlExpiresAt": "Download link expires at {{date}}",
+      "metaTitle": "Run metadata",
+      "sourceTraceabilityTitle": "Source traceability",
+      "sourceTraceabilityHint": "Source-traceability lineage is embedded inside the generated report file (sheet for Excel; section for PDF)."
+    },
+    "generate": {
+      "title": "Generate “{{name}}”",
+      "description": "Choose a format and optional parameters."
+    },
+    "kinds": {
+      "excel": "Excel",
+      "pdf": "PDF",
+      "both": "Excel or PDF"
+    },
+    "formats": {
+      "excel": "Excel (.xlsx)",
+      "pdf": "PDF"
+    },
+    "statuses": {
+      "pending": "Pending",
+      "generating": "Generating…",
+      "complete": "Complete",
+      "failed": "Failed"
+    },
+    "fields": {
+      "format": "Format",
+      "dateRange": "Date range",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "statusFilter": "Status filter",
+      "statusFilterHint": "Optional — applied per the template’s schema."
+    },
+    "actions": {
+      "generate": "Generate",
+      "download": "Download",
+      "backToLibrary": "Back to reports"
+    },
+    "toasts": {
+      "runQueued": "Report queued"
+    },
+    "errors": {
+      "triggerFailed": "Failed to queue report",
+      "invalidRunId": "Invalid report run id"
     }
   }
 }

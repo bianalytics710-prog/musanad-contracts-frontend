@@ -181,7 +181,8 @@
     "pagination": {
       "showing": "الصفحة {{current}} من {{total}}",
       "previous": "السابق",
-      "next": "التالي"
+      "next": "التالي",
+      "prev": "السابق"
     },
     "creating": "جارٍ الإنشاء…",
     "pageOf": "الصفحة {{page}} من {{total}}",
@@ -192,7 +193,10 @@
       "badge": "دور النظام",
       "tooltip": "لا يمكن حذف الأدوار المضمّنة. يمكن تعديل الصلاحيات.",
       "cannotDelete": "لا يمكن حذف أدوار النظام."
-    }
+    },
+    "posting": "جارٍ النشر…",
+    "uploading": "جارٍ الرفع…",
+    "queueing": "جارٍ الإضافة إلى القائمة…"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -506,7 +510,10 @@
     "adminAdvisoryTemplates": "قوالب الاستشارات",
     "adminNotifications": "الإشعارات",
     "profileNotificationPreferences": "تفضيلات الإشعارات",
-    "adminDemo": "لوحة تحكم العرض التجريبي"
+    "adminDemo": "لوحة تحكم العرض التجريبي",
+    "riskCases": "حالات المخاطر",
+    "reports": "التقارير",
+    "adminReportTemplates": "قوالب التقارير"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -598,7 +605,12 @@
     "contract_approver": "معتمِد العقود",
     "contract_approver_2": "معتمد العقد (المرحلة 2)",
     "contract_recipient": "مستلم العقود",
-    "executive": "تنفيذي"
+    "executive": "تنفيذي",
+    "Super Admin": "مسؤول أعلى",
+    "operations": "العمليات",
+    "finance_treasury": "المالية والخزينة",
+    "compliance_esg": "الامتثال والاستدامة",
+    "procurement_supplier_risk": "المشتريات ومخاطر الموردين"
   },
   "rolesShort": {
     "contract_approver": "معتمِد",
@@ -4843,6 +4855,77 @@
           "outcome": "النتيجة"
         }
       }
+    },
+    "reportTemplates": {
+      "list": {
+        "title": "قوالب التقارير",
+        "subtitle": "إدارة قوالب التقارير والجدولة وإسنادات الأدوار.",
+        "empty": "لا توجد قوالب بعد — انقر على قالب جديد لإنشائه.",
+        "manual": "يدوي"
+      },
+      "create": {
+        "title": "قالب تقرير جديد",
+        "subtitle": "حدّد تقريرًا جديدًا — الأدوار المُعيَّنة، ومصدر البيانات، وجدول اختياري."
+      },
+      "edit": {
+        "title": "تعديل قالب التقرير",
+        "subtitle": "حدّث تكوين القالب. معرف القالب والنوع والمستأجر غير قابلة للتعديل."
+      },
+      "columns": {
+        "template": "القالب",
+        "kind": "النوع",
+        "dataSource": "مصدر البيانات",
+        "roles": "الأدوار",
+        "schedule": "الجدول",
+        "enabled": "الحالة",
+        "lastRun": "آخر تشغيل"
+      },
+      "filters": {
+        "searchLabel": "بحث في القوالب",
+        "searchPlaceholder": "بحث بالمعرّف أو الاسم…"
+      },
+      "actions": {
+        "create": "قالب جديد",
+        "backToList": "الرجوع إلى قوالب التقارير",
+        "delete": "حذف القالب",
+        "confirmDelete": "حذف \"{{name}}\"؟"
+      },
+      "fields": {
+        "templateId": "معرف القالب",
+        "templateIdHint": "مُنَخَّر صغير — مثال executive_weekly_brief",
+        "templateIdImmutable": "لا يمكن تغيير معرف القالب بعد الإنشاء.",
+        "reportKind": "النوع",
+        "reportKindImmutable": "لا يمكن تغيير النوع بعد الإنشاء.",
+        "displayNameEn": "اسم العرض (إنجليزي)",
+        "displayNameAr": "اسم العرض (عربي)",
+        "description": "الوصف",
+        "dataSource": "مصدر البيانات",
+        "dataSourceHint": "يُعيَّن 1:1 إلى fn_report_data_<slug>. تحتاج الفتحات الجديدة إلى ترقية في الواجهة الخلفية.",
+        "assignedRoles": "الأدوار المعيَّنة",
+        "scheduling": "الجدولة",
+        "isScheduled": "تفعيل التشغيل المُجدول",
+        "scheduleCron": "تعبير cron (UTC)",
+        "cronHint": "cron بخمسة حقول، مثل 0 9 * * 1 (الإثنين 09:00 UTC).",
+        "scheduleRecipients": "مستلمو الجدولة",
+        "recipientsHint": "عناوين بريد إلكتروني مفصولة بفاصلة أو سطر جديد",
+        "enabled": "مُفعَّل"
+      },
+      "toasts": {
+        "created": "تم إنشاء القالب",
+        "updated": "تم تحديث القالب",
+        "deleted": "تم حذف القالب"
+      },
+      "errors": {
+        "createFailed": "فشل إنشاء القالب",
+        "updateFailed": "فشل تحديث القالب",
+        "deleteFailed": "فشل حذف القالب",
+        "displayNameRequired": "اسم العرض (إنجليزي) مطلوب",
+        "rolesRequired": "مطلوب دور معيَّن واحد على الأقل",
+        "templateIdInvalid": "يجب أن يطابق معرف القالب ^[a-z0-9_]+$",
+        "cronInvalid": "تعبير cron غير صالح",
+        "recipientsRequired": "المستلمون مطلوبون عند تفعيل الجدولة",
+        "invalidId": "معرف قالب غير صالح"
+      }
     }
   },
   "permissions": {
@@ -7752,6 +7835,290 @@
       "errors": {
         "saveFailed": "فشل حفظ التفضيل."
       }
+    }
+  },
+  "riskCases": {
+    "list": {
+      "title": "حالات المخاطر",
+      "subtitle": "سير عمل إدارة المخاطر النشط لتنبيهات الارتباط والالتزامات وانتهاكات اتفاقية مستوى الخدمة.",
+      "empty": "لا توجد حالات مخاطر تطابق الفلاتر",
+      "unassigned": "غير مُعيَّن"
+    },
+    "detail": {
+      "actionsTitle": "الإجراءات",
+      "terminal": "هذه الحالة في وضع نهائي. لا توجد إجراءات إضافية متاحة.",
+      "slaCountdown": "العدّ التنازلي لاتفاقية مستوى الخدمة",
+      "createdAt": "أُنشئت في {{date}}",
+      "closureBanner": "مغلقة — النتيجة: {{outcome}} · {{date}}",
+      "tabsAria": "علامات تبويب تفاصيل حالة المخاطر",
+      "tabs": {
+        "overview": "نظرة عامة",
+        "timeline": "الأحداث",
+        "evidence": "الأدلة"
+      },
+      "overview": {
+        "body": "وصف الحالة",
+        "assignment": "التعيين",
+        "linked": "السجلات المرتبطة",
+        "contract": "العقد",
+        "correlation": "الارتباط",
+        "advisories": "مسودات الاستشارات",
+        "noLinks": "لا توجد سجلات مرتبطة."
+      }
+    },
+    "columns": {
+      "title": "العنوان",
+      "priority": "الأولوية",
+      "status": "الحالة",
+      "caseType": "النوع",
+      "assignedTo": "مُعيَّن إلى",
+      "sla": "اتفاقية مستوى الخدمة",
+      "dueAt": "موعد الاستحقاق"
+    },
+    "filters": {
+      "searchLabel": "بحث في حالات المخاطر",
+      "searchPlaceholder": "ابحث بالعنوان…",
+      "allStatuses": "كل الحالات",
+      "openAll": "كل المفتوحة",
+      "allPriorities": "كل الأولويات",
+      "allCaseTypes": "كل الأنواع",
+      "anySla": "أي اتفاقية مستوى خدمة",
+      "slaWithin": "مستحق ≤ {{hours}} ساعة",
+      "assignedToMe": "مُعيَّن إليّ",
+      "status": "الحالة",
+      "priority": "الأولوية",
+      "caseType": "النوع",
+      "slaDueWithin": "نافذة اتفاقية مستوى الخدمة"
+    },
+    "statuses": {
+      "open": "مفتوحة",
+      "in_review": "قيد المراجعة",
+      "approved": "معتمدة",
+      "rejected": "مرفوضة",
+      "escalated": "مُصعَّدة",
+      "accept_risk": "مخاطرة مقبولة",
+      "snoozed": "مؤجلة",
+      "closed": "مغلقة"
+    },
+    "priorities": {
+      "low": "منخفضة",
+      "medium": "متوسطة",
+      "high": "عالية",
+      "critical": "حرجة"
+    },
+    "caseTypes": {
+      "correlation_alert": "تنبيه ارتباط",
+      "obligation_due": "التزام مستحق",
+      "sla_breach": "انتهاك اتفاقية مستوى الخدمة",
+      "system": "نظام",
+      "manual": "يدوي"
+    },
+    "outcomes": {
+      "mitigated": "تم التخفيف",
+      "accepted": "مقبول",
+      "no_action": "لا إجراء",
+      "advisory_dispatched": "تم إرسال الاستشارة"
+    },
+    "actions": {
+      "createManual": "حالة جديدة",
+      "view": "عرض",
+      "backToList": "الرجوع إلى حالات المخاطر",
+      "assign": "تعيين",
+      "statusTransition": "تحديث الحالة",
+      "escalate": "تصعيد",
+      "acceptRisk": "قبول المخاطرة",
+      "snooze": "تأجيل",
+      "close": "إغلاق الحالة",
+      "uploadEvidence": "رفع دليل",
+      "addComment": "نشر تعليق"
+    },
+    "sla": {
+      "title": "العدّ التنازلي لاتفاقية مستوى الخدمة",
+      "overdue": "متأخر {{duration}}",
+      "days": "{{days}} يوم"
+    },
+    "create": {
+      "title": "إنشاء حالة مخاطر",
+      "description": "افتح حالة مخاطر يدويًا لتتبع مشكلة لم تُنشأ تلقائيًا من ارتباط."
+    },
+    "assign": {
+      "title": "تعيين حالة المخاطر",
+      "description": "عيِّن هذه الحالة إلى دور و/أو مستخدم. مطلوب على الأقل أحدهما."
+    },
+    "transition": {
+      "title": "تحديث الحالة",
+      "description": "الحالة الحالية: {{status}}. اختر الحالة التالية من المصفوفة الصارمة.",
+      "noneAvailable": "لا توجد انتقالات حالة متاحة من الوضع الحالي."
+    },
+    "escalate": {
+      "title": "تصعيد حالة المخاطر",
+      "description": "تصعيد إلى الدور التالي وفقًا للمصفوفة المُهيَّأة."
+    },
+    "acceptRisk": {
+      "title": "قبول المخاطرة",
+      "description": "سجّل قرار قبول المخاطرة بمعتمد محدد ومبرّر."
+    },
+    "snooze": {
+      "title": "تأجيل حالة المخاطر",
+      "description": "إيقاف تصعيد اتفاقية مستوى الخدمة مؤقتًا حتى وقت لاحق (بحد أقصى 30 يومًا)."
+    },
+    "close": {
+      "title": "إغلاق حالة المخاطر",
+      "description": "اختر نتيجة الإغلاق. لا يمكن إعادة فتح الحالات المغلقة في الإصدار 1."
+    },
+    "evidence": {
+      "title": "رفع دليل",
+      "description": "أرفق ملفًا داعمًا (≤ 50 ميجابايت) لهذه الحالة.",
+      "dropHint": "أفلِت ملفًا هنا أو انقر على استعراض",
+      "browse": "استعراض الملفات",
+      "fileLabel": "ملف الدليل",
+      "maxSize": "الحجم الأقصى: {{size}}",
+      "removeFile": "إزالة الملف",
+      "download": "تنزيل",
+      "empty": "لم يُرفع أي دليل لهذه الحالة.",
+      "unknownUploader": "محمّل غير معروف"
+    },
+    "timeline": {
+      "empty": "لا توجد أنشطة بعد",
+      "system": "النظام",
+      "events": {
+        "created": "تم إنشاء الحالة",
+        "assigned": "تعيين إلى الدور {{role}} / المستخدم {{userId}}",
+        "statusChanged": "تغيرت الحالة: {{from}} ← {{to}}",
+        "comment": "تمت إضافة تعليق",
+        "evidence": "تم رفع دليل: {{fileName}}",
+        "escalated": "تم التصعيد إلى {{role}}",
+        "acceptedRisk": "تم قبول المخاطرة",
+        "snoozed": "تم تأجيل الحالة",
+        "closed": "أُغلقت الحالة — النتيجة: {{outcome}}",
+        "reopened": "أُعيد فتح الحالة"
+      }
+    },
+    "fields": {
+      "title": "العنوان",
+      "priority": "الأولوية",
+      "body": "الوصف",
+      "bodyPlaceholder": "ما هي المشكلة؟",
+      "slaHours": "ساعات اتفاقية مستوى الخدمة",
+      "slaHoursHint": "اختياري — يضبط موعد الاستحقاق",
+      "assignedRole": "الدور المعيَّن",
+      "assignedUserId": "معرف المستخدم المعيَّن",
+      "userIdHint": "معرف المستخدم الرقمي",
+      "userIdNote": "قدِّم إما دورًا أو معرف مستخدم (أو كليهما).",
+      "noRole": "بدون دور",
+      "toStatus": "الحالة المستهدفة",
+      "decisionNote": "ملاحظة القرار",
+      "decisionNoteHint": "سياق اختياري لسجل المراجعة.",
+      "escalationReason": "سبب التصعيد",
+      "escalationReasonHint": "اختياري — يظهر في الأحداث.",
+      "approverUserId": "معرف المعتمد",
+      "approverUserIdHint": "معرف المستخدم المؤهل بالدور المطلوب.",
+      "justification": "المبرر",
+      "justificationCount": "{{count}} / الحد الأدنى {{min}} حرفًا",
+      "snoozedUntil": "تأجيل حتى",
+      "closureOutcome": "نتيجة الإغلاق",
+      "closureNote": "ملاحظة الإغلاق",
+      "dueAt": "مستحق في",
+      "comment": "تعليق",
+      "commentPlaceholder": "أضف تعليقًا إلى الأحداث…"
+    },
+    "toasts": {
+      "created": "تم إنشاء حالة المخاطر",
+      "assigned": "تم تعيين حالة المخاطر",
+      "statusUpdated": "تم تحديث الحالة",
+      "escalatedTo": "تم التصعيد إلى {{role}}",
+      "acceptedRisk": "تم قبول المخاطرة",
+      "snoozed": "تم تأجيل حالة المخاطر",
+      "closed": "تم إغلاق حالة المخاطر",
+      "commentAdded": "تمت إضافة التعليق",
+      "evidenceUploaded": "تم رفع الدليل"
+    },
+    "errors": {
+      "createFailed": "فشل إنشاء حالة المخاطر",
+      "titleRequired": "العنوان مطلوب",
+      "invalidInput": "إدخال غير صالح — تحقق من النموذج",
+      "assignFailed": "فشل التعيين",
+      "assignAtLeastOne": "قدِّم دورًا و/أو معرف مستخدم",
+      "statusUpdateFailed": "فشل تحديث الحالة",
+      "toStatusRequired": "الحالة المستهدفة مطلوبة",
+      "escalateFailed": "فشل التصعيد",
+      "acceptRiskFailed": "فشل قبول المخاطرة",
+      "approverUserIdRequired": "معرف المعتمد مطلوب",
+      "cannotSelfApprove": "لا يمكنك اعتماد حالتك الخاصة",
+      "justificationTooShort": "يجب أن يكون المبرر 10 أحرف على الأقل",
+      "snoozeFailed": "فشل التأجيل",
+      "invalidDate": "تاريخ غير صالح",
+      "snoozeMustBeFuture": "يجب أن يكون وقت التأجيل في المستقبل",
+      "snoozeMax30Days": "لا يمكن أن يتجاوز التأجيل 30 يومًا",
+      "closeFailed": "فشل إغلاق الحالة",
+      "commentFailed": "فشل إضافة التعليق",
+      "evidenceUploadFailed": "فشل رفع الدليل",
+      "evidenceTooBig": "يتجاوز الملف الحد الأقصى 50 ميجابايت",
+      "evidenceEmpty": "الملف فارغ",
+      "evidenceRequired": "يرجى اختيار ملف",
+      "signedUrlMissing": "رابط التنزيل غير متاح",
+      "downloadFailed": "فشل جلب رابط التنزيل",
+      "invalidId": "معرف حالة مخاطر غير صالح"
+    }
+  },
+  "reports": {
+    "library": {
+      "title": "التقارير",
+      "subtitle": "إنشاء وتنزيل تقارير تشغيلية ومُلخصات حسب الدور.",
+      "empty": "لا توجد تقارير متاحة لدورك",
+      "lastRun": "آخر تشغيل: {{date}}"
+    },
+    "run": {
+      "title": "تشغيل تقرير #{{id}}",
+      "subtitle": "تتحدّث الحالة تلقائيًا أثناء إنشاء التقرير.",
+      "format": "التنسيق",
+      "startedAt": "بدأ في",
+      "completedAt": "انتهى في",
+      "outputSize": "حجم الناتج",
+      "runId": "معرف التشغيل",
+      "urlExpiresAt": "تنتهي صلاحية رابط التنزيل في {{date}}",
+      "metaTitle": "بيانات التشغيل",
+      "sourceTraceabilityTitle": "تتبّع المصدر",
+      "sourceTraceabilityHint": "يتم تضمين تتبع المصدر داخل ملف التقرير المُنشأ (ورقة لـ Excel؛ قسم لـ PDF)."
+    },
+    "generate": {
+      "title": "إنشاء \"{{name}}\"",
+      "description": "اختر تنسيقًا ومعاملات اختيارية."
+    },
+    "kinds": {
+      "excel": "إكسل",
+      "pdf": "بي دي إف",
+      "both": "إكسل أو PDF"
+    },
+    "formats": {
+      "excel": "Excel (.xlsx)",
+      "pdf": "PDF"
+    },
+    "statuses": {
+      "pending": "قيد الانتظار",
+      "generating": "قيد الإنشاء…",
+      "complete": "مكتمل",
+      "failed": "فشل"
+    },
+    "fields": {
+      "format": "التنسيق",
+      "dateRange": "النطاق الزمني",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ النهاية",
+      "statusFilter": "تصفية بالحالة",
+      "statusFilterHint": "اختياري — يُطبَّق وفقًا لمخطط القالب."
+    },
+    "actions": {
+      "generate": "إنشاء",
+      "download": "تنزيل",
+      "backToLibrary": "الرجوع إلى التقارير"
+    },
+    "toasts": {
+      "runQueued": "تم إضافة التقرير إلى القائمة"
+    },
+    "errors": {
+      "triggerFailed": "فشل إضافة التقرير إلى القائمة",
+      "invalidRunId": "معرف تشغيل غير صالح"
     }
   }
 }

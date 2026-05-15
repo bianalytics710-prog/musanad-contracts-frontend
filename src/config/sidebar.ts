@@ -44,6 +44,9 @@ import {
   BellRing,
   // M17-M18 / CR-I+CR-J demo harness icon
   FlaskConical,
+  // M19-M20 / CR-K + CR-L Risk Cases + Reports
+  ShieldX,
+  FileBarChart2,
 } from "lucide-react";
 
 export type AppRole =
@@ -79,7 +82,11 @@ export type ModuleKey =
   | "dashboards.complianceEsg"
   | "dashboards.procurement"
   // M16 / CR-H — advisory queue for legal counsel
-  | "legal.advisoryQueue";
+  | "legal.advisoryQueue"
+  // M19 / CR-K — Risk Cases (visible to all 7 dashboard personas)
+  | "riskCases"
+  // M20 / CR-L — Reports (visible to all)
+  | "reports";
 
 export interface SidebarModule {
   key: ModuleKey;
@@ -109,6 +116,10 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   "dashboards.procurement":      { key: "dashboards.procurement",      to: "/app/dashboards/procurement",      labelKey: "nav.dashboardsProcurement",      defaultLabel: "Procurement Risk",   icon: Package },
   // M16 / CR-H
   "legal.advisoryQueue": { key: "legal.advisoryQueue", to: "/app/legal/advisory-queue", labelKey: "nav.legalAdvisoryQueue", defaultLabel: "Advisory Queue", icon: FileEdit },
+  // M19 / CR-K — Risk Cases
+  riskCases: { key: "riskCases", to: "/app/risk-cases", labelKey: "nav.riskCases", defaultLabel: "Risk Cases", icon: ShieldX },
+  // M20 / CR-L — Reports
+  reports:   { key: "reports",   to: "/app/reports",    labelKey: "nav.reports",   defaultLabel: "Reports",    icon: FileBarChart2 },
 };
 
 export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
@@ -122,6 +133,9 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "obligations",
     // M15 / CR-G — procurement risk dashboard accessible to drafter
     "dashboards.procurement",
+    // M19 / M20 — Risk Cases + Reports
+    "riskCases",
+    "reports",
   ],
   legal_counsel: [
     "insights",
@@ -135,20 +149,28 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "parties",
     // M16 / CR-H — advisory queue for legal counsel
     "legal.advisoryQueue",
+    // M19 / M20
+    "riskCases",
+    "reports",
   ],
   // R1 audit: Lovable approver sidebar is narrowly Insights / Approvals /
   // Contracts. Drop Obligations leak (was inherited from drafter mapping).
   // M15 / CR-G — procurement risk dashboard accessible to approver
-  contract_approver: ["insights", "approvals", "contracts", "dashboards.procurement"],
-  contract_approver_2: ["insights", "approvals", "contracts", "dashboards.procurement"],
+  // M19 — Risk Cases visible (approvers can see + transition cases)
+  // M20 — Reports library visible
+  contract_approver: ["insights", "approvals", "contracts", "dashboards.procurement", "riskCases", "reports"],
+  contract_approver_2: ["insights", "approvals", "contracts", "dashboards.procurement", "riskCases", "reports"],
   // R-RC0 audit: Lovable recipient sidebar is Insights / Contracts only.
   // Recipients sign contracts; they do not track obligations. Drop the
   // /app/obligations leak.
-  contract_recipient: ["insights", "contracts"],
+  // M20 — Reports library visible for downloadable shared briefings.
+  contract_recipient: ["insights", "contracts", "reports"],
   platform_admin: [
     "admin", "insights", "contracts", "parties", "templates", "clauses",
     // M15 / CR-G — all 4 persona dashboards visible to platform_admin for diagnostics
     "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
+    // M19 / M20
+    "riskCases", "reports",
   ],
   "Super Admin": [
     "admin",
@@ -164,21 +186,28 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "radar",
     // M15 / CR-G — all 4 persona dashboards for Super Admin
     "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
+    // M19 / M20
+    "riskCases", "reports",
   ],
   // R-EX0 audit: Lovable executive sidebar is Insights / Contracts /
   // Impact Watch only. Drop the Parties leak — executive consumes
   // insights, not raw counterparty CRUD.
-  executive: ["insights", "contracts", "regulations"],
+  // M19 / M20 — Risk Cases + Reports for executive oversight.
+  executive: ["insights", "contracts", "regulations", "riskCases", "reports"],
   // M15 / CR-G — 3 new persona roles with dedicated dashboard modules
   operations: [
     "insights",
     "dashboards.operations",
     "contracts",
+    "riskCases",
+    "reports",
   ],
   finance_treasury: [
     "insights",
     "dashboards.financeTreasury",
     "contracts",
+    "riskCases",
+    "reports",
   ],
   compliance_esg: [
     "insights",
@@ -186,6 +215,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "contracts",
     "regulations",
     "radar",
+    "riskCases",
+    "reports",
   ],
 };
 
@@ -233,6 +264,8 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/notifications",         labelKey: "nav.adminNotifications",     defaultLabel: "Notifications",       icon: Bell },
   // M17-M18 / CR-I+CR-J — Demo Control Panel (gated by demo.scenario.trigger in route)
   { to: "/app/admin/demo",                 labelKey: "nav.adminDemo",              defaultLabel: "Demo Control",        icon: FlaskConical },
+  // M20 / CR-L — Report Templates (platform_admin only)
+  { to: "/app/admin/report-templates",      labelKey: "nav.adminReportTemplates",   defaultLabel: "Report templates",    icon: FileBarChart2 },
 ];
 
 // M12 — Sub-items shown when the "Clauses" module is active (legal_counsel + platform_admin)
