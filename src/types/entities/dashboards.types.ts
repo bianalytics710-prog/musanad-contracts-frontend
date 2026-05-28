@@ -178,11 +178,14 @@ export interface TrendMonthValueAed {
   totalValueAed: number;
 }
 
-/** Counterparty concentration — counterpartyId only (no parties table yet). */
+/** Counterparty concentration — names embedded by BE as of CR-FIX1. */
 export interface CounterpartyConcentrationRow {
   counterpartyId: number;
   totalValueAed: number;
   contractCount: number;
+  counterpartyName?: string;
+  counterpartyNameAr?: string | null;
+  counterpartyEmirate?: string | null;
 }
 
 /** Value-distribution histogram bucket. */

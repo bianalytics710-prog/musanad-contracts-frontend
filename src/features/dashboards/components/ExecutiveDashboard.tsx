@@ -13,8 +13,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import { partiesService } from "@/services/api/m_parity.service";
 import {
   Bar,
   BarChart,
@@ -94,9 +92,13 @@ export function ExecutiveDashboard() {
 
   const anomaliesStats: AiExecutiveAnomaliesStats | null = useMemo(() => {
     if (!data) return null;
+    const totalActiveValueAed = Number(data.kpis.totalActiveValueAed);
+    const contractsByStatus = Object.fromEntries(
+      Object.entries(data.kpis.contractsByStatus).map(([k, v]) => [k, Number(v)]),
+    );
     return {
-      totalActiveValueAed: data.kpis.totalActiveValueAed,
-      contractsByStatus: data.kpis.contractsByStatus,
+      totalActiveValueAed,
+      contractsByStatus,
       expiryCliffs: [
         { window: "next30d", count: data.kpis.expiryCliffs.next30d },
         { window: "next60d", count: data.kpis.expiryCliffs.next60d },
@@ -104,10 +106,15 @@ export function ExecutiveDashboard() {
       ],
       supplierConcentration: data.kpis.topCounterpartiesByValue5.map((c) => ({
         supplier: `counterparty-${c.counterpartyId}`,
-        share:
-          data.kpis.totalActiveValueAed > 0
-            ? c.totalValueAed / data.kpis.totalActiveValueAed
-            : 0,
+        share: Math.min(
+          1,
+          Math.max(
+            0,
+            totalActiveValueAed > 0
+              ? Number(c.totalValueAed) / totalActiveValueAed
+              : 0,
+          ),
+        ),
       })),
     };
   }, [data]);
@@ -520,22 +527,6 @@ function TopCounterpartiesBlockWithNames({
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
 
-  // Fetch all parties so we can resolve counterpartyId → name. Cheap on
-  // the catalog scale (12-20 rows). 5min staleTime — names don't change.
-  const { data: partiesData } = useQuery({
-    queryKey: ["parties", "all-for-exec"],
-    queryFn: () => partiesService.list({ limit: 200 }),
-    staleTime: 5 * 60_000,
-  });
-
-  const partyMap = useMemo(() => {
-    const m = new Map<number, { nameEn: string; nameAr: string | null; emirate: string | null }>();
-    for (const p of partiesData?.data ?? []) {
-      m.set(p.id, { nameEn: p.nameEn, nameAr: p.nameAr, emirate: p.emirate });
-    }
-    return m;
-  }, [partiesData]);
-
   if (rows.length === 0) {
     return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
   }
@@ -567,21 +558,25 @@ function TopCounterpartiesBlockWithNames({
               totalValue > 0
                 ? Math.round((row.totalValueAed / totalValue) * 100)
                 : 0;
-            const party = partyMap.get(row.counterpartyId);
+            // Names are now embedded in the row by the BE (CR-FIX1).
+            const name =
+              isAr && row.counterpartyNameAr
+                ? row.counterpartyNameAr
+                : row.counterpartyName;
             return (
               <tr
                 key={row.counterpartyId}
                 className="border-t border-border/60"
               >
                 <td className="py-2 pe-3">
-                  {party ? (
+                  {name ? (
                     <>
                       <span className="text-sm font-medium text-ink">
-                        {isAr && party.nameAr ? party.nameAr : party.nameEn}
+                        {name}
                       </span>
-                      {party.emirate && (
+                      {row.counterpartyEmirate && (
                         <span className="ms-2 inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                          {party.emirate.replace(/_/g, " ")}
+                          {row.counterpartyEmirate.replace(/_/g, " ")}
                         </span>
                       )}
                     </>

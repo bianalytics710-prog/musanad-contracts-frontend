@@ -7370,7 +7370,7 @@
       "table": {
         "supplier": "المورّد",
         "type": "النوع",
-        "riskScore": "درجة المخاطرة",
+        "riskScore": "درجة الصحة",
         "riskTier": "المستوى",
         "activeContracts": "العقود الفعّالة",
         "slaBreaches": "خروقات SLA (180 يوماً)",

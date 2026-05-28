@@ -37,6 +37,29 @@ interface IcvCertificateSummarySectionProps {
   onUpload: (contractId: string) => void;
 }
 
+type IcvStatus = "upToDate" | "expiringWithin90d" | "expired" | "missing";
+
+const VALID_ICV_STATUSES: ReadonlySet<string> = new Set<IcvStatus>([
+  "upToDate",
+  "expiringWithin90d",
+  "expired",
+  "missing",
+]);
+
+/**
+ * Resolves a safe ICV status from the item, deriving one from validUntil /
+ * daysToExpiry when item.status is missing or unexpected.
+ */
+function resolveIcvStatus(item: IcvItem): IcvStatus {
+  if (item.status && VALID_ICV_STATUSES.has(item.status)) {
+    return item.status;
+  }
+  if (item.validUntil == null) return "missing";
+  if (item.daysToExpiry != null && item.daysToExpiry < 0) return "expired";
+  if (item.daysToExpiry != null && item.daysToExpiry <= 90) return "expiringWithin90d";
+  return "upToDate";
+}
+
 function icvStatusClass(status: string): string {
   switch (status) {
     case "upToDate":
@@ -119,7 +142,9 @@ export function IcvCertificateSummarySection({
               </tr>
             </thead>
             <tbody>
-              {data.list.slice(0, 10).map((item) => (
+              {data.list.slice(0, 10).map((item) => {
+                const resolvedStatus = resolveIcvStatus(item);
+                return (
                 <tr key={item.contractId} className="border-t border-border/60">
                   <td className="py-2 pe-3">
                     <Link
@@ -141,13 +166,13 @@ export function IcvCertificateSummarySection({
                   </td>
                   <td className="py-2 pe-3">
                     <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${icvStatusClass(item.status)}`}
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${icvStatusClass(resolvedStatus)}`}
                     >
-                      {t(`dashboards.complianceEsg.icvCertificateSummary.statusLabel.${item.status}`)}
+                      {t(`dashboards.complianceEsg.icvCertificateSummary.statusLabel.${resolvedStatus}`)}
                     </span>
                   </td>
                   <td className="py-2 pe-3">
-                    {(item.status === "missing" || item.status === "expired") && (
+                    {(resolvedStatus === "missing" || resolvedStatus === "expired") && (
                       <button
                         type="button"
                         onClick={() => onUpload(item.contractId)}
@@ -161,7 +186,7 @@ export function IcvCertificateSummarySection({
                     )}
                   </td>
                 </tr>
-              ))}
+              ); })}
             </tbody>
           </table>
         </div>

@@ -7370,7 +7370,7 @@
       "table": {
         "supplier": "Supplier",
         "type": "Type",
-        "riskScore": "Risk score",
+        "riskScore": "Health score",
         "riskTier": "Tier",
         "activeContracts": "Active contracts",
         "slaBreaches": "SLA breaches (180d)",
