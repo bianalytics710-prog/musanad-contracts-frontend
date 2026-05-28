@@ -23,6 +23,22 @@ export interface ListSourcesParams extends OsintSourceListFilter {
   limit?: number;
 }
 
+/** Result of POST /admin/sources/pull-now (full on-demand sweep). */
+export interface PullNowResult {
+  candidates: number;
+  processed: number;
+  inserted: number;
+  errors: number;
+}
+
+/** Result of POST /admin/sources/:id/pull (single-source on-demand fetch). */
+export interface PullSourceResult {
+  found: boolean;
+  sourceId?: string;
+  inserted: number;
+  total: number;
+}
+
 export const adminSourcesService = {
   list: async (
     params: ListSourcesParams = {},
@@ -72,6 +88,22 @@ export const adminSourcesService = {
   testPull: async (id: number): Promise<TestPullResponse> => {
     const { data } = await apiClient.post<TestPullResponse>(
       `/api/v1/admin/sources/${id}/test-pull`,
+    );
+    return data;
+  },
+
+  /** On-demand fetch across all enabled sources (demo "Pull now"). */
+  pullNow: async (): Promise<PullNowResult> => {
+    const { data } = await apiClient.post<PullNowResult>(
+      "/api/v1/admin/sources/pull-now",
+    );
+    return data;
+  },
+
+  /** On-demand fetch for a single source (real network fetch + persist). */
+  pull: async (id: number): Promise<PullSourceResult> => {
+    const { data } = await apiClient.post<PullSourceResult>(
+      `/api/v1/admin/sources/${id}/pull`,
     );
     return data;
   },

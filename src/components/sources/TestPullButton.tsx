@@ -29,11 +29,13 @@ export function TestPullButton({
   const { t } = useTranslation();
 
   const mutation = useMutation({
-    mutationFn: () => adminSourcesService.testPull(sourceId),
-    onSuccess: () => {
+    mutationFn: () => adminSourcesService.pull(sourceId),
+    onSuccess: (result) => {
       toast.success(
-        t("admin.sources.testPull.queued", {
-          defaultValue: "Test pull queued — fetching latest signals.",
+        t("admin.sources.testPull.done", {
+          defaultValue: "Pull complete — {{inserted}} new signal(s) from {{total}} fetched.",
+          inserted: result.inserted,
+          total: result.total,
         }),
       );
       onQueued?.();
@@ -53,7 +55,7 @@ export function TestPullButton({
       <Play className="me-2 h-3.5 w-3.5" />
       {mutation.isPending
         ? t("admin.sources.testPull.running", {
-            defaultValue: "Queueing…",
+            defaultValue: "Pulling…",
           })
         : t("admin.sources.testPull.button", {
             defaultValue: "Test pull",

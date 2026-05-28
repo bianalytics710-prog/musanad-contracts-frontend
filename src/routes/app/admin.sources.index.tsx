@@ -8,10 +8,11 @@
  */
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Plus, RefreshCcw, Search } from "lucide-react";
+import { DownloadCloud, Plus, RefreshCcw, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,23 @@ function SourceListView() {
   const sources = data?.data ?? [];
   const total = data?.pagination.total ?? sources.length;
 
+  const pullNow = useMutation({
+    mutationFn: () => adminSourcesService.pullNow(),
+    onSuccess: (res) => {
+      toast.success(
+        t("admin.sources.pullNow.done", {
+          defaultValue:
+            "Pull complete — {{inserted}} new signal(s) from {{processed}} source(s).",
+          inserted: res.inserted,
+          processed: res.processed,
+        }),
+      );
+      void refetch();
+    },
+    onError: (err: unknown) =>
+      toast.error(translateApiError(err, t, "admin.sources.pullNow.failed")),
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -98,10 +116,22 @@ function SourceListView() {
             })}
           </p>
         </div>
-        <Button onClick={() => setShowAdd(true)}>
-          <Plus className="me-2 h-4 w-4" />
-          {t("admin.sources.actions.add", { defaultValue: "Add source" })}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => pullNow.mutate()}
+            disabled={pullNow.isPending}
+          >
+            <DownloadCloud className="me-2 h-4 w-4" />
+            {pullNow.isPending
+              ? t("admin.sources.pullNow.running", { defaultValue: "Pulling…" })
+              : t("admin.sources.pullNow.button", { defaultValue: "Pull now" })}
+          </Button>
+          <Button onClick={() => setShowAdd(true)}>
+            <Plus className="me-2 h-4 w-4" />
+            {t("admin.sources.actions.add", { defaultValue: "Add source" })}
+          </Button>
+        </div>
       </header>
 
       <SourceHealthMonitor variant="compact" />
