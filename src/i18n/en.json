@@ -513,7 +513,8 @@
     "adminDemo": "Demo Control",
     "riskCases": "Risk Cases",
     "reports": "Reports",
-    "adminReportTemplates": "Report templates"
+    "adminReportTemplates": "Report templates",
+    "complianceRegulatoryCASCADE": "Regulatory Cascade"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -6744,6 +6745,117 @@
       "keyFormat": "Key must start with a letter and use only lowercase letters, digits, or underscores.",
       "nameEnRequired": "English name is required.",
       "nameArRequired": "Arabic name is required."
+    },
+    "cascade": {
+      "list": {
+        "title": "Regulatory Cascade",
+        "subtitle": "Labor-law compliance fan-out across ADNOC contractor population.",
+        "runCascadeButton": "Run cascade",
+        "runningCascade": "Running…",
+        "empty": {
+          "title": "No cascade runs yet",
+          "body": "Run the cascade to assess contractor compliance with the latest labor-law decree."
+        },
+        "noRef": "—",
+        "viewDetails": "View details",
+        "viewRun": "View cascade run #{{id}}",
+        "showing": "Showing {{from}}–{{to}} of {{total}} runs"
+      },
+      "columns": {
+        "regulationRef": "Regulation",
+        "status": "Status",
+        "runAt": "Run at",
+        "affectedContractors": "Affected contractors",
+        "penaltyRange": "Penalty exposure",
+        "triggeredBy": "Triggered by"
+      },
+      "detail": {
+        "backToList": "Back to cascade runs",
+        "unnamedRun": "Cascade run",
+        "runAt": "Run at",
+        "summaryLabel": "Run summary",
+        "summary": {
+          "affectedContractors": "Affected contractors",
+          "nonCompliant": "Non-compliant",
+          "penaltyMin": "Min penalty exposure",
+          "penaltyMax": "Max penalty exposure"
+        },
+        "remediationTable": {
+          "heading": "Contractor remediation list",
+          "empty": "No contractor items in this run."
+        },
+        "columns": {
+          "contractor": "Contractor",
+          "emirate": "Emirate",
+          "headcountBand": "Headcount band",
+          "affectedClauses": "Affected clauses",
+          "penaltyExposure": "Penalty exposure (AED)",
+          "icvAttachments": "ICV attachments",
+          "remediationStatus": "Remediation status"
+        },
+        "clauseCount": "{{count}} clause(s)",
+        "draftLinked": "Draft linked",
+        "statusForm": {
+          "newStatus": "New status",
+          "note": "Note (optional)",
+          "notePlaceholder": "Brief context for auditors…"
+        },
+        "actions": {
+          "updateStatus": "Update status",
+          "draftAmendment": "Draft amendment"
+        },
+        "icvImpact": {
+          "heading": "ICV impact view",
+          "description": "Affected contractors with ICV certificates — score and tender-competitiveness effect.",
+          "empty": "No affected contractors with ICV certificates in this run.",
+          "columns": {
+            "contractor": "Contractor",
+            "emirate": "Emirate",
+            "icvCerts": "ICV certs",
+            "emiratisationGap": "Emiratisation gap",
+            "tenderEffect": "Tender effect"
+          },
+          "tenderEffect": {
+            "compliant": "Compliant",
+            "atRisk": "At risk"
+          }
+        }
+      },
+      "runStatus": {
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed"
+      },
+      "remediationStatus": {
+        "pending": "Pending",
+        "in_progress": "In progress",
+        "amended": "Amended",
+        "dismissed": "Dismissed",
+        "resolved": "Resolved"
+      },
+      "tile": {
+        "title": "Regulatory Cascade",
+        "ariaLabel": "Regulatory cascade summary tile",
+        "viewAll": "View all",
+        "openCascade": "Open cascade",
+        "noRuns": "No cascade runs yet.",
+        "totalRuns": "Total runs",
+        "latestRun": "Latest run",
+        "affectedContractors": "Affected contractors",
+        "penaltyExposure": "Penalty exposure",
+        "errorLoading": "Failed to load cascade data."
+      },
+      "toast": {
+        "runSuccess": "Cascade complete — {{count}} contractor(s) assessed.",
+        "runFailed": "Failed to run cascade.",
+        "statusUpdated": "Remediation status updated.",
+        "draftCreated": "Amendment draft #{{draftId}} created."
+      },
+      "errors": {
+        "fetchFailed": "Failed to load regulatory cascade data.",
+        "statusUpdateFailed": "Failed to update remediation status.",
+        "draftFailed": "Failed to create amendment draft."
+      }
     }
   },
   "dashboards": {

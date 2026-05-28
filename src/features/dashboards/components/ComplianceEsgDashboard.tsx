@@ -1,5 +1,6 @@
 /**
  * M15 / CR-G — Compliance & ESG persona dashboard.
+ * CR-M additive: Regulatory Cascade tile added after ESG Correlations section.
  *
  * GET /api/v1/dashboards/compliance-esg?windowDays=N
  * Permission: insights.compliance_esg
@@ -11,6 +12,8 @@
  *   4. Audit Rights Tracker — top 15 by daysToExpiry ASC
  *   5. Regulatory Updates Monitor — last 30d
  *   6. ESG Correlations — empty-state v1
+ *   7. ICV Certificate Summary (R-CES H3)
+ *   8. [CR-M] Regulatory Cascade tile — links to /app/compliance/regulatory-cascade
  *
  * T1–T13 compliance. Auto-refresh 60s. RTL parity. Three data states.
  */
@@ -49,6 +52,7 @@ import {
 import { SanctionsChainIndentedHierarchy } from '@/features/compliance-esg/components/SanctionsChainIndentedHierarchy';
 import { IcvCertificateSummarySection } from '@/features/compliance-esg/components/IcvCertificateSummarySection';
 import { IcvCertificateUploadDialog } from '@/features/compliance-esg/components/IcvCertificateUploadDialog';
+import { RegulatoryCascadeTile } from '@/features/compliance-esg/components/RegulatoryCascadeTile';
 
 function formatAedCompact(value: string | number): string {
   const num = typeof value === 'string' ? Number(value) : value;
@@ -250,6 +254,9 @@ export function ComplianceEsgDashboard() {
           )}
         </>
       )}
+
+      {/* CR-M — Regulatory Cascade tile (additive) */}
+      <RegulatoryCascadeTile />
 
       <IcvCertificateUploadDialog
         contractId={icvUploadContractId}

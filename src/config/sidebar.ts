@@ -47,6 +47,8 @@ import {
   // M19-M20 / CR-K + CR-L Risk Cases + Reports
   ShieldX,
   FileBarChart2,
+  // CR-M — Labor-Law Cascade
+  ListChecks,
 } from "lucide-react";
 
 export type AppRole =
@@ -61,7 +63,9 @@ export type AppRole =
   // M15 / CR-G — 3 new persona roles
   | "operations"
   | "finance_treasury"
-  | "compliance_esg";
+  | "compliance_esg"
+  // CR-M — seeded in migration 292 (closes DEFECT-CRH-DB-01)
+  | "procurement_supplier_risk";
 
 export type ModuleKey =
   | "insights"
@@ -86,7 +90,9 @@ export type ModuleKey =
   // M19 / CR-K — Risk Cases (visible to all 7 dashboard personas)
   | "riskCases"
   // M20 / CR-L — Reports (visible to all)
-  | "reports";
+  | "reports"
+  // CR-M — Labor-Law Cascade (regulatory.cascade.read)
+  | "compliance.regulatoryCascade";
 
 export interface SidebarModule {
   key: ModuleKey;
@@ -120,6 +126,14 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   riskCases: { key: "riskCases", to: "/app/risk-cases", labelKey: "nav.riskCases", defaultLabel: "Risk Cases", icon: ShieldX },
   // M20 / CR-L — Reports
   reports:   { key: "reports",   to: "/app/reports",    labelKey: "nav.reports",   defaultLabel: "Reports",    icon: FileBarChart2 },
+  // CR-M — Labor-Law Cascade (gated by regulatory.cascade.read at render time)
+  "compliance.regulatoryCascade": {
+    key: "compliance.regulatoryCascade",
+    to: "/app/compliance/regulatory-cascade",
+    labelKey: "nav.complianceRegulatoryCASCADE",
+    defaultLabel: "Regulatory Cascade",
+    icon: ListChecks,
+  },
 };
 
 export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
@@ -149,6 +163,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "parties",
     // M16 / CR-H — advisory queue for legal counsel
     "legal.advisoryQueue",
+    // CR-M — Regulatory Cascade (read)
+    "compliance.regulatoryCascade",
     // M19 / M20
     "riskCases",
     "reports",
@@ -169,6 +185,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "admin", "insights", "contracts", "parties", "templates", "clauses",
     // M15 / CR-G — all 4 persona dashboards visible to platform_admin for diagnostics
     "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
+    // CR-M — Regulatory Cascade (read + run)
+    "compliance.regulatoryCascade",
     // M19 / M20
     "riskCases", "reports",
   ],
@@ -186,6 +204,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "radar",
     // M15 / CR-G — all 4 persona dashboards for Super Admin
     "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
+    // CR-M — Regulatory Cascade (read + run)
+    "compliance.regulatoryCascade",
     // M19 / M20
     "riskCases", "reports",
   ],
@@ -193,7 +213,18 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // Impact Watch only. Drop the Parties leak — executive consumes
   // insights, not raw counterparty CRUD.
   // M19 / M20 — Risk Cases + Reports for executive oversight.
-  executive: ["insights", "contracts", "regulations", "riskCases", "reports"],
+  // CR-M — Regulatory Cascade (read)
+  executive: ["insights", "contracts", "regulations", "compliance.regulatoryCascade", "riskCases", "reports"],
+  // CR-M — procurement_supplier_risk seeded in migration 292
+  procurement_supplier_risk: [
+    "insights",
+    "dashboards.procurement",
+    "contracts",
+    // CR-M — read access to regulatory cascade
+    "compliance.regulatoryCascade",
+    "riskCases",
+    "reports",
+  ],
   // M15 / CR-G — 3 new persona roles with dedicated dashboard modules
   operations: [
     "insights",
@@ -215,6 +246,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "contracts",
     "regulations",
     "radar",
+    // CR-M — primary persona for Regulatory Cascade
+    "compliance.regulatoryCascade",
     "riskCases",
     "reports",
   ],

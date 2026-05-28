@@ -513,7 +513,8 @@
     "adminDemo": "لوحة تحكم العرض التجريبي",
     "riskCases": "حالات المخاطر",
     "reports": "التقارير",
-    "adminReportTemplates": "قوالب التقارير"
+    "adminReportTemplates": "قوالب التقارير",
+    "complianceRegulatoryCASCADE": "التدرج التنظيمي"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -6744,6 +6745,117 @@
       "keyFormat": "يجب أن يبدأ المفتاح بحرف ويحتوي فقط على أحرف صغيرة وأرقام وشرطات سفلية.",
       "nameEnRequired": "الاسم الإنجليزي مطلوب.",
       "nameArRequired": "الاسم العربي مطلوب."
+    },
+    "cascade": {
+      "list": {
+        "title": "التدرج التنظيمي",
+        "subtitle": "مراجعة الامتثال لقانون العمل عبر مقاولي مجموعة أدنوك.",
+        "runCascadeButton": "تشغيل التدرج",
+        "runningCascade": "جارٍ التشغيل…",
+        "empty": {
+          "title": "لا يوجد تشغيل للتدرج بعد",
+          "body": "شغّل التدرج لتقييم امتثال المقاولين لأحدث مرسوم قانون عمل."
+        },
+        "noRef": "—",
+        "viewDetails": "عرض التفاصيل",
+        "viewRun": "عرض تشغيل التدرج رقم #{{id}}",
+        "showing": "عرض {{from}}–{{to}} من أصل {{total}} تشغيل"
+      },
+      "columns": {
+        "regulationRef": "اللائحة",
+        "status": "الحالة",
+        "runAt": "وقت التشغيل",
+        "affectedContractors": "المقاولون المتأثرون",
+        "penaltyRange": "تعرض الغرامة",
+        "triggeredBy": "أُطلق بواسطة"
+      },
+      "detail": {
+        "backToList": "العودة إلى تشغيلات التدرج",
+        "unnamedRun": "تشغيل التدرج",
+        "runAt": "وقت التشغيل",
+        "summaryLabel": "ملخص التشغيل",
+        "summary": {
+          "affectedContractors": "المقاولون المتأثرون",
+          "nonCompliant": "غير ممتثل",
+          "penaltyMin": "الحد الأدنى للغرامة",
+          "penaltyMax": "الحد الأقصى للغرامة"
+        },
+        "remediationTable": {
+          "heading": "قائمة معالجة المقاولين",
+          "empty": "لا يوجد مقاولون في هذا التشغيل."
+        },
+        "columns": {
+          "contractor": "المقاول",
+          "emirate": "الإمارة",
+          "headcountBand": "نطاق الموظفين",
+          "affectedClauses": "البنود المتأثرة",
+          "penaltyExposure": "تعرض الغرامة (درهم)",
+          "icvAttachments": "مرفقات القيمة الإضافية المحلية",
+          "remediationStatus": "حالة المعالجة"
+        },
+        "clauseCount": "{{count}} بند/بنود",
+        "draftLinked": "تعديل مرتبط",
+        "statusForm": {
+          "newStatus": "الحالة الجديدة",
+          "note": "ملاحظة (اختياري)",
+          "notePlaceholder": "سياق موجز للمدققين…"
+        },
+        "actions": {
+          "updateStatus": "تحديث الحالة",
+          "draftAmendment": "مسودة التعديل"
+        },
+        "icvImpact": {
+          "heading": "عرض تأثير القيمة الإضافية المحلية",
+          "description": "المقاولون المتأثرون بشهادات القيمة الإضافية المحلية — التأثير على الدرجة والتنافسية في المناقصات.",
+          "empty": "لا يوجد مقاولون متأثرون بشهادات القيمة الإضافية المحلية في هذا التشغيل.",
+          "columns": {
+            "contractor": "المقاول",
+            "emirate": "الإمارة",
+            "icvCerts": "شهادات القيمة الإضافية",
+            "emiratisationGap": "فجوة التوطين",
+            "tenderEffect": "تأثير المناقصة"
+          },
+          "tenderEffect": {
+            "compliant": "ممتثل",
+            "atRisk": "تحت الخطر"
+          }
+        }
+      },
+      "runStatus": {
+        "running": "جارٍ التشغيل",
+        "completed": "مكتمل",
+        "failed": "فشل"
+      },
+      "remediationStatus": {
+        "pending": "معلق",
+        "in_progress": "قيد التنفيذ",
+        "amended": "معدّل",
+        "dismissed": "مرفوض",
+        "resolved": "محلول"
+      },
+      "tile": {
+        "title": "التدرج التنظيمي",
+        "ariaLabel": "بلاطة ملخص التدرج التنظيمي",
+        "viewAll": "عرض الكل",
+        "openCascade": "فتح التدرج",
+        "noRuns": "لا يوجد تشغيل للتدرج بعد.",
+        "totalRuns": "إجمالي التشغيلات",
+        "latestRun": "آخر تشغيل",
+        "affectedContractors": "المقاولون المتأثرون",
+        "penaltyExposure": "تعرض الغرامة",
+        "errorLoading": "فشل تحميل بيانات التدرج."
+      },
+      "toast": {
+        "runSuccess": "اكتمل التدرج — تم تقييم {{count}} مقاول/مقاولين.",
+        "runFailed": "فشل تشغيل التدرج.",
+        "statusUpdated": "تم تحديث حالة المعالجة.",
+        "draftCreated": "تم إنشاء مسودة التعديل رقم #{{draftId}}."
+      },
+      "errors": {
+        "fetchFailed": "فشل تحميل بيانات التدرج التنظيمي.",
+        "statusUpdateFailed": "فشل تحديث حالة المعالجة.",
+        "draftFailed": "فشل إنشاء مسودة التعديل."
+      }
     }
   },
   "dashboards": {
