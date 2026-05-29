@@ -515,7 +515,8 @@
     "reports": "التقارير",
     "adminReportTemplates": "قوالب التقارير",
     "complianceRegulatoryCASCADE": "التدرج التنظيمي",
-    "financialBudgetBurn": "الاستهلاك الميزاني"
+    "financialBudgetBurn": "الاستهلاك الميزاني",
+    "financialTradeMargin": "هامش التداول"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -8360,6 +8361,235 @@
         "over": "زيادة",
         "allOnTrack": "جميع {{count}} عقود (عقد) الممولة ضمن الميزانية",
         "viewContractAriaLabel": "عرض تفاصيل الاستهلاك الميزاني لـ {{number}}"
+      }
+    },
+    "tradeMargin": {
+      "portfolio": {
+        "title": "هامش التداول — المراكز",
+        "subtitle": "هامش تداول النفط من الجانبين: أدنوك بائعاً ومشترياً",
+        "tabsLabel": "عروض هامش التداول",
+        "tab": {
+          "positions": "المراكز",
+          "aggregate": "الإجمالي"
+        },
+        "empty": {
+          "title": "لا توجد مراكز تداول",
+          "body": "ستظهر المراكز هنا بمجرد إضافتها أو استيرادها."
+        },
+        "showing": "عرض {{from}}–{{to}} من {{total}}",
+        "viewDetails": "عرض التفاصيل",
+        "viewDetail": "عرض تفاصيل {{ref}}"
+      },
+      "filters": {
+        "searchLabel": "بحث",
+        "searchPlaceholder": "البحث برقم المرجع أو الطرف المقابل...",
+        "sideLabel": "الجانب",
+        "sideAll": "جميع الجوانب"
+      },
+      "columns": {
+        "side": "الجانب",
+        "position": "المركز",
+        "grade": "الدرجة",
+        "counterparty": "الطرف المقابل",
+        "volume": "الحجم",
+        "pricingBasis": "أساس التسعير",
+        "marginPerBbl": "الهامش/برميل",
+        "totalMarginAed": "إجمالي الهامش (درهم)",
+        "status": "الحالة"
+      },
+      "side": {
+        "sell": "بيع",
+        "buy": "شراء"
+      },
+      "status": {
+        "open": "مفتوح",
+        "priced": "مسعّر",
+        "closed": "مغلق"
+      },
+      "grade": {
+        "murban": "مربان",
+        "west_african_x": "غرب أفريقيا X",
+        "brent": "برنت",
+        "dubai": "دبي",
+        "wti": "WTI",
+        "other": "أخرى"
+      },
+      "pricingBasis": {
+        "murban_osp": "OSP مربان",
+        "brent": "برنت",
+        "dubai": "دبي",
+        "wti": "WTI",
+        "spot": "سبوت"
+      },
+      "termOrSpot": {
+        "term": "آجل",
+        "spot": "فوري"
+      },
+      "recommendation": {
+        "buy": "شراء",
+        "sell": "بيع",
+        "hold": "انتظار",
+        "review": "مراجعة"
+      },
+      "triggeredBy": {
+        "manual": "يدوي",
+        "price_change": "تغيير السعر",
+        "worker": "عامل تلقائي",
+        "bootstrap": "تهيئة أولية"
+      },
+      "componentType": {
+        "lifting": "رفع",
+        "transport_charter": "نقل / تأجير",
+        "insurance": "تأمين",
+        "hedge": "تحوط",
+        "crude_purchase": "شراء خام",
+        "refining": "تكرير",
+        "transport": "نقل",
+        "storage": "تخزين",
+        "downstream_sale": "مبيعات التكرير"
+      },
+      "aggregate": {
+        "groupByLabel": "تجميع حسب",
+        "groupBy": {
+          "side": "الجانب",
+          "counterparty": "الطرف المقابل",
+          "quarter": "الربع"
+        },
+        "totalMarginAed": "إجمالي الهامش (درهم)",
+        "totalMarginUsd": "إجمالي الهامش (دولار)",
+        "positionCount": "المراكز",
+        "empty": "لا توجد بيانات إجمالية متاحة.",
+        "columns": {
+          "bucket": "الفئة",
+          "marginAed": "الهامش (درهم)",
+          "marginUsd": "الهامش (دولار)",
+          "positions": "المراكز",
+          "pct": "% من الإجمالي"
+        }
+      },
+      "errors": {
+        "fetchFailed": "فشل تحميل بيانات هامش التداول. يرجى المحاولة مجدداً."
+      },
+      "detail": {
+        "backToPortfolio": "العودة إلى المراكز",
+        "counterparty": "الطرف المقابل",
+        "volume": "الحجم",
+        "pricingBasis": "أساس التسعير",
+        "linkedContract": "العقد المرتبط",
+        "delivery": "التسليم",
+        "noMarginYet": "لم يتم احتساب الهامش بعد. استخدم لوحة إعادة الحساب.",
+        "marginKpisLabel": "مؤشرات الهامش الأخير",
+        "kpis": {
+          "marginPerBbl": "الهامش / برميل",
+          "totalMarginAed": "إجمالي الهامش (درهم)",
+          "recommendation": "التوصية",
+          "lastComputed": "آخر احتساب"
+        },
+        "breakdown": {
+          "sectionLabel": "تفصيل الهامش",
+          "title": "تفصيل الهامش — الإيرادات مقابل التكاليف",
+          "empty": "لا توجد مكونات تكلفة مسجلة لهذا المركز.",
+          "revenueLabel": "إيراد",
+          "costLabel": "تكلفة",
+          "totalCost": "إجمالي التكلفة",
+          "netMargin": "صافي الهامش",
+          "columns": {
+            "component": "المكوّن",
+            "type": "النوع",
+            "usdPerBbl": "دولار / برميل"
+          }
+        },
+        "benchmark": {
+          "sectionLabel": "سياق المعيار",
+          "title": "سياق المعيار الحالي",
+          "subtitle": "أساس التسعير: {{basis}}",
+          "marginPerBbl": "الهامش / برميل",
+          "totalMargin": "إجمالي الهامش (درهم)",
+          "lastComputed": "آخر احتساب"
+        },
+        "buyAndRefine": {
+          "sectionLabel": "اقتصاديات الشراء والتكرير",
+          "title": "اقتصاديات الشراء والتكرير",
+          "subtitle": "هامش التكرير: شراء الخام + النقل + التكرير مقابل مبيعات التكرير",
+          "downstreamRevenue": "إيرادات التكرير",
+          "totalInputCost": "إجمالي تكلفة المدخلات",
+          "projectedMargin": "الهامش المتوقع",
+          "action": "الإجراء الموصى به"
+        },
+        "history": {
+          "sectionLabel": "سجل لقطات الهامش",
+          "title": "سجل لقطات الهامش",
+          "empty": "لا توجد لقطات بعد — ستظهر بعد الاحتساب الأول.",
+          "fetchError": "فشل تحميل سجل اللقطات.",
+          "columns": {
+            "computed": "تاريخ الاحتساب",
+            "ospUsed": "OSP المستخدم",
+            "marginPerBbl": "الهامش / برميل",
+            "totalAed": "الإجمالي (درهم)",
+            "trigger": "المحفز"
+          }
+        }
+      },
+      "recompute": {
+        "sectionLabel": "تحديث السعر وإعادة الحساب",
+        "title": "تحديث السعر وإعادة الحساب",
+        "subtitle": "حدد سعر OSP مربان الجديد وأعد احتساب جميع المراكز الآجلة المفتوحة.",
+        "ospLabel": "OSP مربان الجديد (دولار/برميل)",
+        "ospPlaceholder": "مثال: 104.44",
+        "ospHint": "OSP يونيو 2026 المنشور: 104.44 دولار/برميل",
+        "button": "إعادة الحساب",
+        "computing": "جارٍ الحساب...",
+        "invalidPrice": "يجب أن يكون السعر رقماً غير سالب.",
+        "successToast": "تمت إعادة احتساب {{count}} مركز (مراكز). التغيير الإجمالي في الهامش: {{delta}}.",
+        "errorToast": "فشلت إعادة الحساب. يرجى المحاولة مجدداً.",
+        "resultTitle": "نتيجة إعادة الحساب",
+        "compressionWarning": "ضغط الهامش: {{delta}} على الشحنات الآجلة.",
+        "result": {
+          "positionsRecomputed": "المراكز المُعاد احتسابها",
+          "newPrice": "OSP الجديد",
+          "deltaAed": "التغيير (درهم)",
+          "deltaUsd": "التغيير (دولار)"
+        }
+      },
+      "executive": {
+        "sectionLabel": "ملخص هامش التداول",
+        "title": "هامش التداول",
+        "viewAll": "عرض الكل",
+        "viewAllAriaLabel": "عرض جميع مراكز هامش التداول",
+        "openPositions": "المراكز المفتوحة",
+        "totalMarginAed": "إجمالي الهامش (درهم)",
+        "sellMarginAed": "هامش جانب البيع",
+        "buyMarginAed": "هامش جانب الشراء",
+        "positions": "مراكز",
+        "recentChange": "تغيير سعر {{benchmarkCode}}: {{delta}} اعتباراً من {{asOf}}",
+        "topPositions": "أعلى المراكز هامشاً",
+        "viewPositionAriaLabel": "عرض تفاصيل هامش التداول لـ {{ref}}"
+      }
+    },
+    "priceBenchmark": {
+      "title": "معايير الأسعار",
+      "subtitle": "سلاسل أسعار الخام والصرف الأجنبي",
+      "benchmarkCode": {
+        "murban_osp": "OSP مربان",
+        "brent": "برنت",
+        "dubai": "دبي",
+        "wti": "WTI",
+        "west_african_x": "غرب أفريقيا X",
+        "usd_aed": "صرف دولار/درهم"
+      },
+      "unit": {
+        "usd_per_bbl": "دولار/برميل",
+        "aed_per_usd": "درهم/دولار"
+      },
+      "periodGrain": {
+        "monthly": "شهري",
+        "daily": "يومي",
+        "spot": "فوري"
+      },
+      "source": {
+        "osp_official": "OSP رسمي",
+        "market": "سوق",
+        "mock": "محاكاة"
       }
     }
   }

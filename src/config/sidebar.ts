@@ -51,6 +51,8 @@ import {
   ListChecks,
   // M21 / CR-N — Financial Intelligence Budget Burn
   DollarSign,
+  // M21 / CR-O — Financial Intelligence Trade Margin
+  BarChart2,
 } from "lucide-react";
 
 export type AppRole =
@@ -96,7 +98,9 @@ export type ModuleKey =
   // CR-M — Labor-Law Cascade (regulatory.cascade.read)
   | "compliance.regulatoryCascade"
   // M21 / CR-N — Financial Intelligence Budget Burn (finance.budget.read)
-  | "financial.budgetBurn";
+  | "financial.budgetBurn"
+  // M21 / CR-O — Financial Intelligence Trade Margin (finance.margin.read)
+  | "financial.tradeMargin";
 
 export interface SidebarModule {
   key: ModuleKey;
@@ -145,6 +149,14 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
     labelKey: "nav.financialBudgetBurn",
     defaultLabel: "Budget Burn",
     icon: DollarSign,
+  },
+  // M21 / CR-O — Financial Intelligence Trade Margin (gated by finance.margin.read at render time)
+  "financial.tradeMargin": {
+    key: "financial.tradeMargin",
+    to: "/app/financial/trade-margin",
+    labelKey: "nav.financialTradeMargin",
+    defaultLabel: "Trade Margin",
+    icon: BarChart2,
   },
 };
 
@@ -203,6 +215,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "compliance.regulatoryCascade",
     // M21 / CR-N — Financial Intelligence Budget Burn
     "financial.budgetBurn",
+    // M21 / CR-O — Financial Intelligence Trade Margin
+    "financial.tradeMargin",
     // M19 / M20
     "riskCases", "reports",
   ],
@@ -224,6 +238,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "compliance.regulatoryCascade",
     // M21 / CR-N — Financial Intelligence Budget Burn
     "financial.budgetBurn",
+    // M21 / CR-O — Financial Intelligence Trade Margin
+    "financial.tradeMargin",
     // M19 / M20
     "riskCases", "reports",
   ],
@@ -233,7 +249,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // M19 / M20 — Risk Cases + Reports for executive oversight.
   // CR-M — Regulatory Cascade (read)
   // M21 / CR-N — Budget Burn (read)
-  executive: ["insights", "contracts", "regulations", "compliance.regulatoryCascade", "financial.budgetBurn", "riskCases", "reports"],
+  // M21 / CR-O — Trade Margin (read)
+  executive: ["insights", "contracts", "regulations", "compliance.regulatoryCascade", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "reports"],
   // CR-M — procurement_supplier_risk seeded in migration 292
   procurement_supplier_risk: [
     "insights",
@@ -262,6 +279,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "contracts",
     // M21 / CR-N — Budget Burn (primary persona)
     "financial.budgetBurn",
+    // M21 / CR-O — Trade Margin (primary persona)
+    "financial.tradeMargin",
     "riskCases",
     "reports",
   ],

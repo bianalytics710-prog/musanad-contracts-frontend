@@ -66,6 +66,9 @@ import { ExecutiveCrgExtension } from "./ExecutiveCrgExtension";
 // M21 — CR-N: Budget Burn rollup section
 import { ExecutiveBudgetBurnSection } from "./ExecutiveBudgetBurnSection";
 import type { BudgetBurnSummary } from "@/types/entities/budget-burn.types";
+// M21 — CR-O: Trade Margin rollup section
+import { ExecutiveTradeMarginSection } from "./ExecutiveTradeMarginSection";
+import type { TradeMarginSummary } from "@/types/entities/trade-margin.types";
 import type {
   AiExecutiveAnomaliesStats,
   AiLanguage,
@@ -387,6 +390,14 @@ export function ExecutiveDashboard() {
           <ExecutiveBudgetBurnSection
             budgetBurnSummary={
               (data as unknown as { budgetBurnSummary?: BudgetBurnSummary }).budgetBurnSummary ?? null
+            }
+          />
+
+          {/* M21 — CR-O: Trade Margin rollup (11th additive key on fn_dashboard_executive).
+              Defensive: renders nothing when tradeMarginSummary is absent (pre-mig or no positions). */}
+          <ExecutiveTradeMarginSection
+            tradeMarginSummary={
+              (data as unknown as { tradeMarginSummary?: TradeMarginSummary }).tradeMarginSummary ?? null
             }
           />
         </>

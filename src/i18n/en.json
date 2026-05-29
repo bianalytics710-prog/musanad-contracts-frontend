@@ -515,7 +515,8 @@
     "reports": "Reports",
     "adminReportTemplates": "Report templates",
     "complianceRegulatoryCASCADE": "Regulatory Cascade",
-    "financialBudgetBurn": "Budget Burn"
+    "financialBudgetBurn": "Budget Burn",
+    "financialTradeMargin": "Trade Margin"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -8360,6 +8361,235 @@
         "over": "over",
         "allOnTrack": "All {{count}} budgeted contract(s) are within budget",
         "viewContractAriaLabel": "View budget burn detail for {{number}}"
+      }
+    },
+    "tradeMargin": {
+      "portfolio": {
+        "title": "Trade Margin — Positions",
+        "subtitle": "Oil-trade margin on both sides: ADNOC as integrated seller and buyer",
+        "tabsLabel": "Trade margin views",
+        "tab": {
+          "positions": "Positions",
+          "aggregate": "Aggregate"
+        },
+        "empty": {
+          "title": "No trade positions",
+          "body": "Positions will appear here once seeded or imported."
+        },
+        "showing": "Showing {{from}}–{{to}} of {{total}}",
+        "viewDetails": "View details",
+        "viewDetail": "View details for {{ref}}"
+      },
+      "filters": {
+        "searchLabel": "Search",
+        "searchPlaceholder": "Search by position ref or counterparty...",
+        "sideLabel": "Side",
+        "sideAll": "All sides"
+      },
+      "columns": {
+        "side": "Side",
+        "position": "Position",
+        "grade": "Grade",
+        "counterparty": "Counterparty",
+        "volume": "Volume",
+        "pricingBasis": "Pricing basis",
+        "marginPerBbl": "Margin/bbl",
+        "totalMarginAed": "Total margin (AED)",
+        "status": "Status"
+      },
+      "side": {
+        "sell": "Sell",
+        "buy": "Buy"
+      },
+      "status": {
+        "open": "Open",
+        "priced": "Priced",
+        "closed": "Closed"
+      },
+      "grade": {
+        "murban": "Murban",
+        "west_african_x": "West African X",
+        "brent": "Brent",
+        "dubai": "Dubai",
+        "wti": "WTI",
+        "other": "Other"
+      },
+      "pricingBasis": {
+        "murban_osp": "Murban OSP",
+        "brent": "Brent",
+        "dubai": "Dubai",
+        "wti": "WTI",
+        "spot": "Spot"
+      },
+      "termOrSpot": {
+        "term": "Term",
+        "spot": "Spot"
+      },
+      "recommendation": {
+        "buy": "Buy",
+        "sell": "Sell",
+        "hold": "Hold",
+        "review": "Review"
+      },
+      "triggeredBy": {
+        "manual": "Manual",
+        "price_change": "Price change",
+        "worker": "Worker",
+        "bootstrap": "Bootstrap"
+      },
+      "componentType": {
+        "lifting": "Lifting",
+        "transport_charter": "Transport / Charter",
+        "insurance": "Insurance",
+        "hedge": "Hedge",
+        "crude_purchase": "Crude purchase",
+        "refining": "Refining",
+        "transport": "Transport",
+        "storage": "Storage",
+        "downstream_sale": "Downstream sale"
+      },
+      "aggregate": {
+        "groupByLabel": "Group by",
+        "groupBy": {
+          "side": "Side",
+          "counterparty": "Counterparty",
+          "quarter": "Quarter"
+        },
+        "totalMarginAed": "Total margin (AED)",
+        "totalMarginUsd": "Total margin (USD)",
+        "positionCount": "Positions",
+        "empty": "No aggregate data available.",
+        "columns": {
+          "bucket": "Bucket",
+          "marginAed": "Margin (AED)",
+          "marginUsd": "Margin (USD)",
+          "positions": "Positions",
+          "pct": "% of total"
+        }
+      },
+      "errors": {
+        "fetchFailed": "Failed to load trade margin data. Please try again."
+      },
+      "detail": {
+        "backToPortfolio": "Back to positions",
+        "counterparty": "Counterparty",
+        "volume": "Volume",
+        "pricingBasis": "Pricing basis",
+        "linkedContract": "Linked contract",
+        "delivery": "Delivery",
+        "noMarginYet": "No margin computed yet. Use the recompute panel to calculate margin.",
+        "marginKpisLabel": "Latest margin KPIs",
+        "kpis": {
+          "marginPerBbl": "Margin / bbl",
+          "totalMarginAed": "Total margin (AED)",
+          "recommendation": "Recommendation",
+          "lastComputed": "Last computed"
+        },
+        "breakdown": {
+          "sectionLabel": "Margin breakdown",
+          "title": "Margin breakdown — revenue vs costs",
+          "empty": "No cost components registered for this position.",
+          "revenueLabel": "Revenue",
+          "costLabel": "Cost",
+          "totalCost": "Total cost",
+          "netMargin": "Net margin",
+          "columns": {
+            "component": "Component",
+            "type": "Type",
+            "usdPerBbl": "USD / bbl"
+          }
+        },
+        "benchmark": {
+          "sectionLabel": "Benchmark context",
+          "title": "Current benchmark context",
+          "subtitle": "Pricing basis: {{basis}}",
+          "marginPerBbl": "Margin / bbl",
+          "totalMargin": "Total margin (AED)",
+          "lastComputed": "Last computed"
+        },
+        "buyAndRefine": {
+          "sectionLabel": "Buy-and-refine economics",
+          "title": "Buy-and-refine economics",
+          "subtitle": "Downstream margin: crude purchase + transport + refining vs downstream sale",
+          "downstreamRevenue": "Downstream revenue",
+          "totalInputCost": "Total input cost",
+          "projectedMargin": "Projected margin",
+          "action": "Recommended action"
+        },
+        "history": {
+          "sectionLabel": "Margin snapshot history",
+          "title": "Margin snapshot history",
+          "empty": "No snapshots yet — margin will appear here after first compute.",
+          "fetchError": "Failed to load snapshot history.",
+          "columns": {
+            "computed": "Computed at",
+            "ospUsed": "OSP used",
+            "marginPerBbl": "Margin / bbl",
+            "totalAed": "Total (AED)",
+            "trigger": "Triggered by"
+          }
+        }
+      },
+      "recompute": {
+        "sectionLabel": "Price update and recompute",
+        "title": "Price update & recompute",
+        "subtitle": "Set a new Murban OSP price and recompute all open forward positions.",
+        "ospLabel": "New Murban OSP (USD/bbl)",
+        "ospPlaceholder": "e.g. 104.44",
+        "ospHint": "Published Jun-2026 OSP: $104.44/bbl",
+        "button": "Recompute",
+        "computing": "Computing...",
+        "invalidPrice": "Price must be a non-negative number.",
+        "successToast": "Recomputed {{count}} position(s). Aggregate margin change: {{delta}}.",
+        "errorToast": "Recompute failed. Please try again.",
+        "resultTitle": "Recompute result",
+        "compressionWarning": "Margin compression: {{delta}} across forward cargoes.",
+        "result": {
+          "positionsRecomputed": "Positions recomputed",
+          "newPrice": "New OSP",
+          "deltaAed": "Delta (AED)",
+          "deltaUsd": "Delta (USD)"
+        }
+      },
+      "executive": {
+        "sectionLabel": "Trade margin rollup",
+        "title": "Trade Margin",
+        "viewAll": "View all",
+        "viewAllAriaLabel": "View all trade margin positions",
+        "openPositions": "Open positions",
+        "totalMarginAed": "Total margin (AED)",
+        "sellMarginAed": "Sell-side margin",
+        "buyMarginAed": "Buy-side margin",
+        "positions": "positions",
+        "recentChange": "{{benchmarkCode}} price change: {{delta}} as of {{asOf}}",
+        "topPositions": "Top positions by margin",
+        "viewPositionAriaLabel": "View trade margin detail for {{ref}}"
+      }
+    },
+    "priceBenchmark": {
+      "title": "Price Benchmarks",
+      "subtitle": "Crude oil and FX benchmark price series",
+      "benchmarkCode": {
+        "murban_osp": "Murban OSP",
+        "brent": "Brent",
+        "dubai": "Dubai",
+        "wti": "WTI",
+        "west_african_x": "West African X",
+        "usd_aed": "USD/AED FX"
+      },
+      "unit": {
+        "usd_per_bbl": "USD/bbl",
+        "aed_per_usd": "AED/USD"
+      },
+      "periodGrain": {
+        "monthly": "Monthly",
+        "daily": "Daily",
+        "spot": "Spot"
+      },
+      "source": {
+        "osp_official": "OSP official",
+        "market": "Market",
+        "mock": "Mock"
       }
     }
   }
