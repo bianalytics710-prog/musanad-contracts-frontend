@@ -63,6 +63,9 @@ import { ExecutiveEventsCard } from "./ExecutiveEventsCard";
 import { AvarDashboardSection } from "./AvarDashboardSection";
 // M15 — CR-G: Executive dashboard extension (3 new sections)
 import { ExecutiveCrgExtension } from "./ExecutiveCrgExtension";
+// M21 — CR-N: Budget Burn rollup section
+import { ExecutiveBudgetBurnSection } from "./ExecutiveBudgetBurnSection";
+import type { BudgetBurnSummary } from "@/types/entities/budget-burn.types";
 import type {
   AiExecutiveAnomaliesStats,
   AiLanguage,
@@ -377,6 +380,14 @@ export function ExecutiveDashboard() {
             whatChangedToday={(data as unknown as ExecutiveDashboardCrgAdditions).whatChangedToday ?? []}
             recommendedActions={(data as unknown as ExecutiveDashboardCrgAdditions).recommendedActions ?? []}
             clausesTriggered={(data as unknown as ExecutiveDashboardCrgAdditions).clausesTriggered ?? { last7d: [], last30d: [] }}
+          />
+
+          {/* M21 — CR-N: Budget Burn rollup (10th additive key on fn_dashboard_executive).
+              Defensive: renders nothing when budgetBurnSummary is absent (pre-mig or no budgets). */}
+          <ExecutiveBudgetBurnSection
+            budgetBurnSummary={
+              (data as unknown as { budgetBurnSummary?: BudgetBurnSummary }).budgetBurnSummary ?? null
+            }
           />
         </>
       )}

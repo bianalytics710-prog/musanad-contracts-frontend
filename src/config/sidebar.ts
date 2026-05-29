@@ -49,6 +49,8 @@ import {
   FileBarChart2,
   // CR-M — Labor-Law Cascade
   ListChecks,
+  // M21 / CR-N — Financial Intelligence Budget Burn
+  DollarSign,
 } from "lucide-react";
 
 export type AppRole =
@@ -92,7 +94,9 @@ export type ModuleKey =
   // M20 / CR-L — Reports (visible to all)
   | "reports"
   // CR-M — Labor-Law Cascade (regulatory.cascade.read)
-  | "compliance.regulatoryCascade";
+  | "compliance.regulatoryCascade"
+  // M21 / CR-N — Financial Intelligence Budget Burn (finance.budget.read)
+  | "financial.budgetBurn";
 
 export interface SidebarModule {
   key: ModuleKey;
@@ -134,6 +138,14 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
     defaultLabel: "Regulatory Cascade",
     icon: ListChecks,
   },
+  // M21 / CR-N — Financial Intelligence Budget Burn (gated by finance.budget.read at render time)
+  "financial.budgetBurn": {
+    key: "financial.budgetBurn",
+    to: "/app/financial/budget-burn",
+    labelKey: "nav.financialBudgetBurn",
+    defaultLabel: "Budget Burn",
+    icon: DollarSign,
+  },
 };
 
 export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
@@ -165,6 +177,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "legal.advisoryQueue",
     // CR-M — Regulatory Cascade (read)
     "compliance.regulatoryCascade",
+    // M21 / CR-N — Budget Burn (read — legal counsel drafts cure notices)
+    "financial.budgetBurn",
     // M19 / M20
     "riskCases",
     "reports",
@@ -187,6 +201,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
     // CR-M — Regulatory Cascade (read + run)
     "compliance.regulatoryCascade",
+    // M21 / CR-N — Financial Intelligence Budget Burn
+    "financial.budgetBurn",
     // M19 / M20
     "riskCases", "reports",
   ],
@@ -206,6 +222,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
     // CR-M — Regulatory Cascade (read + run)
     "compliance.regulatoryCascade",
+    // M21 / CR-N — Financial Intelligence Budget Burn
+    "financial.budgetBurn",
     // M19 / M20
     "riskCases", "reports",
   ],
@@ -214,7 +232,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // insights, not raw counterparty CRUD.
   // M19 / M20 — Risk Cases + Reports for executive oversight.
   // CR-M — Regulatory Cascade (read)
-  executive: ["insights", "contracts", "regulations", "compliance.regulatoryCascade", "riskCases", "reports"],
+  // M21 / CR-N — Budget Burn (read)
+  executive: ["insights", "contracts", "regulations", "compliance.regulatoryCascade", "financial.budgetBurn", "riskCases", "reports"],
   // CR-M — procurement_supplier_risk seeded in migration 292
   procurement_supplier_risk: [
     "insights",
@@ -222,6 +241,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "contracts",
     // CR-M — read access to regulatory cascade
     "compliance.regulatoryCascade",
+    // M21 / CR-N — Budget Burn read access
+    "financial.budgetBurn",
     "riskCases",
     "reports",
   ],
@@ -230,6 +251,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "insights",
     "dashboards.operations",
     "contracts",
+    // M21 / CR-N — Budget Burn read access
+    "financial.budgetBurn",
     "riskCases",
     "reports",
   ],
@@ -237,6 +260,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "insights",
     "dashboards.financeTreasury",
     "contracts",
+    // M21 / CR-N — Budget Burn (primary persona)
+    "financial.budgetBurn",
     "riskCases",
     "reports",
   ],

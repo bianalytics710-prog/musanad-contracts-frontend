@@ -514,7 +514,8 @@
     "riskCases": "حالات المخاطر",
     "reports": "التقارير",
     "adminReportTemplates": "قوالب التقارير",
-    "complianceRegulatoryCASCADE": "التدرج التنظيمي"
+    "complianceRegulatoryCASCADE": "التدرج التنظيمي",
+    "financialBudgetBurn": "الاستهلاك الميزاني"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -8231,6 +8232,135 @@
     "errors": {
       "triggerFailed": "فشل إضافة التقرير إلى القائمة",
       "invalidRunId": "معرف تشغيل غير صالح"
+    }
+  },
+  "financial": {
+    "budgetBurn": {
+      "portfolio": {
+        "title": "الاستهلاك الميزاني — المحفظة",
+        "subtitle": "الميزانية مقابل الإنفاق الفعلي لعقود الخدمات عبر جميع العقود الممولة",
+        "summaryLabel": "ملخص المحفظة",
+        "summary": {
+          "contractsWithBudget": "عقود بميزانية",
+          "totalBudget": "إجمالي الميزانية",
+          "totalActual": "إجمالي الفعلي",
+          "totalVariance": "إجمالي الانحراف",
+          "overBudgetCount": "تجاوزت الميزانية",
+          "totalProjectedOverrun": "التجاوز المتوقع"
+        },
+        "empty": {
+          "title": "لا توجد عقود ممولة",
+          "body": "ستظهر تخصيصات الميزانية هنا بمجرد إضافتها أو استيرادها."
+        },
+        "showing": "عرض {{from}}–{{to}} من {{total}}",
+        "viewDetails": "عرض التفاصيل",
+        "viewDetail": "عرض تفاصيل {{number}}"
+      },
+      "columns": {
+        "contract": "العقد",
+        "counterparty": "الطرف المقابل",
+        "budget": "الميزانية",
+        "actual": "الفعلي",
+        "consumed": "% مستهلك",
+        "projectedOverUnder": "الزيادة/النقص المتوقعة",
+        "status": "الحالة",
+        "category": "الفئة",
+        "variance": "الانحراف",
+        "period": "الفترة"
+      },
+      "varianceFlag": {
+        "over": "تجاوز الميزانية",
+        "onTrack": "في المسار الصحيح",
+        "overThreshold": "تجاوز الحد"
+      },
+      "costCategory": {
+        "day_rate": "المعدل اليومي",
+        "manpower": "القوى العاملة",
+        "equipment": "المعدات",
+        "milestone": "إنجاز",
+        "other": "أخرى"
+      },
+      "errors": {
+        "fetchFailed": "فشل تحميل بيانات الاستهلاك الميزاني. يرجى المحاولة مجدداً."
+      },
+      "detail": {
+        "backToPortfolio": "العودة إلى المحفظة",
+        "summaryLabel": "ملخص استهلاك العقد",
+        "kpis": {
+          "totalBudget": "إجمالي الميزانية",
+          "totalActual": "إجمالي الفعلي",
+          "variance": "الانحراف (درهم)",
+          "variancePct": "الانحراف (%)",
+          "pctConsumed": "% مستهلك",
+          "remaining": "المتبقي"
+        },
+        "periodTable": {
+          "heading": "الميزانية مقابل الفعلي حسب الفترة × الفئة",
+          "empty": "لم يتم العثور على فترات ميزانية لهذا العقد.",
+          "budget": "الميزانية",
+          "actual": "الفعلي",
+          "burnBar": "الاستهلاك",
+          "burnBarAriaLabel": "{{pct}}% مستهلك"
+        },
+        "correlatedClauses": {
+          "heading": "بنود العقد المرتبطة",
+          "noClausesFound": "لم يتم استخراج بنود فترة العلاج أو الغرامات لهذا العقد.",
+          "curePeriod": "فترة العلاج",
+          "liquidatedDamages": "الغرامات التعاقدية",
+          "clauseId": "البند #{{id}} · صفحة {{page}}",
+          "curePeriodDays": "فترة العلاج: {{days}} يوماً",
+          "ldRate": "معدل الغرامة: {{rate}}/يوم/منصة",
+          "ldCap": "سقف الغرامة: {{cap}}"
+        },
+        "projection": {
+          "heading": "توقعات نهاية السنة",
+          "fiscalYear": "السنة المالية {{year}} — حتى {{asOf}}",
+          "insufficient": "بيانات غير كافية",
+          "projectedOverBudget": "متوقع تجاوز الميزانية",
+          "projectedUnderBudget": "متوقع أقل من الميزانية",
+          "allocatedFy": "المخصص (السنة المالية)",
+          "actualToDate": "الفعلي حتى الآن",
+          "runRate": "معدل الإنفاق",
+          "monthsRemaining": "الأشهر المتبقية",
+          "confidence": {
+            "high": "ثقة عالية",
+            "medium": "ثقة متوسطة",
+            "low": "ثقة منخفضة",
+            "insufficient_data": "بيانات غير كافية"
+          }
+        },
+        "cumulativeBurn": {
+          "heading": "اتجاه الاستهلاك التراكمي",
+          "period": "الفترة",
+          "cumBudget": "الميزانية التراكمية",
+          "cumActual": "الفعلي التراكمي",
+          "trend": "الاتجاه"
+        },
+        "draftCureNotice": {
+          "button": "صياغة إشعار علاج",
+          "ariaLabel": "صياغة إشعار علاج لهذا العقد",
+          "successToast": "تم إنشاء مسودة إشعار العلاج #{{draftId}}. مراجعة في قائمة الاستشارات.",
+          "errorToast": "فشل صياغة إشعار العلاج. يرجى المحاولة مجدداً."
+        }
+      },
+      "varianceAlert": {
+        "title": "تنبيه انحراف",
+        "body": "تجاوز إنفاق {{category}} الخطة بنسبة {{pct}}٪ في الفترة {{period}}.",
+        "totalBreaches": "تم اكتشاف {{count}} خرق (خروق) — الحد الأقصى للتجاوز {{maxPct}}٪."
+      },
+      "executive": {
+        "sectionLabel": "ملخص الاستهلاك الميزاني",
+        "title": "الاستهلاك الميزاني",
+        "viewAll": "عرض الكل",
+        "viewAllAriaLabel": "عرض جميع عقود الاستهلاك الميزاني",
+        "contractsWithBudget": "عقود بميزانية",
+        "overBudgetCount": "تجاوزت الميزانية",
+        "projectedOverrun": "التجاوز المتوقع",
+        "topOverBudget": "أعلى العقود تجاوزاً للميزانية",
+        "over": "زيادة",
+        "allOnTrack": "جميع {{count}} عقود (عقد) الممولة ضمن الميزانية",
+        "viewContractAriaLabel": "عرض تفاصيل الاستهلاك الميزاني لـ {{number}}"
+      }
     }
   }
 }

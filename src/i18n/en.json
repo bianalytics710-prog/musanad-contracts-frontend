@@ -514,7 +514,8 @@
     "riskCases": "Risk Cases",
     "reports": "Reports",
     "adminReportTemplates": "Report templates",
-    "complianceRegulatoryCASCADE": "Regulatory Cascade"
+    "complianceRegulatoryCASCADE": "Regulatory Cascade",
+    "financialBudgetBurn": "Budget Burn"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -8231,6 +8232,135 @@
     "errors": {
       "triggerFailed": "Failed to queue report",
       "invalidRunId": "Invalid report run id"
+    }
+  },
+  "financial": {
+    "budgetBurn": {
+      "portfolio": {
+        "title": "Budget Burn — Portfolio",
+        "subtitle": "Services-contract budget vs actual spend across all budgeted contracts",
+        "summaryLabel": "Portfolio summary",
+        "summary": {
+          "contractsWithBudget": "Contracts with budget",
+          "totalBudget": "Total budget",
+          "totalActual": "Total actual",
+          "totalVariance": "Total variance",
+          "overBudgetCount": "Over budget",
+          "totalProjectedOverrun": "Projected overrun"
+        },
+        "empty": {
+          "title": "No budgeted contracts",
+          "body": "Budget allocations will appear here once seeded or imported."
+        },
+        "showing": "Showing {{from}}–{{to}} of {{total}}",
+        "viewDetails": "View details",
+        "viewDetail": "View details for {{number}}"
+      },
+      "columns": {
+        "contract": "Contract",
+        "counterparty": "Counterparty",
+        "budget": "Budget",
+        "actual": "Actual",
+        "consumed": "% consumed",
+        "projectedOverUnder": "Projected over/under",
+        "status": "Status",
+        "category": "Category",
+        "variance": "Variance",
+        "period": "Period"
+      },
+      "varianceFlag": {
+        "over": "Over budget",
+        "onTrack": "On track",
+        "overThreshold": "Exceeds threshold"
+      },
+      "costCategory": {
+        "day_rate": "Day rate",
+        "manpower": "Manpower",
+        "equipment": "Equipment",
+        "milestone": "Milestone",
+        "other": "Other"
+      },
+      "errors": {
+        "fetchFailed": "Failed to load budget burn data. Please try again."
+      },
+      "detail": {
+        "backToPortfolio": "Back to portfolio",
+        "summaryLabel": "Contract burn summary",
+        "kpis": {
+          "totalBudget": "Total budget",
+          "totalActual": "Total actual",
+          "variance": "Variance (AED)",
+          "variancePct": "Variance (%)",
+          "pctConsumed": "% consumed",
+          "remaining": "Remaining"
+        },
+        "periodTable": {
+          "heading": "Budget vs actual by period × category",
+          "empty": "No budget periods found for this contract.",
+          "budget": "Budget",
+          "actual": "Actual",
+          "burnBar": "Burn",
+          "burnBarAriaLabel": "{{pct}}% consumed"
+        },
+        "correlatedClauses": {
+          "heading": "Correlated contract clauses",
+          "noClausesFound": "No cure-period or liquidated-damages clauses extracted for this contract.",
+          "curePeriod": "Cure period",
+          "liquidatedDamages": "Liquidated damages",
+          "clauseId": "Clause #{{id}} · page {{page}}",
+          "curePeriodDays": "Cure period: {{days}} days",
+          "ldRate": "LD rate: {{rate}}/rig/day",
+          "ldCap": "LD cap: {{cap}}"
+        },
+        "projection": {
+          "heading": "Year-end projection",
+          "fiscalYear": "FY {{year}} — as of {{asOf}}",
+          "insufficient": "Insufficient data",
+          "projectedOverBudget": "Projected over budget",
+          "projectedUnderBudget": "Projected under budget",
+          "allocatedFy": "Allocated (FY)",
+          "actualToDate": "Actual to date",
+          "runRate": "Run rate",
+          "monthsRemaining": "Months remaining",
+          "confidence": {
+            "high": "High confidence",
+            "medium": "Medium confidence",
+            "low": "Low confidence",
+            "insufficient_data": "Insufficient data"
+          }
+        },
+        "cumulativeBurn": {
+          "heading": "Cumulative burn trend",
+          "period": "Period",
+          "cumBudget": "Cum. budget",
+          "cumActual": "Cum. actual",
+          "trend": "Trend"
+        },
+        "draftCureNotice": {
+          "button": "Draft cure notice",
+          "ariaLabel": "Draft cure notice for this contract",
+          "successToast": "Cure notice draft #{{draftId}} created. Review in Advisory Queue.",
+          "errorToast": "Failed to draft cure notice. Please try again."
+        }
+      },
+      "varianceAlert": {
+        "title": "Variance alert",
+        "body": "{{category}} billing exceeded plan by {{pct}}% in period {{period}}.",
+        "totalBreaches": "{{count}} breach(es) detected — maximum overrun {{maxPct}}%."
+      },
+      "executive": {
+        "sectionLabel": "Budget burn rollup",
+        "title": "Budget Burn",
+        "viewAll": "View all",
+        "viewAllAriaLabel": "View all budget burn contracts",
+        "contractsWithBudget": "Contracts with budget",
+        "overBudgetCount": "Over budget",
+        "projectedOverrun": "Projected overrun",
+        "topOverBudget": "Top over-budget contracts",
+        "over": "over",
+        "allOnTrack": "All {{count}} budgeted contract(s) are within budget",
+        "viewContractAriaLabel": "View budget burn detail for {{number}}"
+      }
     }
   }
 }
