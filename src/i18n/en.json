@@ -5044,7 +5044,52 @@
         "settings": "Settings",
         "branding": "Branding",
         "profile": "Profile"
-      }
+      },
+      "subtitle": "Enable or disable the product bundles and individual modules your customers see.",
+      "modulesEnabled": "{{count}} modules enabled",
+      "toggleSuccess": "Module \"{{module}}\" updated.",
+      "toggleFailed": "Failed to update module. Please try again.",
+      "bundleDisabledFirst": "Enable the bundle first",
+      "bundleConfirmDisable": {
+        "title": "Disable bundle?",
+        "body": "Disabling the {{bundle}} bundle will turn off {{count}} modules. Users will lose access to these features immediately. Continue?"
+      },
+      "moduleConfirmDisable": {
+        "title": "Disable module?",
+        "body": "Disabling \"{{module}}\" will also disable {{count}} child modules. Continue?"
+      },
+      "coreLockTooltip": "Always enabled (platform infrastructure)",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "e.g., Customer pilot scope reduction",
+      "confirmContinue": "Continue",
+      "confirmCancel": "Cancel"
+    },
+    "roleModules": {
+      "title": "Role × module access",
+      "subtitle": "Override which modules each role can access within the enabled set.",
+      "filterAll": "All bundles",
+      "filterCLM": "CLM",
+      "filterECIP": "ECIP",
+      "filterPlatform": "Platform",
+      "hideDisabled": "Hide disabled modules",
+      "noResults": "No roles or modules match the current filter.",
+      "matrixLegend": {
+        "defaultAllow": "Default allow",
+        "defaultDeny": "Default deny",
+        "explicitAllow": "Explicit allow (override)",
+        "explicitDeny": "Explicit deny (override)"
+      },
+      "cellTooltip": "Click to cycle: default → explicit deny → explicit allow → default",
+      "disabledAtApp": "Module disabled at app level",
+      "updateSuccess": "Updated access for {{role}} × {{module}}.",
+      "updateFailed": "Failed to update access. Please try again.",
+      "footnote": "The matrix can hide a module from a role, but cannot grant a role access beyond its database-level defaults. Contact engineering for further customization.",
+      "grantAllToRole": "Grant all enabled modules to this role",
+      "resetModuleToDefaults": "Reset all roles for this module"
+    },
+    "sidebar": {
+      "productModules": "Product modules",
+      "roleModuleAccess": "Role × module access"
     }
   },
   "permissions": {

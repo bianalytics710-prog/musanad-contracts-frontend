@@ -369,6 +369,9 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/demo",                 labelKey: "nav.adminDemo",              defaultLabel: "Demo Control",        icon: FlaskConical },
   // M20 / CR-L — Report Templates (platform_admin only)
   { to: "/app/admin/report-templates",      labelKey: "nav.adminReportTemplates",   defaultLabel: "Report templates",    icon: FileBarChart2 },
+  // CR-X (v1.5) — Product Module Toggle admin screens
+  { to: "/app/admin/product-modules",       labelKey: "admin.sidebar.productModules",    defaultLabel: "Product modules",     icon: Package },
+  { to: "/app/admin/role-modules",          labelKey: "admin.sidebar.roleModuleAccess",  defaultLabel: "Role × module access", icon: LayoutGrid },
 ];
 
 // M12 — Sub-items shown when the "Clauses" module is active (legal_counsel + platform_admin)
