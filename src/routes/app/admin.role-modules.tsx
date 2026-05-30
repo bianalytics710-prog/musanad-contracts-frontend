@@ -519,7 +519,7 @@ function RoleModulesView() {
 
           {/* ── Per-Role Detail ─────────────────────────────────────────── */}
           <TabsContent value="detail" className="mt-4">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
               {/* Left rail */}
               <RoleRail
                 roles={roles}
@@ -929,33 +929,75 @@ function RoleDetailPane({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={expandedBundles.size === bundleGroups.length ? collapseAll : expandAll}
-              className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-surface/60 hover:text-ink"
-              aria-label={expandedBundles.size === bundleGroups.length ? "Collapse all" : "Expand all"}
-            >
-              {expandedBundles.size === bundleGroups.length ? "Collapse all" : "Expand all"}
-            </button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleReset}
-              disabled={overrideCount === 0}
-              className="gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              {t("admin.roleModules.detail.resetAll", { defaultValue: "Reset to defaults" })}
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleGrantAll}
-              className="gap-1.5 bg-gold text-white hover:bg-gold-hover"
-            >
-              <Check className="h-3.5 w-3.5" />
-              {t("admin.roleModules.detail.grantAll", { defaultValue: "Grant all enabled" })}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={expandedBundles.size === bundleGroups.length ? collapseAll : expandAll}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-ink-muted transition-colors hover:bg-surface/60 hover:text-ink"
+                  aria-label={expandedBundles.size === bundleGroups.length ? "Collapse all" : "Expand all"}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {expandedBundles.size === bundleGroups.length ? "Collapse all" : "Expand all"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReset}
+                  disabled={overrideCount === 0}
+                  aria-label={t("admin.roleModules.detail.resetAll", { defaultValue: "Reset to defaults" })}
+                  className="h-8 w-8 p-0"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {t("admin.roleModules.detail.resetAll", { defaultValue: "Reset to defaults" })}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  onClick={handleGrantAll}
+                  aria-label={t("admin.roleModules.detail.grantAll", { defaultValue: "Grant all enabled" })}
+                  className="h-8 w-8 bg-gold p-0 text-white hover:bg-gold-hover"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {t("admin.roleModules.detail.grantAll", { defaultValue: "Grant all enabled" })}
+              </TooltipContent>
+            </Tooltip>
           </div>
+        </div>
+        {/* Legend strip — explains the compact pill icons */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 bg-surface/30 px-5 py-2 text-[11px] text-ink-subtle">
+          <span className="font-medium uppercase tracking-wider">Legend</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-sage/30 bg-sage-tint"><Check className="h-2.5 w-2.5 text-sage-ink" /></span>
+            Default allow
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-border bg-surface"><Minus className="h-2.5 w-2.5 text-ink-subtle" /></span>
+            Default deny
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded border-2 border-gold bg-gold/10"><Check className="h-2.5 w-2.5 text-gold" /></span>
+            Override allow
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded border-2 border-terracotta bg-terracotta/10"><X className="h-2.5 w-2.5 text-terracotta" /></span>
+            Override deny
+          </span>
+          <span className="ms-auto text-ink-subtle">Click any pill to cycle states</span>
         </div>
       </div>
 
@@ -1056,8 +1098,10 @@ function RoleDetailPane({
                           </p>
                         </div>
 
-                        {/* State pill + actions */}
-                        <div className="flex shrink-0 items-center gap-2">
+                        {/* State pill + actions — compact icon-only so rows
+                            never clip at narrow viewports. Tooltip explains
+                            the state on hover. */}
+                        <div className="flex shrink-0 items-center gap-1.5">
                           {isDisabledAtApp ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1066,28 +1110,44 @@ function RoleDetailPane({
                                     effectiveState={cell.effectiveState}
                                     source={cell.source}
                                     isDisabledAtApp
+                                    compact
                                   />
                                 </span>
                               </TooltipTrigger>
-                              <TooltipContent>
+                              <TooltipContent side="left" className="text-xs">
                                 {t("admin.roleModules.disabledAtApp", {
                                   defaultValue: "Module disabled at app level — toggle there first",
                                 })}
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => onCellClick(role, mod, orig)}
-                              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                              aria-label={`Toggle ${modLabel} access for ${label}`}
-                            >
-                              <StatusPill
-                                effectiveState={cell.effectiveState}
-                                source={cell.source}
-                                isDisabledAtApp={false}
-                              />
-                            </button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={() => onCellClick(role, mod, orig)}
+                                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                                  aria-label={`Toggle ${modLabel} access for ${label}`}
+                                >
+                                  <StatusPill
+                                    effectiveState={cell.effectiveState}
+                                    source={cell.source}
+                                    isDisabledAtApp={false}
+                                    compact
+                                  />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="text-xs">
+                                {cell.source === "explicit"
+                                  ? (cell.effectiveState === "allow"
+                                      ? t("admin.roleModules.pill.overrideAllow", { defaultValue: "Override allow" })
+                                      : t("admin.roleModules.pill.overrideDeny", { defaultValue: "Override deny" }))
+                                  : (cell.effectiveState === "allow"
+                                      ? t("admin.roleModules.pill.defaultAllow", { defaultValue: "Default allow" })
+                                      : t("admin.roleModules.pill.defaultDeny", { defaultValue: "Default deny" }))}
+                                <span className="ms-1 text-ink-subtle">· click to cycle</span>
+                              </TooltipContent>
+                            </Tooltip>
                           )}
 
                           {hasOverride && !isDisabledAtApp && (
@@ -1531,7 +1591,7 @@ function LoadingSkeleton() {
       <Skeleton className="h-10 w-72" />
       <Skeleton className="h-5 w-96" />
       <Skeleton className="h-9 w-64" />
-      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         {/* Rail skeleton */}
         <div className="space-y-2">
           <Skeleton className="h-8 w-full" />
