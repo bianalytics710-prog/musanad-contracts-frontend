@@ -8526,6 +8526,16 @@
           "marginUsd": "Margin (USD)",
           "positions": "Positions",
           "pct": "% of total"
+        },
+        "charts": {
+          "bySide": {
+            "title": "Margin by side",
+            "subtitle": "Total margin AED — Sell vs. Buy"
+          },
+          "byCounterparty": {
+            "title": "Margin by counterparty",
+            "subtitle": "Top counterparties by total margin AED"
+          }
         }
       },
       "errors": {
@@ -8589,6 +8599,20 @@
             "totalAed": "Total (AED)",
             "trigger": "Triggered by"
           }
+        },
+        "tabs": {
+          "ariaLabel": "Trade position tabs",
+          "overview": "Overview",
+          "murbanBenchmark": "Murban Benchmark",
+          "marginBreakdown": "Margin Breakdown",
+          "buyAndRefine": "Buy & Refine",
+          "historyTrends": "History & Trends",
+          "recompute": "Recompute"
+        },
+        "overview": {
+          "metaTitle": "Position details",
+          "termOrSpot": "Term / Spot",
+          "notes": "Notes"
         }
       },
       "recompute": {
@@ -8610,6 +8634,12 @@
           "newPrice": "New OSP",
           "deltaAed": "Delta (AED)",
           "deltaUsd": "Delta (USD)"
+        },
+        "delta": {
+          "title": "OSP before / after — margin impact",
+          "previousOsp": "Previous OSP",
+          "newOsp": "New OSP",
+          "deltaLabel": "Portfolio Δ"
         }
       },
       "executive": {
@@ -8625,6 +8655,57 @@
         "recentChange": "{{benchmarkCode}} price change: {{delta}} as of {{asOf}}",
         "topPositions": "Top positions by margin",
         "viewPositionAriaLabel": "View trade margin detail for {{ref}}"
+      },
+      "charts": {
+        "murbanBenchmark": {
+          "title": "Murban OSP vs. Brent & Dubai",
+          "subtitle": "Monthly benchmark prices — Feb 2025 to Dec 2026",
+          "empty": "No benchmark data available",
+          "series": {
+            "murban": "Murban OSP",
+            "brent": "Brent",
+            "dubai": "Dubai"
+          },
+          "opec": {
+            "ext_cuts": "OPEC+ ext. cuts",
+            "plus500": "OPEC+ +500 kbpd",
+            "pause": "OPEC+ pause",
+            "review": "OPEC+ review"
+          }
+        },
+        "murbanDubaiDifferential": {
+          "title": "Murban – Dubai differential (USD/bbl)",
+          "empty": "No differential data available"
+        },
+        "marginWaterfall": {
+          "title": "Margin per cargo — Waterfall",
+          "subtitle": "Revenue minus cost components (USD/bbl)",
+          "showTable": "Show component table",
+          "hideTable": "Hide component table"
+        },
+        "recomputeHistory": {
+          "title": "Margin recompute history",
+          "subtitle": "Snapshot timeline — margin vs. OSP used at compute time",
+          "series": {
+            "margin": "Margin (USD/bbl)",
+            "osp": "OSP at compute (USD/bbl)"
+          },
+          "refLine": {
+            "ospChange": "OSP recompute"
+          }
+        },
+        "buyAndRefine": {
+          "title": "Buy-and-refine economics",
+          "subtitle": "Input cost + refining + downstream revenue (USD/bbl)",
+          "components": {
+            "crude_purchase": "Crude purchase",
+            "transport": "Transport",
+            "refining": "Refining",
+            "storage": "Storage",
+            "downstream_sale": "Downstream sale",
+            "net_margin": "Net margin"
+          }
+        }
       }
     },
     "priceBenchmark": {

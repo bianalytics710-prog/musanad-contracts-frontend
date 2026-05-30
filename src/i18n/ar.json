@@ -8526,6 +8526,16 @@
           "marginUsd": "الهامش (دولار)",
           "positions": "المراكز",
           "pct": "% من الإجمالي"
+        },
+        "charts": {
+          "bySide": {
+            "title": "الهامش حسب الجانب",
+            "subtitle": "إجمالي الهامش بالدرهم — بيع مقابل شراء"
+          },
+          "byCounterparty": {
+            "title": "الهامش حسب الطرف المقابل",
+            "subtitle": "أعلى الأطراف المقابلة حسب إجمالي الهامش بالدرهم"
+          }
         }
       },
       "errors": {
@@ -8589,6 +8599,20 @@
             "totalAed": "الإجمالي (درهم)",
             "trigger": "المحفز"
           }
+        },
+        "tabs": {
+          "ariaLabel": "تبويبات المركز التجاري",
+          "overview": "نظرة عامة",
+          "murbanBenchmark": "سعر مرجان",
+          "marginBreakdown": "تفاصيل الهامش",
+          "buyAndRefine": "الشراء والتكرير",
+          "historyTrends": "التاريخ والاتجاهات",
+          "recompute": "إعادة الحساب"
+        },
+        "overview": {
+          "metaTitle": "تفاصيل المركز",
+          "termOrSpot": "آجل / فوري",
+          "notes": "ملاحظات"
         }
       },
       "recompute": {
@@ -8610,6 +8634,12 @@
           "newPrice": "OSP الجديد",
           "deltaAed": "التغيير (درهم)",
           "deltaUsd": "التغيير (دولار)"
+        },
+        "delta": {
+          "title": "سعر مرجان قبل / بعد — أثر الهامش",
+          "previousOsp": "سعر مرجان السابق",
+          "newOsp": "سعر مرجان الجديد",
+          "deltaLabel": "تغيير المحفظة"
         }
       },
       "executive": {
@@ -8625,6 +8655,57 @@
         "recentChange": "تغيير سعر {{benchmarkCode}}: {{delta}} اعتباراً من {{asOf}}",
         "topPositions": "أعلى المراكز هامشاً",
         "viewPositionAriaLabel": "عرض تفاصيل هامش التداول لـ {{ref}}"
+      },
+      "charts": {
+        "murbanBenchmark": {
+          "title": "سعر مرجان مقابل برنت ودبي",
+          "subtitle": "أسعار مرجعية شهرية — فبراير 2025 حتى ديسمبر 2026",
+          "empty": "لا توجد بيانات مرجعية",
+          "series": {
+            "murban": "سعر مرجان",
+            "brent": "برنت",
+            "dubai": "دبي"
+          },
+          "opec": {
+            "ext_cuts": "أوبك+ تمديد الخفض",
+            "plus500": "أوبك+ +500 ألف ب/ي",
+            "pause": "أوبك+ توقف مؤقت",
+            "review": "مراجعة أوبك+"
+          }
+        },
+        "murbanDubaiDifferential": {
+          "title": "الفارق بين مرجان ودبي (دولار/برميل)",
+          "empty": "لا توجد بيانات فارق"
+        },
+        "marginWaterfall": {
+          "title": "هامش الشحنة — الشلال",
+          "subtitle": "الإيرادات ناقص مكونات التكلفة (دولار/برميل)",
+          "showTable": "عرض جدول المكونات",
+          "hideTable": "إخفاء جدول المكونات"
+        },
+        "recomputeHistory": {
+          "title": "تاريخ إعادة حساب الهامش",
+          "subtitle": "الجدول الزمني — الهامش مقابل سعر مرجان عند الحساب",
+          "series": {
+            "margin": "الهامش (دولار/برميل)",
+            "osp": "سعر مرجان عند الحساب"
+          },
+          "refLine": {
+            "ospChange": "إعادة حساب مرجان"
+          }
+        },
+        "buyAndRefine": {
+          "title": "اقتصاديات الشراء والتكرير",
+          "subtitle": "تكلفة المدخلات + التكرير + إيرادات البيع النهائي (دولار/برميل)",
+          "components": {
+            "crude_purchase": "شراء النفط الخام",
+            "transport": "النقل",
+            "refining": "التكرير",
+            "storage": "التخزين",
+            "downstream_sale": "بيع منتجات التكرير",
+            "net_margin": "صافي الهامش"
+          }
+        }
       }
     },
     "priceBenchmark": {

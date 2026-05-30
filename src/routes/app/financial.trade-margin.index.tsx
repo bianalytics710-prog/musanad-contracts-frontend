@@ -2,6 +2,7 @@
  * /app/financial/trade-margin — Trade Margin Positions list (index).
  *
  * CR-O — M21 Financial Intelligence (Trade Margin). Primary persona: finance_treasury.
+ * CR-S — Aggregate tab augmented with charts #4 (margin by side) and #5 (by counterparty).
  * Read access: finance_treasury, executive, platform_admin, Super Admin.
  *
  * AC#1: Seller + buyer positions list with side badge, grade, counterparty,
@@ -33,8 +34,19 @@ import {
   TrendingUp,
   ArrowUpDown,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  Cell,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import { ChartCard, SemanticTooltip } from '@/components/charts';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialTradeMarginService } from '@/services/api/financial-trade-margin.service';
 import { translateApiError } from '@/lib/translate-api-error';
@@ -43,9 +55,17 @@ import type {
   TradePositionListItem,
   TradePositionListQuery,
   MarginAggregateQuery,
+  MarginAggregateResult,
   TradeSide,
   MarginRecommendation,
 } from '@/types/entities/trade-margin.types';
+
+// Chart color tokens — semantic, no raw hex (C13)
+const C1 = 'oklch(var(--chart-1))'; // gold — sell
+const C2 = 'oklch(var(--chart-2))'; // sage — buy
+const C3 = 'oklch(var(--chart-3))';
+const C4 = 'oklch(var(--chart-4))';
+const CHART_COLORS = [C1, C2, C3, C4];
 
 export const Route = createFileRoute('/app/financial/trade-margin/')({
   component: () => (
@@ -58,9 +78,9 @@ export const Route = createFileRoute('/app/financial/trade-margin/')({
 // ─────────────────────────────────────────────────────────────
 // Money formatters — parseFloat guard; no raw hex (C13)
 // ─────────────────────────────────────────────────────────────
-function formatAedCompact(raw: string | null | undefined): string {
+function formatAedCompact(raw: string | number | null | undefined): string {
   if (raw === null || raw === undefined) return '—';
-  const n = parseFloat(raw);
+  const n = typeof raw === 'number' ? raw : parseFloat(raw);
   if (isNaN(n)) return '—';
   try {
     return new Intl.NumberFormat('en-AE', {
@@ -679,13 +699,36 @@ function PositionRow({ row }: { row: TradePositionListItem }) {
 
 // ─────────────────────────────────────────────────────────────
 // AggregateView — CFO/trading-desk portfolio rollup (AC#5)
+// CR-S: augmented with Chart #4 (margin by side) and Chart #5 (by counterparty)
 // ─────────────────────────────────────────────────────────────
 function AggregateView({
   data,
 }: {
-  data: import('@/types/entities/trade-margin.types').MarginAggregateResult;
+  data: MarginAggregateResult;
 }) {
   const { t } = useTranslation();
+
+  // Build grouped-bar data for chart #4 (side grouping)
+  const sideChartData = useMemo(() => {
+    if (data.groupBy !== 'side') return [];
+    return data.breakdown.map((b) => ({
+      side: b.label,
+      key: b.key,
+      marginAed: parseFloat(b.marginAed),
+    }));
+  }, [data]);
+
+  // Build horizontal bar data for chart #5 (counterparty grouping)
+  const counterpartyChartData = useMemo(() => {
+    if (data.groupBy !== 'counterparty') return [];
+    return data.breakdown
+      .map((b) => ({
+        name: b.label.length > 24 ? b.label.slice(0, 22) + '…' : b.label,
+        marginAed: parseFloat(b.marginAed),
+      }))
+      .sort((a, b) => b.marginAed - a.marginAed)
+      .slice(0, 15); // top 15 for readability
+  }, [data]);
 
   return (
     <div className="space-y-4">
@@ -718,6 +761,91 @@ function AggregateView({
           </p>
         </div>
       </div>
+
+      {/* Chart #4 — Margin by side grouped bar (when groupBy='side') */}
+      {data.groupBy === 'side' && sideChartData.length > 0 && (
+        <ChartCard
+          title={t('financial.tradeMargin.aggregate.charts.bySide.title')}
+          subtitle={t('financial.tradeMargin.aggregate.charts.bySide.subtitle')}
+          height={280}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={sideChartData}
+              margin={{ top: 8, right: 20, bottom: 8, left: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis
+                dataKey="side"
+                tick={{ fontSize: 12, fill: 'var(--color-ink-muted)' }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                tickFormatter={(v: number) => formatAedCompact(v)}
+                tick={{ fontSize: 10, fill: 'var(--color-ink-muted)' }}
+                tickLine={false}
+                axisLine={false}
+                width={72}
+              />
+              <SemanticTooltip currencyHint="aed" />
+              <Bar dataKey="marginAed" radius={[4, 4, 0, 0]}>
+                {sideChartData.map((entry) => (
+                  <Cell
+                    key={entry.key}
+                    fill={entry.key === 'sell' ? C1 : C2}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* Chart #5 — Margin by counterparty horizontal bar (when groupBy='counterparty') */}
+      {data.groupBy === 'counterparty' && counterpartyChartData.length > 0 && (
+        <ChartCard
+          title={t('financial.tradeMargin.aggregate.charts.byCounterparty.title')}
+          subtitle={t('financial.tradeMargin.aggregate.charts.byCounterparty.subtitle')}
+          height={Math.max(280, counterpartyChartData.length * 32 + 60)}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={counterpartyChartData}
+              layout="vertical"
+              margin={{ top: 8, right: 60, bottom: 8, left: 8 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis
+                type="number"
+                tickFormatter={(v: number) => formatAedCompact(v)}
+                tick={{ fontSize: 10, fill: 'var(--color-ink-muted)' }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={160}
+                tick={{ fontSize: 10, fill: 'var(--color-ink-muted)' }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <SemanticTooltip currencyHint="aed" />
+              <Bar dataKey="marginAed" radius={[0, 4, 4, 0]}>
+                {counterpartyChartData.map((_entry, idx) => (
+                  <Cell
+                    key={idx}
+                    fill={CHART_COLORS[idx % CHART_COLORS.length]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
+      {/* Chart #5 for quarter grouping — fallback to table only */}
 
       {/* Breakdown table */}
       {data.breakdown.length === 0 ? (
