@@ -187,6 +187,8 @@ export interface RolePermission {
  *
  * - `permissions: string[]` is an array of permission `code` values
  *   (NOT permission names) for fast capability checks.
+ * - `effectiveModules: string[]` is the computed set of module keys the
+ *   user can access (fn_user_effective_modules intersection). Added in CR-U/CR-V.
  * - `passwordHash` is INTENTIONALLY ABSENT — fn_user_get_by_id never
  *   returns it. Use LoginUserRecord (internal) for the login flow.
  * - `loginAttempts` / `lockedUntil` are NOT returned by fn_user_get_by_id;
@@ -203,6 +205,8 @@ export interface User {
   updatedAt: string;
   role: RoleRef;
   permissions: string[];        // permission codes
+  /** CR-W (v1.5): effective module keys computed by fn_user_effective_modules. */
+  effectiveModules: string[];
 }
 
 /**
@@ -212,6 +216,8 @@ export interface User {
  *
  * NOTE: AuthUser intentionally does NOT contain passwordHash —
  *       passwordHash never crosses the API boundary.
+ * NOTE: effectiveModules is preserved — it is used by the sidebar and
+ *       RequireModule route boundary (CR-W).
  */
 export type AuthUser = Omit<User, 'createdAt' | 'updatedAt' | 'isActive' | 'lastLoginAt'>;
 

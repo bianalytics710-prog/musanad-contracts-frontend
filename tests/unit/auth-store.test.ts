@@ -12,6 +12,7 @@ const sampleUser: LoginResponse = {
     lastName: "Admin",
     role: { id: 1, name: "Super Admin" },
     permissions: ["user.manage", "user.read.all"],
+    effectiveModules: ["admin", "contracts.browse", "insights_hub"],
   },
 };
 

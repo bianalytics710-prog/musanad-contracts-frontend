@@ -42,6 +42,7 @@ describe("contractExportService — F-FE-001 401-then-refresh-then-retry via api
         lastName: "Admin",
         role: { id: 1, name: "Super Admin" },
         permissions: ["contract.export"],
+        effectiveModules: ["admin", "contracts.browse", "insights_hub"],
       },
     });
     originalAdapter = apiClient.defaults.adapter as AxiosAdapter | undefined;

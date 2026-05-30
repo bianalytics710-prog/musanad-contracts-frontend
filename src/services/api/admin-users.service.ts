@@ -108,3 +108,35 @@ export const adminRolesService = {
     return data;
   },
 };
+
+// ─── CR-W: Role-Module matrix types ──────────────────────────────────────────
+
+export interface RoleModuleCell {
+  isAllowed: boolean;
+  isDefault: boolean;
+  reason: string | null;
+}
+
+export interface RoleModuleMatrixRow {
+  roleId: number;
+  roleName: string;
+  modules: Record<string, RoleModuleCell>;
+}
+
+export interface RoleModuleMatrixResponse {
+  data: RoleModuleMatrixRow[];
+}
+
+/**
+ * CR-W: Fetches the full role × module matrix from the CR-V admin endpoint.
+ * Used client-side to filter the role dropdown to roles that have at least
+ * one enabled module.
+ */
+export const adminModulesService = {
+  getRoleModuleMatrix: async (): Promise<RoleModuleMatrixResponse> => {
+    const { data } = await apiClient.get<RoleModuleMatrixResponse>(
+      "/api/v1/admin/role-modules",
+    );
+    return data;
+  },
+};

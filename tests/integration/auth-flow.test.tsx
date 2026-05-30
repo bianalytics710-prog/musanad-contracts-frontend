@@ -81,6 +81,7 @@ describe("LoginForm", () => {
           lastName: "Admin",
           role: { id: 1, name: "Super Admin" },
           permissions: ["user.manage"],
+          effectiveModules: ["admin", "contracts.browse", "insights_hub"],
         },
       });
 

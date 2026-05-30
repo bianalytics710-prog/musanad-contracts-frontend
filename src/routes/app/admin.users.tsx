@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import {
+  adminModulesService,
   adminRolesService,
   adminUsersService,
   type AdminRoleListItem,
@@ -89,6 +90,32 @@ function AdminUsersView() {
     queryFn: () => adminRolesService.list(),
     staleTime: 5 * 60_000,
   });
+
+  // CR-W: Filter role dropdown to roles that have at least one enabled module.
+  // Fetches the role×module matrix; any role with ≥1 allowed module is shown.
+  // Falls back to full role list if matrix endpoint is unavailable (e.g. pre-CR-V).
+  const roleModuleMatrixQuery = useQuery({
+    queryKey: ["admin-role-modules-matrix"],
+    queryFn: () => adminModulesService.getRoleModuleMatrix(),
+    staleTime: 5 * 60_000,
+    // Don't block UX on failure — degrade gracefully.
+    retry: false,
+  });
+
+  const allRoles: AdminRoleListItem[] = rolesQuery.data?.data ?? [];
+  const matrix = roleModuleMatrixQuery.data?.data;
+
+  // Build filtered role list: roles that have at least one allowed module in
+  // the matrix. If matrix is not yet available, show all roles (degraded mode).
+  const availableRoles: AdminRoleListItem[] = matrix
+    ? allRoles.filter((role) => {
+        const matrixRow = matrix.find((r) => r.roleId === role.id);
+        if (!matrixRow) return true; // Super Admin / platform_admin may not be in matrix
+        return Object.values(matrixRow.modules).some((cell) => cell.isAllowed);
+      })
+    : allRoles;
+
+  const hiddenRoleCount = allRoles.length - availableRoles.length;
 
   const items = data?.data ?? [];
   const total = data?.pagination.total ?? 0;
@@ -317,7 +344,8 @@ function AdminUsersView() {
 
       {dialog?.kind === "invite" && (
         <InviteUserDialog
-          roles={rolesQuery.data?.data ?? []}
+          roles={availableRoles}
+          hiddenRoleCount={hiddenRoleCount}
           onClose={() => setDialog(null)}
           onCreated={() => {
             setDialog(null);
@@ -328,7 +356,8 @@ function AdminUsersView() {
       {dialog?.kind === "change-role" && (
         <ChangeRoleDialog
           user={dialog.user}
-          roles={rolesQuery.data?.data ?? []}
+          roles={availableRoles}
+          hiddenRoleCount={hiddenRoleCount}
           onClose={() => setDialog(null)}
           onSaved={() => {
             setDialog(null);
@@ -416,10 +445,12 @@ function generatePassword(): string {
 
 function InviteUserDialog({
   roles,
+  hiddenRoleCount,
   onClose,
   onCreated,
 }: {
   roles: AdminRoleListItem[];
+  hiddenRoleCount: number;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -534,6 +565,14 @@ function InviteUserDialog({
                 </option>
               ))}
             </select>
+            {hiddenRoleCount > 0 && (
+              <p className="mt-1 text-[11px] text-ink-subtle" role="note">
+                {t("admin.users.rolesHiddenHint", {
+                  count: hiddenRoleCount,
+                  defaultValue: "{{count}} role(s) hidden because their modules aren't enabled.",
+                })}
+              </p>
+            )}
           </Field>
           <Field
             id="invite-password"
@@ -579,11 +618,13 @@ function InviteUserDialog({
 function ChangeRoleDialog({
   user,
   roles,
+  hiddenRoleCount,
   onClose,
   onSaved,
 }: {
   user: AdminUserListItem;
   roles: AdminRoleListItem[];
+  hiddenRoleCount: number;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -632,6 +673,14 @@ function ChangeRoleDialog({
               </option>
             ))}
           </select>
+          {hiddenRoleCount > 0 && (
+            <p className="mt-1 text-[11px] text-ink-subtle" role="note">
+              {t("admin.users.rolesHiddenHint", {
+                count: hiddenRoleCount,
+                defaultValue: "{{count}} role(s) hidden because their modules aren't enabled.",
+              })}
+            </p>
+          )}
         </Field>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>

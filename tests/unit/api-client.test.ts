@@ -42,6 +42,7 @@ describe("apiClient — concurrent-401 in-flight refresh dedup (CRX-9)", () => {
         lastName: "Admin",
         role: { id: 1, name: "Super Admin" },
         permissions: ["user.manage"],
+        effectiveModules: ["admin", "contracts.browse", "insights_hub"],
       },
     });
     originalAdapter = apiClient.defaults.adapter as AxiosAdapter | undefined;

@@ -28,6 +28,7 @@ import axios, {
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from "axios";
+import type { QueryClient } from "@tanstack/react-query";
 import type { ErrorResponse, RefreshResponse } from "@/types/api.types";
 import { useAuthStore } from "@/store/auth.store";
 
@@ -261,6 +262,97 @@ function shouldSkipRefresh(url: string | undefined): boolean {
   if (!url) return false;
   return SKIP_REFRESH_PATHS.some((p) => url.endsWith(p) || url.includes(p));
 }
+
+// ─── CR-W: MODULE_DISABLED 404 interceptor ────────────────────────────────────
+//
+// When the BE returns HTTP 404 with body { error: 'not_found', code: 'MODULE_DISABLED' }
+// it means a module was disabled mid-session for this user.
+// Actions:
+//   1. Invalidate the ['auth', 'me'] query so the next round-trip refetches effectiveModules.
+//      Also update the Zustand store directly so the sidebar hides the module immediately.
+//   2. Toast a user-friendly warning (via sonner).
+//   3. Redirect to insights hub if the user is currently on a CRIP app route.
+//
+// To avoid import cycles (api-client → router → routeTree → back to api-client),
+// we use a lazy singleton for QueryClient and navigation.  Both are injected by
+// router.tsx at app boot via registerApiClientDependencies().
+
+let _queryClient: QueryClient | null = null;
+let _navigateFn: ((to: string) => void) | null = null;
+
+/**
+ * Called once from router.tsx after the router is created to wire the
+ * QueryClient and navigate function into the api-client module without
+ * creating a circular import.
+ */
+export function registerApiClientDependencies(
+  queryClient: QueryClient,
+  navigate: (to: string) => void,
+): void {
+  _queryClient = queryClient;
+  _navigateFn = navigate;
+}
+
+// Guard: avoid redirect loops — don't navigate if already on safe paths.
+function isSafeRedirectPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/auth/") ||
+    pathname === "/app/dashboards/insights" ||
+    pathname.startsWith("/app/dashboards/insights")
+  );
+}
+
+// Track in-flight redirect to prevent duplicate toasts + navigations.
+let _moduleDisabledRedirecting = false;
+
+// Lazy import toast to avoid circular dep issues at module init time.
+async function fireModuleDisabledSideEffects(moduleKey: string): Promise<void> {
+  if (_moduleDisabledRedirecting) return;
+  _moduleDisabledRedirecting = true;
+
+  try {
+    // 1. Invalidate auth/me query so the sidebar gets fresh effectiveModules.
+    if (_queryClient) {
+      void _queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+    }
+
+    // 2. Toast warning.
+    const { toast } = await import("sonner");
+    toast.warning(`Module unavailable: ${moduleKey}. Redirecting…`);
+
+    // 3. Redirect to insights hub if not already there.
+    const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+    if (!isSafeRedirectPath(pathname) && _navigateFn) {
+      _navigateFn("/app/dashboards/insights");
+    }
+  } finally {
+    // Reset after a short delay so future mid-session toggles can fire again.
+    setTimeout(() => {
+      _moduleDisabledRedirecting = false;
+    }, 3_000);
+  }
+}
+
+// Attach the MODULE_DISABLED side-effect handler into the existing response
+// interceptor chain.  This is done separately after the 401-refresh interceptor
+// so error normalisation still runs first on the 404 path.
+apiClient.interceptors.response.use(undefined, async (error: AxiosError) => {
+  if (
+    error.response?.status === 404 &&
+    typeof error.response.data === "object" &&
+    error.response.data !== null
+  ) {
+    const body = error.response.data as Record<string, unknown>;
+    if (body.code === "MODULE_DISABLED" || (body.error as Record<string, unknown> | undefined)?.code === "MODULE_DISABLED") {
+      const moduleKey =
+        (body.moduleKey as string | undefined) ??
+        ((body.error as Record<string, unknown> | undefined)?.moduleKey as string | undefined) ??
+        "unknown";
+      void fireModuleDisabledSideEffects(moduleKey);
+    }
+  }
+  return Promise.reject(error);
+});
 
 // ─── Convenience extractor ────────────────────────────────────────────────────
 

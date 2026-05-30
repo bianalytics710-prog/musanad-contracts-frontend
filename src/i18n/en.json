@@ -201,7 +201,8 @@
       "loading": "Loading chart…",
       "empty": "No data available",
       "error": "Failed to load chart data"
-    }
+    },
+    "moduleDisabled": "This module is not available for your account."
   },
   "budgetBurn": {
     "detail": {
@@ -3756,6 +3757,7 @@
         "suspendFailed": "Could not suspend this user.",
         "reactivateFailed": "Could not reactivate this user."
       },
+      "rolesHiddenHint": "{{count}} role(s) hidden because their modules aren't enabled.",
       "col": {
         "name": "Name",
         "email": "Email",
@@ -4989,6 +4991,59 @@
         "cronInvalid": "Invalid cron expression",
         "recipientsRequired": "Recipients are required when scheduling is enabled",
         "invalidId": "Invalid template id"
+      }
+    },
+    "modules": {
+      "title": "Product modules",
+      "bundle": {
+        "clm": {
+          "label": "CLM (Contract Lifecycle Management)"
+        },
+        "ecip": {
+          "label": "ECIP (Enterprise Contract Intelligence Platform)"
+        },
+        "platform": {
+          "label": "Platform (always on)"
+        }
+      },
+      "clm": {
+        "contracts_browse": "Browse contracts",
+        "contracts_compose": "Compose contracts",
+        "templates": "Templates",
+        "clauses": "Clauses",
+        "parties": "Parties",
+        "obligations": "Obligations",
+        "regulations": "Regulations",
+        "regulatory_radar": "Regulatory radar",
+        "approvals": "Approvals",
+        "queue": "Approval queue",
+        "signatures": "Signatures",
+        "imports": "Bulk imports"
+      },
+      "ecip": {
+        "insights_hub": "Insights hub",
+        "dashboards_executive": "Executive dashboard",
+        "dashboards_operations": "Operations dashboard",
+        "dashboards_finance_treasury": "Finance & Treasury dashboard",
+        "dashboards_compliance_esg": "Compliance & ESG dashboard",
+        "dashboards_procurement": "Procurement dashboard",
+        "impact_signals": "Impact signals",
+        "advisory_queue": "Advisory queue",
+        "risk_cases": "Risk cases",
+        "reports": "Reports",
+        "regulatory_cascade": "Regulatory cascade",
+        "financial_budget_burn": "Budget burn",
+        "financial_trade_margin": "Trade margin",
+        "ai_risk_assistant": "AI risk assistant",
+        "demo_harness": "Demo harness"
+      },
+      "platform": {
+        "admin": "Admin",
+        "users_roles": "Users & roles",
+        "audit": "Audit log",
+        "settings": "Settings",
+        "branding": "Branding",
+        "profile": "Profile"
       }
     }
   },

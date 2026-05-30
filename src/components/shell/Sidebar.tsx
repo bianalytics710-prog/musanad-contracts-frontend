@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForRole } from "@/config/sidebar";
+import { ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForEffectiveSet, modulesForRole } from "@/config/sidebar";
 import { useNavigate } from "@tanstack/react-router";
 
 function getInitials(firstName: string | undefined, lastName: string | undefined): string {
@@ -59,7 +59,11 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     }
   };
 
-  const items = modulesForRole(user?.role.name);
+  // CR-W: use effectiveModules from auth payload when available; fall back to
+  // static role mapping for backward-compat (e.g. tokens minted before CR-V).
+  const items = user?.effectiveModules?.length
+    ? modulesForEffectiveSet(user.effectiveModules)
+    : modulesForRole(user?.role.name);
 
   const initials = getInitials(user?.firstName, user?.lastName);
   const fullName = user ? `${user.firstName} ${user.lastName}` : "";

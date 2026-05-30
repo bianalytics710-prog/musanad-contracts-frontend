@@ -8,9 +8,17 @@
  *
  * TanStack file-based routing lesson (CR-H): sibling files do not
  * auto-mount — the parent must render <Outlet />.
+ *
+ * CR-W: RequireModule gate — redirects to insights hub if regulatory_cascade
+ * is not in the user's effectiveModules.
  */
 import { createFileRoute, Outlet } from '@tanstack/react-router';
+import { RequireModule } from '@/components/routing/RequireModule';
 
 export const Route = createFileRoute('/app/compliance/regulatory-cascade')({
-  component: () => <Outlet />,
+  component: () => (
+    <RequireModule moduleKey="regulatory_cascade">
+      <Outlet />
+    </RequireModule>
+  ),
 });

@@ -5,6 +5,16 @@
  * Templates / Clauses / Parties / Obligations are intentionally listed
  * for visual parity with Lovable — they route to a ComingSoon placeholder.
  * Regulations + Queue likewise — render placeholder where Lovable links.
+ *
+ * CR-W (v1.5 Product Module Toggle):
+ *   - MODULES record is the canonical display-metadata registry — unchanged.
+ *   - BE_TO_FE_KEY maps BE module keys (snake_case / dotted) to FE ModuleKey where
+ *     they differ. Built from the CR-U 25-module catalog seed.
+ *   - modulesForEffectiveSet(effectiveModules) replaces the runtime of
+ *     modulesForRole: returns the ordered SidebarModule[] for the given
+ *     effectiveModules string[] from the BE auth payload.
+ *   - modulesForRole is kept as a FALLBACK for offline/test contexts where
+ *     effectiveModules has not yet been populated (e.g. during hydration).
  */
 import {
   LayoutGrid,
@@ -108,32 +118,42 @@ export interface SidebarModule {
   labelKey: string;
   defaultLabel: string;
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Display order integer matching the CR-U catalog seed display_order column.
+   * CLM: 100–220, ECIP: 300–440, PLATFORM: 500–560.
+   * Used by modulesForEffectiveSet to sort sidebar entries consistently.
+   */
+  displayOrder: number;
 }
 
 export const MODULES: Record<ModuleKey, SidebarModule> = {
-  insights:    { key: "insights",    to: "/app/dashboards/insights", labelKey: "nav.insights",    defaultLabel: "Insights",    icon: LayoutGrid },
-  contracts:   { key: "contracts",   to: "/app/contracts",           labelKey: "nav.contracts",   defaultLabel: "Contracts",   icon: FileText },
-  compose:     { key: "compose",     to: "/app/contracts/compose",   labelKey: "nav.compose",     defaultLabel: "Compose",     icon: PenLine },
-  templates:   { key: "templates",   to: "/app/templates",           labelKey: "nav.templates",   defaultLabel: "Templates",   icon: FileStack },
-  clauses:     { key: "clauses",     to: "/app/clauses",             labelKey: "nav.clauses",     defaultLabel: "Clauses",     icon: Quote },
-  regulations: { key: "regulations", to: "/app/regulations",         labelKey: "nav.impact",      defaultLabel: "Regulations", icon: Scale },
-  radar:       { key: "radar",       to: "/app/regulatory-radar",    labelKey: "nav.impactRadar", defaultLabel: "Reg. Radar",  icon: Radar },
-  approvals:   { key: "approvals",   to: "/app/approvals",           labelKey: "nav.approvals",   defaultLabel: "Approvals",   icon: CheckCircle2 },
-  queue:       { key: "queue",       to: "/app/queue",               labelKey: "nav.queue",       defaultLabel: "Queue",       icon: CheckCircle2 },
-  obligations: { key: "obligations", to: "/app/obligations",         labelKey: "nav.obligations", defaultLabel: "Obligations", icon: CalendarClock },
-  parties:     { key: "parties",     to: "/app/parties",             labelKey: "nav.parties",     defaultLabel: "Parties",     icon: UsersIcon },
-  admin:       { key: "admin",       to: "/app/admin",               labelKey: "nav.admin",       defaultLabel: "Admin",       icon: Shield },
+  // ── CLM bundle (display_order 100–220) ────────────────────────────────────
+  insights:    { key: "insights",    to: "/app/dashboards/insights", labelKey: "nav.insights",    defaultLabel: "Insights",    icon: LayoutGrid,   displayOrder: 100 },
+  contracts:   { key: "contracts",   to: "/app/contracts",           labelKey: "nav.contracts",   defaultLabel: "Contracts",   icon: FileText,     displayOrder: 110 },
+  compose:     { key: "compose",     to: "/app/contracts/compose",   labelKey: "nav.compose",     defaultLabel: "Compose",     icon: PenLine,      displayOrder: 120 },
+  templates:   { key: "templates",   to: "/app/templates",           labelKey: "nav.templates",   defaultLabel: "Templates",   icon: FileStack,    displayOrder: 130 },
+  clauses:     { key: "clauses",     to: "/app/clauses",             labelKey: "nav.clauses",     defaultLabel: "Clauses",     icon: Quote,        displayOrder: 140 },
+  parties:     { key: "parties",     to: "/app/parties",             labelKey: "nav.parties",     defaultLabel: "Parties",     icon: UsersIcon,    displayOrder: 150 },
+  obligations: { key: "obligations", to: "/app/obligations",         labelKey: "nav.obligations", defaultLabel: "Obligations", icon: CalendarClock, displayOrder: 160 },
+  regulations: { key: "regulations", to: "/app/regulations",         labelKey: "nav.impact",      defaultLabel: "Regulations", icon: Scale,        displayOrder: 170 },
+  radar:       { key: "radar",       to: "/app/regulatory-radar",    labelKey: "nav.impactRadar", defaultLabel: "Reg. Radar",  icon: Radar,        displayOrder: 180 },
+  approvals:   { key: "approvals",   to: "/app/approvals",           labelKey: "nav.approvals",   defaultLabel: "Approvals",   icon: CheckCircle2, displayOrder: 190 },
+  queue:       { key: "queue",       to: "/app/queue",               labelKey: "nav.queue",       defaultLabel: "Queue",       icon: CheckCircle2, displayOrder: 200 },
+  // M1c bulk import (mapped from BE key "imports")
+  // Note: no dedicated sidebar entry for "imports" in the old ROLE_MODULES — kept at 220 for completeness
+
+  // ── ECIP bundle (display_order 300–440) ───────────────────────────────────
   // M15 / CR-G — 4 new persona dashboard modules (gated by permission at render time)
-  "dashboards.operations":       { key: "dashboards.operations",       to: "/app/dashboards/operations",       labelKey: "nav.dashboardsOperations",       defaultLabel: "Operations",         icon: Wrench },
-  "dashboards.financeTreasury":  { key: "dashboards.financeTreasury",  to: "/app/dashboards/finance-treasury", labelKey: "nav.dashboardsFinanceTreasury",  defaultLabel: "Finance & Treasury", icon: TrendingUp },
-  "dashboards.complianceEsg":    { key: "dashboards.complianceEsg",    to: "/app/dashboards/compliance-esg",   labelKey: "nav.dashboardsComplianceEsg",    defaultLabel: "Compliance & ESG",   icon: ShieldAlert },
-  "dashboards.procurement":      { key: "dashboards.procurement",      to: "/app/dashboards/procurement",      labelKey: "nav.dashboardsProcurement",      defaultLabel: "Procurement Risk",   icon: Package },
+  "dashboards.operations":       { key: "dashboards.operations",       to: "/app/dashboards/operations",       labelKey: "nav.dashboardsOperations",       defaultLabel: "Operations",         icon: Wrench,       displayOrder: 310 },
+  "dashboards.financeTreasury":  { key: "dashboards.financeTreasury",  to: "/app/dashboards/finance-treasury", labelKey: "nav.dashboardsFinanceTreasury",  defaultLabel: "Finance & Treasury", icon: TrendingUp,   displayOrder: 320 },
+  "dashboards.complianceEsg":    { key: "dashboards.complianceEsg",    to: "/app/dashboards/compliance-esg",   labelKey: "nav.dashboardsComplianceEsg",    defaultLabel: "Compliance & ESG",   icon: ShieldAlert,  displayOrder: 330 },
+  "dashboards.procurement":      { key: "dashboards.procurement",      to: "/app/dashboards/procurement",      labelKey: "nav.dashboardsProcurement",      defaultLabel: "Procurement Risk",   icon: Package,      displayOrder: 340 },
   // M16 / CR-H
-  "legal.advisoryQueue": { key: "legal.advisoryQueue", to: "/app/legal/advisory-queue", labelKey: "nav.legalAdvisoryQueue", defaultLabel: "Advisory Queue", icon: FileEdit },
+  "legal.advisoryQueue": { key: "legal.advisoryQueue", to: "/app/legal/advisory-queue", labelKey: "nav.legalAdvisoryQueue", defaultLabel: "Advisory Queue", icon: FileEdit, displayOrder: 350 },
   // M19 / CR-K — Risk Cases
-  riskCases: { key: "riskCases", to: "/app/risk-cases", labelKey: "nav.riskCases", defaultLabel: "Risk Cases", icon: ShieldX },
+  riskCases: { key: "riskCases", to: "/app/risk-cases", labelKey: "nav.riskCases", defaultLabel: "Risk Cases", icon: ShieldX,      displayOrder: 360 },
   // M20 / CR-L — Reports
-  reports:   { key: "reports",   to: "/app/reports",    labelKey: "nav.reports",   defaultLabel: "Reports",    icon: FileBarChart2 },
+  reports:   { key: "reports",   to: "/app/reports",    labelKey: "nav.reports",   defaultLabel: "Reports",    icon: FileBarChart2, displayOrder: 370 },
   // CR-M — Labor-Law Cascade (gated by regulatory.cascade.read at render time)
   "compliance.regulatoryCascade": {
     key: "compliance.regulatoryCascade",
@@ -141,6 +161,7 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
     labelKey: "nav.complianceRegulatoryCASCADE",
     defaultLabel: "Regulatory Cascade",
     icon: ListChecks,
+    displayOrder: 380,
   },
   // M21 / CR-N — Financial Intelligence Budget Burn (gated by finance.budget.read at render time)
   "financial.budgetBurn": {
@@ -149,6 +170,7 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
     labelKey: "nav.financialBudgetBurn",
     defaultLabel: "Budget Burn",
     icon: DollarSign,
+    displayOrder: 400,
   },
   // M21 / CR-O — Financial Intelligence Trade Margin (gated by finance.margin.read at render time)
   "financial.tradeMargin": {
@@ -157,7 +179,11 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
     labelKey: "nav.financialTradeMargin",
     defaultLabel: "Trade Margin",
     icon: BarChart2,
+    displayOrder: 410,
   },
+
+  // ── PLATFORM bundle (display_order 500–560) ───────────────────────────────
+  admin: { key: "admin", to: "/app/admin", labelKey: "nav.admin", defaultLabel: "Admin", icon: Shield, displayOrder: 500 },
 };
 
 export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
@@ -349,6 +375,78 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
 export const CLAUSES_SUB_NAV: AdminSubItem[] = [
   { to: "/app/clauses/review", labelKey: "nav.clausesReview", defaultLabel: "Review queue", icon: ClipboardList },
 ];
+
+// ─── CR-W: BE-key → FE-key normalisation ─────────────────────────────────────
+//
+// The BE (CR-U catalog seed) uses snake_case / dotted keys such as
+// "dashboards.finance_treasury" while the FE `ModuleKey` union uses camelCase
+// variants ("dashboards.financeTreasury"). This map normalises incoming
+// `effectiveModules` strings from the auth payload into the FE key space.
+//
+// Only mappings where BE key ≠ FE key are listed. All others pass through.
+
+export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
+  // BE key                         FE ModuleKey
+  "dashboards.finance_treasury":    "dashboards.financeTreasury",
+  "dashboards.compliance_esg":      "dashboards.complianceEsg",
+  "financial.budget_burn":          "financial.budgetBurn",
+  "financial.trade_margin":         "financial.tradeMargin",
+  "regulatory_cascade":             "compliance.regulatoryCascade",
+  "risk_cases":                     "riskCases",
+  "regulatory_radar":               "radar",
+  "advisory_queue":                 "legal.advisoryQueue",
+  "insights_hub":                   "insights",
+  // "contracts.browse" → "contracts" (FE has one unified contracts key)
+  "contracts.browse":               "contracts",
+  // "contracts.compose" → "compose"
+  "contracts.compose":              "compose",
+  // "demo_harness" has no sidebar entry in MODULES (admin-only CRIP sub-nav)
+  // so it is intentionally omitted here — the sidebar won't render it.
+};
+
+/**
+ * CR-W runtime replacement for modulesForRole.
+ *
+ * Returns the ordered SidebarModule[] for the given `effectiveModules` array
+ * (from the BE auth payload). BE keys are normalised to FE keys via
+ * BE_TO_FE_KEY before lookup. Unknown or PLATFORM-only keys that have no
+ * MODULES entry are silently skipped (e.g. "demo_harness", "admin.*",
+ * "users_roles", "audit", "settings", "branding", "profile").
+ *
+ * Result is sorted by displayOrder so sidebar order is always consistent
+ * regardless of the order the BE returns the array.
+ */
+export function modulesForEffectiveSet(effectiveModules: string[] | null | undefined): SidebarModule[] {
+  if (!effectiveModules || effectiveModules.length === 0) {
+    // Fallback: show only insights hub so the user can navigate somewhere.
+    return [MODULES.insights];
+  }
+
+  const seen = new Set<ModuleKey>();
+  const result: SidebarModule[] = [];
+
+  for (const beKey of effectiveModules) {
+    // Normalise BE key → FE ModuleKey
+    const feKey: ModuleKey | undefined = (BE_TO_FE_KEY[beKey] as ModuleKey | undefined) ?? (beKey as ModuleKey);
+    // Skip if the FE key has no display entry or we already added it
+    if (!MODULES[feKey] || seen.has(feKey)) continue;
+    seen.add(feKey);
+    result.push(MODULES[feKey]);
+  }
+
+  // Always ensure "admin" is present last when the auth payload contains any
+  // PLATFORM module (admin / users_roles / audit / settings / branding /
+  // profile).  The FE sidebar renders admin as a single entry.
+  const PLATFORM_BE_KEYS = new Set(["admin", "users_roles", "audit", "settings", "branding", "profile"]);
+  const hasPlatformModule = effectiveModules.some((k) => PLATFORM_BE_KEYS.has(k));
+  if (hasPlatformModule && !seen.has("admin")) {
+    result.push(MODULES.admin);
+  }
+
+  // Sort by displayOrder for a consistent sidebar order.
+  result.sort((a, b) => a.displayOrder - b.displayOrder);
+  return result;
+}
 
 export function modulesForRole(roleName: string | null | undefined): SidebarModule[] {
   if (!roleName) return [];

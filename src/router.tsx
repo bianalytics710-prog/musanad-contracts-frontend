@@ -4,10 +4,15 @@
  * Loads the auto-generated routeTree from `@tanstack/router-plugin/vite`.
  * Provides a fresh QueryClient per server request to prevent SSR cache
  * leaking across users, plus a default error component.
+ *
+ * CR-W: Registers QueryClient + navigate function into api-client.ts so the
+ * MODULE_DISABLED 404 interceptor can invalidate queries and redirect without
+ * creating a circular import dependency.
  */
 import { createRouter, useRouter } from "@tanstack/react-router";
 import { QueryClient } from "@tanstack/react-query";
 import { routeTree } from "./routeTree.gen";
+import { registerApiClientDependencies } from "@/lib/api-client";
 
 function DefaultErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
@@ -59,13 +64,21 @@ export const getRouter = () => {
     },
   });
 
-  return createRouter({
+  const router = createRouter({
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
     defaultErrorComponent: DefaultErrorComponent,
   });
+
+  // CR-W: Wire QueryClient + navigate into the api-client MODULE_DISABLED handler.
+  // navigate is a closure over the router so it is always current.
+  registerApiClientDependencies(queryClient, (to: string) => {
+    void router.navigate({ to: to as "/" });
+  });
+
+  return router;
 };
 
 declare module "@tanstack/react-router" {

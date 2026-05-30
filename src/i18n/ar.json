@@ -201,7 +201,8 @@
       "loading": "جارٍ تحميل الرسم البياني…",
       "empty": "لا توجد بيانات متاحة",
       "error": "فشل تحميل بيانات الرسم البياني"
-    }
+    },
+    "moduleDisabled": "هذه الوحدة غير متاحة لحسابك."
   },
   "budgetBurn": {
     "detail": {
@@ -3756,6 +3757,7 @@
         "suspendFailed": "تعذر إيقاف هذا المستخدم.",
         "reactivateFailed": "تعذرت إعادة تفعيل هذا المستخدم."
       },
+      "rolesHiddenHint": "{{count}} دور(أدوار) مخفية لأن وحداتها غير مفعّلة.",
       "col": {
         "name": "الاسم",
         "email": "البريد الإلكتروني",
@@ -4989,6 +4991,59 @@
         "cronInvalid": "تعبير cron غير صالح",
         "recipientsRequired": "المستلمون مطلوبون عند تفعيل الجدولة",
         "invalidId": "معرف قالب غير صالح"
+      }
+    },
+    "modules": {
+      "title": "وحدات المنتج",
+      "bundle": {
+        "clm": {
+          "label": "إدارة دورة حياة العقد"
+        },
+        "ecip": {
+          "label": "منصة ذكاء العقود المؤسسية"
+        },
+        "platform": {
+          "label": "النظام الأساسي (دائم التشغيل)"
+        }
+      },
+      "clm": {
+        "contracts_browse": "تصفح العقود",
+        "contracts_compose": "إنشاء العقود",
+        "templates": "القوالب",
+        "clauses": "البنود",
+        "parties": "الأطراف",
+        "obligations": "الالتزامات",
+        "regulations": "اللوائح",
+        "regulatory_radar": "رادار اللوائح",
+        "approvals": "الموافقات",
+        "queue": "قائمة انتظار الموافقات",
+        "signatures": "التوقيعات",
+        "imports": "الاستيراد المجمع"
+      },
+      "ecip": {
+        "insights_hub": "مركز الرؤى",
+        "dashboards_executive": "لوحة الإدارة التنفيذية",
+        "dashboards_operations": "لوحة العمليات",
+        "dashboards_finance_treasury": "لوحة المالية والخزانة",
+        "dashboards_compliance_esg": "لوحة الامتثال والاستدامة",
+        "dashboards_procurement": "لوحة المشتريات",
+        "impact_signals": "إشارات التأثير",
+        "advisory_queue": "قائمة المشورة",
+        "risk_cases": "حالات المخاطر",
+        "reports": "التقارير",
+        "regulatory_cascade": "تتالي اللوائح",
+        "financial_budget_burn": "استهلاك الميزانية",
+        "financial_trade_margin": "هامش التداول",
+        "ai_risk_assistant": "مساعد المخاطر بالذكاء الاصطناعي",
+        "demo_harness": "بيئة العرض التوضيحي"
+      },
+      "platform": {
+        "admin": "الإدارة",
+        "users_roles": "المستخدمون والأدوار",
+        "audit": "سجل التدقيق",
+        "settings": "الإعدادات",
+        "branding": "العلامة التجارية",
+        "profile": "الملف الشخصي"
       }
     }
   },
