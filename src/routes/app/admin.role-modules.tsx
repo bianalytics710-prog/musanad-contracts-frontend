@@ -9,7 +9,7 @@
  * Permission gate: same as Product Modules screen.
  */
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import {
+import React, {
   useCallback,
   useDeferredValue,
   useMemo,
@@ -43,6 +43,7 @@ import {
   Brain,
   Shield,
   Layers,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -518,7 +519,7 @@ function RoleModulesView() {
 
           {/* ── Per-Role Detail ─────────────────────────────────────────── */}
           <TabsContent value="detail" className="mt-4">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
               {/* Left rail */}
               <RoleRail
                 roles={roles}
@@ -889,36 +890,53 @@ function RoleDetailPane({
     setConfirmState({ kind: "grantAll", role, count: grantKeys.length, grantKeys });
   };
 
+  // Bundle expand/collapse — default ALL COLLAPSED so the user picks
+  // a bundle to drill into. Mirrors the product-modules screen pattern.
+  const [expandedBundles, setExpandedBundles] = useState<Set<string>>(new Set());
+  const toggleBundle = (code: string) =>
+    setExpandedBundles((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  const expandAll = () => setExpandedBundles(new Set(bundleGroups.map((g) => g.bundleCode)));
+  const collapseAll = () => setExpandedBundles(new Set());
+
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-      {/* Sticky header strip */}
-      <div className="sticky top-0 z-10 border-b border-border bg-card px-5 py-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${tone.tile}`}
-              aria-hidden
-            >
-              <RoleIcon className={`h-6 w-6 ${tone.text}`} />
-            </span>
-            <div>
-              <h2 className="text-xl font-semibold text-ink">{label}</h2>
-              <p className="mt-0.5 text-sm text-ink-muted">
-                {t("admin.roleModules.detail.statsLine", {
-                  enabled: enabledCount,
-                  total: allModules.length,
-                  defaultCount,
-                  overrideCount,
-                  defaultValue: `${enabledCount} of ${allModules.length} modules enabled (${defaultCount} default, ${overrideCount} overrides)`,
-                })}
-                <span className="mx-2 text-ink-subtle">·</span>
-                <span className="text-ink-subtle">
-                  {t("admin.roleModules.detail.lastChanged", { defaultValue: "Last changed: never" })}
-                </span>
-              </p>
-            </div>
+      {/* Sticky header strip — compact, fits 1280+ viewports cleanly */}
+      <div className="sticky top-0 z-10 border-b border-border bg-card">
+        <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 min-w-0">
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${tone.tile}`}
+            aria-hidden
+          >
+            <RoleIcon className={`h-5 w-5 ${tone.text}`} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-semibold text-ink">{label}</h2>
+            <p className="mt-0.5 truncate text-xs text-ink-muted">
+              <span className="font-medium text-ink">{enabledCount}</span>
+              <span className="text-ink-subtle"> of {allModules.length} modules · </span>
+              <span>{defaultCount} default</span>
+              {overrideCount > 0 ? (
+                <>
+                  <span className="text-ink-subtle"> · </span>
+                  <span className="font-medium text-gold">{overrideCount} override{overrideCount === 1 ? "" : "s"}</span>
+                </>
+              ) : null}
+            </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={expandedBundles.size === bundleGroups.length ? collapseAll : expandAll}
+              className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-surface/60 hover:text-ink"
+              aria-label={expandedBundles.size === bundleGroups.length ? "Collapse all" : "Expand all"}
+            >
+              {expandedBundles.size === bundleGroups.length ? "Collapse all" : "Expand all"}
+            </button>
             <Button
               variant="outline"
               size="sm"
@@ -947,6 +965,7 @@ function RoleDetailPane({
           const BundleIcon = BUNDLE_ICONS[group.bundleCode] ?? Package;
           const bundleLabel = BUNDLE_LABELS[group.bundleCode] ?? group.bundleCode.toUpperCase();
 
+          const isExpanded = expandedBundles.has(group.bundleCode);
           return (
             <motion.div
               key={group.bundleCode}
@@ -954,23 +973,29 @@ function RoleDetailPane({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, delay: gi * 0.05, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Bundle header */}
-              <div
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium ${BUNDLE_TINT[group.bundleCode] ?? "bg-surface"}`}
+              {/* Bundle header — clickable to expand/collapse */}
+              <button
+                type="button"
+                onClick={() => toggleBundle(group.bundleCode)}
+                aria-expanded={isExpanded}
+                aria-controls={`bundle-section-${group.bundleCode}`}
+                className={`flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-medium transition-colors hover:brightness-95 ${BUNDLE_TINT[group.bundleCode] ?? "bg-surface"}`}
               >
+                <ChevronRight
+                  className={`h-4 w-4 shrink-0 text-ink-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                  aria-hidden
+                />
                 <BundleIcon className={`h-4 w-4 ${BUNDLE_ICON_COLOR[group.bundleCode] ?? "text-ink-muted"}`} />
                 <span className="text-ink">{bundleLabel}</span>
-                <span className="ms-auto text-xs text-ink-subtle">
-                  {t("admin.roleModules.detail.bundleCounter", {
-                    enabled: group.enabledInBundle,
-                    total: group.modules.length,
-                    defaultValue: `${group.enabledInBundle} of ${group.modules.length} enabled`,
-                  })}
+                <span className="ms-auto inline-flex items-center gap-1 text-xs">
+                  <span className="font-medium text-ink">{group.enabledInBundle}</span>
+                  <span className="text-ink-subtle">/ {group.modules.length}</span>
                 </span>
-              </div>
+              </button>
 
-              {/* Module cards */}
-              <div className="divide-y divide-border/30">
+              {/* Module cards — collapsed by default */}
+              {!isExpanded ? null : (
+              <div id={`bundle-section-${group.bundleCode}`} className="divide-y divide-border/30">
                 {group.modules.length === 0 ? (
                   <p className="px-5 py-3 text-xs italic text-ink-subtle">
                     {t("admin.roleModules.detail.noModulesInBundle", {
@@ -1081,6 +1106,7 @@ function RoleDetailPane({
                   })
                 )}
               </div>
+              )}
             </motion.div>
           );
         })}
@@ -1249,6 +1275,20 @@ function CompareGrid({
     modules: filteredModules.filter((m) => m.bundleCode === bundleCode),
   })).filter((g) => g.modules.length > 0);
 
+  // Bundle expand/collapse — default ALL COLLAPSED so the user picks
+  // a bundle to drill into. (Matches the Per-Role Detail pattern.)
+  const [expandedBundles, setExpandedBundles] = useState<Set<string>>(new Set());
+  const toggleGridBundle = (code: string) =>
+    setExpandedBundles((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  const allExpanded = expandedBundles.size === bundleGroups.length;
+  const toggleAll = () =>
+    setExpandedBundles(allExpanded ? new Set() : new Set(bundleGroups.map((g) => g.bundleCode)));
+
   return (
     <div className="space-y-3">
       {/* Filter bar */}
@@ -1286,15 +1326,24 @@ function CompareGrid({
           {t("admin.roleModules.hideDisabled", { defaultValue: "Hide disabled modules" })}
         </label>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="ms-auto gap-1.5"
-          onClick={handleDownloadCsv}
-        >
-          <Download className="h-3.5 w-3.5" />
-          {t("admin.roleModules.grid.downloadCsv", { defaultValue: "Download CSV" })}
-        </Button>
+        <div className="ms-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:bg-surface/60 hover:text-ink"
+          >
+            {allExpanded ? "Collapse all" : "Expand all"}
+          </button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleDownloadCsv}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t("admin.roleModules.grid.downloadCsv", { defaultValue: "Download CSV" })}
+          </Button>
+        </div>
       </div>
 
       {/* Grid table */}
@@ -1313,32 +1362,41 @@ function CompareGrid({
               >
                 {t("admin.roles.headers.permission", { defaultValue: "Module" })}
               </th>
-              {/* Role column headers */}
+              {/* Role column headers — persona avatar with initials + tooltip */}
               {roles.map((role) => {
                 const tone = getRoleTone(role.name);
                 const RoleIcon = getRoleIcon(role.name);
                 const label = getRoleLabel(role);
+                // 2-letter initials from the display label
+                const initials = label
+                  .split(/[\s&]+/)
+                  .map((w) => w[0]?.toUpperCase() ?? "")
+                  .join("")
+                  .slice(0, 2);
                 return (
                   <th
                     key={role.id}
                     scope="col"
-                    className="min-w-[44px] bg-card px-1 py-2 align-bottom"
+                    className="min-w-[56px] bg-card px-2 py-3 align-middle"
                   >
-                    <div className="flex flex-col items-center gap-1 pb-1">
-                      <span
-                        className={`flex h-6 w-6 items-center justify-center rounded ${tone.tile}`}
-                      >
-                        <RoleIcon className={`h-3 w-3 ${tone.text}`} />
-                      </span>
-                      <div
-                        className="flex h-20 items-end justify-center"
-                        style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-                      >
-                        <span className="truncate text-[10px] font-medium text-ink-subtle" title={label}>
-                          {label}
-                        </span>
-                      </div>
-                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex flex-col items-center gap-1">
+                          <span
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg ${tone.tile}`}
+                            aria-hidden
+                          >
+                            <RoleIcon className={`h-4 w-4 ${tone.text}`} />
+                          </span>
+                          <span className={`text-[10px] font-semibold tracking-wider ${tone.text}`}>
+                            {initials}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        {label}
+                      </TooltipContent>
+                    </Tooltip>
                   </th>
                 );
               })}
@@ -1348,22 +1406,37 @@ function CompareGrid({
             {bundleGroups.map((group) => {
               const BundleIcon = BUNDLE_ICONS[group.bundleCode] ?? Package;
               const bundleLabel = BUNDLE_LABELS[group.bundleCode] ?? group.bundleCode.toUpperCase();
+              const isExpanded = expandedBundles.has(group.bundleCode);
               return (
-                <>
-                  {/* Bundle section header row */}
-                  <tr key={`bundle-${group.bundleCode}`} className="border-t border-border/40">
+                <React.Fragment key={`grid-bundle-${group.bundleCode}`}>
+                  {/* Bundle section header row — clickable to toggle */}
+                  <tr className="border-t border-border/40">
                     <td
                       colSpan={roles.length + 1}
-                      className={`px-4 py-2 ${BUNDLE_TINT[group.bundleCode] ?? "bg-surface"}`}
+                      className={`p-0 ${BUNDLE_TINT[group.bundleCode] ?? "bg-surface"}`}
                     >
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                      <button
+                        type="button"
+                        onClick={() => toggleGridBundle(group.bundleCode)}
+                        aria-expanded={isExpanded}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:brightness-95"
+                      >
+                        <ChevronRight
+                          className={`h-4 w-4 shrink-0 text-ink-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                          aria-hidden
+                        />
                         <BundleIcon className={`h-3.5 w-3.5 ${BUNDLE_ICON_COLOR[group.bundleCode] ?? "text-ink-muted"}`} />
-                        {bundleLabel}
-                      </div>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                          {bundleLabel}
+                        </span>
+                        <span className="ms-auto text-[11px] text-ink-subtle">
+                          {group.modules.length} module{group.modules.length === 1 ? "" : "s"}
+                        </span>
+                      </button>
                     </td>
                   </tr>
-                  {/* Module rows */}
-                  {group.modules.map((mod) => {
+                  {/* Module rows — only when expanded */}
+                  {isExpanded && group.modules.map((mod) => {
                     const pm = productModuleMap.get(mod.key);
                     const isChild = !!pm?.parentKey;
                     const keySegs = mod.key.split(".");
@@ -1430,7 +1503,7 @@ function CompareGrid({
                       </tr>
                     );
                   })}
-                </>
+                </React.Fragment>
               );
             })}
           </tbody>
@@ -1458,7 +1531,7 @@ function LoadingSkeleton() {
       <Skeleton className="h-10 w-72" />
       <Skeleton className="h-5 w-96" />
       <Skeleton className="h-9 w-64" />
-      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         {/* Rail skeleton */}
         <div className="space-y-2">
           <Skeleton className="h-8 w-full" />
