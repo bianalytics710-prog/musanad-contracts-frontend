@@ -108,16 +108,21 @@ export interface PatchRoleModuleResponse {
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
+// BE wraps every response in { success: true, data: <payload> }; this thin
+// envelope is unwrapped at the service boundary so React components can use
+// the typed payload directly without double `.data.data` access.
+interface Envelope<T> { success: boolean; data: T; }
+
 export const adminModulesService = {
   /**
    * Returns the full module catalog with current enabled state.
    * Maps to GET /api/v1/admin/modules → fn_product_module_list().
    */
   getProductModuleList: async (): Promise<ProductModuleListResponse> => {
-    const { data } = await apiClient.get<ProductModuleListResponse>(
+    const { data } = await apiClient.get<Envelope<ProductModuleListResponse>>(
       "/api/v1/admin/modules",
     );
-    return data;
+    return data.data;
   },
 
   /**
@@ -126,11 +131,11 @@ export const adminModulesService = {
    */
   patchModule: async (payload: PatchModulePayload): Promise<PatchModuleResponse> => {
     const { key, ...body } = payload;
-    const { data } = await apiClient.patch<PatchModuleResponse>(
+    const { data } = await apiClient.patch<Envelope<PatchModuleResponse>>(
       `/api/v1/admin/modules/${encodeURIComponent(key)}`,
       body,
     );
-    return data;
+    return data.data;
   },
 
   /**
@@ -139,11 +144,11 @@ export const adminModulesService = {
    */
   patchBundle: async (payload: PatchBundlePayload): Promise<PatchBundleResponse> => {
     const { code, ...body } = payload;
-    const { data } = await apiClient.patch<PatchBundleResponse>(
+    const { data } = await apiClient.patch<Envelope<PatchBundleResponse>>(
       `/api/v1/admin/bundles/${encodeURIComponent(code)}`,
       body,
     );
-    return data;
+    return data.data;
   },
 
   /**
@@ -151,10 +156,10 @@ export const adminModulesService = {
    * Maps to GET /api/v1/admin/role-modules → fn_role_module_matrix_get().
    */
   getRoleModuleMatrix: async (): Promise<RoleModuleMatrix> => {
-    const { data } = await apiClient.get<RoleModuleMatrix>(
+    const { data } = await apiClient.get<Envelope<RoleModuleMatrix>>(
       "/api/v1/admin/role-modules",
     );
-    return data;
+    return data.data;
   },
 
   /**
@@ -165,10 +170,10 @@ export const adminModulesService = {
     payload: PatchRoleModulePayload,
   ): Promise<PatchRoleModuleResponse> => {
     const { roleId, moduleKey, ...body } = payload;
-    const { data } = await apiClient.patch<PatchRoleModuleResponse>(
+    const { data } = await apiClient.patch<Envelope<PatchRoleModuleResponse>>(
       `/api/v1/admin/role-modules/${encodeURIComponent(String(roleId))}/${encodeURIComponent(moduleKey)}`,
       body,
     );
-    return data;
+    return data.data;
   },
 };

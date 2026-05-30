@@ -59,33 +59,39 @@ type LoginFormValues = z.infer<typeof loginSchema>;
  * R1 audit fix: post-login landing per role. Lovable redirects approvers
  * to /approvals on sign-in (queue-as-workspace); drafters to their
  * dashboard; etc. Falls back to /app for unknown roles.
+ *
+ * v1.5: if the role's default landing route depends on a module that the
+ * platform admin has disabled (effectiveModules doesn't include it), fall
+ * back to /app/dashboards/insights (insights_hub is in the PLATFORM bundle
+ * surrogate-default and visible to all roles). This avoids landing on a
+ * dashboard the user is not allowed to see.
  */
-function defaultLandingForRole(roleName: string | null | undefined): string {
-  switch (roleName) {
-    case "contract_approver":
-    case "contract_approver_2":
-      return "/app/approvals";
-    case "contract_drafter":
-      return "/app/dashboards/drafter";
-    case "legal_counsel":
-      return "/app/dashboards/legal-counsel";
-    case "executive":
-      return "/app/dashboards/executive";
-    case "contract_recipient":
-      return "/app/dashboards/recipient";
-    case "platform_admin":
-      return "/app/admin";
-    case "Super Admin":
-      return "/app/admin";
-    case "operations":
-      return "/app/dashboards/operations";
-    case "finance_treasury":
-      return "/app/dashboards/finance-treasury";
-    case "compliance_esg":
-      return "/app/dashboards/compliance-esg";
-    default:
-      return "/app";
+function defaultLandingForRole(
+  roleName: string | null | undefined,
+  effectiveModules: string[] = [],
+): string {
+  // Map role -> (preferred route, gating module key). When gating module is
+  // not in effectiveModules, the FE RequireModule boundary would 404+redirect,
+  // so steer the redirect proactively to the always-available insights hub.
+  const candidates: Record<string, { route: string; module?: string }> = {
+    contract_approver:   { route: "/app/approvals",                    module: "approvals" },
+    contract_approver_2: { route: "/app/approvals",                    module: "approvals" },
+    contract_drafter:    { route: "/app/dashboards/drafter",           module: "insights_hub" },
+    legal_counsel:       { route: "/app/dashboards/legal-counsel",     module: "insights_hub" },
+    executive:           { route: "/app/dashboards/executive",         module: "dashboards.executive" },
+    contract_recipient:  { route: "/app/dashboards/recipient",         module: "insights_hub" },
+    platform_admin:      { route: "/app/admin",                        module: "admin" },
+    "Super Admin":       { route: "/app/admin",                        module: "admin" },
+    operations:          { route: "/app/dashboards/operations",        module: "dashboards.operations" },
+    finance_treasury:    { route: "/app/dashboards/finance-treasury",  module: "dashboards.finance_treasury" },
+    compliance_esg:      { route: "/app/dashboards/compliance-esg",    module: "dashboards.compliance_esg" },
+  };
+  const c = roleName ? candidates[roleName] : undefined;
+  if (!c) return "/app";
+  if (c.module && !effectiveModules.includes(c.module)) {
+    return "/app/dashboards/insights";
   }
+  return c.route;
 }
 
 function readSafeRedirect(): string | undefined {
@@ -126,7 +132,10 @@ export function LoginForm() {
       if (safeRedirect) {
         router.history.push(safeRedirect);
       } else {
-        const landing = defaultLandingForRole(response.user.role?.name);
+        const landing = defaultLandingForRole(
+          response.user.role?.name,
+          response.user.effectiveModules ?? [],
+        );
         router.history.push(landing);
       }
     },

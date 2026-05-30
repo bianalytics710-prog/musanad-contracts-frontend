@@ -639,17 +639,20 @@ function ConfirmDialog({
           defaultValue: "Disable module?",
         });
 
+  // targetLabel is the i18n label_key (e.g. "admin.modules.bundle.ecip.label") —
+  // translate it before interpolating so the modal shows "ECIP" not the raw key.
+  const targetLabelText = t(state.targetLabel, { defaultValue: state.targetLabel });
   const body =
     state.type === "bundle"
       ? t("admin.modules.bundleConfirmDisable.body", {
-          bundle: state.targetLabel,
+          bundle: targetLabelText,
           count: state.affectedCount,
-          defaultValue: `Disabling the ${state.targetLabel} bundle will turn off ${state.affectedCount} modules. Users will lose access to these features immediately. Continue?`,
+          defaultValue: `Disabling the ${targetLabelText} bundle will turn off ${state.affectedCount} modules. Users will lose access to these features immediately. Continue?`,
         })
       : t("admin.modules.moduleConfirmDisable.body", {
-          module: state.targetLabel,
+          module: targetLabelText,
           count: state.affectedCount,
-          defaultValue: `Disabling "${state.targetLabel}" will also disable ${state.affectedCount} child modules. Continue?`,
+          defaultValue: `Disabling "${targetLabelText}" will also disable ${state.affectedCount} child modules. Continue?`,
         });
 
   return (

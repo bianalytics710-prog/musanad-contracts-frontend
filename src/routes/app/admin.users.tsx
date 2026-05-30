@@ -33,12 +33,16 @@ import {
 } from "@/components/ui/dialog";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import {
-  adminModulesService,
   adminRolesService,
   adminUsersService,
   type AdminRoleListItem,
   type AdminUserListItem,
 } from "@/services/api/admin-users.service";
+// Use the CR-X canonical service that matches the BE fn_role_module_matrix_get
+// JSONB shape (roles / modules / matrix:MatrixCell[]). The duplicate
+// adminModulesService in admin-users.service.ts had a different legacy shape
+// and is unused now; safe to leave or remove in a follow-up.
+import { adminModulesService } from "@/services/api/admin-modules.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatDateTime } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
@@ -103,15 +107,18 @@ function AdminUsersView() {
   });
 
   const allRoles: AdminRoleListItem[] = rolesQuery.data?.data ?? [];
-  const matrix = roleModuleMatrixQuery.data?.data;
+  // The matrix endpoint returns { roles, modules, matrix: [{roleId, moduleKey, effectiveState, source}] }.
+  // The service returns the envelope directly (no extra .data wrapper); pluck out the inner cells array.
+  const matrixEnvelope = roleModuleMatrixQuery.data;
+  const matrixCells = Array.isArray(matrixEnvelope?.matrix) ? matrixEnvelope.matrix : null;
 
   // Build filtered role list: roles that have at least one allowed module in
   // the matrix. If matrix is not yet available, show all roles (degraded mode).
-  const availableRoles: AdminRoleListItem[] = matrix
+  const availableRoles: AdminRoleListItem[] = matrixCells
     ? allRoles.filter((role) => {
-        const matrixRow = matrix.find((r) => r.roleId === role.id);
-        if (!matrixRow) return true; // Super Admin / platform_admin may not be in matrix
-        return Object.values(matrixRow.modules).some((cell) => cell.isAllowed);
+        const cellsForRole = matrixCells.filter((c) => c.roleId === role.id);
+        if (cellsForRole.length === 0) return true; // role not in matrix => don't hide
+        return cellsForRole.some((c) => c.effectiveState === "allow");
       })
     : allRoles;
 
