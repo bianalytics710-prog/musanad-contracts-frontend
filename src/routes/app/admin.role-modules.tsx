@@ -467,7 +467,7 @@ function RoleModulesView() {
   // ── Render ─────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-4 p-6">
+      <div className="w-full min-w-0 max-w-full space-y-4 overflow-x-hidden p-6">
         <LoadingSkeleton />
       </div>
     );
@@ -475,7 +475,7 @@ function RoleModulesView() {
 
   if (isError) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] p-6">
+      <div className="w-full min-w-0 max-w-full overflow-x-hidden p-6">
         <ErrorCard onRetry={refetch} />
       </div>
     );
@@ -489,7 +489,7 @@ function RoleModulesView() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto w-full max-w-[1400px] space-y-5 p-6"
+        className="w-full min-w-0 max-w-full space-y-5 overflow-x-hidden p-6"
       >
         {/* Header */}
         <header>

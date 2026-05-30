@@ -314,7 +314,7 @@ function ProductModulesView() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto w-full max-w-[960px] space-y-6 p-6"
+        className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden p-6"
       >
         {/* Header */}
         <header>
