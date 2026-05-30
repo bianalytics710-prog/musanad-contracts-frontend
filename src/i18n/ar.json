@@ -196,7 +196,68 @@
     },
     "posting": "جارٍ النشر…",
     "uploading": "جارٍ الرفع…",
-    "queueing": "جارٍ الإضافة إلى القائمة…"
+    "queueing": "جارٍ الإضافة إلى القائمة…",
+    "charts": {
+      "loading": "جارٍ تحميل الرسم البياني…",
+      "empty": "لا توجد بيانات متاحة",
+      "error": "فشل تحميل بيانات الرسم البياني"
+    }
+  },
+  "budgetBurn": {
+    "detail": {
+      "tabs": {
+        "ariaLabel": "تبويبات تفاصيل الاستهلاك الميزاني",
+        "overview": "نظرة عامة",
+        "periodCategory": "الفترة × الفئة",
+        "varianceClauses": "الانحراف والبنود",
+        "projection": "التوقعات",
+        "trends": "الاتجاهات",
+        "showTable": "عرض الجدول",
+        "hideTable": "إخفاء الجدول"
+      }
+    },
+    "charts": {
+      "cumulativeBurn": {
+        "title": "الاستهلاك التراكمي",
+        "subtitle": "مسار الإنفاق الفعلي مقابل مغلف الميزانية المخططة",
+        "actual": "الفعلي (تراكمي)",
+        "budgetEnvelope": "مغلف الميزانية"
+      },
+      "periodCategory": {
+        "title": "الفترة × فئة التكلفة",
+        "subtitle": "الإنفاق الفعلي حسب فئة التكلفة عبر فترات الميزانية"
+      },
+      "projectionGauge": {
+        "title": "توقعات نهاية السنة",
+        "subtitle": "الإنفاق المتوقع للسنة الكاملة كنسبة من ميزانية السنة المالية المخصصة",
+        "ofFY": "من ميزانية السنة المالية"
+      },
+      "dayRateTrend": {
+        "title": "اتجاه المعدل اليومي الشهري",
+        "subtitle": "فوترة المعدل اليومي الفعلية شهراً بشهر",
+        "actual": "المعدل اليومي (فعلي)",
+        "referenceLines": {
+          "planned": "الخطة",
+          "contractedCeiling": "السقف التعاقدي"
+        },
+        "breachLabel": "خرق +8%"
+      },
+      "portfolioConsumption": {
+        "title": "استهلاك المحفظة",
+        "subtitle": "الميزانية المستهلكة (%) عبر العقود — مرتبة حسب أعلى تجاوز",
+        "consumed": "% مستهلك"
+      }
+    },
+    "portfolio": {
+      "filters": {
+        "searchPlaceholder": "بحث في العقد، الطرف المقابل…",
+        "overBudgetOnly": "المتجاوزة فقط",
+        "bySubsidiary": "حسب الشركة التابعة",
+        "byEmirate": "حسب الإمارة",
+        "showing": "{{count}} من {{total}} عقود",
+        "noResults": "لا توجد عقود تطابق المرشحات الحالية."
+      }
+    }
   },
   "notifications": {
     "title": "الإشعارات",

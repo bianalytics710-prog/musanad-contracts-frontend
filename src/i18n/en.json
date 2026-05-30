@@ -196,7 +196,68 @@
     },
     "posting": "Posting…",
     "uploading": "Uploading…",
-    "queueing": "Queueing…"
+    "queueing": "Queueing…",
+    "charts": {
+      "loading": "Loading chart…",
+      "empty": "No data available",
+      "error": "Failed to load chart data"
+    }
+  },
+  "budgetBurn": {
+    "detail": {
+      "tabs": {
+        "ariaLabel": "Budget burn detail tabs",
+        "overview": "Overview",
+        "periodCategory": "Period × Category",
+        "varianceClauses": "Variance & Clauses",
+        "projection": "Projection",
+        "trends": "Trends",
+        "showTable": "Show table",
+        "hideTable": "Hide table"
+      }
+    },
+    "charts": {
+      "cumulativeBurn": {
+        "title": "Cumulative burn",
+        "subtitle": "Actual spend trajectory vs planned budget envelope",
+        "actual": "Actual (cumulative)",
+        "budgetEnvelope": "Budget envelope"
+      },
+      "periodCategory": {
+        "title": "Period × cost category",
+        "subtitle": "Actual spend by cost category across budget periods"
+      },
+      "projectionGauge": {
+        "title": "Year-end projection",
+        "subtitle": "Projected full-year spend as % of allocated FY budget",
+        "ofFY": "of FY budget"
+      },
+      "dayRateTrend": {
+        "title": "Monthly day-rate trend",
+        "subtitle": "Actual day-rate billing month-over-month",
+        "actual": "Day rate (actual)",
+        "referenceLines": {
+          "planned": "Plan",
+          "contractedCeiling": "Contracted ceiling"
+        },
+        "breachLabel": "+8% breach"
+      },
+      "portfolioConsumption": {
+        "title": "Portfolio consumption",
+        "subtitle": "Budget consumed (%) across contracts — sorted by highest overrun",
+        "consumed": "% consumed"
+      }
+    },
+    "portfolio": {
+      "filters": {
+        "searchPlaceholder": "Search contract, counterparty…",
+        "overBudgetOnly": "Over budget only",
+        "bySubsidiary": "By subsidiary",
+        "byEmirate": "By emirate",
+        "showing": "{{count}} of {{total}} contracts",
+        "noResults": "No contracts match the current filters."
+      }
+    }
   },
   "notifications": {
     "title": "Notifications",

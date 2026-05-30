@@ -2,18 +2,24 @@
  * /app/financial/budget-burn/:contractId — Contract detail view.
  *
  * CR-N — M21 Financial Intelligence. Primary persona: finance_treasury.
+ * CR-R — Tabbed refactor + 4 recharts visualisations + shared chart components.
  *
- * Sections:
- *   1. Budget-vs-actual by period × cost category (table + burn bars)
- *   2. Variance alert banner (when day-rate breaches threshold)
- *   3. Correlated cure-period + liquidated-damages clause refs
- *   4. Year-end projection card
- *   5. Cumulative burn trend (period rows)
- *   6. "Draft cure notice" action (gated advisory.draft.review)
+ * Tabs (useState, NOT nested routes — URLs preserved per demo runbook):
+ *   1. Overview            — KPI strip + variance alert + contract header
+ *   2. Period × Category   — stacked-bar chart + drill-down tables
+ *   3. Variance & Clauses  — variance alert + CorrelatedClausesSection
+ *   4. Projection          — year-end projection card + projection gauge
+ *   5. Trends              — cumulative-burn line + day-rate trend line
+ *
+ * Charts:
+ *   #1 Cumulative-burn LINE chart             (Trends tab)
+ *   #2 Period × cost-category STACKED BAR     (Period × Category tab)
+ *   #3 Year-end projection GAUGE (PieChart)   (Projection tab)
+ *   #4 Monthly day-rate trend LINE chart      (Trends tab)
  *
  * Standards: A7, C13, C14, D6, D7, T3, T4, T10, T11, T12, WCAG AA, RTL logical classes.
  */
-import { useState } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -26,13 +32,34 @@ import {
   TrendingUp,
   TrendingDown,
   Info,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Legend,
+  ReferenceLine,
+  ReferenceDot,
+  Label,
+  ResponsiveContainer,
+} from 'recharts';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import { ChartCard, SemanticTooltip } from '@/components/charts';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialBudgetBurnService } from '@/services/api/financial-budget-burn.service';
 import { translateApiError } from '@/lib/translate-api-error';
+import { cn } from '@/lib/utils';
 import type {
   BudgetBurnByPeriod,
   BudgetBurnByCategory,
@@ -42,6 +69,7 @@ import type {
   BudgetYearEndProjection,
   ProjectionConfidence,
   CumulativeBurnRow,
+  MonthlyActualRow,
 } from '@/types/entities/budget-burn.types';
 
 export const Route = createFileRoute(
@@ -53,6 +81,11 @@ export const Route = createFileRoute(
     </ErrorBoundary>
   ),
 });
+
+// ─────────────────────────────────────────────────────────────
+// Tab identifiers
+// ─────────────────────────────────────────────────────────────
+type TabId = 'overview' | 'periodCategory' | 'varianceClauses' | 'projection' | 'trends';
 
 // ─────────────────────────────────────────────────────────────
 // AED formatter — parse string→float, full and compact (C13: no raw hex)
@@ -73,9 +106,9 @@ function formatAedFull(raw: string | null | undefined): string {
   }
 }
 
-function formatAedCompact(raw: string | null | undefined): string {
+function formatAedCompact(raw: string | number | null | undefined): string {
   if (raw === null || raw === undefined) return '—';
-  const n = parseFloat(raw);
+  const n = typeof raw === 'string' ? parseFloat(raw) : raw;
   if (isNaN(n)) return '—';
   try {
     return new Intl.NumberFormat('en-AE', {
@@ -102,6 +135,21 @@ const CONFIDENCE_COLORS: Record<ProjectionConfidence, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// Chart color tokens — oklch(var(--chart-N)) per CR-R spec
+// ─────────────────────────────────────────────────────────────
+const C1 = 'oklch(var(--chart-1))'; // gold
+const C2 = 'oklch(var(--chart-2))'; // sage
+const C3 = 'oklch(var(--chart-3))'; // slate
+const C4 = 'oklch(var(--chart-4))'; // terracotta
+// ink-muted for dashed reference line
+const INK_MUTED = 'var(--ink-muted)';
+
+// Contracted day-rate ceiling: AED 730k/rig/day × 2 rigs × 30 days = AED 43,800,000/month.
+// Source: HERO-001 LD clause parameters from contract_clause_extracted.
+// This constant is used when the LD clause params are not accessible via the FE payload.
+const CONTRACTED_DAILY_RATE_CEILING_AED = 43_800_000;
+
+// ─────────────────────────────────────────────────────────────
 // Main detail view
 // ─────────────────────────────────────────────────────────────
 function BudgetBurnDetailView() {
@@ -109,7 +157,12 @@ function BudgetBurnDetailView() {
   const { contractId } = Route.useParams();
   const numericContractId = Number(contractId);
 
-  const canRead       = useAuthStore(selectHasPermission('finance.budget.read'));
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  // For Period × Category bar click → reveal table for that period
+  const [expandedPeriod, setExpandedPeriod] = useState<string | null>(null);
+  const periodRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const canRead        = useAuthStore(selectHasPermission('finance.budget.read'));
   const canDraftNotice = useAuthStore(selectHasPermission('advisory.draft.review'));
 
   // Burn compute (periods + monthly actuals + cumulative)
@@ -153,6 +206,15 @@ function BudgetBurnDetailView() {
       </div>
     );
   }
+
+  // Tab definitions
+  const TABS: { id: TabId; labelKey: string }[] = [
+    { id: 'overview',        labelKey: 'budgetBurn.detail.tabs.overview' },
+    { id: 'periodCategory',  labelKey: 'budgetBurn.detail.tabs.periodCategory' },
+    { id: 'varianceClauses', labelKey: 'budgetBurn.detail.tabs.varianceClauses' },
+    { id: 'projection',      labelKey: 'budgetBurn.detail.tabs.projection' },
+    { id: 'trends',          labelKey: 'budgetBurn.detail.tabs.trends' },
+  ];
 
   return (
     <motion.div
@@ -211,7 +273,7 @@ function BudgetBurnDetailView() {
       {/* Content */}
       {!isLoading && !isError && burn && (
         <>
-          {/* Header */}
+          {/* Contract header (always visible) */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-ink">
@@ -230,63 +292,217 @@ function BudgetBurnDetailView() {
             )}
           </div>
 
-          {/* Summary KPI strip */}
-          <section
-            aria-label={t('financial.budgetBurn.detail.summaryLabel')}
-            className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+          {/* Tab strip */}
+          <div
+            role="tablist"
+            aria-label={t('budgetBurn.detail.tabs.ariaLabel', { defaultValue: 'Budget burn tabs' })}
+            className="flex flex-wrap gap-1 border-b border-border pb-0"
           >
-            <KpiTile
-              label={t('financial.budgetBurn.detail.kpis.totalBudget')}
-              value={formatAedCompact(burn.totalBudgetedAed)}
-            />
-            <KpiTile
-              label={t('financial.budgetBurn.detail.kpis.totalActual')}
-              value={formatAedCompact(burn.totalActualAed)}
-            />
-            <KpiTile
-              label={t('financial.budgetBurn.detail.kpis.variance')}
-              value={formatAedCompact(burn.totalVarianceAed)}
-              variant={parseFloat(burn.totalVarianceAed) > 0 ? 'risk' : 'success'}
-            />
-            <KpiTile
-              label={t('financial.budgetBurn.detail.kpis.variancePct')}
-              value={`${burn.totalVariancePct >= 0 ? '+' : ''}${burn.totalVariancePct.toFixed(1)}%`}
-              variant={burn.totalVariancePct > 0 ? 'risk' : 'success'}
-            />
-            <KpiTile
-              label={t('financial.budgetBurn.detail.kpis.pctConsumed')}
-              value={`${burn.burnRatePct.toFixed(1)}%`}
-              variant={burn.burnRatePct >= 100 ? 'risk' : burn.burnRatePct >= 80 ? 'warning' : 'default'}
-            />
-            <KpiTile
-              label={t('financial.budgetBurn.detail.kpis.remaining')}
-              value={formatAedCompact(burn.remainingBudgetAed)}
-              variant={parseFloat(burn.remainingBudgetAed) < 0 ? 'risk' : 'default'}
-            />
-          </section>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`tab-panel-${tab.id}`}
+                id={`tab-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'rounded-t-md border border-b-0 px-4 py-2 text-sm font-medium transition',
+                  activeTab === tab.id
+                    ? 'border-border bg-card text-ink'
+                    : 'border-transparent bg-transparent text-ink-muted hover:text-ink',
+                )}
+              >
+                {t(tab.labelKey)}
+              </button>
+            ))}
+          </div>
 
-          {/* ── VARIANCE ALERT BANNER ───────────────────────────────── */}
-          {variance && variance.breachCount > 0 && (
-            <VarianceAlertBanner variance={variance.breaches} maxPct={variance.maxVariancePct} />
+          {/* ─── TAB 1: Overview ────────────────────────────────────── */}
+          {activeTab === 'overview' && (
+            <div
+              id="tab-panel-overview"
+              role="tabpanel"
+              aria-labelledby="tab-overview"
+              className="space-y-5"
+            >
+              {/* Summary KPI strip */}
+              <section
+                aria-label={t('financial.budgetBurn.detail.summaryLabel')}
+                className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+              >
+                <KpiTile
+                  label={t('financial.budgetBurn.detail.kpis.totalBudget')}
+                  value={formatAedCompact(burn.totalBudgetedAed)}
+                />
+                <KpiTile
+                  label={t('financial.budgetBurn.detail.kpis.totalActual')}
+                  value={formatAedCompact(burn.totalActualAed)}
+                />
+                <KpiTile
+                  label={t('financial.budgetBurn.detail.kpis.variance')}
+                  value={formatAedCompact(burn.totalVarianceAed)}
+                  variant={parseFloat(burn.totalVarianceAed) > 0 ? 'risk' : 'success'}
+                />
+                <KpiTile
+                  label={t('financial.budgetBurn.detail.kpis.variancePct')}
+                  value={`${burn.totalVariancePct >= 0 ? '+' : ''}${burn.totalVariancePct.toFixed(1)}%`}
+                  variant={burn.totalVariancePct > 0 ? 'risk' : 'success'}
+                />
+                <KpiTile
+                  label={t('financial.budgetBurn.detail.kpis.pctConsumed')}
+                  value={`${burn.burnRatePct.toFixed(1)}%`}
+                  variant={burn.burnRatePct >= 100 ? 'risk' : burn.burnRatePct >= 80 ? 'warning' : 'default'}
+                />
+                <KpiTile
+                  label={t('financial.budgetBurn.detail.kpis.remaining')}
+                  value={formatAedCompact(burn.remainingBudgetAed)}
+                  variant={parseFloat(burn.remainingBudgetAed) < 0 ? 'risk' : 'default'}
+                />
+              </section>
+
+              {/* Variance alert (when present) */}
+              {variance && variance.breachCount > 0 && (
+                <VarianceAlertBanner
+                  variance={variance.breaches}
+                  maxPct={variance.maxVariancePct}
+                />
+              )}
+
+              {/* Latest computed note */}
+              {projection && (
+                <p className="text-right text-[11px] text-ink-subtle">
+                  {t('financial.budgetBurn.detail.projection.fiscalYear', {
+                    year: projection.fiscalYear,
+                    asOf: projection.asOfPeriod,
+                  })}
+                </p>
+              )}
+            </div>
           )}
 
-          {/* ── BUDGET vs ACTUAL BY PERIOD × CATEGORY ──────────────── */}
-          <PeriodCategoryTable byPeriod={burn.byPeriod} />
+          {/* ─── TAB 2: Period × Category ────────────────────────────── */}
+          {activeTab === 'periodCategory' && (
+            <div
+              id="tab-panel-periodCategory"
+              role="tabpanel"
+              aria-labelledby="tab-periodCategory"
+              className="space-y-5"
+            >
+              {/* Chart #2 — Stacked bar */}
+              <PeriodCategoryStackedBar
+                byPeriod={burn.byPeriod}
+                onBarClick={(periodLabel) => {
+                  setExpandedPeriod(periodLabel);
+                  setTimeout(() => {
+                    periodRefs.current[periodLabel]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 100);
+                }}
+              />
 
-          {/* ── CORRELATED CLAUSE REFS ─────────────────────────────── */}
-          {variance && (
-            <CorrelatedClausesSection
-              curePeriod={variance.correlatedClauses.curePeriod}
-              liquidatedDamages={variance.correlatedClauses.liquidatedDamages}
-            />
+              {/* Drill-down tables */}
+              <section>
+                <h2 className="mb-3 text-sm font-semibold text-ink">
+                  {t('financial.budgetBurn.detail.periodTable.heading')}
+                </h2>
+                {burn.byPeriod.length === 0 ? (
+                  <div className="rounded-lg border border-border bg-card p-8 text-center">
+                    <p className="text-sm text-ink-muted">
+                      {t('financial.budgetBurn.detail.periodTable.empty')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {burn.byPeriod.map((period) => (
+                      <div
+                        key={period.periodLabel}
+                        ref={(el) => { periodRefs.current[period.periodLabel] = el; }}
+                      >
+                        <PeriodBlock
+                          period={period}
+                          expanded={expandedPeriod === period.periodLabel}
+                          onToggle={() =>
+                            setExpandedPeriod((prev) =>
+                              prev === period.periodLabel ? null : period.periodLabel,
+                            )
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
           )}
 
-          {/* ── YEAR-END PROJECTION CARD ───────────────────────────── */}
-          {projection && <YearEndProjectionCard projection={projection} />}
+          {/* ─── TAB 3: Variance & Clauses ───────────────────────────── */}
+          {activeTab === 'varianceClauses' && (
+            <div
+              id="tab-panel-varianceClauses"
+              role="tabpanel"
+              aria-labelledby="tab-varianceClauses"
+              className="space-y-5"
+            >
+              {/* Variance alert (repeated here for context) */}
+              {variance && variance.breachCount > 0 && (
+                <VarianceAlertBanner
+                  variance={variance.breaches}
+                  maxPct={variance.maxVariancePct}
+                />
+              )}
 
-          {/* ── CUMULATIVE BURN TREND ──────────────────────────────── */}
-          {burn.cumulativeBurn.length > 0 && (
-            <CumulativeBurnSection rows={burn.cumulativeBurn} />
+              {/* Correlated clause refs */}
+              {variance && (
+                <CorrelatedClausesSection
+                  curePeriod={variance.correlatedClauses.curePeriod}
+                  liquidatedDamages={variance.correlatedClauses.liquidatedDamages}
+                />
+              )}
+            </div>
+          )}
+
+          {/* ─── TAB 4: Projection ──────────────────────────────────── */}
+          {activeTab === 'projection' && (
+            <div
+              id="tab-panel-projection"
+              role="tabpanel"
+              aria-labelledby="tab-projection"
+              className="space-y-5"
+            >
+              {projection && (
+                <>
+                  {/* Existing projection card */}
+                  <YearEndProjectionCard projection={projection} />
+
+                  {/* Chart #3 — Projection gauge */}
+                  <ProjectionGaugeChart projection={projection} />
+                </>
+              )}
+              {!projection && (
+                <div className="rounded-lg border border-border bg-card p-8 text-center">
+                  <p className="text-sm text-ink-muted">
+                    {t('common.charts.empty', { defaultValue: 'No projection data available.' })}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── TAB 5: Trends ──────────────────────────────────────── */}
+          {activeTab === 'trends' && (
+            <div
+              id="tab-panel-trends"
+              role="tabpanel"
+              aria-labelledby="tab-trends"
+              className="space-y-5"
+            >
+              {/* Chart #1 — Cumulative burn line */}
+              <CumulativeBurnChart rows={burn.cumulativeBurn} />
+
+              {/* Chart #4 — Day-rate trend line */}
+              <DayRateTrendChart monthlyActuals={burn.monthlyActuals} byPeriod={burn.byPeriod} />
+            </div>
           )}
         </>
       )}
@@ -329,7 +545,7 @@ function KpiTile({
 }
 
 // ─────────────────────────────────────────────────────────────
-// VarianceAlertBanner — day-rate (or other category) breach banner
+// VarianceAlertBanner
 // ─────────────────────────────────────────────────────────────
 function VarianceAlertBanner({
   variance,
@@ -340,7 +556,6 @@ function VarianceAlertBanner({
 }) {
   const { t } = useTranslation();
 
-  // Surface the worst breach prominently (highest variancePct)
   const worst = [...variance].sort((a, b) => b.variancePct - a.variancePct)[0];
   if (!worst) return null;
 
@@ -376,48 +591,122 @@ function VarianceAlertBanner({
 }
 
 // ─────────────────────────────────────────────────────────────
-// PeriodCategoryTable — budget vs actual by period × category
+// Chart #2 — Period × Cost-Category Stacked Bar
 // ─────────────────────────────────────────────────────────────
-function PeriodCategoryTable({ byPeriod }: { byPeriod: BudgetBurnByPeriod[] }) {
+function PeriodCategoryStackedBar({
+  byPeriod,
+  onBarClick,
+}: {
+  byPeriod: BudgetBurnByPeriod[];
+  onBarClick: (periodLabel: string) => void;
+}) {
   const { t } = useTranslation();
 
-  if (byPeriod.length === 0) {
-    return (
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-ink">
-          {t('financial.budgetBurn.detail.periodTable.heading')}
-        </h2>
-        <div className="rounded-lg border border-border bg-card p-8 text-center">
-          <p className="text-sm text-ink-muted">
-            {t('financial.budgetBurn.detail.periodTable.empty')}
-          </p>
-        </div>
-      </section>
-    );
-  }
+  // Flatten byPeriod into chart-ready rows
+  // Each row: { periodLabel, day_rate, manpower, equipment, milestone }
+  type FlatRow = {
+    periodLabel: string;
+    day_rate: number;
+    manpower: number;
+    equipment: number;
+    milestone: number;
+  };
+
+  const chartData = useMemo<FlatRow[]>(() => {
+    return byPeriod.map((p) => {
+      const row: FlatRow = {
+        periodLabel: p.periodLabel,
+        day_rate: 0,
+        manpower: 0,
+        equipment: 0,
+        milestone: 0,
+      };
+      for (const cat of p.byCategory) {
+        const val = parseFloat(cat.actualAed);
+        if (!isNaN(val)) {
+          if (cat.costCategory === 'day_rate') row.day_rate = val;
+          else if (cat.costCategory === 'manpower') row.manpower = val;
+          else if (cat.costCategory === 'equipment') row.equipment = val;
+          else if (cat.costCategory === 'milestone') row.milestone = val;
+        }
+      }
+      return row;
+    });
+  }, [byPeriod]);
+
+  const isEmpty = chartData.length === 0;
+
+  const BARS: { key: keyof Omit<FlatRow, 'periodLabel'>; color: string; labelKey: string }[] = [
+    { key: 'day_rate',  color: C1, labelKey: 'financial.budgetBurn.costCategory.day_rate' },
+    { key: 'manpower',  color: C2, labelKey: 'financial.budgetBurn.costCategory.manpower' },
+    { key: 'equipment', color: C3, labelKey: 'financial.budgetBurn.costCategory.equipment' },
+    { key: 'milestone', color: C4, labelKey: 'financial.budgetBurn.costCategory.milestone' },
+  ];
 
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold text-ink">
-        {t('financial.budgetBurn.detail.periodTable.heading')}
-      </h2>
-      <div className="space-y-4">
-        {byPeriod.map((period) => (
-          <PeriodBlock key={period.periodLabel} period={period} />
-        ))}
-      </div>
-    </section>
+    <ChartCard
+      title={t('budgetBurn.charts.periodCategory.title')}
+      subtitle={t('budgetBurn.charts.periodCategory.subtitle')}
+      height={360}
+      loading={false}
+      empty={isEmpty}
+      emptyLabel={t('common.charts.empty')}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartData}
+          margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          onClick={(data) => {
+            if (data?.activeLabel) onBarClick(String(data.activeLabel));
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          <CartesianGrid strokeDasharray="2 4" opacity={0.3} />
+          <XAxis dataKey="periodLabel" fontSize={10} />
+          <YAxis fontSize={10} tickFormatter={(v: number) => formatAedCompact(v)} />
+          <SemanticTooltip currencyHint="aed" />
+          <Legend
+            wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+            formatter={(value: string) => t(
+              BARS.find((b) => b.key === value)?.labelKey ?? value,
+              { defaultValue: value }
+            )}
+          />
+          {BARS.map((b) => (
+            <Bar
+              key={b.key}
+              dataKey={b.key}
+              stackId="actual"
+              fill={b.color}
+              name={b.key}
+              radius={b.key === 'milestone' ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
   );
 }
 
-function PeriodBlock({ period }: { period: BudgetBurnByPeriod }) {
+// ─────────────────────────────────────────────────────────────
+// PeriodBlock (collapsible drill-down table)
+// ─────────────────────────────────────────────────────────────
+function PeriodBlock({
+  period,
+  expanded,
+  onToggle,
+}: {
+  period: BudgetBurnByPeriod;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const { t } = useTranslation();
   const variancePct = period.variancePct ?? 0;
   const isOver = variancePct > 0;
 
   return (
     <div className="rounded-lg border border-border bg-card">
-      {/* Period header row */}
+      {/* Period header + toggle */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2">
         <span className="text-xs font-semibold text-ink">{period.periodLabel}</span>
         <div className="flex items-center gap-4 font-mono text-xs tabular-nums">
@@ -432,11 +721,28 @@ function PeriodBlock({ period }: { period: BudgetBurnByPeriod }) {
           <span className={isOver ? 'text-terracotta' : 'text-success'}>
             {isOver ? '+' : ''}{variancePct.toFixed(1)}%
           </span>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            className="ms-2 flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-ink-muted hover:text-ink"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                {t('budgetBurn.detail.tabs.hideTable', { defaultValue: 'Hide table' })}
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                {t('budgetBurn.detail.tabs.showTable', { defaultValue: 'Show table' })}
+              </>
+            )}
+          </button>
         </div>
       </div>
 
-      {/* Category breakdown */}
-      {period.byCategory.length > 0 && (
+      {expanded && period.byCategory.length > 0 && (
         <div className="overflow-x-auto">
           <table className="min-w-full text-xs">
             <thead className="bg-surface/50">
@@ -540,17 +846,13 @@ function CorrelatedClausesSection({
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {/* Cure period refs */}
           {curePeriod.length > 0 && (
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
                 {t('financial.budgetBurn.detail.correlatedClauses.curePeriod')}
               </p>
               {curePeriod.map((ref) => (
-                <div
-                  key={ref.clauseId}
-                  className="mb-2 flex items-start gap-2 text-xs"
-                >
+                <div key={ref.clauseId} className="mb-2 flex items-start gap-2 text-xs">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-info" aria-hidden="true" />
                   <div>
                     <p className="font-medium text-ink">
@@ -572,17 +874,13 @@ function CorrelatedClausesSection({
             </div>
           )}
 
-          {/* LD clause refs */}
           {liquidatedDamages.length > 0 && (
             <div className="rounded-lg border border-terracotta/20 bg-terracotta/5 p-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-terracotta">
                 {t('financial.budgetBurn.detail.correlatedClauses.liquidatedDamages')}
               </p>
               {liquidatedDamages.map((ref) => (
-                <div
-                  key={ref.clauseId}
-                  className="mb-2 flex items-start gap-2 text-xs"
-                >
+                <div key={ref.clauseId} className="mb-2 flex items-start gap-2 text-xs">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-terracotta" aria-hidden="true" />
                   <div>
                     <p className="font-medium text-ink">
@@ -617,7 +915,7 @@ function CorrelatedClausesSection({
 }
 
 // ─────────────────────────────────────────────────────────────
-// YearEndProjectionCard
+// YearEndProjectionCard (preserved from CR-N)
 // ─────────────────────────────────────────────────────────────
 function YearEndProjectionCard({ projection }: { projection: BudgetYearEndProjection }) {
   const { t } = useTranslation();
@@ -673,7 +971,6 @@ function YearEndProjectionCard({ projection }: { projection: BudgetYearEndProjec
           </div>
         </div>
 
-        {/* Detail grid */}
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
           <div>
             <p className="text-ink-muted">{t('financial.budgetBurn.detail.projection.allocatedFy')}</p>
@@ -705,79 +1002,341 @@ function YearEndProjectionCard({ projection }: { projection: BudgetYearEndProjec
 }
 
 // ─────────────────────────────────────────────────────────────
-// CumulativeBurnSection — period-over-period cumulative trend
+// Chart #3 — Year-end Projection Gauge (PieChart as arc)
 // ─────────────────────────────────────────────────────────────
-function CumulativeBurnSection({ rows }: { rows: CumulativeBurnRow[] }) {
+function ProjectionGaugeChart({ projection }: { projection: BudgetYearEndProjection }) {
   const { t } = useTranslation();
 
-  // Find max for normalising bar widths
-  const maxVal = rows.reduce((m, r) => {
-    return Math.max(m, parseFloat(r.cumulativeBudgetAed), parseFloat(r.cumulativeActualAed));
-  }, 1);
+  const allocatedFy = parseFloat(projection.allocatedFyAed);
+  const projectedSpend =
+    projection.projectedYearEndAed !== null
+      ? parseFloat(projection.projectedYearEndAed)
+      : null;
+
+  const insufficient = projection.confidenceNote === 'insufficient_data' || projectedSpend === null || isNaN(allocatedFy) || allocatedFy <= 0;
+
+  // consumedPct: (projectedSpend / allocatedFy) * 100, capped at 200 for display
+  const consumedPct = insufficient
+    ? 0
+    : Math.min(200, (projectedSpend! / allocatedFy) * 100);
+
+  // Gauge is a half-circle from 180° to 0° (left to right).
+  // We map consumedPct (0–100 → 180°, 100–200 → 0°) to the arc end angle.
+  const gaugeAngle = Math.min(180, (consumedPct / 100) * 180);
+
+  // Color: sage if ≤80%, amber 80–100%, terracotta >100%
+  const gaugeColor =
+    consumedPct > 100
+      ? 'var(--terracotta)'
+      : consumedPct >= 80
+        ? 'var(--amber)'
+        : 'var(--sage)';
+
+  // Recharts PieChart — two cells: filled arc + remainder
+  const filled = { value: consumedPct > 100 ? 100 : consumedPct, fill: gaugeColor };
+  const remaining = {
+    value: consumedPct > 100 ? 0 : 100 - consumedPct,
+    fill: 'var(--border)',
+  };
+
+  const chartData = [filled, remaining];
+
+  const confidenceClass = CONFIDENCE_COLORS[projection.confidenceNote];
 
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold text-ink">
-        {t('financial.budgetBurn.detail.cumulativeBurn.heading')}
-      </h2>
-      <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
-        <table className="min-w-full text-xs">
-          <thead className="bg-surface">
-            <tr>
-              <th scope="col" className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-ink-muted">
-                {t('financial.budgetBurn.detail.cumulativeBurn.period')}
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
-                {t('financial.budgetBurn.detail.cumulativeBurn.cumBudget')}
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
-                {t('financial.budgetBurn.detail.cumulativeBurn.cumActual')}
-              </th>
-              <th scope="col" className="px-4 py-3 text-left font-semibold uppercase tracking-wider text-ink-muted">
-                {t('financial.budgetBurn.detail.cumulativeBurn.trend')}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border bg-card">
-            {rows.map((row) => {
-              const actualN = parseFloat(row.cumulativeActualAed);
-              const budgetN = parseFloat(row.cumulativeBudgetAed);
-              const budgetPct = (budgetN / maxVal) * 100;
-              const actualPct = (actualN / maxVal) * 100;
-              const isOver = actualN > budgetN;
-
-              return (
-                <tr key={row.periodLabel} className="transition-colors hover:bg-surface/50">
-                  <td className="px-4 py-3 font-medium text-ink">{row.periodLabel}</td>
-                  <td className="px-4 py-3 text-right font-mono tabular-nums text-ink">
-                    {formatAedCompact(row.cumulativeBudgetAed)}
-                  </td>
-                  <td className={`px-4 py-3 text-right font-mono tabular-nums ${isOver ? 'text-terracotta' : 'text-ink'}`}>
-                    {formatAedCompact(row.cumulativeActualAed)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="relative h-3 w-32 overflow-hidden rounded-full bg-surface">
-                      {/* Budget bar */}
-                      <div
-                        className="absolute inset-y-0 start-0 rounded-full bg-muted"
-                        style={{ width: `${budgetPct}%` }}
-                        role="presentation"
-                      />
-                      {/* Actual bar */}
-                      <div
-                        className={`absolute inset-y-0 start-0 h-1.5 rounded-full ${isOver ? 'bg-terracotta' : 'bg-success'}`}
-                        style={{ width: `${actualPct}%`, top: '50%', transform: 'translateY(-50%)' }}
-                        role="presentation"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <ChartCard
+      title={t('budgetBurn.charts.projectionGauge.title')}
+      subtitle={t('budgetBurn.charts.projectionGauge.subtitle')}
+      height={240}
+      empty={insufficient}
+      emptyLabel={t('common.charts.empty')}
+    >
+      <div className="flex flex-col items-center justify-center gap-3" style={{ height: 240 }}>
+        <div style={{ height: 180, width: '100%', maxWidth: 320 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="100%"
+                startAngle={180}
+                endAngle={0}
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={0}
+                dataKey="value"
+                stroke="none"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+                {/* Center label via custom SVG */}
+                <Label
+                  content={({ viewBox }) => {
+                    const vb = viewBox as { cx?: number; cy?: number };
+                    const cx = vb?.cx ?? 160;
+                    const cy = vb?.cy ?? 120;
+                    return (
+                      <text textAnchor="middle">
+                        <tspan
+                          x={cx}
+                          y={cy - 16}
+                          fontSize={28}
+                          fontWeight={700}
+                          fontFamily="monospace"
+                          fill="currentColor"
+                        >
+                          {insufficient ? '—' : `${consumedPct.toFixed(1)}%`}
+                        </tspan>
+                        <tspan
+                          x={cx}
+                          y={cy + 8}
+                          fontSize={11}
+                          fill="var(--ink-muted)"
+                        >
+                          {t('budgetBurn.charts.projectionGauge.ofFY', { defaultValue: 'of FY budget' })}
+                        </tspan>
+                      </text>
+                    );
+                  }}
+                />
+              </Pie>
+              <SemanticTooltip currencyHint="pct" />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Confidence badge */}
+        <span
+          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${confidenceClass}`}
+        >
+          {t(`financial.budgetBurn.detail.projection.confidence.${projection.confidenceNote}`)}
+        </span>
       </div>
-    </section>
+    </ChartCard>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chart #1 — Cumulative Burn Line Chart
+// ─────────────────────────────────────────────────────────────
+function CumulativeBurnChart({ rows }: { rows: CumulativeBurnRow[] }) {
+  const { t } = useTranslation();
+
+  // CR-N crash lesson: money fields are strings — parseFloat in a memo
+  const chartData = useMemo(
+    () =>
+      rows.map((r) => ({
+        periodLabel: r.periodLabel,
+        cumulativeActualAed: parseFloat(r.cumulativeActualAed) || 0,
+        cumulativeBudgetAed: parseFloat(r.cumulativeBudgetAed) || 0,
+      })),
+    [rows],
+  );
+
+  const isEmpty = chartData.length === 0;
+
+  return (
+    <ChartCard
+      title={t('budgetBurn.charts.cumulativeBurn.title')}
+      subtitle={t('budgetBurn.charts.cumulativeBurn.subtitle')}
+      height={320}
+      empty={isEmpty}
+      emptyLabel={t('common.charts.empty')}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+          <CartesianGrid strokeDasharray="2 4" opacity={0.3} />
+          <XAxis dataKey="periodLabel" fontSize={10} />
+          <YAxis fontSize={10} tickFormatter={(v: number) => formatAedCompact(v)} />
+          <SemanticTooltip
+            currencyHint="aed"
+            formatter={(value, name) => {
+              const formatted = formatAedCompact(typeof value === 'string' ? parseFloat(value) : Number(value));
+              const label =
+                name === 'cumulativeActualAed'
+                  ? t('budgetBurn.charts.cumulativeBurn.actual')
+                  : t('budgetBurn.charts.cumulativeBurn.budgetEnvelope');
+              return [formatted, label];
+            }}
+          />
+          <Legend
+            verticalAlign="top"
+            align="right"
+            wrapperStyle={{ fontSize: 11 }}
+            formatter={(value: string) =>
+              value === 'cumulativeActualAed'
+                ? t('budgetBurn.charts.cumulativeBurn.actual')
+                : t('budgetBurn.charts.cumulativeBurn.budgetEnvelope')
+            }
+          />
+          <Line
+            type="monotone"
+            dataKey="cumulativeActualAed"
+            stroke={C1}
+            strokeWidth={2}
+            dot={{ r: 3, fill: C1 }}
+            activeDot={{ r: 5 }}
+            name="cumulativeActualAed"
+          />
+          <Line
+            type="monotone"
+            dataKey="cumulativeBudgetAed"
+            stroke={INK_MUTED}
+            strokeWidth={2}
+            strokeDasharray="6 6"
+            dot={false}
+            name="cumulativeBudgetAed"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chart #4 — Monthly Day-Rate Trend Line Chart
+// ─────────────────────────────────────────────────────────────
+function DayRateTrendChart({
+  monthlyActuals,
+  byPeriod,
+}: {
+  monthlyActuals: MonthlyActualRow[];
+  byPeriod: BudgetBurnByPeriod[];
+}) {
+  const { t } = useTranslation();
+
+  // Filter to day_rate only and parse to numeric
+  const chartData = useMemo(() => {
+    return monthlyActuals
+      .filter((r) => r.costCategory === 'day_rate')
+      .map((r) => ({
+        periodLabel: r.periodLabel,
+        actualAmountAed: parseFloat(r.actualAed) || 0,
+      }));
+  }, [monthlyActuals]);
+
+  // Planned day-rate per month: average of all periods' day_rate budget / 3
+  // (quarterly periods divided by 3 months, or monthly direct)
+  const plannedDayRateAed = useMemo(() => {
+    const rates: number[] = [];
+    for (const p of byPeriod) {
+      for (const cat of p.byCategory) {
+        if (cat.costCategory === 'day_rate') {
+          const val = parseFloat(cat.budgetAed);
+          if (!isNaN(val) && val > 0) rates.push(val);
+        }
+      }
+    }
+    if (rates.length === 0) return null;
+    // byPeriod is quarterly (CR-N seed pattern). Divide each quarter's day-rate
+    // budget by 3 to get the monthly-equivalent threshold that aligns with the
+    // monthly actuals plotted on this chart.
+    return rates.reduce((s, v) => s + v, 0) / rates.length / 3;
+  }, [byPeriod]);
+
+  const isEmpty = chartData.length === 0;
+
+  // Breach month: identify the period where actual exceeds planned by ≥5%
+  const breachPoint = useMemo(() => {
+    if (!plannedDayRateAed) return null;
+    return chartData.find((r) => r.actualAmountAed > plannedDayRateAed * 1.05) ?? null;
+  }, [chartData, plannedDayRateAed]);
+
+  return (
+    <ChartCard
+      title={t('budgetBurn.charts.dayRateTrend.title')}
+      subtitle={t('budgetBurn.charts.dayRateTrend.subtitle')}
+      height={320}
+      empty={isEmpty}
+      emptyLabel={t('common.charts.empty')}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+          <CartesianGrid strokeDasharray="2 4" opacity={0.3} />
+          <XAxis dataKey="periodLabel" fontSize={10} />
+          <YAxis fontSize={10} tickFormatter={(v: number) => formatAedCompact(v)} />
+          <SemanticTooltip
+            currencyHint="aed"
+            formatter={(value) => {
+              const formatted = formatAedCompact(typeof value === 'string' ? parseFloat(value) : Number(value));
+              return [formatted, t('budgetBurn.charts.dayRateTrend.actual')];
+            }}
+          />
+          <Legend
+            verticalAlign="top"
+            align="right"
+            wrapperStyle={{ fontSize: 11 }}
+            formatter={() => t('budgetBurn.charts.dayRateTrend.actual')}
+          />
+          <Line
+            type="monotone"
+            dataKey="actualAmountAed"
+            stroke={C1}
+            strokeWidth={2}
+            dot={{ r: 3, fill: C1 }}
+            activeDot={{ r: 5 }}
+            name="actualAmountAed"
+          />
+
+          {/* ReferenceLine (a): planned day-rate threshold */}
+          {plannedDayRateAed !== null && (
+            <ReferenceLine
+              y={plannedDayRateAed}
+              stroke={C2}
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              label={
+                <Label
+                  value={t('budgetBurn.charts.dayRateTrend.referenceLines.planned')}
+                  position="insideTopRight"
+                  fontSize={10}
+                  fill="var(--sage)"
+                />
+              }
+            />
+          )}
+
+          {/* ReferenceLine (b): contracted day-rate ceiling
+              Source: HERO-001 LD clause — AED 730k/rig/day × 2 rigs × 30 days = AED 43.8M/month.
+              This constant is used as a fallback when LD clause params are not in the FE payload.
+          */}
+          <ReferenceLine
+            y={CONTRACTED_DAILY_RATE_CEILING_AED}
+            stroke="var(--terracotta)"
+            strokeDasharray="4 4"
+            strokeWidth={1.5}
+            label={
+              <Label
+                value={t('budgetBurn.charts.dayRateTrend.referenceLines.contractedCeiling')}
+                position="insideTopRight"
+                fontSize={10}
+                fill="var(--terracotta)"
+              />
+            }
+          />
+
+          {/* ReferenceDot for breach month */}
+          {breachPoint && (
+            <ReferenceDot
+              x={breachPoint.periodLabel}
+              y={breachPoint.actualAmountAed}
+              r={6}
+              fill="var(--terracotta)"
+              stroke="var(--card)"
+              strokeWidth={2}
+              label={
+                <Label
+                  value={t('budgetBurn.charts.dayRateTrend.breachLabel', { defaultValue: '+8% breach' })}
+                  position="top"
+                  fontSize={10}
+                  fill="var(--terracotta)"
+                />
+              }
+            />
+          )}
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartCard>
   );
 }
 
@@ -821,4 +1380,3 @@ function DraftCureNoticeButton({ contractId }: { contractId: number }) {
     </Button>
   );
 }
-

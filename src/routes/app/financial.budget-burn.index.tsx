@@ -2,6 +2,16 @@
  * /app/financial/budget-burn — Portfolio list (index).
  *
  * CR-N — M21 Financial Intelligence. Primary persona: finance_treasury.
+ * CR-R — Portfolio horizontal-bar chart + virtualized table + search + 3 filter chips.
+ *
+ * Additions vs CR-N:
+ *   - Chart #5: horizontal-bar consumption chart (recharts BarChart layout="vertical")
+ *     sorted by variancePct DESC, colored by status
+ *   - Search input with useDebounce(300)
+ *   - 3 filter chips: "Over budget only" / "By subsidiary" / "By emirate"
+ *   - Table body virtualized via @tanstack/react-virtual (useVirtualizer)
+ *   - Pagination removed — virtualization handles scroll
+ *
  * Read access: finance_treasury, procurement_supplier_risk, operations,
  *              executive, platform_admin, Super Admin.
  *
@@ -13,24 +23,44 @@
  *   D7:  scope="col" on all <th>
  *   T3:  all strings via t()
  *   T4:  loading / empty / error states
- *   T10: useDebounce(300) not applicable (no search input — filter only)
+ *   T10: useDebounce(300) on search
  *   T11: ErrorBoundary at route level
  *   T12: formatDateTime for timestamps
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, RefreshCcw, ChevronRight, TrendingUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  RefreshCcw,
+  ChevronRight,
+  TrendingUp,
+  Search,
+  X,
+  ChevronDown,
+} from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+} from 'recharts';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import { ChartCard, SemanticTooltip } from '@/components/charts';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialBudgetBurnService } from '@/services/api/financial-budget-burn.service';
 import { translateApiError } from '@/lib/translate-api-error';
+import { useDebounce } from '@/hooks/useDebounce';
+import { cn } from '@/lib/utils';
 import type {
   PortfolioContractRow,
-  PortfolioQuery,
 } from '@/types/entities/budget-burn.types';
 
 export const Route = createFileRoute('/app/financial/budget-burn/')({
@@ -63,8 +93,27 @@ function formatAed(raw: string | null | undefined): string {
   }
 }
 
-function formatPct(n: number): string {
-  return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+// ─────────────────────────────────────────────────────────────
+// ADNOC subsidiary names (static list for the filter chip)
+// ─────────────────────────────────────────────────────────────
+const ADNOC_SUBSIDIARIES = [
+  'Onshore',
+  'Offshore',
+  'Drilling',
+  'Gas',
+  'L&S',
+  'Distribution',
+  'Trading',
+  'AGT',
+] as const;
+
+// ─────────────────────────────────────────────────────────────
+// Chart color helpers (semantic tokens)
+// ─────────────────────────────────────────────────────────────
+function barFill(pctConsumed: number): string {
+  if (pctConsumed >= 100) return 'var(--terracotta)';
+  if (pctConsumed >= 80) return 'var(--amber)';
+  return 'var(--sage)';
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -74,24 +123,119 @@ function BudgetBurnPortfolioView() {
   const { t } = useTranslation();
   const canRead = useAuthStore(selectHasPermission('finance.budget.read'));
 
-  const [page, setPage] = useState(1);
-  const LIMIT = 20;
-
-  const params = useMemo<PortfolioQuery>(
-    () => ({ page, limit: LIMIT }),
-    [page],
-  );
-
+  // Fetch all rows (no pagination — virtualizer handles scroll)
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['budget-burn-portfolio', params],
-    queryFn: () => financialBudgetBurnService.getPortfolio(params),
+    queryKey: ['budget-burn-portfolio-all'],
+    queryFn: () => financialBudgetBurnService.getPortfolio({ limit: 100 }),
     enabled: canRead,
     staleTime: 30_000,
   });
 
-  const rows = data?.data ?? [];
+  const allRows: PortfolioContractRow[] = data?.data ?? [];
   const summary = data?.summary;
-  const pagination = data?.pagination;
+
+  // ── Search + filter state ──────────────────────────────────
+  const [searchRaw, setSearchRaw] = useState('');
+  const search = useDebounce(searchRaw, 300);
+  const [overBudgetOnly, setOverBudgetOnly] = useState(false);
+  const [selectedSubsidiary, setSelectedSubsidiary] = useState('');
+  const [selectedEmirate, setSelectedEmirate] = useState('');
+  const [showSubsidiaryPicker, setShowSubsidiaryPicker] = useState(false);
+  const [showEmiratePicker, setShowEmiratePicker] = useState(false);
+
+  // ── Sort: variancePct DESC so breaches surface first ───────
+  const sortedRows = useMemo(
+    () =>
+      [...allRows].sort((a, b) => (b.variancePct ?? 0) - (a.variancePct ?? 0)),
+    [allRows],
+  );
+
+  // ── Derive emirate list from counterpartyName (substring match) ──
+  // Emirates from data: parse from counterpartyName if they include known emirate strings.
+  const emirateOptions = useMemo(() => {
+    const UAE_EMIRATES = ['Abu Dhabi', 'Dubai', 'Sharjah', 'Ajman', 'Fujairah', 'Ras Al Khaimah', 'Umm Al Quwain'];
+    const found = new Set<string>();
+    for (const row of sortedRows) {
+      const name = (row.counterpartyName ?? '').toLowerCase();
+      for (const em of UAE_EMIRATES) {
+        if (name.includes(em.toLowerCase())) {
+          found.add(em);
+        }
+      }
+    }
+    // Always include Abu Dhabi and Dubai if we have rows (ADNOC reality is ~75% AD)
+    if (sortedRows.length > 0) {
+      found.add('Abu Dhabi');
+      found.add('Dubai');
+    }
+    return Array.from(found).sort();
+  }, [sortedRows]);
+
+  // ── Apply filters ─────────────────────────────────────────
+  const filteredRows = useMemo(() => {
+    let rows = sortedRows;
+
+    // Search
+    if (search) {
+      const lower = search.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.contractNumber.toLowerCase().includes(lower) ||
+          r.titleEn.toLowerCase().includes(lower) ||
+          (r.counterpartyName ?? '').toLowerCase().includes(lower),
+      );
+    }
+
+    // Over budget only
+    if (overBudgetOnly) {
+      rows = rows.filter(
+        (r) => r.varianceFlag || r.pctConsumed >= 100,
+      );
+    }
+
+    // By subsidiary (substring of counterpartyName or title)
+    if (selectedSubsidiary) {
+      const sub = selectedSubsidiary.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          (r.counterpartyName ?? '').toLowerCase().includes(sub) ||
+          r.titleEn.toLowerCase().includes(sub),
+      );
+    }
+
+    // By emirate
+    if (selectedEmirate) {
+      const em = selectedEmirate.toLowerCase();
+      rows = rows.filter(
+        (r) => (r.counterpartyName ?? '').toLowerCase().includes(em),
+      );
+    }
+
+    return rows;
+  }, [sortedRows, search, overBudgetOnly, selectedSubsidiary, selectedEmirate]);
+
+  // ── Chart #5 data: top 15 by pctConsumed descending ───────
+  const chartRows = useMemo(
+    () =>
+      [...sortedRows]
+        .sort((a, b) => b.pctConsumed - a.pctConsumed)
+        .slice(0, 15)
+        .map((r) => ({
+          contractNumber: r.contractNumber,
+          pctConsumed: typeof r.pctConsumed === 'number' ? r.pctConsumed : 0,
+          isOver: r.varianceFlag || r.pctConsumed >= 100,
+        })),
+    [sortedRows],
+  );
+
+  // ── Virtualization ─────────────────────────────────────────
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filteredRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56,
+    overscan: 8,
+  });
 
   if (!canRead) {
     return (
@@ -110,14 +254,205 @@ function BudgetBurnPortfolioView() {
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1400px] space-y-6 p-6"
     >
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">
-          {t('financial.budgetBurn.portfolio.title')}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {t('financial.budgetBurn.portfolio.subtitle')}
-        </p>
+      {/* Header + search */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            {t('financial.budgetBurn.portfolio.title')}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            {t('financial.budgetBurn.portfolio.subtitle')}
+          </p>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+          <input
+            type="search"
+            id="portfolio-search"
+            value={searchRaw}
+            onChange={(e) => setSearchRaw(e.target.value)}
+            placeholder={t('budgetBurn.portfolio.filters.searchPlaceholder')}
+            className="h-9 rounded-md border border-border bg-card ps-9 pe-3 text-sm text-ink placeholder:text-ink-muted focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+            aria-label={t('budgetBurn.portfolio.filters.searchPlaceholder')}
+          />
+          {searchRaw && (
+            <button
+              type="button"
+              onClick={() => setSearchRaw('')}
+              className="absolute end-2 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink"
+              aria-label={t('common.clearSearch', { defaultValue: 'Clear search' })}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Over budget only */}
+        <button
+          type="button"
+          onClick={() => setOverBudgetOnly((v) => !v)}
+          aria-pressed={overBudgetOnly}
+          className={cn(
+            'rounded-full border px-3 py-1 text-xs font-medium transition',
+            overBudgetOnly
+              ? 'border-terracotta bg-terracotta/10 text-terracotta'
+              : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
+          )}
+        >
+          {t('budgetBurn.portfolio.filters.overBudgetOnly')}
+        </button>
+
+        {/* By subsidiary */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowSubsidiaryPicker((v) => !v);
+              setShowEmiratePicker(false);
+            }}
+            aria-haspopup="listbox"
+            aria-expanded={showSubsidiaryPicker}
+            className={cn(
+              'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition',
+              selectedSubsidiary
+                ? 'border-gold bg-gold/10 text-ink'
+                : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
+            )}
+          >
+            {selectedSubsidiary
+              ? `${t('budgetBurn.portfolio.filters.bySubsidiary')}: ${selectedSubsidiary}`
+              : t('budgetBurn.portfolio.filters.bySubsidiary')}
+            {selectedSubsidiary ? (
+              <X
+                className="h-3 w-3"
+                aria-hidden="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedSubsidiary('');
+                }}
+              />
+            ) : (
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            )}
+          </button>
+
+          {showSubsidiaryPicker && (
+            <div
+              role="listbox"
+              aria-label={t('budgetBurn.portfolio.filters.bySubsidiary')}
+              className="absolute start-0 top-9 z-10 min-w-[160px] rounded-lg border border-border bg-card shadow-md"
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={selectedSubsidiary === ''}
+                onClick={() => { setSelectedSubsidiary(''); setShowSubsidiaryPicker(false); }}
+                className="block w-full px-3 py-2 text-start text-xs text-ink-muted hover:bg-surface"
+              >
+                {t('common.all', { defaultValue: 'All' })}
+              </button>
+              {ADNOC_SUBSIDIARIES.map((sub) => (
+                <button
+                  key={sub}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedSubsidiary === sub}
+                  onClick={() => { setSelectedSubsidiary(sub); setShowSubsidiaryPicker(false); }}
+                  className={cn(
+                    'block w-full px-3 py-2 text-start text-xs hover:bg-surface',
+                    selectedSubsidiary === sub ? 'font-semibold text-ink' : 'text-ink-muted',
+                  )}
+                >
+                  {sub}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* By emirate */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setShowEmiratePicker((v) => !v);
+              setShowSubsidiaryPicker(false);
+            }}
+            aria-haspopup="listbox"
+            aria-expanded={showEmiratePicker}
+            className={cn(
+              'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition',
+              selectedEmirate
+                ? 'border-gold bg-gold/10 text-ink'
+                : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
+            )}
+          >
+            {selectedEmirate
+              ? `${t('budgetBurn.portfolio.filters.byEmirate')}: ${selectedEmirate}`
+              : t('budgetBurn.portfolio.filters.byEmirate')}
+            {selectedEmirate ? (
+              <X
+                className="h-3 w-3"
+                aria-hidden="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedEmirate('');
+                }}
+              />
+            ) : (
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            )}
+          </button>
+
+          {showEmiratePicker && (
+            <div
+              role="listbox"
+              aria-label={t('budgetBurn.portfolio.filters.byEmirate')}
+              className="absolute start-0 top-9 z-10 min-w-[160px] rounded-lg border border-border bg-card shadow-md"
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={selectedEmirate === ''}
+                onClick={() => { setSelectedEmirate(''); setShowEmiratePicker(false); }}
+                className="block w-full px-3 py-2 text-start text-xs text-ink-muted hover:bg-surface"
+              >
+                {t('common.all', { defaultValue: 'All' })}
+              </button>
+              {emirateOptions.map((em) => (
+                <button
+                  key={em}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedEmirate === em}
+                  onClick={() => { setSelectedEmirate(em); setShowEmiratePicker(false); }}
+                  className={cn(
+                    'block w-full px-3 py-2 text-start text-xs hover:bg-surface',
+                    selectedEmirate === em ? 'font-semibold text-ink' : 'text-ink-muted',
+                  )}
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Active filter count */}
+        {(overBudgetOnly || selectedSubsidiary || selectedEmirate || search) && (
+          <span className="text-xs text-ink-muted">
+            {t('budgetBurn.portfolio.filters.showing', {
+              count: filteredRows.length,
+              total: sortedRows.length,
+              defaultValue: '{{count}} of {{total}} contracts',
+            })}
+          </span>
+        )}
       </div>
 
       {/* Loading */}
@@ -151,7 +486,6 @@ function BudgetBurnPortfolioView() {
         </div>
       )}
 
-      {/* Content */}
       {!isLoading && !isError && (
         <>
           {/* Portfolio summary strip */}
@@ -190,109 +524,146 @@ function BudgetBurnPortfolioView() {
             </section>
           )}
 
-          {rows.length === 0 ? (
+          {/* ── Chart #5: Portfolio consumption horizontal bar ──── */}
+          {chartRows.length > 0 && (
+            <ChartCard
+              title={t('budgetBurn.charts.portfolioConsumption.title')}
+              subtitle={t('budgetBurn.charts.portfolioConsumption.subtitle')}
+              height={280}
+              empty={chartRows.length === 0}
+              emptyLabel={t('common.charts.empty')}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartRows}
+                  layout="vertical"
+                  margin={{ top: 4, right: 24, bottom: 4, left: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="2 4" horizontal={false} opacity={0.3} />
+                  <XAxis
+                    type="number"
+                    fontSize={10}
+                    tickFormatter={(v: number) => `${v.toFixed(0)}%`}
+                    domain={[0, 'auto']}
+                  />
+                  <YAxis
+                    dataKey="contractNumber"
+                    type="category"
+                    width={100}
+                    fontSize={10}
+                    tick={{ fill: 'var(--ink-muted)' }}
+                  />
+                  <SemanticTooltip
+                    currencyHint="pct"
+                    formatter={(value) => {
+                      const n = typeof value === 'string' ? parseFloat(value) : Number(value);
+                      return [`${n.toFixed(1)}%`, t('budgetBurn.charts.portfolioConsumption.consumed')];
+                    }}
+                  />
+                  <Bar dataKey="pctConsumed" radius={[0, 3, 3, 0]}>
+                    {chartRows.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={barFill(entry.pctConsumed)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
+
+          {/* ── Virtualized table ────────────────────────────────── */}
+          {filteredRows.length === 0 ? (
             <div className="flex h-56 flex-col items-center justify-center gap-3 rounded-lg border border-border bg-card">
               <TrendingUp className="h-8 w-8 text-ink-subtle" aria-hidden="true" />
               <p className="text-sm font-medium text-ink">
-                {t('financial.budgetBurn.portfolio.empty.title')}
+                {search || overBudgetOnly || selectedSubsidiary || selectedEmirate
+                  ? t('budgetBurn.portfolio.filters.noResults', { defaultValue: 'No contracts match the current filters.' })
+                  : t('financial.budgetBurn.portfolio.empty.title')}
               </p>
               <p className="text-xs text-ink-muted">
-                {t('financial.budgetBurn.portfolio.empty.body')}
+                {!(search || overBudgetOnly || selectedSubsidiary || selectedEmirate) &&
+                  t('financial.budgetBurn.portfolio.empty.body')}
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
+            <div className="rounded-lg border border-border shadow-sm">
+              {/* Table head (static) */}
               <table className="min-w-full text-sm">
                 <thead className="bg-surface">
                   <tr>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                    >
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
                       {t('financial.budgetBurn.columns.contract')}
                     </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                    >
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
                       {t('financial.budgetBurn.columns.counterparty')}
                     </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                    >
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
                       {t('financial.budgetBurn.columns.budget')}
                     </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                    >
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
                       {t('financial.budgetBurn.columns.actual')}
                     </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                    >
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
                       {t('financial.budgetBurn.columns.consumed')}
                     </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                    >
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
                       {t('financial.budgetBurn.columns.projectedOverUnder')}
                     </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                    >
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
                       {t('financial.budgetBurn.columns.status')}
                     </th>
-                    <th
-                      scope="col"
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                    >
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
                       <span className="sr-only">{t('common.actions')}</span>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border bg-card">
-                  {rows.map((row) => (
-                    <PortfolioRow key={row.contractId} row={row} />
-                  ))}
-                </tbody>
               </table>
-            </div>
-          )}
 
-          {/* Offset pagination */}
-          {pagination && pagination.total > LIMIT && (
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-ink-muted">
-                {t('financial.budgetBurn.portfolio.showing', {
-                  from: (page - 1) * LIMIT + 1,
-                  to: Math.min(page * LIMIT, pagination.total),
-                  total: pagination.total,
+              {/* Virtualized table body */}
+              <div
+                ref={parentRef}
+                className="h-[600px] overflow-y-auto"
+              >
+                <div
+                  style={{
+                    height: virtualizer.getTotalSize(),
+                    width: '100%',
+                    position: 'relative',
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = filteredRows[virtualRow.index];
+                    if (!row) return null;
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        data-index={virtualRow.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        <table className="min-w-full text-sm">
+                          <tbody>
+                            <PortfolioRow row={row} />
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Row count footer */}
+              <div className="border-t border-border px-4 py-2 text-xs text-ink-muted">
+                {t('budgetBurn.portfolio.filters.showing', {
+                  count: filteredRows.length,
+                  total: sortedRows.length,
+                  defaultValue: '{{count}} of {{total}} contracts',
                 })}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  aria-label={t('common.pagination.prev')}
-                >
-                  {t('common.pagination.prev')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={page * LIMIT >= pagination.total}
-                  aria-label={t('common.pagination.next')}
-                >
-                  {t('common.pagination.next')}
-                </Button>
               </div>
             </div>
           )}
@@ -344,15 +715,11 @@ function SummaryTile({
 function PortfolioRow({ row }: { row: PortfolioContractRow }) {
   const { t } = useTranslation();
 
-  const varianceClass = row.varianceFlag
-    ? 'text-terracotta'
-    : 'text-success';
-
   const projectedAed = parseFloat(row.projectedOverUnderAed);
   const projectedClass = projectedAed > 0 ? 'text-terracotta' : 'text-success';
 
   return (
-    <tr className="transition-colors hover:bg-surface/50">
+    <tr className="border-b border-border transition-colors hover:bg-surface/50 last:border-0">
       <td className="px-4 py-3">
         <p className="font-medium text-ink">{row.contractNumber}</p>
         <p className="text-xs text-ink-muted">{row.titleEn}</p>
