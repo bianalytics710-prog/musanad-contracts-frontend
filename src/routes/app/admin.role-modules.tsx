@@ -67,6 +67,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAuthStore, readPersistedAuthSnapshot } from "@/store/auth.store";
 import {
   adminModulesService,
@@ -429,25 +430,21 @@ function RoleModulesView() {
     },
   });
 
+  // Simple checkbox toggle: flip between allow/deny. We always write an
+  // explicit override so the user's intent is preserved; the "Reset to
+  // defaults" button clears overrides en masse if they ever want to revert.
   const handleCellClick = useCallback(
     (role: RoleRef, mod: MatrixModule, originalCell: MatrixCell | undefined) => {
       if (!mod.isEnabledAtApp) return;
       const current = effectiveCell(role.id, mod.key, originalCell);
-      const { isAllowed } = nextCellState(current);
-
-      let nextState: { effectiveState: EffectiveState; source: AccessSource };
-      if (isAllowed === null) {
-        nextState = { effectiveState: current.effectiveState, source: "default" };
-      } else {
-        nextState = {
-          effectiveState: isAllowed ? "allow" : "deny",
-          source: "explicit",
-        };
-      }
-
+      const newAllowed = current.effectiveState !== "allow"; // flip
+      const nextState: { effectiveState: EffectiveState; source: AccessSource } = {
+        effectiveState: newAllowed ? "allow" : "deny",
+        source: "explicit",
+      };
       const k = cellKey(role.id, mod.key);
       setOptimisticCells((prev) => new Map(prev).set(k, nextState));
-      patchMutation.mutate({ roleId: role.id, moduleKey: mod.key, isAllowed });
+      patchMutation.mutate({ roleId: role.id, moduleKey: mod.key, isAllowed: newAllowed });
     },
     [effectiveCell, patchMutation],
   );
@@ -978,27 +975,6 @@ function RoleDetailPane({
             </Tooltip>
           </div>
         </div>
-        {/* Legend strip — explains the compact pill icons */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 bg-surface/30 px-5 py-2 text-[11px] text-ink-subtle">
-          <span className="font-medium uppercase tracking-wider">Legend</span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-sage/30 bg-sage-tint"><Check className="h-2.5 w-2.5 text-sage-ink" /></span>
-            Default allow
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-border bg-surface"><Minus className="h-2.5 w-2.5 text-ink-subtle" /></span>
-            Default deny
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded border-2 border-gold bg-gold/10"><Check className="h-2.5 w-2.5 text-gold" /></span>
-            Override allow
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded border-2 border-terracotta bg-terracotta/10"><X className="h-2.5 w-2.5 text-terracotta" /></span>
-            Override deny
-          </span>
-          <span className="ms-auto text-ink-subtle">Click any pill to cycle states</span>
-        </div>
       </div>
 
       {/* Bundle sections */}
@@ -1098,20 +1074,13 @@ function RoleDetailPane({
                           </p>
                         </div>
 
-                        {/* State pill + actions — compact icon-only so rows
-                            never clip at narrow viewports. Tooltip explains
-                            the state on hover. */}
-                        <div className="flex shrink-0 items-center gap-1.5">
+                        {/* Simple Switch — ON = role has access, OFF = doesn't */}
+                        <div className="flex shrink-0 items-center">
                           {isDisabledAtApp ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span>
-                                  <StatusPill
-                                    effectiveState={cell.effectiveState}
-                                    source={cell.source}
-                                    isDisabledAtApp
-                                    compact
-                                  />
+                                <span className="inline-flex h-5 w-5 items-center justify-center text-ink-subtle">
+                                  <Lock className="h-3.5 w-3.5" />
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="left" className="text-xs">
@@ -1121,44 +1090,11 @@ function RoleDetailPane({
                               </TooltipContent>
                             </Tooltip>
                           ) : (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={() => onCellClick(role, mod, orig)}
-                                  className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                                  aria-label={`Toggle ${modLabel} access for ${label}`}
-                                >
-                                  <StatusPill
-                                    effectiveState={cell.effectiveState}
-                                    source={cell.source}
-                                    isDisabledAtApp={false}
-                                    compact
-                                  />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" className="text-xs">
-                                {cell.source === "explicit"
-                                  ? (cell.effectiveState === "allow"
-                                      ? t("admin.roleModules.pill.overrideAllow", { defaultValue: "Override allow" })
-                                      : t("admin.roleModules.pill.overrideDeny", { defaultValue: "Override deny" }))
-                                  : (cell.effectiveState === "allow"
-                                      ? t("admin.roleModules.pill.defaultAllow", { defaultValue: "Default allow" })
-                                      : t("admin.roleModules.pill.defaultDeny", { defaultValue: "Default deny" }))}
-                                <span className="ms-1 text-ink-subtle">· click to cycle</span>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-
-                          {hasOverride && !isDisabledAtApp && (
-                            <button
-                              type="button"
-                              onClick={() => onClearOverride(role, mod, orig)}
-                              className="rounded px-1.5 py-0.5 text-xs text-ink-subtle hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              aria-label={`Clear override for ${modLabel}`}
-                            >
-                              {t("admin.roleModules.pill.clear", { defaultValue: "Clear" })}
-                            </button>
+                            <Switch
+                              checked={cell.effectiveState === "allow"}
+                              onCheckedChange={() => onCellClick(role, mod, orig)}
+                              aria-label={`${modLabel} access for ${label}`}
+                            />
                           )}
                         </div>
                       </motion.div>
@@ -1528,25 +1464,18 @@ function CompareGrid({
                             <td key={role.id} className="px-1 py-1 text-center">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <button
-                                    type="button"
-                                    onClick={
-                                      mod.isEnabledAtApp
-                                        ? () => onCellClick(role, mod, orig)
-                                        : undefined
-                                    }
-                                    disabled={!mod.isEnabledAtApp}
-                                    aria-label={ariaLabel}
-                                    aria-pressed={cell.effectiveState === "allow"}
-                                    className="flex h-8 w-8 mx-auto items-center justify-center rounded transition-colors hover:bg-surface/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    <StatusPill
-                                      effectiveState={cell.effectiveState}
-                                      source={cell.source}
-                                      isDisabledAtApp={!mod.isEnabledAtApp}
-                                      compact
+                                  <span className="inline-flex h-8 w-8 items-center justify-center">
+                                    <Checkbox
+                                      checked={cell.effectiveState === "allow"}
+                                      onCheckedChange={
+                                        mod.isEnabledAtApp
+                                          ? () => onCellClick(role, mod, orig)
+                                          : undefined
+                                      }
+                                      disabled={!mod.isEnabledAtApp}
+                                      aria-label={ariaLabel}
                                     />
-                                  </button>
+                                  </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-[200px]">
                                   <p className="text-xs">
