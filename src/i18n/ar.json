@@ -6918,6 +6918,44 @@
         "fetchFailed": "فشل تحميل بيانات التدرج التنظيمي.",
         "statusUpdateFailed": "فشل تحديث حالة المعالجة.",
         "draftFailed": "فشل إنشاء مسودة التعديل."
+      },
+      "charts": {
+        "headcountDonut": {
+          "title": "توزيع فئات القوى العاملة",
+          "subtitle": "المقاولون حسب فئة الإماراتية",
+          "segments": {
+            "lt20": "أقل من 20 موظفاً",
+            "b20to49": "20–49 موظفاً",
+            "gt50": "50+ موظفاً"
+          }
+        },
+        "penaltyByEmirate": {
+          "title": "التعرض للغرامات حسب الإمارة",
+          "subtitle": "إجمالي الدرهم المعرض للخطر لكل إمارة (تنازلياً)"
+        },
+        "icvByEmirate": {
+          "title": "الامتثال لـ ICV حسب الإمارة",
+          "subtitle": "ملتزم مقابل معرض للخطر مقابل غير مصنف",
+          "series": {
+            "compliant": "ملتزم بـ ICV",
+            "atRisk": "معرض للخطر",
+            "nonRated": "غير مصنف"
+          }
+        }
+      },
+      "kpiStrip": {
+        "totalContractors": "إجمالي المقاولين",
+        "penaltyRange": "إجمالي التعرض للغرامات",
+        "pctNonCompliant": "٪ غير ملتزمين",
+        "pctIcvAtRisk": "٪ ICV معرض للخطر",
+        "pctRemediated": "٪ تم التصحيح"
+      },
+      "filters": {
+        "nonCompliantOnly": "غير الملتزمين فقط",
+        "byEmirate": "حسب الإمارة",
+        "byBand": "حسب فئة القوى العاملة",
+        "byRemediationStatus": "حسب حالة التصحيح",
+        "searchPlaceholder": "البحث عن المقاولين، الإمارة…"
       }
     }
   },

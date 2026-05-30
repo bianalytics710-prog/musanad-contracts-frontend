@@ -3,23 +3,43 @@
  *
  * CR-M — Labor-Law Cascade detail: contractor-by-contractor remediation
  * table with ICV-impact section.
+ * CR-T — Visual upgrade: aggregate KPI strip + headcount-band donut +
+ * penalty-by-emirate horizontal bar + ICV-by-emirate stacked horizontal bar +
+ * virtualized remediation table + search + 4 filter chips.
  *
  * Standards: A7, C13, C14, D6, D7, T3–T4, T10, T11, T12, WCAG AA.
  */
-import { useState } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowLeft, FileEdit, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, FileEdit, RefreshCcw, Search, X, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { ChartCard, SemanticTooltip } from '@/components/charts';
+import { formatAedCompact } from '@/features/dashboards/components/dashboard-primitives';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { regulatoryCascadeService } from '@/services/api/regulatory-cascade.service';
 import { translateApiError } from '@/lib/translate-api-error';
 import { formatDateTime } from '@/utils/datetime';
+import { useDebounce } from '@/hooks/useDebounce';
+import { cn } from '@/lib/utils';
 import type {
   RegulatoryCascadeItemDetail,
   RemediationStatus,
@@ -54,23 +74,18 @@ const BAND_COLORS: Record<HeadcountBand, string> = {
   '50+':   'bg-terracotta/10 text-terracotta border-terracotta/30',
 };
 
+// ─────────────────────────────────────────────────────────────
+// Chart colour tokens (semantic — no raw oklch literals)
+// ─────────────────────────────────────────────────────────────
+const DONUT_COLORS: Record<HeadcountBand, string> = {
+  '<20':   'oklch(var(--color-ink-muted))',
+  '20-49': 'oklch(var(--color-chart-1))',
+  '50+':   'oklch(var(--color-chart-4))',
+};
+
 function formatAedRange(min: number, max: number): string {
-  const fmt = (n: number): string => {
-    try {
-      return new Intl.NumberFormat('en-AE', {
-        style: 'currency',
-        currency: 'AED',
-        notation: 'compact',
-        maximumFractionDigits: 1,
-      }).format(n);
-    } catch {
-      if (n >= 1_000_000) return `AED ${(n / 1_000_000).toFixed(1)}M`;
-      if (n >= 1_000) return `AED ${(n / 1_000).toFixed(0)}K`;
-      return `AED ${n.toFixed(0)}`;
-    }
-  };
-  if (min === max) return fmt(min);
-  return `${fmt(min)} – ${fmt(max)}`;
+  if (min === max) return formatAedCompact(min);
+  return `${formatAedCompact(min)} – ${formatAedCompact(max)}`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -167,7 +182,7 @@ function CascadeRunDetailView() {
             </div>
           </div>
 
-          {/* Summary strip */}
+          {/* Original summary strip */}
           <section
             aria-label={t('regulatory.cascade.detail.summaryLabel')}
             className="grid grid-cols-2 gap-3 sm:grid-cols-4"
@@ -192,69 +207,721 @@ function CascadeRunDetailView() {
             />
           </section>
 
-          {/* Remediation table */}
-          <section>
-            <h2 className="mb-3 text-sm font-semibold text-ink">
-              {t('regulatory.cascade.detail.remediationTable.heading')}
-            </h2>
-            {run.items.length === 0 ? (
-              <div className="rounded-lg border border-border bg-card p-8 text-center">
-                <p className="text-sm text-ink-muted">
-                  {t('regulatory.cascade.detail.remediationTable.empty')}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-surface">
-                    <tr>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                        {t('regulatory.cascade.detail.columns.contractor')}
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                        {t('regulatory.cascade.detail.columns.emirate')}
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                        {t('regulatory.cascade.detail.columns.headcountBand')}
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                        {t('regulatory.cascade.detail.columns.affectedClauses')}
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
-                        {t('regulatory.cascade.detail.columns.penaltyExposure')}
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
-                        {t('regulatory.cascade.detail.columns.icvAttachments')}
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                        {t('regulatory.cascade.detail.columns.remediationStatus')}
-                      </th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                        <span className="sr-only">{t('common.actions')}</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border bg-card">
-                    {run.items.map((item) => (
-                      <CascadeItemRow
-                        key={item.id}
-                        item={item}
-                        canRead={canRead}
-                        canRun={canRun}
-                        canDraftAmend={canDraftAmend}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+          {/* ── CR-T: Charts + virtualized table ──────────────────── */}
+          <CascadeChartsAndTable
+            items={run.items}
+            canRead={canRead}
+            canRun={canRun}
+            canDraftAmend={canDraftAmend}
+          />
 
           {/* ICV Impact section */}
           <IcvImpactSection items={run.items} />
         </>
       )}
     </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// CascadeChartsAndTable — CR-T additions
+// Aggregate KPI strip + 3 charts + virtualized table + search + 4 filter chips
+// ─────────────────────────────────────────────────────────────
+function CascadeChartsAndTable({
+  items,
+  canRead,
+  canRun,
+  canDraftAmend,
+}: {
+  items: RegulatoryCascadeItemDetail[];
+  canRead: boolean;
+  canRun: boolean;
+  canDraftAmend: boolean;
+}) {
+  const { t } = useTranslation();
+
+  // ── Search + filter state ──────────────────────────────────
+  const [searchRaw, setSearchRaw] = useState('');
+  const search = useDebounce(searchRaw, 300);
+  const [nonCompliantOnly, setNonCompliantOnly] = useState(false);
+  const [selectedEmirate, setSelectedEmirate] = useState('');
+  const [selectedBand, setSelectedBand] = useState('');
+  const [selectedRemStatus, setSelectedRemStatus] = useState('');
+  const [showEmiratePicker, setShowEmiratePicker] = useState(false);
+  const [showBandPicker, setShowBandPicker] = useState(false);
+  const [showRemStatusPicker, setShowRemStatusPicker] = useState(false);
+
+  const total = items.length;
+
+  // ── Aggregate KPI computations ─────────────────────────────
+  const kpi = useMemo(() => {
+    if (total === 0) {
+      return { penaltyMin: 0, penaltyMax: 0, nonCompliantPct: 0, icvAtRiskPct: 0, remediatedPct: 0 };
+    }
+    const penaltyMin = items.reduce((s, i) => s + (i.penaltyExposureMinAed ?? 0), 0);
+    const penaltyMax = items.reduce((s, i) => s + (i.penaltyExposureMaxAed ?? 0), 0);
+    const nonCompliant = items.filter((i) => i.isCompliant === false).length;
+    const icvAtRisk = items.filter((i) => i.icvAttachmentCount === 0 && i.isCompliant === false).length;
+    const remediated = items.filter(
+      (i) => i.remediationStatus === 'resolved' || i.remediationStatus === 'amended',
+    ).length;
+    return {
+      penaltyMin,
+      penaltyMax,
+      nonCompliantPct: (nonCompliant / total) * 100,
+      icvAtRiskPct: (icvAtRisk / total) * 100,
+      remediatedPct: (remediated / total) * 100,
+    };
+  }, [items, total]);
+
+  // ── Headcount donut data ───────────────────────────────────
+  const donutData = useMemo(() => {
+    const counts: Partial<Record<HeadcountBand, number>> = {};
+    for (const item of items) {
+      counts[item.headcountBand] = (counts[item.headcountBand] ?? 0) + 1;
+    }
+    const bands: HeadcountBand[] = ['<20', '20-49', '50+'];
+    return bands
+      .filter((b) => (counts[b] ?? 0) > 0)
+      .map((b) => ({
+        band: b,
+        count: counts[b] ?? 0,
+        label: t(`regulatory.cascade.charts.headcountDonut.segments.${b === '<20' ? 'lt20' : b === '20-49' ? 'b20to49' : 'gt50'}`),
+      }));
+  }, [items, t]);
+
+  // ── Penalty by emirate data (sorted DESC) ─────────────────
+  const penaltyByEmirate = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of items) {
+      const em = item.emirate ?? 'Unknown';
+      map[em] = (map[em] ?? 0) + (item.penaltyExposureMaxAed ?? 0);
+    }
+    return Object.entries(map)
+      .filter(([, v]) => v > 0)
+      .sort(([, a], [, b]) => b - a)
+      .map(([emirate, totalPenaltyAed]) => ({ emirate, totalPenaltyAed }));
+  }, [items]);
+
+  // ── ICV by emirate stacked data ────────────────────────────
+  const icvByEmirate = useMemo(() => {
+    const map: Record<string, { compliant: number; atRisk: number; nonRated: number }> = {};
+    for (const item of items) {
+      const em = item.emirate ?? 'Unknown';
+      if (!map[em]) map[em] = { compliant: 0, atRisk: 0, nonRated: 0 };
+      if (item.icvAttachmentCount > 0 && item.isCompliant === true) {
+        map[em].compliant += 1;
+      } else if (item.isCompliant === false) {
+        map[em].atRisk += 1;
+      } else {
+        // icvAttachmentCount === 0 AND isCompliant !== false
+        map[em].nonRated += 1;
+      }
+    }
+    return Object.entries(map)
+      .map(([emirate, v]) => ({ emirate, ...v }))
+      .sort((a, b) => (b.compliant + b.atRisk + b.nonRated) - (a.compliant + a.atRisk + a.nonRated));
+  }, [items]);
+
+  // ── Emirates list for filter chip ─────────────────────────
+  const emirateOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of items) {
+      if (item.emirate) set.add(item.emirate);
+    }
+    return Array.from(set).sort();
+  }, [items]);
+
+  // ── Default sort: penaltyExposureMaxAed DESC ───────────────
+  const sortedItems = useMemo(
+    () => [...items].sort((a, b) => (b.penaltyExposureMaxAed ?? 0) - (a.penaltyExposureMaxAed ?? 0)),
+    [items],
+  );
+
+  // ── Apply filters ─────────────────────────────────────────
+  const filteredItems = useMemo(() => {
+    let rows = sortedItems;
+
+    if (search) {
+      const lower = search.toLowerCase();
+      rows = rows.filter(
+        (i) =>
+          i.contractorNameEn.toLowerCase().includes(lower) ||
+          (i.contractorNameAr ?? '').toLowerCase().includes(lower) ||
+          (i.emirate ?? '').toLowerCase().includes(lower),
+      );
+    }
+
+    if (nonCompliantOnly) {
+      rows = rows.filter((i) => i.isCompliant === false || i.remediationStatus !== 'resolved');
+    }
+
+    if (selectedEmirate) {
+      rows = rows.filter((i) => i.emirate === selectedEmirate);
+    }
+
+    if (selectedBand) {
+      rows = rows.filter((i) => i.headcountBand === selectedBand);
+    }
+
+    if (selectedRemStatus) {
+      rows = rows.filter((i) => i.remediationStatus === selectedRemStatus);
+    }
+
+    return rows;
+  }, [sortedItems, search, nonCompliantOnly, selectedEmirate, selectedBand, selectedRemStatus]);
+
+  // ── Virtualization ─────────────────────────────────────────
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: filteredItems.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 64,
+    overscan: 8,
+  });
+
+  // ── Chart cell colours by rank ────────────────────────────
+  function penaltyBarColor(index: number): string {
+    if (index === 0) return 'oklch(var(--color-chart-4))';
+    if (index <= 2) return 'oklch(var(--color-chart-1))';
+    return 'oklch(var(--color-chart-2))';
+  }
+
+  return (
+    <>
+      {/* ── Aggregate KPI strip ────────────────────────────────── */}
+      <section
+        aria-label={t('regulatory.cascade.kpiStrip.totalContractors')}
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+      >
+        <SummaryTile
+          label={t('regulatory.cascade.kpiStrip.totalContractors')}
+          value={String(total)}
+        />
+        <SummaryTile
+          label={t('regulatory.cascade.kpiStrip.penaltyRange')}
+          value={formatAedRange(kpi.penaltyMin, kpi.penaltyMax)}
+          variant="risk"
+        />
+        <SummaryTile
+          label={t('regulatory.cascade.kpiStrip.pctNonCompliant')}
+          value={`${kpi.nonCompliantPct.toFixed(1)}%`}
+          variant="warning"
+        />
+        <SummaryTile
+          label={t('regulatory.cascade.kpiStrip.pctIcvAtRisk')}
+          value={`${kpi.icvAtRiskPct.toFixed(1)}%`}
+          variant="risk"
+        />
+        <SummaryTile
+          label={t('regulatory.cascade.kpiStrip.pctRemediated')}
+          value={`${kpi.remediatedPct.toFixed(1)}%`}
+        />
+      </section>
+
+      {/* ── 2-column: donut + penalty bar ─────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Headcount-band donut */}
+        <ChartCard
+          title={t('regulatory.cascade.charts.headcountDonut.title')}
+          subtitle={t('regulatory.cascade.charts.headcountDonut.subtitle')}
+          height={240}
+          empty={donutData.length === 0}
+          emptyLabel={t('common.charts.empty', { defaultValue: 'No data' })}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={donutData}
+                dataKey="count"
+                nameKey="label"
+                innerRadius={50}
+                outerRadius={80}
+                paddingAngle={2}
+              >
+                {donutData.map((entry) => (
+                  <Cell
+                    key={entry.band}
+                    fill={DONUT_COLORS[entry.band as HeadcountBand] ?? 'oklch(var(--color-chart-3))'}
+                  />
+                ))}
+              </Pie>
+              <SemanticTooltip
+                currencyHint="pct"
+                formatter={(value, _name, props) => {
+                  const count = typeof value === 'number' ? value : Number(value);
+                  const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
+                  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                  const label = (props as { payload?: { label?: string } }).payload?.label ?? '';
+                  return [`${count} (${pct}%)`, label];
+                }}
+              />
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                formatter={(value) => (
+                  <span className="text-xs text-ink-muted">{value}</span>
+                )}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Penalty by emirate horizontal bar */}
+        <ChartCard
+          title={t('regulatory.cascade.charts.penaltyByEmirate.title')}
+          subtitle={t('regulatory.cascade.charts.penaltyByEmirate.subtitle')}
+          height={240}
+          empty={penaltyByEmirate.length === 0}
+          emptyLabel={t('common.charts.empty', { defaultValue: 'No data' })}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={penaltyByEmirate}
+              layout="vertical"
+              margin={{ top: 4, right: 24, bottom: 4, left: 4 }}
+            >
+              <CartesianGrid strokeDasharray="2 4" horizontal={false} opacity={0.3} />
+              <YAxis
+                dataKey="emirate"
+                type="category"
+                width={140}
+                fontSize={10}
+                tick={{ fill: 'var(--color-ink-muted)' }}
+              />
+              <XAxis
+                type="number"
+                fontSize={10}
+                tickFormatter={(v: number) => formatAedCompact(v)}
+              />
+              <SemanticTooltip currencyHint="aed" />
+              <Bar dataKey="totalPenaltyAed" radius={[0, 3, 3, 0]}>
+                {penaltyByEmirate.map((_entry, index) => (
+                  <Cell key={`penalty-cell-${index}`} fill={penaltyBarColor(index)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* ── ICV by emirate stacked bar (full width) ────────────── */}
+      <ChartCard
+        title={t('regulatory.cascade.charts.icvByEmirate.title')}
+        subtitle={t('regulatory.cascade.charts.icvByEmirate.subtitle')}
+        height={280}
+        empty={icvByEmirate.length === 0}
+        emptyLabel={t('common.charts.empty', { defaultValue: 'No data' })}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={icvByEmirate}
+            layout="vertical"
+            margin={{ top: 4, right: 24, bottom: 4, left: 4 }}
+          >
+            <CartesianGrid strokeDasharray="2 4" horizontal={false} opacity={0.3} />
+            <YAxis
+              dataKey="emirate"
+              type="category"
+              width={140}
+              fontSize={10}
+              tick={{ fill: 'var(--color-ink-muted)' }}
+            />
+            <XAxis type="number" fontSize={10} />
+            <Legend verticalAlign="top" height={28} formatter={(value: string) => (
+              <span className="text-xs text-ink-muted">{value}</span>
+            )} />
+            <SemanticTooltip
+              currencyHint="pct"
+              formatter={(value, name) => {
+                const n = typeof value === 'number' ? value : Number(value);
+                const key = name === 'compliant'
+                  ? 'regulatory.cascade.charts.icvByEmirate.series.compliant'
+                  : name === 'atRisk'
+                    ? 'regulatory.cascade.charts.icvByEmirate.series.atRisk'
+                    : 'regulatory.cascade.charts.icvByEmirate.series.nonRated';
+                return [String(n), key];
+              }}
+            />
+            <Bar
+              dataKey="compliant"
+              name={t('regulatory.cascade.charts.icvByEmirate.series.compliant')}
+              stackId="a"
+              fill="oklch(var(--color-chart-2))"
+            />
+            <Bar
+              dataKey="atRisk"
+              name={t('regulatory.cascade.charts.icvByEmirate.series.atRisk')}
+              stackId="a"
+              fill="oklch(var(--color-chart-4))"
+            />
+            <Bar
+              dataKey="nonRated"
+              name={t('regulatory.cascade.charts.icvByEmirate.series.nonRated')}
+              stackId="a"
+              fill="oklch(var(--color-ink-muted))"
+              radius={[0, 3, 3, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* ── Search + 4 filter chips ────────────────────────────── */}
+      <div className="space-y-3">
+        {/* Search */}
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+          <input
+            type="search"
+            id="cascade-search"
+            value={searchRaw}
+            onChange={(e) => setSearchRaw(e.target.value)}
+            placeholder={t('regulatory.cascade.filters.searchPlaceholder')}
+            className="h-9 w-full rounded-md border border-border bg-card ps-9 pe-3 text-sm text-ink placeholder:text-ink-muted focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+            aria-label={t('regulatory.cascade.filters.searchPlaceholder')}
+          />
+          {searchRaw && (
+            <button
+              type="button"
+              onClick={() => setSearchRaw('')}
+              className="absolute end-2 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink"
+              aria-label={t('common.clearSearch', { defaultValue: 'Clear search' })}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Non-compliant only */}
+          <button
+            type="button"
+            onClick={() => setNonCompliantOnly((v) => !v)}
+            aria-pressed={nonCompliantOnly}
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs font-medium transition',
+              nonCompliantOnly
+                ? 'border-terracotta bg-terracotta/10 text-terracotta'
+                : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
+            )}
+          >
+            {t('regulatory.cascade.filters.nonCompliantOnly')}
+          </button>
+
+          {/* By emirate */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEmiratePicker((v) => !v);
+                setShowBandPicker(false);
+                setShowRemStatusPicker(false);
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={showEmiratePicker}
+              className={cn(
+                'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition',
+                selectedEmirate
+                  ? 'border-gold bg-gold/10 text-ink'
+                  : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
+              )}
+            >
+              {selectedEmirate
+                ? `${t('regulatory.cascade.filters.byEmirate')}: ${selectedEmirate}`
+                : t('regulatory.cascade.filters.byEmirate')}
+              {selectedEmirate ? (
+                <X
+                  className="h-3 w-3"
+                  aria-hidden="true"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedEmirate('');
+                  }}
+                />
+              ) : (
+                <ChevronDown className="h-3 w-3" aria-hidden="true" />
+              )}
+            </button>
+            {showEmiratePicker && (
+              <div
+                role="listbox"
+                aria-label={t('regulatory.cascade.filters.byEmirate')}
+                className="absolute start-0 top-9 z-10 min-w-[160px] rounded-lg border border-border bg-card shadow-md"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedEmirate === ''}
+                  onClick={() => { setSelectedEmirate(''); setShowEmiratePicker(false); }}
+                  className="block w-full px-3 py-2 text-start text-xs text-ink-muted hover:bg-surface"
+                >
+                  {t('common.all', { defaultValue: 'All' })}
+                </button>
+                {emirateOptions.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedEmirate === em}
+                    onClick={() => { setSelectedEmirate(em); setShowEmiratePicker(false); }}
+                    className={cn(
+                      'block w-full px-3 py-2 text-start text-xs hover:bg-surface',
+                      selectedEmirate === em ? 'font-semibold text-ink' : 'text-ink-muted',
+                    )}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* By headcount band */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowBandPicker((v) => !v);
+                setShowEmiratePicker(false);
+                setShowRemStatusPicker(false);
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={showBandPicker}
+              className={cn(
+                'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition',
+                selectedBand
+                  ? 'border-gold bg-gold/10 text-ink'
+                  : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
+              )}
+            >
+              {selectedBand
+                ? `${t('regulatory.cascade.filters.byBand')}: ${selectedBand}`
+                : t('regulatory.cascade.filters.byBand')}
+              {selectedBand ? (
+                <X
+                  className="h-3 w-3"
+                  aria-hidden="true"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedBand('');
+                  }}
+                />
+              ) : (
+                <ChevronDown className="h-3 w-3" aria-hidden="true" />
+              )}
+            </button>
+            {showBandPicker && (
+              <div
+                role="listbox"
+                aria-label={t('regulatory.cascade.filters.byBand')}
+                className="absolute start-0 top-9 z-10 min-w-[120px] rounded-lg border border-border bg-card shadow-md"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedBand === ''}
+                  onClick={() => { setSelectedBand(''); setShowBandPicker(false); }}
+                  className="block w-full px-3 py-2 text-start text-xs text-ink-muted hover:bg-surface"
+                >
+                  {t('common.all', { defaultValue: 'All' })}
+                </button>
+                {(['<20', '20-49', '50+'] as HeadcountBand[]).map((band) => (
+                  <button
+                    key={band}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedBand === band}
+                    onClick={() => { setSelectedBand(band); setShowBandPicker(false); }}
+                    className={cn(
+                      'block w-full px-3 py-2 text-start text-xs hover:bg-surface',
+                      selectedBand === band ? 'font-semibold text-ink' : 'text-ink-muted',
+                    )}
+                  >
+                    {band}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* By remediation status */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowRemStatusPicker((v) => !v);
+                setShowEmiratePicker(false);
+                setShowBandPicker(false);
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={showRemStatusPicker}
+              className={cn(
+                'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition',
+                selectedRemStatus
+                  ? 'border-gold bg-gold/10 text-ink'
+                  : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
+              )}
+            >
+              {selectedRemStatus
+                ? `${t('regulatory.cascade.filters.byRemediationStatus')}: ${t(`regulatory.cascade.remediationStatus.${selectedRemStatus}`)}`
+                : t('regulatory.cascade.filters.byRemediationStatus')}
+              {selectedRemStatus ? (
+                <X
+                  className="h-3 w-3"
+                  aria-hidden="true"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRemStatus('');
+                  }}
+                />
+              ) : (
+                <ChevronDown className="h-3 w-3" aria-hidden="true" />
+              )}
+            </button>
+            {showRemStatusPicker && (
+              <div
+                role="listbox"
+                aria-label={t('regulatory.cascade.filters.byRemediationStatus')}
+                className="absolute start-0 top-9 z-10 min-w-[180px] rounded-lg border border-border bg-card shadow-md"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedRemStatus === ''}
+                  onClick={() => { setSelectedRemStatus(''); setShowRemStatusPicker(false); }}
+                  className="block w-full px-3 py-2 text-start text-xs text-ink-muted hover:bg-surface"
+                >
+                  {t('common.all', { defaultValue: 'All' })}
+                </button>
+                {REMEDIATION_STATUSES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedRemStatus === s}
+                    onClick={() => { setSelectedRemStatus(s); setShowRemStatusPicker(false); }}
+                    className={cn(
+                      'block w-full px-3 py-2 text-start text-xs hover:bg-surface',
+                      selectedRemStatus === s ? 'font-semibold text-ink' : 'text-ink-muted',
+                    )}
+                  >
+                    {t(`regulatory.cascade.remediationStatus.${s}`)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Active filter count */}
+          {(nonCompliantOnly || selectedEmirate || selectedBand || selectedRemStatus || search) && (
+            <span className="text-xs text-ink-muted">
+              {filteredItems.length} / {items.length}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Remediation table (virtualized) ────────────────────── */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-ink">
+          {t('regulatory.cascade.detail.remediationTable.heading')}
+        </h2>
+        {filteredItems.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card p-8 text-center">
+            <p className="text-sm text-ink-muted">
+              {search || nonCompliantOnly || selectedEmirate || selectedBand || selectedRemStatus
+                ? t('common.noResults', { defaultValue: 'No rows match the current filters.' })
+                : t('regulatory.cascade.detail.remediationTable.empty')}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border shadow-sm">
+            {/* Static thead */}
+            <table className="min-w-full text-sm">
+              <thead className="bg-surface">
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    {t('regulatory.cascade.detail.columns.contractor')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    {t('regulatory.cascade.detail.columns.emirate')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    {t('regulatory.cascade.detail.columns.headcountBand')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    {t('regulatory.cascade.detail.columns.affectedClauses')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
+                    {t('regulatory.cascade.detail.columns.penaltyExposure')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
+                    {t('regulatory.cascade.detail.columns.icvAttachments')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    {t('regulatory.cascade.detail.columns.remediationStatus')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    <span className="sr-only">{t('common.actions')}</span>
+                  </th>
+                </tr>
+              </thead>
+            </table>
+
+            {/* Virtualized body */}
+            <div
+              ref={parentRef}
+              className="h-[600px] overflow-y-auto"
+            >
+              <div
+                style={{
+                  height: virtualizer.getTotalSize(),
+                  width: '100%',
+                  position: 'relative',
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const item = filteredItems[virtualRow.index];
+                  if (!item) return null;
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      data-index={virtualRow.index}
+                      ref={virtualizer.measureElement}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <table className="min-w-full text-sm">
+                        <tbody>
+                          <CascadeItemRow
+                            item={item}
+                            canRead={canRead}
+                            canRun={canRun}
+                            canDraftAmend={canDraftAmend}
+                          />
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Row count footer */}
+            <div className="border-t border-border px-4 py-2 text-xs text-ink-muted">
+              {filteredItems.length} / {items.length}
+            </div>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -354,6 +1021,9 @@ function CascadeItemRow({
   const statusClass =
     REMEDIATION_COLORS[item.remediationStatus] ??
     'bg-muted text-ink-muted border-border';
+
+  // Suppress unused variable warning — canRun used for future run action
+  void canRun;
 
   return (
     <>

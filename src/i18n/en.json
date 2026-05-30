@@ -6918,6 +6918,44 @@
         "fetchFailed": "Failed to load regulatory cascade data.",
         "statusUpdateFailed": "Failed to update remediation status.",
         "draftFailed": "Failed to create amendment draft."
+      },
+      "charts": {
+        "headcountDonut": {
+          "title": "Headcount band distribution",
+          "subtitle": "Contractors by Emiratisation band",
+          "segments": {
+            "lt20": "Under 20 employees",
+            "b20to49": "20–49 employees",
+            "gt50": "50+ employees"
+          }
+        },
+        "penaltyByEmirate": {
+          "title": "Penalty exposure by emirate",
+          "subtitle": "Total AED at risk per emirate (descending)"
+        },
+        "icvByEmirate": {
+          "title": "ICV compliance by emirate",
+          "subtitle": "Compliant vs. at risk vs. non-rated",
+          "series": {
+            "compliant": "ICV compliant",
+            "atRisk": "At risk",
+            "nonRated": "Non-rated"
+          }
+        }
+      },
+      "kpiStrip": {
+        "totalContractors": "Total contractors",
+        "penaltyRange": "Total penalty exposure",
+        "pctNonCompliant": "% non-compliant",
+        "pctIcvAtRisk": "% ICV at risk",
+        "pctRemediated": "% remediated"
+      },
+      "filters": {
+        "nonCompliantOnly": "Non-compliant only",
+        "byEmirate": "By emirate",
+        "byBand": "By headcount band",
+        "byRemediationStatus": "By remediation status",
+        "searchPlaceholder": "Search contractors, emirate…"
       }
     }
   },

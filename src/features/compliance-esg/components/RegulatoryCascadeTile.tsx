@@ -1,5 +1,6 @@
 /**
  * CR-M — Regulatory Cascade dashboard tile.
+ * CR-T — Added mini headcount-band donut chart.
  *
  * Additive component mounted in the Compliance & ESG dashboard.
  * Fetches cascade list summary (latest run) and links to the full route.
@@ -14,8 +15,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
 import { ShieldAlert, ChevronRight, AlertTriangle } from 'lucide-react';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+} from 'recharts';
+import { ChartCard } from '@/components/charts';
 import { regulatoryCascadeService } from '@/services/api/regulatory-cascade.service';
 import { formatDateTime } from '@/utils/datetime';
+import type { HeadcountBand } from '@/types/entities/regulatory-cascade.types';
 
 function formatAedCompact(n: number): string {
   try {
@@ -31,6 +40,13 @@ function formatAedCompact(n: number): string {
   }
 }
 
+// Semantic colour tokens for headcount bands
+const DONUT_COLORS: Record<HeadcountBand, string> = {
+  '<20':   'oklch(var(--color-ink-muted))',
+  '20-49': 'oklch(var(--color-chart-1))',
+  '50+':   'oklch(var(--color-chart-4))',
+};
+
 export function RegulatoryCascadeTile() {
   const { t } = useTranslation();
 
@@ -42,6 +58,16 @@ export function RegulatoryCascadeTile() {
 
   const latestRun = data?.data?.[0];
   const total = data?.pagination.total ?? 0;
+
+  // Build mini donut data from the latest run summary.byBand
+  const donutData = (() => {
+    if (!latestRun?.summary?.byBand) return [];
+    const byBand = latestRun.summary.byBand;
+    const bands: HeadcountBand[] = ['<20', '20-49', '50+'];
+    return bands
+      .map((b) => ({ band: b, count: byBand[b]?.total ?? 0 }))
+      .filter((d) => d.count > 0);
+  })();
 
   return (
     <section
@@ -125,6 +151,35 @@ export function RegulatoryCascadeTile() {
                       {formatAedCompact(latestRun.totalPenaltyMaxAed)}
                     </span>
                   </div>
+
+                  {/* Mini headcount-band donut */}
+                  {donutData.length > 0 && (
+                    <ChartCard
+                      title=""
+                      subtitle={t('regulatory.cascade.charts.headcountDonut.subtitle')}
+                      height={140}
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={donutData}
+                            dataKey="count"
+                            nameKey="band"
+                            innerRadius={30}
+                            outerRadius={50}
+                            paddingAngle={2}
+                          >
+                            {donutData.map((entry) => (
+                              <Cell
+                                key={entry.band}
+                                fill={DONUT_COLORS[entry.band as HeadcountBand] ?? 'oklch(var(--color-chart-3))'}
+                              />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
+                  )}
                 </>
               )}
 

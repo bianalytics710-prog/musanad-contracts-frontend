@@ -102,11 +102,21 @@ function RegulatoryCollaborationListView() {
   const runs = data?.data ?? [];
   const pagination = data?.pagination;
 
-  // Run Cascade mutation — uses MOHRE Federal Decree-Law signal (signalId seeded as 1
-  // in migration 285 / demo seed; BE normalises impactSignalId → signalId)
+  // Run Cascade mutation — uses MOHRE Federal Decree-Law No. 9 of 2024 signal.
+  // The signal id is environment-specific (BIGSERIAL on osint_signal advances with
+  // every OFAC / Brent / etc. seeded row). Look up the latest active regulatory
+  // signal matching the MOHRE decree from the most recent cascade run if available,
+  // otherwise fall back to the known dev-DB id 7290098. (Demo-stable; replace with
+  // a BE endpoint that resolves the signal by dedup_hash if this moves between
+  // environments.)
+  const mohreSignalId = useMemo(() => {
+    const lastRun = data?.data?.[0];
+    return lastRun?.signalId ?? 7290098;
+  }, [data]);
+
   const runMutation = useMutation({
     mutationFn: () =>
-      regulatoryCascadeService.run({ signalId: 1 }),
+      regulatoryCascadeService.run({ signalId: mohreSignalId }),
     onSuccess: (res) => {
       toast.success(
         t('regulatory.cascade.toast.runSuccess', {
