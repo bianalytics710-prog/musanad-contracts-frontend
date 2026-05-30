@@ -5101,8 +5101,8 @@
       "detail": {
         "statsLine": "{{enabled}} of {{total}} modules enabled ({{defaultCount}} default, {{overrideCount}} overrides)",
         "lastChanged": "Last changed: never",
-        "resetAll": "Reset to defaults",
-        "grantAll": "Grant all enabled",
+        "resetAll": "Reset",
+        "grantAll": "Enable all",
         "noRoleSelected": "Select a role from the list to begin.",
         "bundleCounter": "{{enabled}} of {{total}} enabled",
         "noModulesInBundle": "No modules in this bundle for this role."
@@ -5123,8 +5123,8 @@
         "body": "This will clear {{count}} explicit overrides for {{role}} and restore default access. Continue?"
       },
       "confirmGrant": {
-        "title": "Grant all enabled modules?",
-        "body": "This will explicitly allow access to {{count}} modules for {{role}}. Continue?"
+        "title": "Enable all modules for this role?",
+        "body": "This will give {{role}} access to {{count}} modules. Continue?"
       },
       "toast": {
         "resetDone": "Overrides cleared for {{role}}.",

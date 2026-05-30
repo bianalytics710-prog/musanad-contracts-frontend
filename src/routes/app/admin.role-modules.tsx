@@ -948,14 +948,14 @@ function RoleDetailPane({
                   size="sm"
                   onClick={handleReset}
                   disabled={overrideCount === 0}
-                  aria-label={t("admin.roleModules.detail.resetAll", { defaultValue: "Reset to defaults" })}
+                  aria-label={t("admin.roleModules.detail.resetAll", { defaultValue: "Reset" })}
                   className="h-8 w-8 p-0"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
-                {t("admin.roleModules.detail.resetAll", { defaultValue: "Reset to defaults" })}
+                {t("admin.roleModules.detail.resetAll", { defaultValue: "Reset" })}
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -963,14 +963,14 @@ function RoleDetailPane({
                 <Button
                   size="sm"
                   onClick={handleGrantAll}
-                  aria-label={t("admin.roleModules.detail.grantAll", { defaultValue: "Grant all enabled" })}
+                  aria-label={t("admin.roleModules.detail.grantAll", { defaultValue: "Enable all" })}
                   className="h-8 w-8 bg-gold p-0 text-white hover:bg-gold-hover"
                 >
                   <Check className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
-                {t("admin.roleModules.detail.grantAll", { defaultValue: "Grant all enabled" })}
+                {t("admin.roleModules.detail.grantAll", { defaultValue: "Enable all" })}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -1161,7 +1161,7 @@ function RoleDetailPane({
                 <Check className="h-5 w-5 text-gold" />
               </div>
               <DialogTitle>
-                {t("admin.roleModules.confirmGrant.title", { defaultValue: "Grant all enabled modules?" })}
+                {t("admin.roleModules.confirmGrant.title", { defaultValue: "Enable all modules for this role?" })}
               </DialogTitle>
               <DialogDescription>
                 {t("admin.roleModules.confirmGrant.body", {
@@ -1181,7 +1181,7 @@ function RoleDetailPane({
                   if (confirmState.grantKeys) {
                     onGrantAllEnabled(confirmState.role, confirmState.grantKeys);
                     toast.success(
-                      t("admin.roleModules.toast.grantAllDone", {
+                      t("admin.roleModules.toast.grantAllDone", { /* keys unchanged for stability */
                         role: getRoleLabel(confirmState.role),
                         defaultValue: `Granting all enabled modules for ${getRoleLabel(confirmState.role)}.`,
                       }),
