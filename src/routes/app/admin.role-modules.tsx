@@ -36,7 +36,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuthStore, readPersistedAuthSnapshot } from "@/store/auth.store";
 import {
   adminModulesService,
   type RoleRef,
@@ -60,7 +60,10 @@ export const Route = createFileRoute("/app/admin/role-modules")({
 // ─── Permission gate ──────────────────────────────────────────────────────────
 
 function RoleModulesRoute() {
-  const user = useAuthStore((s) => s.user);
+  // Race-proof: fall back to localStorage snapshot when Zustand persist
+  // hasn't yet rehydrated on a cold page load.
+  const storeUser = useAuthStore((s) => s.user);
+  const user = storeUser ?? readPersistedAuthSnapshot()?.user ?? null;
   const roleName = user?.role?.name ?? "";
   const effectiveModules = user?.effectiveModules ?? [];
 

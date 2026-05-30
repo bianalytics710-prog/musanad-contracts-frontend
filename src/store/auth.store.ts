@@ -114,3 +114,34 @@ export const selectHasPermission = (code: string) => (s: AuthStore): boolean => 
   if (!s.user) return false;
   return s.user.permissions.includes(code);
 };
+
+/**
+ * Synchronous, race-proof read of the persisted auth slice straight from
+ * localStorage.  Zustand's `persist` middleware rehydrates the in-memory
+ * store via a microtask, so `useAuthStore.getState()` returns the initial
+ * (unauthenticated) state on the very first synchronous tick after a cold
+ * page load. TanStack Router's `beforeLoad` runs in that same tick, so the
+ * /app/* gate would false-redirect to /auth/login.
+ *
+ * This helper bypasses Zustand and reads `localStorage[STORAGE_KEY]`
+ * directly so guards can make a correct decision regardless of hydration
+ * timing. Returns null on SSR, missing key, or parse failure.
+ */
+export function readPersistedAuthSnapshot(): AuthState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: Partial<AuthState> } | null;
+    const state = parsed?.state;
+    if (!state) return null;
+    return {
+      user: state.user ?? null,
+      accessToken: state.accessToken ?? null,
+      refreshToken: state.refreshToken ?? null,
+      isAuthenticated: !!state.isAuthenticated,
+    };
+  } catch {
+    return null;
+  }
+}

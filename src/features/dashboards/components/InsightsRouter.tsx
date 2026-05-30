@@ -38,6 +38,13 @@ const DASHBOARD_TO_PATH: Record<DashboardKey, string> = {
   legal_counsel: "/app/dashboards/legal-counsel",
   recipient: "/app/dashboards/recipient",
   executive: "/app/dashboards/executive",
+  // Post-v1.5 hardening (migration 346): the 4 CR-G ADNOC personas; routes
+  // already exist as src/routes/app/dashboards.{operations,finance-treasury,
+  // compliance-esg,procurement}.tsx with their own RequireModule boundaries.
+  operations: "/app/dashboards/operations",
+  finance_treasury: "/app/dashboards/finance-treasury",
+  compliance_esg: "/app/dashboards/compliance-esg",
+  procurement: "/app/dashboards/procurement",
 };
 
 export function InsightsRouter() {

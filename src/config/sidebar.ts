@@ -437,12 +437,11 @@ export function modulesForEffectiveSet(effectiveModules: string[] | null | undef
     result.push(MODULES[feKey]);
   }
 
-  // Always ensure "admin" is present last when the auth payload contains any
-  // PLATFORM module (admin / users_roles / audit / settings / branding /
-  // profile).  The FE sidebar renders admin as a single entry.
-  const PLATFORM_BE_KEYS = new Set(["admin", "users_roles", "audit", "settings", "branding", "profile"]);
-  const hasPlatformModule = effectiveModules.some((k) => PLATFORM_BE_KEYS.has(k));
-  if (hasPlatformModule && !seen.has("admin")) {
+  // Ensure the single "Admin" nav pin is rendered when the user actually has
+  // the "admin" module in their effective set. Previously this fired for ANY
+  // PLATFORM-bundle key (including "profile", which every role has) and so
+  // showed an Admin link to non-admin personas like compliance_esg.
+  if (effectiveModules.includes("admin") && !seen.has("admin")) {
     result.push(MODULES.admin);
   }
 

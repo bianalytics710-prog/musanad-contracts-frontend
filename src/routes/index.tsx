@@ -26,11 +26,15 @@ import {
 import { brand } from "@/config/brand";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/patterns";
-import { useAuthStore } from "@/store/auth.store";
+import { readPersistedAuthSnapshot } from "@/store/auth.store";
 
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
-    if (useAuthStore.getState().isAuthenticated) {
+    // SSR can't see auth state — let the client run this check on hydration.
+    if (typeof window === "undefined") return;
+    // Read localStorage directly — Zustand persist rehydrates via microtask
+    // so getState() would return false on cold load even for an authed user.
+    if (readPersistedAuthSnapshot()?.isAuthenticated) {
       throw redirect({ to: "/app" });
     }
   },

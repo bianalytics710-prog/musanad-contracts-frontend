@@ -21,7 +21,7 @@ import { formatDate } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { useAuthStore, selectHasPermission, readPersistedAuthSnapshot } from "@/store/auth.store";
 import { CreateObligationDialog } from "@/features/m_parity/components/CreateEntityDialogs";
 
 export const Route = createFileRoute("/app/obligations")({
@@ -29,8 +29,12 @@ export const Route = createFileRoute("/app/obligations")({
     // R-RC0 — recipients see only their own contracts; obligations is hidden
     // from the sidebar AND blocked at the route level so a deep-link redirects
     // to the recipient dashboard rather than briefly flash-rendering the page.
-    const { user } = useAuthStore.getState();
-    if (user?.role?.name === "contract_recipient") {
+    // Reads localStorage directly to avoid the Zustand persist-rehydration
+    // microtask race on cold page loads (see auth.store.ts for details).
+    // SSR-safe: skip when no window (TanStack Start runs beforeLoad on server too).
+    if (typeof window === "undefined") return;
+    const snap = readPersistedAuthSnapshot();
+    if (snap?.user?.role?.name === "contract_recipient") {
       throw redirect({ to: "/app/dashboards/recipient" });
     }
   },

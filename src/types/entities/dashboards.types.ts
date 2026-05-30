@@ -45,7 +45,12 @@ export type DashboardKey =
   | "approver"
   | "legal_counsel"
   | "recipient"
-  | "executive";
+  | "executive"
+  // Post-v1.5 hardening (migration 346): the 4 CR-G ADNOC personas.
+  | "operations"
+  | "finance_treasury"
+  | "compliance_esg"
+  | "procurement";
 
 export type HealthStatusOverall = "ok" | "degraded" | "unhealthy";
 export type HealthDbStatus = "ok" | "degraded";

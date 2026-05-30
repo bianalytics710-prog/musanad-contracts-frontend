@@ -46,7 +46,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuthStore, readPersistedAuthSnapshot } from "@/store/auth.store";
 import {
   adminModulesService,
   type ProductBundle,
@@ -67,7 +67,10 @@ export const Route = createFileRoute("/app/admin/product-modules")({
 // ─── Permission gate ──────────────────────────────────────────────────────────
 
 function ProductModulesRoute() {
-  const user = useAuthStore((s) => s.user);
+  // Read both: in-memory store (live updates) AND localStorage snapshot
+  // (race-proof on first render before Zustand persist hydrates).
+  const storeUser = useAuthStore((s) => s.user);
+  const user = storeUser ?? readPersistedAuthSnapshot()?.user ?? null;
   const roleName = user?.role?.name ?? "";
   const effectiveModules = user?.effectiveModules ?? [];
 
