@@ -5004,7 +5004,8 @@
         },
         "platform": {
           "label": "النظام الأساسي (دائم التشغيل)"
-        }
+        },
+        "alwaysOn": "دائم التشغيل"
       },
       "clm": {
         "contracts_browse": "تصفح العقود",
@@ -5062,11 +5063,77 @@
       "reasonLabel": "السبب (اختياري)",
       "reasonPlaceholder": "مثال: تقليص نطاق برنامج التجريب للعميل",
       "confirmContinue": "متابعة",
-      "confirmCancel": "إلغاء"
+      "confirmCancel": "إلغاء",
+      "bundleConfirmEnable": {
+        "title": "تمكين الحزمة؟",
+        "body": "سيؤدي تمكين حزمة {{bundle}} إلى تشغيل {{count}} وحدات. هل تريد المتابعة؟"
+      },
+      "kpi": {
+        "modulesEnabled": "وحدة ممكّنة",
+        "bundlesEnabled": "حزمة ممكّنة",
+        "overridesActive": "تجاوز على مستوى الأدوار",
+        "viewOverrides": "عرض التجاوزات"
+      }
     },
     "roleModules": {
       "title": "الأدوار × صلاحيات الوحدات",
       "subtitle": "تخصيص الوحدات التي يمكن لكل دور الوصول إليها ضمن المجموعة الممكّنة.",
+      "subtitle.v2": "اختر دوراً لضبط الوحدات التي يصل إليها مستخدموه.",
+      "tab": {
+        "detail": "تفاصيل الدور",
+        "grid": "شبكة المقارنة"
+      },
+      "search": {
+        "placeholder": "البحث عن دور…"
+      },
+      "group": {
+        "platformAdmins": "مدراء المنصة",
+        "clmPersonas": "أدوار إدارة العقود",
+        "ecipPersonas": "أدوار منصة الذكاء"
+      },
+      "role": {
+        "users": "{{count}} مستخدم",
+        "users_other": "{{count}} مستخدمين",
+        "overrides": "{{count}} تجاوز",
+        "overrides_other": "{{count}} تجاوزات",
+        "empty": "لا توجد أدوار تطابق \"{{search}}\"."
+      },
+      "detail": {
+        "statsLine": "{{enabled}} من {{total}} وحدة ممكّنة ({{defaultCount}} افتراضي، {{overrideCount}} تجاوزات)",
+        "lastChanged": "آخر تعديل: لا يوجد",
+        "resetAll": "إعادة تعيين الافتراضيات",
+        "grantAll": "منح جميع الوحدات الممكّنة",
+        "noRoleSelected": "اختر دوراً من القائمة للبدء.",
+        "bundleCounter": "{{enabled}} من {{total}} ممكّنة",
+        "noModulesInBundle": "لا توجد وحدات في هذه الحزمة لهذا الدور."
+      },
+      "pill": {
+        "defaultAllow": "سماح افتراضي",
+        "defaultDeny": "رفض افتراضي",
+        "overrideAllow": "سماح بالتجاوز",
+        "overrideDeny": "رفض بالتجاوز",
+        "disabledAtApp": "معطّل على مستوى التطبيق",
+        "clear": "مسح"
+      },
+      "module": {
+        "childOf": "فرعي عن {{parent}}"
+      },
+      "confirmReset": {
+        "title": "إعادة تعيين جميع التجاوزات؟",
+        "body": "سيؤدي هذا إلى مسح {{count}} تجاوز صريح للدور {{role}} واستعادة الإعدادات الافتراضية. هل تريد المتابعة؟"
+      },
+      "confirmGrant": {
+        "title": "منح جميع الوحدات الممكّنة؟",
+        "body": "سيمنح هذا صلاحية الوصول الصريح إلى {{count}} وحدة للدور {{role}}. هل تريد المتابعة؟"
+      },
+      "toast": {
+        "resetDone": "تم مسح التجاوزات للدور {{role}}.",
+        "grantAllDone": "جارٍ منح جميع الوحدات الممكّنة للدور {{role}}."
+      },
+      "grid": {
+        "downloadCsv": "تنزيل CSV",
+        "csvFilename": "musanad-role-module-access"
+      },
       "filterAll": "جميع الحزم",
       "filterCLM": "إدارة العقود",
       "filterECIP": "منصة ذكاء العقود",
@@ -5080,7 +5147,7 @@
         "explicitDeny": "رفض صريح (تجاوز)"
       },
       "cellTooltip": "انقر للتدوير: افتراضي ← رفض صريح ← سماح صريح ← افتراضي",
-      "disabledAtApp": "الوحدة معطلة على مستوى التطبيق",
+      "disabledAtApp": "الوحدة معطلة على مستوى التطبيق — قم بتمكينها هناك أولاً",
       "updateSuccess": "تم تحديث الوصول لـ {{role}} × {{module}}.",
       "updateFailed": "فشل تحديث الوصول. يرجى المحاولة مرة أخرى.",
       "footnote": "يمكن للمصفوفة إخفاء وحدة عن دور معين، لكن لا يمكنها منح دور وصولاً يتجاوز إعداداته الافتراضية على مستوى قاعدة البيانات. تواصل مع فريق الهندسة لمزيد من التخصيص.",

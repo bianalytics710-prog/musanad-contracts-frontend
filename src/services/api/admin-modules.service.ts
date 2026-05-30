@@ -39,7 +39,12 @@ export interface ProductModuleListResponse {
 
 export interface RoleRef {
   id: number;
+  /** Stable identifier — matches role.name in the BE role table.
+   *  Note: BE fn_role_module_matrix_get returns this as `code` for legacy
+   *  reasons; the service unwrap below normalises `code` → `name`. */
   name: string;
+  /** Legacy alias, present on the wire as `code`. Kept for read-back. */
+  code?: string;
   label: string;
 }
 
@@ -154,12 +159,24 @@ export const adminModulesService = {
   /**
    * Returns the full role × module access matrix for the admin UI.
    * Maps to GET /api/v1/admin/role-modules → fn_role_module_matrix_get().
+   *
+   * BE returns each role as { id, code, label } (legacy naming from M6).
+   * We normalise `code` → `name` here so the rest of the FE can rely on
+   * RoleRef.name as the canonical role identifier (matches role.name in the
+   * BE `role` table and the `default_role_codes` JSONB in `product_module`).
    */
   getRoleModuleMatrix: async (): Promise<RoleModuleMatrix> => {
     const { data } = await apiClient.get<Envelope<RoleModuleMatrix>>(
       "/api/v1/admin/role-modules",
     );
-    return data.data;
+    const matrix = data.data;
+    return {
+      ...matrix,
+      roles: (matrix.roles ?? []).map((r) => ({
+        ...r,
+        name: r.name ?? r.code ?? "",
+      })),
+    };
   },
 
   /**

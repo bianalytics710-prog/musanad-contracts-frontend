@@ -5004,7 +5004,8 @@
         },
         "platform": {
           "label": "Platform (always on)"
-        }
+        },
+        "alwaysOn": "Always on"
       },
       "clm": {
         "contracts_browse": "Browse contracts",
@@ -5062,11 +5063,77 @@
       "reasonLabel": "Reason (optional)",
       "reasonPlaceholder": "e.g., Customer pilot scope reduction",
       "confirmContinue": "Continue",
-      "confirmCancel": "Cancel"
+      "confirmCancel": "Cancel",
+      "bundleConfirmEnable": {
+        "title": "Enable bundle?",
+        "body": "Enabling the {{bundle}} bundle will turn on {{count}} modules. Continue?"
+      },
+      "kpi": {
+        "modulesEnabled": "modules enabled",
+        "bundlesEnabled": "bundles enabled",
+        "overridesActive": "role overrides active",
+        "viewOverrides": "View overrides"
+      }
     },
     "roleModules": {
       "title": "Role × module access",
       "subtitle": "Override which modules each role can access within the enabled set.",
+      "subtitle.v2": "Choose a role to fine-tune which modules its users access.",
+      "tab": {
+        "detail": "Per-Role Detail",
+        "grid": "Compare Grid"
+      },
+      "search": {
+        "placeholder": "Search role…"
+      },
+      "group": {
+        "platformAdmins": "Platform admins",
+        "clmPersonas": "CLM personas",
+        "ecipPersonas": "ECIP personas"
+      },
+      "role": {
+        "users": "{{count}} user",
+        "users_other": "{{count}} users",
+        "overrides": "{{count}} override",
+        "overrides_other": "{{count}} overrides",
+        "empty": "No roles match \"{{search}}\"."
+      },
+      "detail": {
+        "statsLine": "{{enabled}} of {{total}} modules enabled ({{defaultCount}} default, {{overrideCount}} overrides)",
+        "lastChanged": "Last changed: never",
+        "resetAll": "Reset to defaults",
+        "grantAll": "Grant all enabled",
+        "noRoleSelected": "Select a role from the list to begin.",
+        "bundleCounter": "{{enabled}} of {{total}} enabled",
+        "noModulesInBundle": "No modules in this bundle for this role."
+      },
+      "pill": {
+        "defaultAllow": "Default allow",
+        "defaultDeny": "Default deny",
+        "overrideAllow": "Override allow",
+        "overrideDeny": "Override deny",
+        "disabledAtApp": "Disabled at app level",
+        "clear": "Clear"
+      },
+      "module": {
+        "childOf": "Child of {{parent}}"
+      },
+      "confirmReset": {
+        "title": "Reset all overrides?",
+        "body": "This will clear {{count}} explicit overrides for {{role}} and restore default access. Continue?"
+      },
+      "confirmGrant": {
+        "title": "Grant all enabled modules?",
+        "body": "This will explicitly allow access to {{count}} modules for {{role}}. Continue?"
+      },
+      "toast": {
+        "resetDone": "Overrides cleared for {{role}}.",
+        "grantAllDone": "Granting all enabled modules for {{role}}."
+      },
+      "grid": {
+        "downloadCsv": "Download CSV",
+        "csvFilename": "musanad-role-module-access"
+      },
       "filterAll": "All bundles",
       "filterCLM": "CLM",
       "filterECIP": "ECIP",
@@ -5080,7 +5147,7 @@
         "explicitDeny": "Explicit deny (override)"
       },
       "cellTooltip": "Click to cycle: default → explicit deny → explicit allow → default",
-      "disabledAtApp": "Module disabled at app level",
+      "disabledAtApp": "Module disabled at app level — toggle there first",
       "updateSuccess": "Updated access for {{role}} × {{module}}.",
       "updateFailed": "Failed to update access. Please try again.",
       "footnote": "The matrix can hide a module from a role, but cannot grant a role access beyond its database-level defaults. Contact engineering for further customization.",
