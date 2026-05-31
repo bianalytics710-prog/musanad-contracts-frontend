@@ -28,6 +28,33 @@ import {
 import { Card } from "@/components/ui/card";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
+
+// L38/L39 — humanize metadata slugs (services → Services, abu_dhabi → Abu Dhabi).
+function humanizeMetadataLabel(slug: string | null | undefined): string {
+  if (!slug) return "—";
+  const map: Record<string, string> = {
+    services: "Services",
+    epc: "EPC",
+    gas_spa: "Gas SPA",
+    concession: "Concession",
+    employment: "Employment",
+    consultancy: "Consultancy",
+    advisory: "Advisory",
+    nda: "Non-disclosure",
+    vendor_services: "Vendor Services",
+    master_services: "Master Services",
+    sow: "SOW",
+    supply: "Supply",
+    abu_dhabi: "Abu Dhabi",
+    dubai: "Dubai",
+    sharjah: "Sharjah",
+    fujairah: "Fujairah",
+    ajman: "Ajman",
+    ras_al_khaimah: "Ras Al Khaimah",
+    umm_al_quwain: "Umm Al Quwain",
+  };
+  return map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
 import { partiesService } from "@/services/api/m_parity.service";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import type { Contract } from "@/types/entities/contract.types";
@@ -177,10 +204,11 @@ export function ContractInfoCards({
             <span className="font-mono text-sm text-ink">{contract.contractNumber}</span>
           </Row>
           <Row label={t("contracts.fields.contractType", { defaultValue: "Type" })}>
+            {/* L38 — humanize slug fallback (services → Services). */}
             <span className="text-sm text-ink">
               {contract.contractType
                 ? t(`contractType.${contract.contractType}`, {
-                    defaultValue: contract.contractType,
+                    defaultValue: humanizeMetadataLabel(contract.contractType),
                   })
                 : "—"}
             </span>

@@ -101,6 +101,8 @@ export type ModuleKey =
   | "dashboards.procurement"
   // M16 / CR-H — advisory queue for legal counsel
   | "legal.advisoryQueue"
+  // L49 — Advisory templates management for legal counsel
+  | "legal.advisoryTemplates"
   // M19 / CR-K — Risk Cases (visible to all 7 dashboard personas)
   | "riskCases"
   // M20 / CR-L — Reports (visible to all)
@@ -150,6 +152,8 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   "dashboards.procurement":      { key: "dashboards.procurement",      to: "/app/dashboards/procurement",      labelKey: "nav.dashboardsProcurement",      defaultLabel: "Procurement Risk",   icon: Package,      displayOrder: 340 },
   // M16 / CR-H
   "legal.advisoryQueue": { key: "legal.advisoryQueue", to: "/app/legal/advisory-queue", labelKey: "nav.legalAdvisoryQueue", defaultLabel: "Advisory Queue", icon: FileEdit, displayOrder: 350 },
+  // L49 — Advisory templates (gated by advisory.template.manage)
+  "legal.advisoryTemplates": { key: "legal.advisoryTemplates", to: "/app/admin/advisory-templates", labelKey: "nav.legalAdvisoryTemplates", defaultLabel: "Advisory Templates", icon: FileStack, displayOrder: 355 },
   // M19 / CR-K — Risk Cases
   riskCases: { key: "riskCases", to: "/app/risk-cases", labelKey: "nav.riskCases", defaultLabel: "Risk Cases", icon: ShieldX,      displayOrder: 360 },
   // M20 / CR-L — Reports
@@ -213,6 +217,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "parties",
     // M16 / CR-H — advisory queue for legal counsel
     "legal.advisoryQueue",
+    // L49 — Advisory templates
+    "legal.advisoryTemplates",
     // CR-M — Regulatory Cascade (read)
     "compliance.regulatoryCascade",
     // M21 / CR-N — Budget Burn (read — legal counsel drafts cure notices)
@@ -398,6 +404,8 @@ export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
   "risk_cases":                     "riskCases",
   "regulatory_radar":               "radar",
   "advisory_queue":                 "legal.advisoryQueue",
+  // L49 — Advisory templates BE key → FE ModuleKey
+  "legal.advisory_templates":       "legal.advisoryTemplates",
   "insights_hub":                   "insights",
   // "contracts.browse" → "contracts" (FE has one unified contracts key)
   "contracts.browse":               "contracts",

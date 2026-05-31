@@ -11,8 +11,13 @@ export interface AdvisoryDraftListItem {
   correlationId: number;
   templateId: number;
   contractId: number | null;
+  // L16 — BE now returns contractNumber; keep contractTitle for compatibility
+  contractNumber: string | null;
   contractTitle: string | null;
+  contractTitleEn?: string | null;
+  contractTitleAr?: string | null;
   counterpartyName: string | null;
+  counterpartyNameAr?: string | null;
   draftType: string;
   approvalStatus: ApprovalStatus;
   generatedAt: string;

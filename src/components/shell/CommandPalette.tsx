@@ -23,6 +23,7 @@ import {
   Sun,
   Languages,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAuthStore, selectUser, selectRefreshToken, selectHasPermission } from "@/store/auth.store";
@@ -58,6 +59,8 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   // R0 audit bug 3.1: gate "New contract" by contract.draft so non-drafters
   // (approvers, recipients, etc.) don't see an action they can't perform.
   const canDraft = useAuthStore(selectHasPermission("contract.draft"));
+  // L95 — Surface "Ask AI" in Cmd-K for personas with the risk-assistant perm.
+  const canAskAi = useAuthStore(selectHasPermission("ai.invoke.risk_assistant"));
   const logoutAction = useAuthStore((s) => s.logout);
   const { toggleTheme, locale, setLocale } = useTheme();
 
@@ -150,6 +153,19 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
               <CommandGroup
                 heading={t("commandPalette.actions", { defaultValue: "Actions" })}
               >
+                {canAskAi && (
+                  <CommandItem
+                    onSelect={() => {
+                      setIsOpen(false);
+                      window.dispatchEvent(new CustomEvent("open-risk-assistant"));
+                    }}
+                  >
+                    <Sparkles className="me-2 h-4 w-4" />
+                    {t("commandPalette.actions.askAi", {
+                      defaultValue: "Ask AI risk assistant",
+                    })}
+                  </CommandItem>
+                )}
                 {canDraft && (
                   <CommandItem onSelect={() => go("/app/contracts/compose")}>
                     <PenLine className="me-2 h-4 w-4" />

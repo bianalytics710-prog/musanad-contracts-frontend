@@ -606,8 +606,29 @@ function priorityForRow(valueAed: number | null, hoursPending: number): "highVal
   return null;
 }
 
+// L85 — humanize contract_type slug for the Type column.
+function humanizeContractType(slug: string): string {
+  const map: Record<string, string> = {
+    services: "Services",
+    epc: "EPC",
+    gas_spa: "Gas SPA",
+    concession: "Concession",
+    employment: "Employment",
+    consultancy: "Consultancy",
+    advisory: "Advisory",
+    nda: "Non-disclosure",
+    master_services: "Master Services",
+    vendor_services: "Vendor Services",
+    sow: "SOW",
+    supply: "Supply",
+  };
+  if (map[slug]) return map[slug];
+  return slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
 function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListRowProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith("ar");
   const navigate = useNavigate();
   // R5 — past-decision rows from fn_approval_my_decisions don't carry
   // hoursPending; derive a "decided X ago" label from decidedAt instead.
@@ -681,26 +702,29 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
           <span className="text-[10px] text-ink-subtle">—</span>
         )}
       </td>
-      {/* Contract — number + title + chain breadcrumb (R2 audit 6.4.3) */}
+      {/* Contract — number + title + chain breadcrumb (R2 audit 6.4.3)
+          L86 — render single title based on actor language (no EN+AR stacked). */}
       <td className="px-4 py-3">
         <div className="flex flex-col gap-1">
           <span className="font-mono text-xs text-ink-muted">{row.contractNumber}</span>
-          <span className="text-sm font-medium text-ink">{row.contractTitleEn}</span>
-          {row.contractTitleAr && (
-            <span dir="rtl" className="text-xs text-ink-muted">
-              {row.contractTitleAr}
-            </span>
-          )}
+          <span
+            className="text-sm font-medium text-ink"
+            dir={isAr && row.contractTitleAr ? "rtl" : "ltr"}
+          >
+            {isAr && row.contractTitleAr ? row.contractTitleAr : row.contractTitleEn}
+          </span>
           {row.chainSteps && row.chainSteps.length > 0 && (
             <ChainBreadcrumb steps={row.chainSteps} />
           )}
         </div>
       </td>
-      {/* Type — contract type pill */}
+      {/* Type — contract type pill — L85 humanized (drop uppercase) */}
       <td className="px-2 py-3">
         {row.contractType ? (
-          <span className="inline-flex items-center rounded-md border border-border bg-card px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-            {t(`contractType.${row.contractType}`, { defaultValue: row.contractType })}
+          <span className="inline-flex items-center rounded-md border border-border bg-card px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-muted">
+            {t(`contractType.${row.contractType}`, {
+              defaultValue: humanizeContractType(row.contractType),
+            })}
           </span>
         ) : (
           "—"
@@ -868,6 +892,14 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
  */
 function ChainBreadcrumb({ steps }: { steps: ApprovalChainStepRef[] }) {
   const { t } = useTranslation();
+  // L87 — Disambiguate peer-step duplicates: when multiple steps share the
+  // same `order` (parallel/peer approvers), label them "2a / 2b / 2c…" so the
+  // breadcrumb doesn't read as "2 Legal Counsel → 2 Platform Admin" twice.
+  const orderCounts = new Map<number, number>();
+  const orderIndex = new Map<number, number>();
+  for (const s of steps) {
+    orderCounts.set(s.order, (orderCounts.get(s.order) ?? 0) + 1);
+  }
   return (
     <ol className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px] text-ink-subtle">
       {steps.map((step, idx) => {
@@ -882,10 +914,17 @@ function ChainBreadcrumb({ steps }: { steps: ApprovalChainStepRef[] }) {
         const roleLabel = step.role
           ? t(`roles.${step.role}`, { defaultValue: step.role })
           : "—";
+        const peerCount = orderCounts.get(step.order) ?? 1;
+        let peerSuffix = "";
+        if (peerCount > 1) {
+          const seq = (orderIndex.get(step.order) ?? 0);
+          orderIndex.set(step.order, seq + 1);
+          peerSuffix = String.fromCharCode(97 + seq); // a, b, c…
+        }
         return (
-          <li key={`${step.order}-${step.role ?? "u"}`} className="inline-flex items-center gap-1">
+          <li key={`${step.order}-${idx}-${step.role ?? "u"}`} className="inline-flex items-center gap-1">
             <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${tint}`}>
-              <span className="font-mono">{step.order}</span>
+              <span className="font-mono">{step.order}{peerSuffix}</span>
               <span>{roleLabel}</span>
             </span>
             {idx < steps.length - 1 && <span aria-hidden>→</span>}

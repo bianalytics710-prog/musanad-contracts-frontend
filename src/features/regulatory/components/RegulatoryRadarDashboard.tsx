@@ -196,10 +196,13 @@ export function RegulatoryRadarDashboard() {
             size="sm"
             onClick={() => void refetch()}
             disabled={isFetching}
-            aria-label={t("common.retry")}
+            aria-label={t("common.refresh", { defaultValue: "Refresh" })}
+            title={t("common.refresh", { defaultValue: "Refresh" })}
           >
+            {/* L62 — rename "Retry" → "Refresh"; "Retry" reads as a failure
+                affordance even though the call succeeded. */}
             <RefreshCw className="h-4 w-4" />
-            {t("common.retry")}
+            {t("common.refresh", { defaultValue: "Refresh" })}
           </Button>
           {canManage && (
             <Button

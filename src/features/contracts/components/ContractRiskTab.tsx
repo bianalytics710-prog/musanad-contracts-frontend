@@ -288,12 +288,12 @@ function FiveDimBreakdownBars({
   dimensions,
 }: {
   dimensions: {
-    legal: { score: number };
-    financial: { score: number };
-    operational: { score: number };
-    reputational: { score: number };
-    compliance: { score: number };
-  };
+    legal?: { score: number } | null;
+    financial?: { score: number } | null;
+    operational?: { score: number } | null;
+    reputational?: { score: number } | null;
+    compliance?: { score: number } | null;
+  } | null | undefined;
 }) {
   const { t } = useTranslation();
 
@@ -304,7 +304,7 @@ function FiveDimBreakdownBars({
       </h3>
       <div className="space-y-3">
         {DIM_KEYS.map((dim) => {
-          const score = dimensions[dim].score;
+          const score = dimensions?.[dim]?.score ?? 0;
           const barColor = healthScoreColor(score);
           return (
             <div key={dim}>

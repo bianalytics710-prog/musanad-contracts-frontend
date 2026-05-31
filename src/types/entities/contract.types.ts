@@ -242,6 +242,12 @@ export interface Contract {
   bodyEn: string | null;
   /** SENSITIVE — never log. */
   bodyAr: string | null;
+  /** L42/L43 — metadata-grounded AI summary (server-side seeded). Surfaced
+   *  to FE so we can render a credible summary card instead of relying purely
+   *  on the streaming LLM. */
+  aiSummaryEn?: string | null;
+  aiSummaryAr?: string | null;
+  aiRiskScore?: number | null;
   currentVersion: number;
   draftedBy: UserRef | null;
   reviewedBy: UserRef | null;

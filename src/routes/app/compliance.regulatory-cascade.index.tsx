@@ -337,10 +337,13 @@ function CascadeRunRow({ run }: { run: RegulatoryCascadeRunListItem }) {
         {run.regulationRef ?? t('regulatory.cascade.list.noRef')}
       </td>
       <td className="px-4 py-3">
+        {/* L80 — drop uppercase on Status badge so "Completed" reads sentence-case. */}
         <span
-          className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${statusClass}`}
+          className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wider ${statusClass}`}
         >
-          {t(`regulatory.cascade.runStatus.${run.status}`)}
+          {t(`regulatory.cascade.runStatus.${run.status}`, {
+            defaultValue: run.status.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase()),
+          })}
         </span>
       </td>
       <td className="px-4 py-3 text-xs text-ink-muted">

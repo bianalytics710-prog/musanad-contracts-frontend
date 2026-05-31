@@ -66,10 +66,12 @@ const SEED_NOTIFICATIONS: Omit<AppNotification, "createdAt" | "readAt">[] = [
   {
     id: "n3",
     severity: "high",
-    titleEn: "MUSANAD-2026-027 awaiting your approval (50h pending)",
-    titleAr: "MUSANAD-2026-027 بانتظار موافقتك (50 ساعة معلقة)",
-    bodyEn: "Crescent Petroleum Master Distribution Agreement, AED 5.5M.",
-    bodyAr: "اتفاقية التوزيع الرئيسية مع كريسنت، 5.5 مليون درهم.",
+    // L92 — was citing MUSANAD-2026-027 while the actual Approvals queue
+    // shows MUSANAD-2026-003. Realign to the canonical pending row.
+    titleEn: "MUSANAD-2026-003 awaiting your approval (22h pending)",
+    titleAr: "MUSANAD-2026-003 بانتظار موافقتك (22 ساعة معلقة)",
+    bodyEn: "Mubadala Investment Advisory, AED 950,000.",
+    bodyAr: "استشارات مبادلة الاستثمارية، 950,000 درهم.",
     linkUrl: "/app/approvals",
   },
   {
@@ -93,10 +95,12 @@ const SEED_NOTIFICATIONS: Omit<AppNotification, "createdAt" | "readAt">[] = [
   {
     id: "n6",
     severity: "low",
-    titleEn: "Welcome — 35 contracts seeded for evaluation",
-    titleAr: "مرحبًا — تم إعداد 35 عقدًا للتقييم",
-    bodyEn: "Demo workspace ready. Sign in as different personas to explore role-aware views.",
-    bodyAr: "مساحة عمل تجريبية جاهزة.",
+    // L93 — was citing "35 contracts" while the seed has grown to ~325.
+    // Drop the stale count and use a generic welcome message.
+    titleEn: "Welcome — your ADNOC demo workspace is ready",
+    titleAr: "مرحبًا — مساحة عمل تجريبية لأدنوك جاهزة",
+    bodyEn: "Sign in as different personas to explore role-aware views.",
+    bodyAr: "سجّل الدخول بشخصيات مختلفة لاستكشاف الواجهات المخصصة لكل دور.",
     linkUrl: "/app",
   },
 ];

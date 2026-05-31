@@ -6,7 +6,7 @@
  * Buttons are state-machine + permission aware.
  */
 import { useState } from 'react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import {
   XCircle,
   CircleCheck,
   Paperclip,
+  FileEdit,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -59,10 +60,13 @@ export const Route = createFileRoute('/app/risk-cases/$caseId')({
 
 function RiskCaseDetailView() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { caseId } = Route.useParams();
   const id = Number(caseId);
 
   const canEscalate = useAuthStore(selectHasPermission('risk.case.escalate'));
+  // L78 — Draft Advisory action requires advisory.draft.review (legal_counsel + platform_admin).
+  const canDraftAdvisory = useAuthStore(selectHasPermission('advisory.draft.review'));
   const canAcceptRisk = useAuthStore(selectHasPermission('risk.case.accept_risk'));
   const canClose = useAuthStore(selectHasPermission('risk.case.close'));
   const canCreate = useAuthStore(selectHasPermission('risk.case.create'));
@@ -412,6 +416,26 @@ function RiskCaseDetailView() {
             >
               <XCircle className="me-2 h-4 w-4" aria-hidden="true" />
               {t('riskCases.actions.close')}
+            </Button>
+          )}
+
+          {/* L78 — Draft Advisory action: surfaced when the actor can review
+              advisory drafts (legal_counsel + platform_admin). Links to the
+              advisory queue with the contract pre-filtered so the operator
+              lands on (or can spawn) the relevant draft. */}
+          {canDraftAdvisory && !isTerminal && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-gold hover:bg-gold/10"
+              onClick={() =>
+                navigate({
+                  to: '/app/legal/advisory-queue',
+                  search: { contract: String(riskCase.linkedContract?.id ?? '') } as never,
+                })
+              }
+            >
+              <FileEdit className="me-2 h-4 w-4" aria-hidden="true" />
+              {t('riskCases.actions.draftAdvisory', { defaultValue: 'Draft Advisory' })}
             </Button>
           )}
 

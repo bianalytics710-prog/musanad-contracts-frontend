@@ -38,6 +38,7 @@ import {
   ChevronRight,
   Copy,
   Download,
+  FileEdit,
   FileSignature,
   FileStack,
   RotateCcw,
@@ -397,6 +398,28 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               {t("common.edit")}
             </Button>
           )}
+          {/* L45 — Draft Cure Notice action surfaced to legal_counsel.
+              Links to the advisory queue with the contract pre-filtered so Layla
+              lands on (or can create) a cure notice tied to this contract. */}
+          {isLegalCounselOnly && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                navigate({
+                  to: "/app/legal/advisory-queue",
+                  search: { contract: String(contract.id) } as never,
+                })
+              }
+              className="hidden sm:inline-flex border-gold/30 text-gold hover:bg-gold/5"
+            >
+              <FileEdit className="h-3.5 w-3.5" />
+              {t("contracts.detail.actions.draftCureNotice", {
+                defaultValue: "Draft Cure Notice",
+              })}
+            </Button>
+          )}
           <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -745,14 +768,45 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         </div>
       )}
 
+      {/* L42 + L43 — Grounded AI summary card.
+          When contract.ai_summary_en/ar is populated (seeded with grounded
+          metadata-aware text), render it directly above the streaming AI
+          panel. This prevents the streaming LLM from fabricating financial
+          values (e.g. "AED 500,000" on a AED 4.22B contract) and keeps
+          credible content on screen for the demo audience. */}
+      {!isRecipientOnly && (contract.aiSummaryEn || contract.aiSummaryAr) && (
+        <div className="mt-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="mb-2 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-ink">
+              {t("contracts.detail.groundedSummary.title", { defaultValue: "Grounded summary" })}
+            </h2>
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
+              {t("contracts.detail.groundedSummary.tag", { defaultValue: "Metadata-bound" })}
+            </span>
+          </div>
+          <p
+            className="whitespace-pre-wrap text-sm leading-6 text-ink-muted"
+            dir={i18n.language?.startsWith("ar") ? "rtl" : "ltr"}
+          >
+            {i18n.language?.startsWith("ar")
+              ? contract.aiSummaryAr ?? contract.aiSummaryEn ?? ""
+              : contract.aiSummaryEn ?? contract.aiSummaryAr ?? ""}
+          </p>
+        </div>
+      )}
+
       {/* Inline AI insights — Lovable layout.
           R-RC1 — recipients are external counterparty signers and don't
           hold ai.invoke.contract; hide the panel rather than render an
           empty/forbidden state.
           BUG-006 fix — Eman Executive + other read-all roles also lack
           ai.invoke.contract; the panel previously rendered + auto-fired
-          a 403 stream. Now gated explicitly on canUseAiInsights. */}
-      {!isRecipientOnly && canUseAiInsights && (
+          a 403 stream. Now gated explicitly on canUseAiInsights.
+          L42/L43 fix — also hide the streaming AI panel when the contract
+          has no clauses extracted AND no body text — the LLM will fabricate
+          financial details that contradict metadata. */}
+      {!isRecipientOnly && canUseAiInsights && !!(contract.bodyEn?.trim() || contract.bodyAr?.trim()) && (
         <ContractAIInsightsPanel contractId={contract.id} />
       )}
 
@@ -960,7 +1014,11 @@ function OverviewPanel({ contract, canManageTags }: OverviewPanelProps) {
           </CardHeader>
           <CardContent>
             <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-              <Detail label={t("contracts.fields.contractType")} value={contract.contractType} />
+              {/* L38 — humanize contractType metadata field (was lowercase slug). */}
+              <Detail
+                label={t("contracts.fields.contractType")}
+                value={contract.contractType ? humanizeContractType(contract.contractType) : "—"}
+              />
               <Detail
                 label={t("contracts.fields.language")}
                 value={t(`contracts.languageOptions.${contract.language}`, {
@@ -988,7 +1046,11 @@ function OverviewPanel({ contract, canManageTags }: OverviewPanelProps) {
                 label={t("contracts.fields.expiryNoticeDays")}
                 value={String(contract.expiryNoticeDays)}
               />
-              <Detail label={t("contracts.fields.emirate")} value={contract.emirate ?? "—"} />
+              {/* L39 — humanize emirate slug (abu_dhabi → Abu Dhabi). */}
+              <Detail
+                label={t("contracts.fields.emirate")}
+                value={contract.emirate ? humanizeContractType(contract.emirate) : "—"}
+              />
               <Detail
                 label={t("contracts.fields.governingLaw")}
                 value={

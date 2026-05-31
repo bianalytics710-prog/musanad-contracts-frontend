@@ -78,18 +78,21 @@ const QUICK_FILTERS: ReadonlyArray<{ key: ContractStatus | ""; defaultLabel: str
   { key: "resubmission_requested", defaultLabel: "Resubmission requested" },
 ];
 
-/** Lovable parity: contract type filter options. */
+/** Lovable parity: contract type filter options.
+ *  L33 — added EPC, gas_spa; removed duplicate Vendor/services vs Service.
+ */
 const CONTRACT_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "services", label: "Services" },
+  { value: "epc", label: "EPC" },
+  { value: "gas_spa", label: "Gas SPA" },
+  { value: "concession", label: "Concession" },
   { value: "employment", label: "Employment" },
-  { value: "vendor_services", label: "Vendor / services" },
-  { value: "service", label: "Service" },
   { value: "consultancy", label: "Consultancy" },
   { value: "advisory", label: "Advisory" },
   { value: "nda", label: "Non-disclosure" },
-  { value: "master_services", label: "Master services" },
+  { value: "master_services", label: "Master Services" },
   { value: "sow", label: "SOW" },
   { value: "supply", label: "Supply" },
-  { value: "concession", label: "Concession" },
 ];
 
 /** Lovable parity: sort options. */

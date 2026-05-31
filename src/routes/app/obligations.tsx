@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { obligationsService, type ObligationListItem } from "@/services/api/m_parity.service";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
-import { formatDate } from "@/utils/datetime";
+import { formatDate, formatHijriDate } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -514,6 +514,12 @@ function ObligationList({ items, isAr }: { items: ObligationListItem[]; isAr: bo
                 <p className="font-mono text-xs text-ink">
                   {due ? formatDate(o.dueDate!) : "—"}
                 </p>
+                {/* L66 — show Hijri date alongside Gregorian (consistent with contracts list). */}
+                {due && (
+                  <p className="font-mono text-[10px] text-ink-subtle">
+                    {formatHijriDate(o.dueDate!)}
+                  </p>
+                )}
                 {daysUntil != null && o.status !== "completed" && (
                   <p
                     className={`mt-0.5 font-mono text-[10px] ${

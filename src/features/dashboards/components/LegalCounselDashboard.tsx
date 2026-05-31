@@ -130,6 +130,15 @@ export function LegalCounselDashboard() {
       ) ?? null,
     [data],
   );
+  // L15 — Critical banner under-narrates. Surface up to 3 affected contracts so
+  // the rollup shows the breadth of the impact, not just one cited contract.
+  const criticalImpactContracts = useMemo(() => {
+    const all = data?.lists.openImpacts5 ?? [];
+    if (!topCriticalImpact) return [] as typeof all;
+    return all
+      .filter((r) => r.regulationTitleEn === topCriticalImpact.regulationTitleEn)
+      .slice(0, 3);
+  }, [data, topCriticalImpact]);
 
   const riskDonut = useMemo(() => {
     if (!data?.risk) return [] as Array<{ key: string; count: number; fill: string }>;
@@ -280,16 +289,24 @@ export function LegalCounselDashboard() {
                   <div className="mt-1 text-lg font-semibold leading-tight text-ink md:text-xl">
                     {topCriticalImpact.regulationTitleEn}
                   </div>
+                  {/* L15 — cite up to 3 affected contracts so the banner narrates breadth. */}
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
-                      {topCriticalImpact.contractNumber}
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
-                      {data.kpis.openRegulatoryImpacts}{" "}
-                      {t("dashboards.legalCounsel.hero.openImpacts", {
-                        defaultValue: "open regulatory impacts",
-                      })}
-                    </span>
+                    {criticalImpactContracts.map((c) => (
+                      <span
+                        key={c.id}
+                        className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono"
+                      >
+                        {c.contractNumber}
+                      </span>
+                    ))}
+                    {data.kpis.openRegulatoryImpacts > criticalImpactContracts.length && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
+                        +{data.kpis.openRegulatoryImpacts - criticalImpactContracts.length}{" "}
+                        {t("dashboards.legalCounsel.hero.openImpactsMore", {
+                          defaultValue: "more affected",
+                        })}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-terracotta px-3 py-1.5 text-sm font-medium text-card">
                     {t("dashboards.legalCounsel.hero.openRadar", {
@@ -303,6 +320,18 @@ export function LegalCounselDashboard() {
             </Link>
           )}
 
+          {/* L1 — KPI strip section heading (was floating without context). */}
+          <h2 className="text-base font-semibold text-ink">
+            {t("dashboards.legalCounsel.kpiGroupHeading", {
+              defaultValue: "Portfolio snapshot",
+            })}
+          </h2>
+          <p className="-mt-2 text-xs text-ink-subtle">
+            {t("dashboards.legalCounsel.kpiGroupCaption", {
+              defaultValue:
+                "Snapshot counts at the current moment — date filter affects activity feed and audit summary only.",
+            })}
+          </p>
           {/* R-LC1 LC-C4/C5/C6 — contracts-led KPIs (top row, clickable). */}
           <section
             aria-label={t("dashboards.legalCounsel.kpiGroupLabel")}
@@ -537,7 +566,13 @@ export function LegalCounselDashboard() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={regChartData.rows}>
                       <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} width={28} />
+                      {/* L9 — integer-only Y-axis tick formatter (no decimal counts). */}
+                      <YAxis
+                        tick={{ fontSize: 10 }}
+                        width={28}
+                        allowDecimals={false}
+                        tickFormatter={(v: number) => (Number.isInteger(v) ? String(v) : "")}
+                      />
                       <Tooltip
                         contentStyle={{
                           background: "var(--card)",
@@ -700,8 +735,29 @@ export function LegalCounselDashboard() {
   );
 }
 
+// L13 / L99 / L104 — shared widget for humanizing contract type slugs.
+function humanizeApprovalRowType(slug: string | null | undefined): string {
+  if (!slug) return "—";
+  const map: Record<string, string> = {
+    services: "Services",
+    epc: "EPC",
+    gas_spa: "Gas SPA",
+    concession: "Concession",
+    employment: "Employment",
+    consultancy: "Consultancy",
+    advisory: "Advisory",
+    nda: "Non-disclosure",
+    master_services: "Master Services",
+    vendor_services: "Vendor Services",
+    sow: "SOW",
+    supply: "Supply",
+  };
+  return map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
 function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith("ar");
   if (rows.length === 0) {
     return (
       <DashboardEmptyState
@@ -714,7 +770,8 @@ function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+        {/* L14 — drop uppercase column headers for consistency with the contracts list */}
+        <thead className="text-[10px] font-medium tracking-wider text-ink-subtle">
           <tr className="border-b border-border/60">
             <th className="py-1.5 text-start">
               {t("dashboards.legalCounsel.approvalQueue.col.contract", {
@@ -753,11 +810,22 @@ function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) 
                     <div className="font-mono text-xs text-ink-muted">
                       {r.contractNumber}
                     </div>
-                    <div className="text-sm text-ink">{r.titleEn}</div>
+                    {/* L99 — locale-aware title: prefer Arabic when actor lang is AR */}
+                    <div
+                      className="text-sm text-ink"
+                      dir={isAr && (r as { titleAr?: string | null }).titleAr ? "rtl" : "ltr"}
+                    >
+                      {isAr && (r as { titleAr?: string | null }).titleAr
+                        ? (r as { titleAr: string }).titleAr
+                        : r.titleEn}
+                    </div>
                   </Link>
                 </td>
                 <td className="py-2 text-xs text-ink-muted">
-                  {t(`contractType.${r.contractType}`, { defaultValue: r.contractType })}
+                  {/* L13 — humanize contract_type slug (services → Services). */}
+                  {t(`contractType.${r.contractType}`, {
+                    defaultValue: humanizeApprovalRowType(r.contractType),
+                  })}
                 </td>
                 <td className="py-2 text-xs text-ink-muted">{drafterName || "—"}</td>
                 <td className="py-2 font-mono text-xs text-ink-muted">
@@ -851,8 +919,27 @@ function ContractTypesDonut({
 }) {
   const { t } = useTranslation();
   const palette = ["#C68A3A", "#86A89B", "#D9B26A", "#7A8FA6", "#A28BB7", "#9F7C39", "#5A6B7C", "#C4634D"];
+  // L100 + L104 — humanize contract_type slugs (services → Services, epc → EPC, gas_spa → Gas SPA).
+  const humanizeType = (slug: string): string => {
+    const map: Record<string, string> = {
+      services: "Services",
+      epc: "EPC",
+      gas_spa: "Gas SPA",
+      concession: "Concession",
+      employment: "Employment",
+      consultancy: "Consultancy",
+      advisory: "Advisory",
+      nda: "Non-disclosure",
+      vendor_services: "Vendor Services",
+      master_services: "Master Services",
+      sow: "SOW",
+      supply: "Supply",
+    };
+    if (map[slug]) return map[slug];
+    return slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+  };
   const data = rows.map((r, i) => ({
-    type: t(`contractType.${r.type}`, { defaultValue: r.type }),
+    type: t(`contractType.${r.type}`, { defaultValue: humanizeType(r.type) }),
     count: r.count,
     pct: r.pct,
     fill: palette[i % palette.length],

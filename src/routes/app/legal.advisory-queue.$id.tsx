@@ -150,9 +150,15 @@ function LegalAdvisoryDraftDetailView() {
           {/* Title + action bar */}
           <div className="flex flex-wrap items-start gap-4">
             <div className="flex-1">
+              {/* L30 — narrative H1: template name + counterparty (falls back to id). */}
               <h1 className="text-2xl font-semibold text-ink">
-                {t('legal.advisoryQueue.detailTitle', { id: draft.id })}
+                {draft.templateMeta?.displayNameEn ?? t('legal.advisoryQueue.detailTitle', { id: draft.id })}
               </h1>
+              {(draft as { contractNumber?: string | null }).contractNumber && (
+                <p className="mt-1 font-mono text-xs text-ink-muted">
+                  {(draft as { contractNumber: string }).contractNumber}
+                </p>
+              )}
               {isSelfApproval && (
                 <p className="mt-1 flex items-center gap-2 text-sm text-warning">
                   <AlertTriangle className="h-4 w-4" aria-hidden="true" />

@@ -174,6 +174,16 @@ export function RiskAssistantPanel() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [isOpen]);
 
+  // L95 — Allow Cmd-K palette to open the panel via a global custom event.
+  useEffect(() => {
+    function handleOpen() {
+      setIsOpen(true);
+    }
+    window.addEventListener('open-risk-assistant', handleOpen as EventListener);
+    return () =>
+      window.removeEventListener('open-risk-assistant', handleOpen as EventListener);
+  }, []);
+
   // Silent-hide when caller lacks ai.invoke.risk_assistant.
   // BUG-001 fix (QA Phase 3 autonomous run 2026-05-30): this early-return MUST come
   // AFTER all hook calls to comply with Rules of Hooks. Previously placed at line 150

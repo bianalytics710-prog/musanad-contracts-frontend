@@ -23,6 +23,38 @@ export const Route = createFileRoute("/app/parties/")({
 
 type PartyTabKey = "all" | "individuals" | "companies";
 
+// L104 — title-case emirate slugs in the filter dropdown
+function humanizeEmirate(slug: string): string {
+  if (!slug) return slug;
+  const map: Record<string, string> = {
+    abu_dhabi: "Abu Dhabi",
+    "abu dhabi": "Abu Dhabi",
+    dubai: "Dubai",
+    sharjah: "Sharjah",
+    fujairah: "Fujairah",
+    ajman: "Ajman",
+    ras_al_khaimah: "Ras Al Khaimah",
+    "ras al khaimah": "Ras Al Khaimah",
+    umm_al_quwain: "Umm Al Quwain",
+    "umm al quwain": "Umm Al Quwain",
+  };
+  const key = slug.toLowerCase();
+  if (map[key]) return map[key];
+  return slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+// L104 — title-case party_type slug for the table chip
+function humanizePartyType(slug: string | null | undefined): string {
+  if (!slug) return "—";
+  const map: Record<string, string> = {
+    company: "Company",
+    individual: "Individual",
+    government: "Government",
+    sole_proprietorship: "Sole Proprietorship",
+  };
+  return map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
 function PartiesListView() {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
@@ -197,7 +229,7 @@ function PartiesListView() {
           <option value="">{t("parties.filter.allEmirates", { defaultValue: "All emirates" })}</option>
           {emirates.map((em) => (
             <option key={em} value={em}>
-              {em.replace(/_/g, " ")}
+              {humanizeEmirate(em)}
             </option>
           ))}
         </select>
@@ -310,8 +342,9 @@ function PartiesListView() {
                       {p.nameAr ?? "—"}
                     </td>
                     <td className="py-2">
-                      <span className="inline-flex items-center rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-                        {p.partyType}
+                      {/* L104 — drop uppercase, use humanized partyType */}
+                      <span className="inline-flex items-center rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-muted">
+                        {humanizePartyType(p.partyType)}
                       </span>
                     </td>
                     <td className="py-2 font-mono text-[11px] text-ink-muted">
@@ -324,8 +357,11 @@ function PartiesListView() {
                         <span className="text-ink-subtle">—</span>
                       )}
                     </td>
+                    {/* L70 — Contracts count from BE */}
                     <td className="py-2 pe-3 text-end font-mono text-xs text-ink-muted">
-                      —
+                      {typeof (p as { contractsCount?: number }).contractsCount === "number"
+                        ? (p as { contractsCount: number }).contractsCount
+                        : "—"}
                     </td>
                   </tr>
                 );

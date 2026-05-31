@@ -39,6 +39,25 @@ const STATUS_COLORS: Record<ApprovalStatus, string> = {
   modified: 'bg-info/10 text-info',
 };
 
+// L17 — Local fallback for draftType slugs when i18n key absent
+function humanizeDraftType(slug: string | null | undefined): string {
+  if (!slug) return '—';
+  const overrides: Record<string, string> = {
+    cure_notice: 'Cure Notice',
+    fm_invocation: 'Force Majeure Invocation',
+    sanctions_hold: 'Sanctions Hold',
+    esg_concern: 'ESG Concern',
+    icv_rectification: 'ICV Rectification',
+    insurance_renewal: 'Insurance Renewal',
+    custom: 'Custom Advisory',
+  };
+  if (overrides[slug]) return overrides[slug];
+  return slug
+    .split('_')
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
+    .join(' ');
+}
+
 function LegalAdvisoryQueueView() {
   const { t } = useTranslation();
   const canReview = useAuthStore(selectHasPermission('advisory.draft.review'));
@@ -91,6 +110,26 @@ function LegalAdvisoryQueueView() {
           </p>
         </div>
       </div>
+
+      {/* L21 — KPI strip: queue counts by status so the operator gets a glanceable rollup */}
+      {items.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-4">
+          {(['unapproved', 'approved', 'rejected', 'modified'] as const).map((s) => {
+            const cnt = items.filter((it) => it.approvalStatus === s).length;
+            return (
+              <div
+                key={s}
+                className="rounded-lg border border-border bg-card px-4 py-3"
+              >
+                <p className="text-[10px] font-medium tracking-wider text-ink-subtle">
+                  {t(`legal.advisoryQueue.status.${s}`)}
+                </p>
+                <p className="mt-1 font-mono text-xl font-semibold text-ink">{cnt}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -192,14 +231,18 @@ function LegalAdvisoryQueueView() {
                   {items.map((item) => (
                     <tr key={item.id} className="hover:bg-surface/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-ink">
-                        {item.contractTitle ?? `#${item.contractId ?? item.correlationId}`}
+                        {/* L16 — show contractNumber instead of raw #id */}
+                        {item.contractNumber ?? item.contractTitle ?? `#${item.contractId ?? item.correlationId}`}
                       </td>
                       <td className="px-4 py-3 text-ink-muted">
                         {item.counterpartyName ?? '—'}
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-ink-muted">
-                          {item.draftType}
+                          {/* L17 — humanize draft_type slug */}
+                          {t(`legal.advisoryQueue.draftType.${item.draftType}`, {
+                            defaultValue: humanizeDraftType(item.draftType),
+                          })}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-ink-muted">
