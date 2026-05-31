@@ -432,6 +432,13 @@ const HUMANIZE_OVERRIDES: Record<string, string> = {
   regulatory: "Regulatory",
   informational: "Informational",
   fx_usd_aed: "FX USD/AED",
+  // K26 fix — humanise Impact Watch source slugs.
+  fx_feed: "FX Feed",
+  commodity_feed: "Commodity Feed",
+  uk_hmt: "UK HMT",
+  un_security_council: "UN Security Council",
+  ofac: "OFAC",
+  mock_social_x: "Social Monitoring (X/Twitter)",
   murban_osp: "Murban OSP",
   brent: "Brent",
   dubai_crude: "Dubai Crude",
@@ -522,6 +529,33 @@ export function humanizeLabel(slug: string | null | undefined): string {
     .split(" ")
     .map((word) => (ACRONYMS.has(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)))
     .join(" ");
+}
+
+// K22 fix — locale-aware overrides so emirate names (and other commonly
+// chart-axis-displayed slugs) appear in Arabic when the actor's UI is AR.
+// Falls back to humanizeLabel for slugs without an AR translation.
+const HUMANIZE_OVERRIDES_AR: Record<string, string> = {
+  abu_dhabi: "أبوظبي",
+  dubai: "دبي",
+  sharjah: "الشارقة",
+  ajman: "عجمان",
+  fujairah: "الفجيرة",
+  ras_al_khaimah: "رأس الخيمة",
+  umm_al_quwain: "أم القيوين",
+  unknown: "غير معروف",
+};
+
+export function humanizeLabelLocalized(
+  slug: string | null | undefined,
+  locale: string | undefined,
+): string {
+  if (!slug) return "";
+  const isAr = !!locale && locale.toLowerCase().startsWith("ar");
+  if (isAr) {
+    const arOverride = HUMANIZE_OVERRIDES_AR[slug.toLowerCase().trim()];
+    if (arOverride) return arOverride;
+  }
+  return humanizeLabel(slug);
 }
 
 export function formatUsd(value: number | null, locale: string = "en-US"): string {

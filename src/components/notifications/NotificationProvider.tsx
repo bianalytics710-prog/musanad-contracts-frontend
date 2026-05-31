@@ -101,9 +101,73 @@ const SEED_NOTIFICATIONS: Omit<AppNotification, "createdAt" | "readAt">[] = [
   },
 ];
 
-function generateSeedFor(userId: number): AppNotification[] {
+// K45 fix — persona-aware notification seeds so a compliance lead doesn't
+// see notifications meant for drafter / approver / finance personas. Keyed
+// by role.name; falls back to the original generic seed when no role match.
+const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
+  compliance_esg: [
+    {
+      id: "k1",
+      severity: "critical",
+      titleEn: "Federal Decree-Law 9/2024 cascade completed — 132 contractors",
+      titleAr: "اكتمل تطبيق المرسوم بقانون اتحادي 9/2024 — 132 مقاولاً",
+      bodyEn: "Cascade run #6 dispatched. AED 12.8M total penalty exposure. 87.1% ICV at risk.",
+      bodyAr: "تم إرسال التطبيق رقم 6. تعرض الغرامات الإجمالي 12.8 مليون درهم.",
+      linkUrl: "/app/compliance/regulatory-cascade/6",
+    },
+    {
+      id: "k2",
+      severity: "critical",
+      titleEn: "OFAC SDN list update — counterparty parent flagged",
+      titleAr: "تحديث قائمة OFAC SDN — تم الإشارة إلى الشركة الأم للطرف المقابل",
+      bodyEn: "Crescent Petroleum parent entity added to OFAC SDN list. Chain exposure review pending.",
+      bodyAr: "تمت إضافة الشركة الأم لكريسنت إلى قائمة OFAC SDN.",
+      linkUrl: "/app/risk-cases/8",
+    },
+    {
+      id: "k3",
+      severity: "high",
+      titleEn: "Audit rights expiring within 90 days — 8 contracts",
+      titleAr: "حقوق التدقيق تنتهي خلال 90 يومًا — 8 عقود",
+      bodyEn: "Review upcoming audit windows on the compliance dashboard.",
+      bodyAr: "راجع نوافذ التدقيق القادمة على لوحة الامتثال.",
+      linkUrl: "/app/dashboards/compliance-esg",
+    },
+    {
+      id: "k4",
+      severity: "high",
+      titleEn: "ESG advisory — high-emissions supplier flagged",
+      titleAr: "استشارة ESG — تم الإشارة إلى مورد عالي الانبعاثات",
+      bodyEn: "Crescent Petroleum flagged via social monitoring. Open ESG correlation.",
+      bodyAr: "تم الإشارة إلى كريسنت بترليوم عبر المراقبة الاجتماعية.",
+      linkUrl: "/app/dashboards/compliance-esg",
+    },
+    {
+      id: "k5",
+      severity: "medium",
+      titleEn: "ICV downgrade alert — ADNOC Distribution PJSC",
+      titleAr: "تنبيه تخفيض القيمة الإضافية المحلية — أدنوك للتوزيع",
+      bodyEn: "Counterparty ICV score downgraded. Tender competitiveness review recommended.",
+      bodyAr: "تم تخفيض درجة القيمة الإضافية المحلية للطرف المقابل.",
+      linkUrl: "/app/dashboards/compliance-esg",
+    },
+    {
+      id: "k6",
+      severity: "info",
+      titleEn: "ADNOC ICV Programme — Q3 audit schedule published",
+      titleAr: "برنامج القيمة الإضافية المحلية في أدنوك — جدول تدقيق الربع الثالث منشور",
+      bodyEn: "Tier-1 and Tier-2 ICV audits scheduled across 38 contractors.",
+      bodyAr: "تم جدولة تدقيقات القيمة الإضافية المحلية لـ 38 مقاولاً.",
+      linkUrl: "/app/regulations",
+    },
+  ],
+};
+
+function generateSeedFor(userId: number, roleName?: string | null): AppNotification[] {
   const now = Date.now();
-  return SEED_NOTIFICATIONS.map((n, i) => ({
+  // K45 — prefer role-specific seed when available.
+  const source = (roleName && SEED_BY_ROLE[roleName]) || SEED_NOTIFICATIONS;
+  return source.map((n, i) => ({
     ...n,
     id: `${userId}-${n.id}`,
     createdAt: new Date(now - i * 1000 * 60 * 60 * 6).toISOString(),
@@ -143,13 +207,20 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       setNotifications([]);
       return;
     }
+    // K45 fix — read persona-aware seed when no stored notifications;
+    // pass the actor's role.name so compliance_esg gets compliance seeds.
     const stored = readFromStorage(user.id);
-    if (stored && stored.length > 0) {
+    const desiredSeed = generateSeedFor(user.id, user.role?.name);
+    // If stored seed matches the OLD generic ids (n1..n6) but the user has
+    // a persona-specific seed available, replace the stored seed so the
+    // upgrade lands on the next login without requiring a localStorage clear.
+    const hasPersonaSeed = !!(user.role?.name && SEED_BY_ROLE[user.role.name]);
+    const storedIsGeneric = stored?.every((n) => /-n\d$/.test(n.id)) ?? false;
+    if (stored && stored.length > 0 && !(hasPersonaSeed && storedIsGeneric)) {
       setNotifications(stored);
     } else {
-      const seed = generateSeedFor(user.id);
-      writeToStorage(user.id, seed);
-      setNotifications(seed);
+      writeToStorage(user.id, desiredSeed);
+      setNotifications(desiredSeed);
     }
   }, [user]);
 

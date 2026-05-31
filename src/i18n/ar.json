@@ -7039,7 +7039,8 @@
         },
         "actions": {
           "updateStatus": "تحديث الحالة",
-          "draftAmendment": "مسودة التعديل"
+          "draftAmendment": "مسودة التعديل",
+          "draftAmendmentHandoff": "تتم الصياغة من قبل المستشار القانوني — التسليم عبر قائمة الاستشارات."
         },
         "icvImpact": {
           "heading": "عرض تأثير القيمة الإضافية المحلية",

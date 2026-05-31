@@ -152,6 +152,16 @@ export function ComplianceEsgDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
+          {/* K5 fix — scope caption clarifies that 4 of 5 KPIs are snapshot
+              counts; only the Regulatory Updates KPI honors the date window.
+              Without this caption the user clicks pills expecting all KPIs
+              to move and gets confused (audit pattern from Eman E2 + BUG-013). */}
+          <p className="text-xs text-ink-subtle">
+            {t('dashboards.complianceEsg.windowScopeCaption', {
+              defaultValue: 'Snapshot KPIs — only “Regulatory updates” honors the date window. Other tiles reflect current state.',
+            })}
+          </p>
+
           {/* KPI strip */}
           <section
             aria-label={t('dashboards.complianceEsg.kpiGroupLabel')}

@@ -26,6 +26,9 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { riskCaseService } from '@/services/api/risk-case.service';
 import { formatDateTime } from '@/utils/datetime';
+// K34/K35 fix — humanise the assigned-role enum slug for the fallback
+// branch when the BE assignedRoleDisplay field isn't populated.
+import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
 import {
   TERMINAL_STATUSES,
   CLOSABLE_STATUSES,
@@ -225,14 +228,25 @@ function RiskCaseDetailView() {
                   <dl className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <dt className="text-ink-muted">{t('riskCases.fields.assignedRole')}</dt>
+                      {/* K34 fix — surface humanised role label, not enum slug.
+                          BE returns assignedRoleDisplay (mig 372); fall back
+                          to FE humanizeLabel for backwards safety. */}
                       <dd className="text-ink">
-                        {riskCase.assignedRole ?? <span className="text-ink-muted">—</span>}
+                        {(riskCase as { assignedRoleDisplay?: string | null }).assignedRoleDisplay
+                          ?? (riskCase.assignedRole ? humanizeLabel(riskCase.assignedRole) : null)
+                          ?? <span className="text-ink-muted">—</span>}
                       </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-ink-muted">{t('riskCases.fields.assignedUserId')}</dt>
+                      <dt className="text-ink-muted">{t('riskCases.fields.assignedTo', { defaultValue: 'Assigned to' })}</dt>
+                      {/* K35 fix — show the assigned user's display name,
+                          not the raw numeric id. BE returns assignedUserName
+                          (mig 372). Fall back to id only if absent. */}
                       <dd className="text-ink">
-                        {riskCase.assignedUserId ?? <span className="text-ink-muted">—</span>}
+                        {(riskCase as { assignedUserName?: string | null }).assignedUserName
+                          ?? (riskCase.assignedUserId != null
+                                ? `#${riskCase.assignedUserId}`
+                                : <span className="text-ink-muted">—</span>)}
                       </dd>
                     </div>
                     <div className="flex justify-between">
@@ -254,13 +268,18 @@ function RiskCaseDetailView() {
                     {linkedContract && (
                       <div className="flex justify-between">
                         <dt className="text-ink-muted">{t('riskCases.detail.overview.contract')}</dt>
-                        <dd className="text-ink truncate ms-2" title={linkedContract.title}>
+                        {/* K36 fix — render the contract title + number;
+                            BE mig 372 returns linkedContract.title (=titleEn)
+                            so this is now never empty for cases that link
+                            to a real contract. Fall back to contractNumber
+                            (always populated) as a last resort. */}
+                        <dd className="text-ink truncate ms-2" title={linkedContract.title ?? linkedContract.contractNumber}>
                           <Link
                             to="/app/contracts/$id"
                             params={{ id: String(linkedContract.id) }}
                             className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
                           >
-                            {linkedContract.title}
+                            {linkedContract.title ?? linkedContract.contractNumber ?? `#${linkedContract.id}`}
                           </Link>
                         </dd>
                       </div>

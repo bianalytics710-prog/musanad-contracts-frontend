@@ -239,6 +239,18 @@ function ImpactWatchView() {
         </Link>
       </header>
 
+      {/* K30 fix — actionable lead so the user sees the high-signal count
+          before being asked to opt into the firehose. */}
+      {rawItems.length > 0 && (
+        <div className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-ink-muted">
+          {t("impactWatch.signalSummary", {
+            total: rawItems.length,
+            impacting: rawItems.filter((s) => (s.impactedContractCount ?? 0) > 0).length,
+            defaultValue: `${rawItems.length} signals · ${rawItems.filter((s) => (s.impactedContractCount ?? 0) > 0).length} impacting at least one contract`,
+          })}
+        </div>
+      )}
+
       {/* Category pills */}
       <div className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3">
         <div className="relative min-w-[260px] flex-1">
@@ -337,9 +349,10 @@ function ImpactWatchView() {
                       })()}
                       {t(`impactWatch.category.${selectedItem.category}`, { defaultValue: humanizeLabel(selectedItem.category) })}
                     </span>
-                    <span className="font-mono">{selectedItem.source}</span>
-                    <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase ${SEVERITY_TONE[selectedItem.severity] ?? "bg-muted text-ink-muted"}`}>
-                      {selectedItem.severity}
+                    {/* K26/K28 fix — humanize source + severity slugs in detail panel. */}
+                    <span className="font-mono">{humanizeLabel(selectedItem.source)}</span>
+                    <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] ${SEVERITY_TONE[selectedItem.severity] ?? "bg-muted text-ink-muted"}`}>
+                      {humanizeLabel(selectedItem.severity)}
                     </span>
                     <span className="font-mono">{selectedItem.extId}</span>
                   </div>
@@ -652,15 +665,19 @@ function SignalListRow({
             : "border-border bg-card hover:border-gold/50"
         }`}
       >
-        {/* E30 fix — drop forced uppercase wrapper; humanizeLabel produces
-            "Market & Financial" not "MARKET_FINANCIAL". */}
+        {/* E30 + K28 + K29 fix — drop forced uppercase wrapper; humanizeLabel
+            produces "Market & Financial" not "MARKET_FINANCIAL". Render severity
+            via humanizeLabel so the text is "Low" / "Medium" / "High" even
+            when CSS capitalize is overridden. Visual separators (·) preserved
+            via gap + bullet so categories don't glue to severity in DOM scrape. */}
         <div className="flex w-full items-center gap-2 text-[10px] tracking-wider text-ink-subtle">
           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${CATEGORY_TONE[item.category]}`}>
             <Icon className="h-3 w-3" />
             {t(`impactWatch.category.${item.category}`, { defaultValue: humanizeLabel(item.category) })}
           </span>
-          <span className={`rounded-full px-2 py-0.5 font-mono capitalize ${SEVERITY_TONE[item.severity] ?? "bg-muted text-ink-muted"}`}>
-            {item.severity}
+          <span aria-hidden="true">·</span>
+          <span className={`rounded-full px-2 py-0.5 font-mono ${SEVERITY_TONE[item.severity] ?? "bg-muted text-ink-muted"}`}>
+            {humanizeLabel(item.severity)}
           </span>
           <span className="ms-auto font-mono">{formatDate(item.publishedDate)}</span>
         </div>
@@ -668,7 +685,9 @@ function SignalListRow({
           {isAr && item.titleAr ? item.titleAr : item.titleEn}
         </p>
         <p className="text-[11px] text-ink-muted">
-          {item.source} · {item.impactedContractCount}{" "}
+          {/* K26 fix — humanize raw source slug ("fx_feed" → "FX Feed",
+              "uk_hmt" → "UK HMT"). */}
+          {humanizeLabel(item.source)} · {item.impactedContractCount}{" "}
           {t("impactWatch.impactedContractsCount", { defaultValue: "impacted contracts" })}
         </p>
       </button>

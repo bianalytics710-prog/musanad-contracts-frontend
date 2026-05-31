@@ -56,6 +56,15 @@ export function CommentInline({ caseId }: Props) {
           size="sm"
           disabled={mutation.isPending || !comment.trim()}
           aria-label={t('riskCases.actions.addComment')}
+          // K37 fix — tooltip explains the disabled state so a viewer doesn't
+          // assume the action is broken when the textarea is empty.
+          title={
+            !comment.trim() && !mutation.isPending
+              ? t('riskCases.actions.addCommentDisabledHint', {
+                  defaultValue: 'Type a comment first',
+                })
+              : undefined
+          }
         >
           <Send className="me-1 h-3.5 w-3.5" aria-hidden="true" />
           {mutation.isPending ? t('common.posting') : t('riskCases.actions.addComment')}

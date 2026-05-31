@@ -58,10 +58,15 @@ export function SlaCountdown({ seconds }: { seconds: number | null }) {
   const hours = Math.floor(abs / 3600);
   const mins = Math.floor((abs % 3600) / 60);
   const tone = overdue ? 'text-error' : hours < 4 ? 'text-warning' : 'text-ink-muted';
+  // K33 fix — when overdue by minutes only ("Overdue 0h 4m"), collapse to
+  // "Overdue, just now" so the precision doesn't read as a clock-on-the-wall
+  // coincidence to the demo audience. Same treatment for very-short remaining.
   const text =
-    hours >= 24
-      ? t('riskCases.sla.days', { days: Math.floor(hours / 24) })
-      : `${hours}h ${mins}m`;
+    overdue && hours === 0 && mins < 15
+      ? t('riskCases.sla.justOverdue', { defaultValue: 'just now' })
+      : hours >= 24
+        ? t('riskCases.sla.days', { days: Math.floor(hours / 24) })
+        : `${hours}h ${mins}m`;
   return (
     <span className={`text-xs font-medium ${tone}`} title={t('riskCases.sla.title')}>
       {overdue ? t('riskCases.sla.overdue', { duration: text }) : text}

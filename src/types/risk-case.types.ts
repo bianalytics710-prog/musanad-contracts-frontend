@@ -113,7 +113,11 @@ export interface RiskCase {
   title: string;
   body: string | null;
   assignedRole: string | null;
+  // K34 fix — humanised role label returned by BE mig 372.
+  assignedRoleDisplay?: string | null;
   assignedUserId: number | null;
+  // K35 fix — assignee's display name returned by BE mig 372.
+  assignedUserName?: string | null;
   status: RiskCaseStatus;
   slaHours: number | null;
   dueAt: string | null;
@@ -134,9 +138,14 @@ export interface RiskCase {
 export interface LinkedContractSummary {
   id: number;
   title: string;
+  // K36 fix — BE mig 372 also returns titleEn / titleAr / contractNumber;
+  // declare them so the FE can fall back to contractNumber when title is empty.
+  titleEn?: string | null;
+  titleAr?: string | null;
+  contractNumber?: string | null;
   status: string;
-  ourPartyId: number | null;
-  counterpartyId: number | null;
+  ourPartyId?: number | null;
+  counterpartyId?: number | null;
 }
 
 export interface LinkedAdvisoryDraftSummary {

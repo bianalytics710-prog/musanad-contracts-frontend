@@ -114,10 +114,24 @@ function ReportLibraryView() {
                       {tpl.description}
                     </p>
                   )}
-                  {tpl.lastRunAt && (
-                    <p className="mt-2 text-xs text-ink-muted">
-                      {t('reports.library.lastRun', {
-                        date: formatDateTime(tpl.lastRunAt, { showTime: true }),
+                  {/* K38 fix — always render a freshness line so the operator
+                      can tell a fresh vs stale report. "Never generated" when
+                      lastRunAt is null. */}
+                  <p className="mt-2 text-xs text-ink-muted">
+                    {tpl.lastRunAt
+                      ? t('reports.library.lastRun', {
+                          date: formatDateTime(tpl.lastRunAt, { showTime: true }),
+                          defaultValue: `Last generated ${formatDateTime(tpl.lastRunAt, { showTime: true })}`,
+                        })
+                      : t('reports.library.neverGenerated', { defaultValue: 'Never generated' })}
+                  </p>
+                  {/* K39 fix — surface cron schedule caption when present so
+                      operators can tell auto-running reports from on-demand. */}
+                  {(tpl as { cronSchedule?: string | null }).cronSchedule && (
+                    <p className="mt-1 text-xs text-ink-subtle">
+                      {t('reports.library.cronCaption', {
+                        cron: (tpl as { cronSchedule?: string | null }).cronSchedule,
+                        defaultValue: `Auto-generated on schedule ${(tpl as { cronSchedule?: string | null }).cronSchedule}`,
                       })}
                     </p>
                   )}

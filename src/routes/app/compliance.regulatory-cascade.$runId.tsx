@@ -33,7 +33,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ChartCard, SemanticTooltip } from '@/components/charts';
-import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
+import { humanizeLabel, humanizeLabelLocalized } from '@/features/dashboards/components/dashboard-primitives';
 import { ScrollbarReservedHeader, PercentColgroup } from '@/components/patterns';
 
 // 8 columns, must sum to 100. Used by BOTH the head table and every
@@ -98,7 +98,8 @@ function formatAedRange(min: number, max: number): string {
 // Main detail view
 // ─────────────────────────────────────────────────────────────
 function CascadeRunDetailView() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith('ar');
   const { runId } = Route.useParams();
   const numericRunId = Number(runId);
 
@@ -177,7 +178,12 @@ function CascadeRunDetailView() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-ink">
-                {run.regulationRef ?? t('regulatory.cascade.detail.unnamedRun')}
+                {/* K20 fix — prefer Arabic regulation title in AR mode. The
+                    BE returns regulationRefAr from mig 372; fall back to
+                    regulationRef when missing or in EN mode. */}
+                {(isAr && (run as { regulationRefAr?: string | null }).regulationRefAr) ||
+                  run.regulationRef ||
+                  t('regulatory.cascade.detail.unnamedRun')}
               </h1>
               <p className="mt-1 text-xs text-ink-muted">
                 {t('regulatory.cascade.detail.runAt')}
@@ -244,7 +250,10 @@ function CascadeChartsAndTable({
   canRun: boolean;
   canDraftAmend: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // K22 fix — when AR, format emirate Y-axis ticks via humanizeLabelLocalized
+  // so they render as "أبوظبي / دبي / الشارقة" not "Abu Dhabi / Dubai / Sharjah".
+  const chartLocale = i18n.language;
 
   // ── Search + filter state ──────────────────────────────────
   const [searchRaw, setSearchRaw] = useState('');
@@ -497,7 +506,7 @@ function CascadeChartsAndTable({
                 width={140}
                 fontSize={10}
                 tick={{ fill: 'var(--color-ink-muted)' }}
-                tickFormatter={(v: string) => humanizeLabel(v)}
+                tickFormatter={(v: string) => humanizeLabelLocalized(v, chartLocale)}
               />
               <XAxis
                 type="number"
@@ -870,7 +879,13 @@ function CascadeChartsAndTable({
                   <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
                     {t('regulatory.cascade.detail.columns.penaltyExposure')}
                   </th>
-                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
+                    title={t('regulatory.cascade.detail.columns.icvAttachmentsHelp', {
+                      defaultValue: 'Count of valid ICV certificates uploaded for this contractor.',
+                    })}
+                  >
                     {t('regulatory.cascade.detail.columns.icvAttachments')}
                   </th>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
@@ -1099,15 +1114,28 @@ function CascadeItemRow({
                 {t('regulatory.cascade.detail.actions.updateStatus')}
               </button>
             )}
-            {canDraftAmend && item.advisoryDraftId === null && (
+            {/* K17 fix — show the Draft Amendment button to every reader
+                of the cascade detail so compliance_esg (who cannot self-draft
+                per separation of duties) still sees the next-step CTA but
+                cannot click it. The greyed state with title tooltip makes
+                the Layla-Counsel handoff visible from Khalid's side. */}
+            {item.advisoryDraftId === null && (
               <button
                 type="button"
                 disabled={
+                  !canDraftAmend ||
                   draftMutation.isPending ||
                   item.affectedContractIds.length === 0
                 }
-                onClick={() => draftMutation.mutate()}
-                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-ink hover:border-primary/60 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                onClick={() => canDraftAmend && draftMutation.mutate()}
+                title={
+                  !canDraftAmend
+                    ? t('regulatory.cascade.detail.actions.draftAmendmentHandoff', {
+                        defaultValue: 'Drafted by Legal Counsel — handoff via the Advisory queue.',
+                      })
+                    : undefined
+                }
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-ink hover:border-primary/60 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label={t('regulatory.cascade.detail.actions.draftAmendment')}
               >
                 <FileEdit className="h-3 w-3" aria-hidden="true" />
@@ -1207,7 +1235,9 @@ function IcvImpactSection({
 }: {
   items: RegulatoryCascadeItemDetail[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // K14 fix — render one language only based on actor's locale.
+  const isAr = i18n.language?.startsWith('ar');
 
   const withIcv = items.filter((i) => i.icvAttachmentCount > 0);
 
@@ -1254,17 +1284,14 @@ function IcvImpactSection({
                   className="transition-colors hover:bg-surface/50"
                 >
                   <td className="px-4 py-3">
-                    <p className="font-medium text-ink">
-                      {item.contractorNameEn}
+                    {/* K14 fix — show ONE language only (no EN+AR concat). */}
+                    <p className="font-medium text-ink" dir={isAr ? 'rtl' : 'ltr'}>
+                      {isAr && item.contractorNameAr ? item.contractorNameAr : item.contractorNameEn}
                     </p>
-                    {item.contractorNameAr && (
-                      <p className="text-xs text-ink-muted" dir="rtl">
-                        {item.contractorNameAr}
-                      </p>
-                    )}
                   </td>
                   <td className="px-4 py-3 text-xs text-ink-muted">
-                    {item.emirate ?? '—'}
+                    {/* K12 fix — humanize emirate slug ("abu_dhabi" → "Abu Dhabi"). */}
+                    {item.emirate ? humanizeLabel(item.emirate) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-ink">
                     {item.icvAttachmentCount}

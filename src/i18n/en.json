@@ -7039,7 +7039,8 @@
         },
         "actions": {
           "updateStatus": "Update status",
-          "draftAmendment": "Draft amendment"
+          "draftAmendment": "Draft amendment",
+          "draftAmendmentHandoff": "Drafted by Legal Counsel — handoff via the Advisory queue."
         },
         "icvImpact": {
           "heading": "ICV impact view",
