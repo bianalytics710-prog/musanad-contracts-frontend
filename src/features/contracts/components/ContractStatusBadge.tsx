@@ -74,7 +74,8 @@ export function ContractStatusBadge({ status, className }: ContractStatusBadgePr
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+        // E26 fix — drop forced uppercase so badge reads "Active" not "ACTIVE".
+        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium tracking-wider",
         TONE_CLASSES[tone],
         className,
       )}

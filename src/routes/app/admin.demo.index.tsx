@@ -428,8 +428,14 @@ function HealthCheckPanel() {
 
       {!isLoading && !isError && data && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          {data.subsystems.map((sub) => (
-            <SubsystemTile key={sub.name} subsystem={sub} />
+          {/* BUG-012 fix (QA Phase 3 autonomous run 2026-05-31): the
+              fn_pre_demo_health_check response can return the same subsystem
+              name twice (e.g. storage / openai / smtp surface in both env
+              probe + capability probe blocks). Using sub.name alone produced
+              "two children with the same key" React warnings. Include array
+              index for guaranteed uniqueness. */}
+          {data.subsystems.map((sub, idx) => (
+            <SubsystemTile key={`${sub.name}-${idx}`} subsystem={sub} />
           ))}
         </div>
       )}

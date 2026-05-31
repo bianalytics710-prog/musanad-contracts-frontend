@@ -42,9 +42,9 @@ function formatAedCompact(n: number): string {
 
 // Semantic colour tokens for headcount bands
 const DONUT_COLORS: Record<HeadcountBand, string> = {
-  '<20':   'oklch(var(--color-ink-muted))',
-  '20-49': 'oklch(var(--color-chart-1))',
-  '50+':   'oklch(var(--color-chart-4))',
+  '<20':   'var(--color-ink-muted)',
+  '20-49': 'var(--color-chart-1)',
+  '50+':   'var(--color-chart-4)',
 };
 
 export function RegulatoryCascadeTile() {
@@ -172,7 +172,7 @@ export function RegulatoryCascadeTile() {
                             {donutData.map((entry) => (
                               <Cell
                                 key={entry.band}
-                                fill={DONUT_COLORS[entry.band as HeadcountBand] ?? 'oklch(var(--color-chart-3))'}
+                                fill={DONUT_COLORS[entry.band as HeadcountBand] ?? 'var(--color-chart-3)'}
                               />
                             ))}
                           </Pie>

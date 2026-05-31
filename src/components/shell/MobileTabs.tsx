@@ -2,18 +2,31 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, FileText, CheckCircle2, LayoutGrid, MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { useAuthStore, selectUser, selectHasPermission } from "@/store/auth.store";
 
-const TABS = [
-  { to: "/app", icon: Home, key: "nav.home", defaultLabel: "Home" },
-  { to: "/app/contracts", icon: FileText, key: "nav.contracts", defaultLabel: "Contracts" },
-  { to: "/app/approvals", icon: CheckCircle2, key: "nav.approvals", defaultLabel: "Approvals" },
-  { to: "/app/dashboards/insights", icon: LayoutGrid, key: "nav.insights", defaultLabel: "Insights" },
-  { to: "/app/more", icon: MoreHorizontal, key: "nav.more", defaultLabel: "More" },
+const ALL_TABS = [
+  { to: "/app", icon: Home, key: "nav.home", defaultLabel: "Home", showAlways: true },
+  { to: "/app/contracts", icon: FileText, key: "nav.contracts", defaultLabel: "Contracts", showAlways: true },
+  { to: "/app/approvals", icon: CheckCircle2, key: "nav.approvals", defaultLabel: "Approvals", requiresPerm: "approval.act" },
+  { to: "/app/dashboards/insights", icon: LayoutGrid, key: "nav.insights", defaultLabel: "Insights", showAlways: true },
+  { to: "/app/more", icon: MoreHorizontal, key: "nav.more", defaultLabel: "More", showAlways: true },
 ] as const;
 
 export function MobileTabs() {
   const { t } = useTranslation();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const user = useAuthStore(selectUser);
+  const canApprove = useAuthStore(selectHasPermission("approval.act"));
+
+  // E48 fix — desktop sidebar correctly hides "Approvals" for roles without
+  // approval.act perm (e.g. Eman Executive). The mobile tab strip was
+  // showing the link unconditionally → 403 on tap. Gate it on the same
+  // permission as the desktop sidebar.
+  const TABS = ALL_TABS.filter((tab) => {
+    if ("showAlways" in tab && tab.showAlways) return true;
+    if ("requiresPerm" in tab && tab.requiresPerm === "approval.act") return !!user && canApprove;
+    return true;
+  });
 
   return (
     <nav

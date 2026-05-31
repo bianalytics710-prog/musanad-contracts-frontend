@@ -32,6 +32,8 @@ import type {
   ClausesTriggeredPayload,
   ClausesTriggeredRow,
 } from '@/types/entities/crg-dashboards.types';
+// E20 fix — humanize clause type slugs for chart X-axis labels.
+import { humanizeLabel } from './dashboard-primitives';
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
@@ -224,7 +226,9 @@ function ClausesTriggeredCard({ payload }: { payload: ClausesTriggeredPayload })
   const rows: ClausesTriggeredRow[] = payload[window] ?? [];
 
   const chartData = rows.slice(0, 10).map((r) => ({
-    name: r.clauseType,
+    // E20 fix: humanize clause types ("liquidated_damages" → "Liquidated Damages",
+    // "icv_in_country_value" → "ICV (In-Country Value)").
+    name: humanizeLabel(r.clauseType),
     count: r.count,
     mar: Number(r.totalMarAed),
   }));
@@ -237,9 +241,12 @@ function ClausesTriggeredCard({ payload }: { payload: ClausesTriggeredPayload })
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-sage" aria-hidden />
-          <h2 className="text-sm font-semibold text-ink">
+          {/* E19 fix — use h3 to match the rest of the dashboard's
+              section hierarchy (other 21 sections all use h3; this lone
+              h2 was visually inconsistent). */}
+          <h3 className="text-sm font-semibold text-ink">
             {t('executive.clausesTriggered.title')}
-          </h2>
+          </h3>
         </div>
         <div
           role="group"

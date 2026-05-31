@@ -548,41 +548,62 @@ export function ApproverDashboard() {
                 </h3>
               </div>
               <div className="relative h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={decisionMix}
-                      dataKey="count"
-                      nameKey="key"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={2}
-                      stroke="var(--card)"
-                      strokeWidth={2}
-                      isAnimationActive={false}
-                    >
-                      {decisionMix.map((d, i) => (
-                        <Cell key={i} fill={d.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 11,
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-mono text-2xl font-semibold text-ink">
-                    {decisionMixTotal}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("dashboards.common.total", { defaultValue: "Total" })}
-                  </span>
-                </div>
+                {decisionMixTotal === 0 ? (
+                  /* BUG-005 fix (QA Phase 3 autonomous run 2026-05-30): when approver
+                     has no decisions yet, Pie rendered blank with "0 / Total" center.
+                     Show explicit empty-state instead (Q2 CH9 compliance). */
+                  <div className="flex h-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface/40 p-4 text-center">
+                    <PieIcon className="h-8 w-8 text-ink-subtle" aria-hidden />
+                    <p className="text-sm font-medium text-ink">
+                      {t("dashboards.approver.decisionMix.emptyTitle", {
+                        defaultValue: "No decisions yet",
+                      })}
+                    </p>
+                    <p className="text-xs text-ink-muted">
+                      {t("dashboards.approver.decisionMix.emptySubtitle", {
+                        defaultValue: "Decision mix appears once you have approved, rejected, or escalated items.",
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={decisionMix}
+                          dataKey="count"
+                          nameKey="key"
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          stroke="var(--card)"
+                          strokeWidth={2}
+                          isAnimationActive={false}
+                        >
+                          {decisionMix.map((d, i) => (
+                            <Cell key={i} fill={d.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 8,
+                            fontSize: 11,
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="font-mono text-2xl font-semibold text-ink">
+                        {decisionMixTotal}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                        {t("dashboards.common.total", { defaultValue: "Total" })}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
               <ul className="mt-3 space-y-1.5">
                 {decisionMix.map((d) => (

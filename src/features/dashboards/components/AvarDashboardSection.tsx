@@ -28,7 +28,7 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useAvar } from '@/features/contracts/hooks/useRiskScore';
-import { KpiTile } from './dashboard-primitives';
+import { KpiTile, humanizeLabel } from './dashboard-primitives';
 import type { AvarGroupBy } from '@/types/entities/risk-score.types';
 import { cn } from '@/lib/utils';
 
@@ -118,10 +118,21 @@ export function AvarDashboardSection({ windowDays = 90 }: AvarDashboardSectionPr
       ? 'text-terracotta' // more risk = worse
       : 'text-sage'; // less risk = better
 
-  const helperText = `${deltaDisplay} ${t('risk.avar.tile.vsLastWindow')} · ${data.contractCount} ${t('risk.avar.tile.contracts')}`;
+  // BUG-014 polish (QA Phase 3.2 from user screenshot 2026-05-31): when delta
+  // is null, drop the "— vs prior window" prefix so the helper reads
+  // "33 contracts" instead of "— vs prior window · 33 contracts".
+  const helperText = deltaNum === null
+    ? `${data.contractCount} ${t('risk.avar.tile.contracts')}`
+    : `${deltaDisplay} ${t('risk.avar.tile.vsLastWindow')} · ${data.contractCount} ${t('risk.avar.tile.contracts')}`;
 
   return (
     <section aria-label={t('risk.avar.sectionLabel')} className="space-y-4">
+      {/* E1 fix — explicit heading for the AVaR section so the 3 top KPI
+          tiles are visibly grouped under "Asset Value at Risk (AVaR)" and
+          the user can tell what they belong to. */}
+      <h2 className="text-base font-semibold text-ink">
+        {t('risk.avar.sectionHeading', { defaultValue: 'Asset Value at Risk (AVaR)' })}
+      </h2>
       {/* Top KPI tile */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2 lg:col-span-1">
@@ -132,12 +143,20 @@ export function AvarDashboardSection({ windowDays = 90 }: AvarDashboardSectionPr
             variant="risk"
           />
         </div>
-        {/* Delta detail mini-card */}
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-4">
+        {/* Delta detail mini-card.
+            BUG-014 fix (QA Phase 3.2 from user screenshot 2026-05-31): when
+            `deltaNum` is null the card previously showed a lonely "—" with no
+            explanation, reading as broken data. Now shows "Insufficient
+            history" subtitle and a tooltip clarifying the prior-window data
+            is missing. */}
+        <div
+          className="flex items-center gap-3 rounded-lg border border-border bg-card p-4"
+          title={deltaNum === null ? t('risk.avar.tile.deltaNoHistoryTooltip', { defaultValue: 'Prior-window risk scores are not yet available for the selected period.' }) : undefined}
+        >
           <DeltaIcon className={cn('h-5 w-5 shrink-0', deltaColorClass)} aria-hidden />
           <div>
             <p className={cn('font-mono text-lg font-semibold tabular-nums', deltaColorClass)}>
-              {deltaDisplay}
+              {deltaNum === null ? t('risk.avar.tile.deltaNoHistory', { defaultValue: 'No prior data' }) : deltaDisplay}
             </p>
             <p className="text-[10px] uppercase tracking-widest text-ink-subtle">
               {t('risk.avar.tile.deltaSubtitle')}
@@ -215,8 +234,12 @@ function AvarBreakdownChart({
 }) {
   const { t } = useTranslation();
 
+  // E5/E15/E16/E20 fix: humanize slug labels for chart Y-axis.
+  // ("services" → "Services", "abu_dhabi" → "Abu Dhabi",
+  // "sanctions" → "Sanctions"). Counterparty names (already title-cased
+  // by mig 353 fn_avar_aggregate.party.name_en JOIN) pass through.
   const chartData = buckets.map((b) => ({
-    name: b.label,
+    name: humanizeLabel(b.label),
     avar: b.avar !== null ? Number(b.avar) : 0,
     contracts: b.contractCount,
   }));
@@ -241,10 +264,14 @@ function AvarBreakdownChart({
             return String(v);
           }}
         />
+        {/* E5/E11 fix: width=160 + interval=0 so counterparty names like
+            "Mubadala Investment Company" render with their spaces preserved
+            instead of being collapsed-and-clipped to "MubadalaInvest..." */}
         <YAxis
           type="category"
           dataKey="name"
-          width={80}
+          width={160}
+          interval={0}
           tick={{ fontSize: 10, fill: 'var(--ink-subtle)' }}
         />
         <Tooltip

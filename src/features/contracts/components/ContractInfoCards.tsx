@@ -29,7 +29,7 @@ import { Card } from "@/components/ui/card";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
 import { partiesService } from "@/services/api/m_parity.service";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import type { Contract } from "@/types/entities/contract.types";
 
 interface ContractInfoCardsProps {
@@ -121,19 +121,29 @@ export function ContractInfoCards({
       })
     : "—";
 
+  /* BUG-006 fix (QA Phase 3 autonomous run 2026-05-31): gate party fetches on
+     `party.read.all` permission. Executive + finance + compliance personas have
+     contract.read.all but NOT party.read.all → previously fired 4-5 retries of
+     /api/v1/parties/$id returning 403, producing 8-10 console errors per detail
+     load. With this guard, the row simply falls back to the "—" em-dash from
+     partyName(undefined). Also retry:false to suppress retry storms if any
+     other 403 occurs (recoverable single-shot error). */
+  const canReadParties = useAuthStore(selectHasPermission("party.read.all"));
   const partyResults = useQueries({
     queries: [
       {
         queryKey: ["party", contract.ourPartyId],
         queryFn: () => partiesService.getById(contract.ourPartyId!),
-        enabled: typeof contract.ourPartyId === "number",
+        enabled: canReadParties && typeof contract.ourPartyId === "number",
         staleTime: 5 * 60_000,
+        retry: false,
       },
       {
         queryKey: ["party", contract.counterpartyId],
         queryFn: () => partiesService.getById(contract.counterpartyId!),
-        enabled: typeof contract.counterpartyId === "number",
+        enabled: canReadParties && typeof contract.counterpartyId === "number",
         staleTime: 5 * 60_000,
+        retry: false,
       },
     ],
   });

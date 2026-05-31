@@ -40,9 +40,11 @@ import {
   TimeRangeSelector,
   asWindowQuery,
   formatAed,
+  formatAedAxis,
   formatAedCompact,
   formatNumber,
   formatUsd,
+  humanizeLabel,
   rangeFromWindowDays,
 } from "./dashboard-primitives";
 import { useAuthStore, selectUser } from "@/store/auth.store";
@@ -150,14 +152,26 @@ export function ExecutiveDashboard() {
             {t("dashboards.executive.subtitle")}
           </p>
         </div>
-        <TimeRangeSelector
-          range={range}
-          windowDays={windowDays}
-          onChange={({ range: r, windowDays: d }) => {
-            setRange(r);
-            setWindowDays(d);
-          }}
-        />
+        <div className="flex flex-col items-end gap-1">
+          <TimeRangeSelector
+            range={range}
+            windowDays={windowDays}
+            onChange={({ range: r, windowDays: d }) => {
+              setRange(r);
+              setWindowDays(d);
+            }}
+          />
+          {/* BUG-013 clarification (QA Phase 3.2 from user screenshot 2026-05-31):
+              the AVaR snapshot KPIs (TOTAL AVAR / NO-VALUE CONTRACTS) reflect the
+              latest risk-score state and don't move with the date filter. Only
+              the prior-window delta is window-scoped. Surface that so the user
+              isn't confused when KPI numbers don't change on filter click. */}
+          <p className="text-[10px] text-ink-subtle">
+            {t("dashboards.executive.windowScopeHint", {
+              defaultValue: "Snapshot KPIs use latest data. Date filter scopes prior-window delta + trends.",
+            })}
+          </p>
+        </div>
       </header>
 
       {isLoading && !data ? (
@@ -465,11 +479,16 @@ function ExpiryCliffsBlock({ cliffs }: { cliffs: ExecutiveExpiryCliffs }) {
 
 function ContractsByStatusChart({ data }: { data: Record<string, number> }) {
   const { t } = useTranslation();
-  const series = Object.entries(data).map(([status, count]) => ({
-    status,
-    label: t(`contractStatus.${status}`, { defaultValue: status }),
-    count,
-  }));
+  // E10 fix: sort descending so the dominant bucket sits at top and
+  // small buckets aren't dwarfed-toothpicks at the bottom.
+  // E11/E15 fix: humanize status slugs ("awaiting_counterparty" → "Awaiting counterparty").
+  const series = Object.entries(data)
+    .map(([status, count]) => ({
+      status,
+      label: t(`contractStatus.${status}`, { defaultValue: humanizeLabel(status) }),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count);
   return (
     <div className="h-56">
       <ResponsiveContainer width="100%" height="100%">
@@ -518,7 +537,7 @@ function ValueDistributionBlock({
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-mono text-xs text-ink-subtle">
                 {t(`dashboards.executive.valueDistribution.bucket.${b.bucket}`, {
-                  defaultValue: b.bucket,
+                  defaultValue: humanizeLabel(b.bucket),
                 })}
               </span>
               <span className="text-sm font-semibold tabular-nums text-ink">
@@ -597,8 +616,11 @@ function TopCounterpartiesBlockWithNames({
                         {name}
                       </span>
                       {row.counterpartyEmirate && (
-                        <span className="ms-2 inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                          {row.counterpartyEmirate.replace(/_/g, " ")}
+                        // E15 fix: title-case emirate ("fujairah" → "Fujairah",
+                        // "abu_dhabi" → "Abu Dhabi"). Drop uppercase tracking
+                        // for the same reason.
+                        <span className="ms-2 inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-subtle">
+                          {humanizeLabel(row.counterpartyEmirate)}
                         </span>
                       )}
                     </>
@@ -655,13 +677,9 @@ function ValueOverTimeChart({ points }: { points: TrendMonthValueAed[] }) {
           <XAxis dataKey="month" tick={{ fontSize: 10, fill: "var(--ink-muted)" }} />
           <YAxis
             tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
-            tickFormatter={(v: number) =>
-              v >= 1_000_000
-                ? `${(v / 1_000_000).toFixed(1)}M`
-                : v >= 1_000
-                  ? `${Math.round(v / 1_000)}k`
-                  : String(v)
-            }
+            // E7 fix: shared AED axis formatter — handles B/M/K so 30B
+            // doesn't render as "30000.0M".
+            tickFormatter={formatAedAxis}
           />
           <Tooltip
             contentStyle={{

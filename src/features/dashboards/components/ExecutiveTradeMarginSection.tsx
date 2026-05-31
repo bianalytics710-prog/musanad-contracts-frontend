@@ -17,8 +17,10 @@
  */
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
-import { TrendingDown, TrendingUp, ChevronRight } from 'lucide-react';
+import { TrendingDown, TrendingUp, ChevronRight, Minus } from 'lucide-react';
 import type { TradeMarginSummary } from '@/types/entities/trade-margin.types';
+// E14 fix — humanize benchmarkCode display.
+import { humanizeLabel } from './dashboard-primitives';
 
 // ─────────────────────────────────────────────────────────────
 // AED compact formatter (C13: no raw hex)
@@ -135,36 +137,52 @@ export function ExecutiveTradeMarginSection({
       </div>
 
       {/* Recent margin change alert (OSP-drop compression) */}
-      {recentMarginChange && (
-        <div
-          className={`mb-4 flex items-center gap-2 rounded-md border px-3 py-2 ${
-            hasCompression
-              ? 'border-terracotta/30 bg-terracotta/5'
-              : 'border-success/30 bg-success/5'
-          }`}
-        >
-          {hasCompression ? (
-            <TrendingDown
-              className="h-4 w-4 shrink-0 text-terracotta"
-              aria-hidden="true"
-            />
-          ) : (
-            <TrendingUp
-              className="h-4 w-4 shrink-0 text-success"
-              aria-hidden="true"
-            />
-          )}
-          <p
-            className={`text-xs ${hasCompression ? 'text-terracotta' : 'text-success'}`}
+      {/* E14 fix: humanize benchmarkCode ("murban_osp" → "Murban OSP")
+          and show a "stable" message instead of "AED 0" when delta is zero. */}
+      {recentMarginChange && (() => {
+        const deltaAedNum = parseFloat(recentMarginChange.deltaAed);
+        const benchmarkLabel = humanizeLabel(recentMarginChange.benchmarkCode);
+        const isStable = Math.abs(deltaAedNum) < 100_000; // < AED 100k is effectively no movement
+        return (
+          <div
+            className={`mb-4 flex items-center gap-2 rounded-md border px-3 py-2 ${
+              isStable
+                ? 'border-sage/30 bg-sage/5'
+                : hasCompression
+                  ? 'border-terracotta/30 bg-terracotta/5'
+                  : 'border-success/30 bg-success/5'
+            }`}
           >
-            {t('financial.tradeMargin.executive.recentChange', {
-              benchmarkCode: recentMarginChange.benchmarkCode,
-              delta: formatAedCompact(recentMarginChange.deltaAed),
-              asOf: recentMarginChange.asOf,
-            })}
-          </p>
-        </div>
-      )}
+            {isStable ? (
+              <Minus className="h-4 w-4 shrink-0 text-sage" aria-hidden="true" />
+            ) : hasCompression ? (
+              <TrendingDown className="h-4 w-4 shrink-0 text-terracotta" aria-hidden="true" />
+            ) : (
+              <TrendingUp className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+            )}
+            <p
+              className={`text-xs ${
+                isStable
+                  ? 'text-sage'
+                  : hasCompression
+                    ? 'text-terracotta'
+                    : 'text-success'
+              }`}
+            >
+              {isStable
+                ? t('financial.tradeMargin.executive.recentChangeStable', {
+                    defaultValue: `${benchmarkLabel} stable — no significant movement in the last 7 days`,
+                    benchmarkLabel,
+                  })
+                : t('financial.tradeMargin.executive.recentChange', {
+                    benchmarkCode: benchmarkLabel,
+                    delta: formatAedCompact(recentMarginChange.deltaAed),
+                    asOf: recentMarginChange.asOf,
+                  })}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Top positions by margin */}
       {topPositionsByMargin3.length > 0 && (

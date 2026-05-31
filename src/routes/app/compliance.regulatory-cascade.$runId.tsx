@@ -33,6 +33,12 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ChartCard, SemanticTooltip } from '@/components/charts';
+import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
+import { ScrollbarReservedHeader, PercentColgroup } from '@/components/patterns';
+
+// 8 columns, must sum to 100. Used by BOTH the head table and every
+// per-row body table to keep columns in lockstep regardless of scrollbar.
+const CASCADE_DETAIL_COL_WIDTHS = [22, 11, 13, 12, 13, 9, 13, 7] as const;
 import { formatAedCompact } from '@/features/dashboards/components/dashboard-primitives';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { regulatoryCascadeService } from '@/services/api/regulatory-cascade.service';
@@ -78,9 +84,9 @@ const BAND_COLORS: Record<HeadcountBand, string> = {
 // Chart colour tokens (semantic — no raw oklch literals)
 // ─────────────────────────────────────────────────────────────
 const DONUT_COLORS: Record<HeadcountBand, string> = {
-  '<20':   'oklch(var(--color-ink-muted))',
-  '20-49': 'oklch(var(--color-chart-1))',
-  '50+':   'oklch(var(--color-chart-4))',
+  '<20':   'var(--color-ink-muted)',
+  '20-49': 'var(--color-chart-1)',
+  '50+':   'var(--color-chart-4)',
 };
 
 function formatAedRange(min: number, max: number): string {
@@ -382,9 +388,9 @@ function CascadeChartsAndTable({
 
   // ── Chart cell colours by rank ────────────────────────────
   function penaltyBarColor(index: number): string {
-    if (index === 0) return 'oklch(var(--color-chart-4))';
-    if (index <= 2) return 'oklch(var(--color-chart-1))';
-    return 'oklch(var(--color-chart-2))';
+    if (index === 0) return 'var(--color-chart-4)';
+    if (index <= 2) return 'var(--color-chart-1)';
+    return 'var(--color-chart-2)';
   }
 
   return (
@@ -442,7 +448,7 @@ function CascadeChartsAndTable({
                 {donutData.map((entry) => (
                   <Cell
                     key={entry.band}
-                    fill={DONUT_COLORS[entry.band as HeadcountBand] ?? 'oklch(var(--color-chart-3))'}
+                    fill={DONUT_COLORS[entry.band as HeadcountBand] ?? 'var(--color-chart-3)'}
                   />
                 ))}
               </Pie>
@@ -483,12 +489,15 @@ function CascadeChartsAndTable({
               margin={{ top: 4, right: 24, bottom: 4, left: 4 }}
             >
               <CartesianGrid strokeDasharray="2 4" horizontal={false} opacity={0.3} />
+              {/* Humanize emirate slug ("abu_dhabi" → "Abu Dhabi") in the
+                  Y-axis tick so the chart reads like the rest of the app. */}
               <YAxis
                 dataKey="emirate"
                 type="category"
                 width={140}
                 fontSize={10}
                 tick={{ fill: 'var(--color-ink-muted)' }}
+                tickFormatter={(v: string) => humanizeLabel(v)}
               />
               <XAxis
                 type="number"
@@ -527,6 +536,7 @@ function CascadeChartsAndTable({
               width={140}
               fontSize={10}
               tick={{ fill: 'var(--color-ink-muted)' }}
+              tickFormatter={(v: string) => humanizeLabel(v)}
             />
             <XAxis type="number" fontSize={10} />
             <Legend verticalAlign="top" height={28} formatter={(value: string) => (
@@ -548,19 +558,19 @@ function CascadeChartsAndTable({
               dataKey="compliant"
               name={t('regulatory.cascade.charts.icvByEmirate.series.compliant')}
               stackId="a"
-              fill="oklch(var(--color-chart-2))"
+              fill="var(--color-chart-2)"
             />
             <Bar
               dataKey="atRisk"
               name={t('regulatory.cascade.charts.icvByEmirate.series.atRisk')}
               stackId="a"
-              fill="oklch(var(--color-chart-4))"
+              fill="var(--color-chart-4)"
             />
             <Bar
               dataKey="nonRated"
               name={t('regulatory.cascade.charts.icvByEmirate.series.nonRated')}
               stackId="a"
-              fill="oklch(var(--color-ink-muted))"
+              fill="var(--color-ink-muted)"
               radius={[0, 3, 3, 0]}
             />
           </BarChart>
@@ -838,8 +848,11 @@ function CascadeChartsAndTable({
           </div>
         ) : (
           <div className="rounded-lg border border-border shadow-sm">
-            {/* Static thead */}
-            <table className="min-w-full text-sm">
+            {/* Column widths shared by head + body tables; see
+                components/patterns/FixedColumnsTable.tsx. */}
+            <ScrollbarReservedHeader>
+            <table className="w-full table-fixed text-sm">
+              <PercentColgroup widths={CASCADE_DETAIL_COL_WIDTHS} />
               <thead className="bg-surface">
                 <tr>
                   <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
@@ -863,17 +876,19 @@ function CascadeChartsAndTable({
                   <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
                     {t('regulatory.cascade.detail.columns.remediationStatus')}
                   </th>
-                  <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                    <span className="sr-only">{t('common.actions')}</span>
+                  <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    {t('common.action', { defaultValue: 'Action' })}
                   </th>
                 </tr>
               </thead>
             </table>
+            </ScrollbarReservedHeader>
 
-            {/* Virtualized body */}
+            {/* Virtualized body — overflow-y-scroll so scrollbar gutter is
+                always reserved, matching the head's pr-[17px]. */}
             <div
               ref={parentRef}
-              className="h-[600px] overflow-y-auto"
+              className="h-[600px] overflow-y-scroll"
             >
               <div
                 style={{
@@ -898,7 +913,8 @@ function CascadeChartsAndTable({
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
                     >
-                      <table className="min-w-full text-sm">
+                      <table className="w-full table-fixed text-sm">
+                        <PercentColgroup widths={CASCADE_DETAIL_COL_WIDTHS} />
                         <tbody>
                           <CascadeItemRow
                             item={item}
@@ -975,7 +991,8 @@ function CascadeItemRow({
   canRun: boolean;
   canDraftAmend: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n: i18nForRow } = useTranslation();
+  const isAr = i18nForRow.language?.startsWith('ar');
   const queryClient = useQueryClient();
   const [statusNote, setStatusNote] = useState('');
   const [showStatusForm, setShowStatusForm] = useState(false);
@@ -1029,15 +1046,14 @@ function CascadeItemRow({
     <>
       <tr className="transition-colors hover:bg-surface/50">
         <td className="px-4 py-3">
-          <p className="font-medium text-ink">{item.contractorNameEn}</p>
-          {item.contractorNameAr && (
-            <p className="text-xs text-ink-muted" dir="rtl">
-              {item.contractorNameAr}
-            </p>
-          )}
+          {/* Re-audit fix — show one language only based on actor's locale. */}
+          <p className="font-medium text-ink">
+            {isAr && item.contractorNameAr ? item.contractorNameAr : item.contractorNameEn}
+          </p>
         </td>
         <td className="px-4 py-3 text-xs text-ink-muted">
-          {item.emirate ?? '—'}
+          {/* Re-audit fix — humanize emirate slug ("abu_dhabi" → "Abu Dhabi"). */}
+          {item.emirate ? humanizeLabel(item.emirate) : '—'}
         </td>
         <td className="px-4 py-3">
           <span
@@ -1064,8 +1080,9 @@ function CascadeItemRow({
           {item.icvAttachmentCount}
         </td>
         <td className="px-4 py-3">
+          {/* Re-audit fix — drop uppercase class so "PENDING" reads "Pending". */}
           <span
-            className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${statusClass}`}
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wider ${statusClass}`}
           >
             {t(`regulatory.cascade.remediationStatus.${item.remediationStatus}`)}
           </span>

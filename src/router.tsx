@@ -60,6 +60,21 @@ export const getRouter = () => {
         staleTime: 60_000,
         gcTime: 10 * 60_000,
         refetchOnWindowFocus: false,
+        // BUG-010 fix (QA Phase 3 autonomous run 2026-05-31): default React
+        // Query retries 3-4 times. For 4xx responses (403/404) the failure is
+        // deterministic — the user lacks permission or the resource doesn't
+        // exist; retrying never helps. Phase 3 walk surfaced repeated 4× retry
+        // storms on /contracts, /parties/$id, /impact-signals,
+        // /regulatory-updates etc. when personas had a sidebar entry but
+        // lacked the underlying BE permission. Skip retry on 4xx; keep one
+        // retry on 5xx/network errors.
+        retry: (failureCount, error: unknown) => {
+          const status =
+            (error as { response?: { status?: number }; status?: number })?.response?.status ??
+            (error as { status?: number })?.status;
+          if (typeof status === "number" && status >= 400 && status < 500) return false;
+          return failureCount < 1;
+        },
       },
     },
   });

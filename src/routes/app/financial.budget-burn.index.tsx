@@ -54,6 +54,13 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { ChartCard, SemanticTooltip } from '@/components/charts';
+// Shared split-table alignment utility — keeps the sticky header and
+// virtualized body in lockstep column-for-column.
+import { ScrollbarReservedHeader, PercentColgroup } from '@/components/patterns';
+
+// Column widths used by BOTH the head table and every per-row body table.
+// 8 columns, must sum to 100.
+const BUDGET_BURN_COL_WIDTHS = [24, 13, 10, 10, 9, 12, 12, 10] as const;
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialBudgetBurnService } from '@/services/api/financial-budget-burn.service';
 import { translateApiError } from '@/lib/translate-api-error';
@@ -186,10 +193,15 @@ function BudgetBurnPortfolioView() {
       );
     }
 
-    // Over budget only
+    // "Over budget only" filter — broaden to include contracts trending
+    // toward overrun (projected > 0) so the chip surfaces the demo
+    // narrative (HERO-001 etc.), not just contracts already breached today.
     if (overBudgetOnly) {
       rows = rows.filter(
-        (r) => r.varianceFlag || r.pctConsumed >= 100,
+        (r) =>
+          r.varianceFlag ||
+          r.pctConsumed >= 100 ||
+          parseFloat(r.projectedOverUnderAed) > 0,
       );
     }
 
@@ -324,9 +336,11 @@ function BudgetBurnPortfolioView() {
                 : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
             )}
           >
+            {/* E38 fix — prefix "Filter: " so chip is clearly a filter
+                dropdown, not a grouping/pivot toggle. */}
             {selectedSubsidiary
-              ? `${t('budgetBurn.portfolio.filters.bySubsidiary')}: ${selectedSubsidiary}`
-              : t('budgetBurn.portfolio.filters.bySubsidiary')}
+              ? `${t('budgetBurn.portfolio.filters.bySubsidiary', { defaultValue: 'Subsidiary' })}: ${selectedSubsidiary}`
+              : `${t('common.filter', { defaultValue: 'Filter' })}: ${t('budgetBurn.portfolio.filters.bySubsidiary', { defaultValue: 'Subsidiary' })}`}
             {selectedSubsidiary ? (
               <X
                 className="h-3 w-3"
@@ -393,8 +407,8 @@ function BudgetBurnPortfolioView() {
             )}
           >
             {selectedEmirate
-              ? `${t('budgetBurn.portfolio.filters.byEmirate')}: ${selectedEmirate}`
-              : t('budgetBurn.portfolio.filters.byEmirate')}
+              ? `${t('budgetBurn.portfolio.filters.byEmirate', { defaultValue: 'Emirate' })}: ${selectedEmirate}`
+              : `${t('common.filter', { defaultValue: 'Filter' })}: ${t('budgetBurn.portfolio.filters.byEmirate', { defaultValue: 'Emirate' })}`}
             {selectedEmirate ? (
               <X
                 className="h-3 w-3"
@@ -490,45 +504,70 @@ function BudgetBurnPortfolioView() {
         <>
           {/* Portfolio summary strip */}
           {summary && (
-            <section
-              aria-label={t('financial.budgetBurn.portfolio.summaryLabel')}
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
-            >
-              <SummaryTile
-                label={t('financial.budgetBurn.portfolio.summary.contractsWithBudget')}
-                value={String(summary.contractsWithBudget)}
-              />
-              <SummaryTile
-                label={t('financial.budgetBurn.portfolio.summary.totalBudget')}
-                value={formatAed(summary.totalBudgetAed)}
-              />
-              <SummaryTile
-                label={t('financial.budgetBurn.portfolio.summary.totalActual')}
-                value={formatAed(summary.totalActualAed)}
-              />
-              <SummaryTile
-                label={t('financial.budgetBurn.portfolio.summary.totalVariance')}
-                value={formatAed(summary.totalVarianceAed)}
-                variant={parseFloat(summary.totalVarianceAed) > 0 ? 'risk' : 'default'}
-              />
-              <SummaryTile
-                label={t('financial.budgetBurn.portfolio.summary.overBudgetCount')}
-                value={String(summary.overBudgetCount)}
-                variant={summary.overBudgetCount > 0 ? 'warning' : 'default'}
-              />
-              <SummaryTile
-                label={t('financial.budgetBurn.portfolio.summary.totalProjectedOverrun')}
-                value={formatAed(summary.totalProjectedOverrunAed)}
-                variant={parseFloat(summary.totalProjectedOverrunAed) > 0 ? 'risk' : 'default'}
-              />
-            </section>
+            <>
+              <section
+                aria-label={t('financial.budgetBurn.portfolio.summaryLabel')}
+                className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+              >
+                <SummaryTile
+                  label={t('financial.budgetBurn.portfolio.summary.contractsWithBudget')}
+                  value={String(summary.contractsWithBudget)}
+                />
+                <SummaryTile
+                  label={t('financial.budgetBurn.portfolio.summary.totalBudget')}
+                  value={formatAed(summary.totalBudgetAed)}
+                />
+                <SummaryTile
+                  label={t('financial.budgetBurn.portfolio.summary.totalActual')}
+                  value={formatAed(summary.totalActualAed)}
+                />
+                <SummaryTile
+                  label={t('financial.budgetBurn.portfolio.summary.totalVariance')}
+                  value={formatAed(summary.totalVarianceAed)}
+                  variant={parseFloat(summary.totalVarianceAed) > 0 ? 'risk' : 'default'}
+                />
+                <SummaryTile
+                  label={t('financial.budgetBurn.portfolio.summary.overBudgetCount')}
+                  value={String(summary.overBudgetCount)}
+                  variant={summary.overBudgetCount > 0 ? 'warning' : 'default'}
+                />
+                <SummaryTile
+                  label={t('financial.budgetBurn.portfolio.summary.totalProjectedOverrun')}
+                  value={formatAed(summary.totalProjectedOverrunAed)}
+                  variant={parseFloat(summary.totalProjectedOverrunAed) > 0 ? 'risk' : 'default'}
+                />
+              </section>
+              {/* E37 fix — surface the year-end projection narrative on the
+                  portfolio page so the demo story (HERO-001 trending toward
+                  breach) is visible even when today's overBudgetCount === 0. */}
+              {summary.overBudgetCount === 0 && summary.contractsWithBudget > 0 && (
+                <div className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-ink">
+                  {t('financial.budgetBurn.portfolio.zeroOverButCheckTrend', {
+                    defaultValue:
+                      'All {{count}} contracts are within budget today. Open each contract\'s Projection tab to review year-end run-rate — variance trends may signal future breaches.',
+                    count: summary.contractsWithBudget,
+                  })}
+                </div>
+              )}
+            </>
           )}
 
           {/* ── Chart #5: Portfolio consumption horizontal bar ──── */}
+          {/* E39 fix — clarify subtitle that this chart shows the TOP-N
+              by consumption, not the entire portfolio, so executives
+              don't wonder "where are the other contracts?". */}
           {chartRows.length > 0 && (
             <ChartCard
               title={t('budgetBurn.charts.portfolioConsumption.title')}
-              subtitle={t('budgetBurn.charts.portfolioConsumption.subtitle')}
+              subtitle={
+                summary && summary.contractsWithBudget > chartRows.length
+                  ? t('budgetBurn.charts.portfolioConsumption.subtitleTopN', {
+                      defaultValue: 'Top {{shown}} by consumption (of {{total}} total) — full list below',
+                      shown: chartRows.length,
+                      total: summary.contractsWithBudget,
+                    })
+                  : t('budgetBurn.charts.portfolioConsumption.subtitle')
+              }
               height={280}
               empty={chartRows.length === 0}
               emptyLabel={t('common.charts.empty')}
@@ -586,8 +625,11 @@ function BudgetBurnPortfolioView() {
             </div>
           ) : (
             <div className="rounded-lg border border-border shadow-sm">
-              {/* Table head (static) */}
-              <table className="min-w-full text-sm">
+              {/* Column widths shared by head + body tables — see
+                  components/patterns/FixedColumnsTable.tsx for the why. */}
+              <ScrollbarReservedHeader>
+              <table className="w-full table-fixed text-sm">
+                <PercentColgroup widths={BUDGET_BURN_COL_WIDTHS} />
                 <thead className="bg-surface">
                   <tr>
                     <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
@@ -611,17 +653,20 @@ function BudgetBurnPortfolioView() {
                     <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
                       {t('financial.budgetBurn.columns.status')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      <span className="sr-only">{t('common.actions')}</span>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                      {t('common.action', { defaultValue: 'Action' })}
                     </th>
                   </tr>
                 </thead>
               </table>
+              </ScrollbarReservedHeader>
 
-              {/* Virtualized table body */}
+              {/* Virtualized table body. overflow-y is 'scroll' (not 'auto')
+                  so the scrollbar is always present — keeps body width in
+                  exact lockstep with head width, even when content is short. */}
               <div
                 ref={parentRef}
-                className="h-[600px] overflow-y-auto"
+                className="h-[600px] overflow-y-scroll"
               >
                 <div
                   style={{
@@ -646,7 +691,9 @@ function BudgetBurnPortfolioView() {
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
                       >
-                        <table className="min-w-full text-sm">
+                        <table className="w-full table-fixed text-sm">
+                          {/* Same widths as head — see BUDGET_BURN_COL_WIDTHS const above. */}
+                          <PercentColgroup widths={BUDGET_BURN_COL_WIDTHS} />
                           <tbody>
                             <PortfolioRow row={row} />
                           </tbody>
@@ -713,21 +760,32 @@ function SummaryTile({
 // PortfolioRow — single contract row
 // ─────────────────────────────────────────────────────────────
 function PortfolioRow({ row }: { row: PortfolioContractRow }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith('ar');
 
   const projectedAed = parseFloat(row.projectedOverUnderAed);
   const projectedClass = projectedAed > 0 ? 'text-terracotta' : 'text-success';
 
+  // E13/E37 follow-up: status badge must reflect THREE states, not two.
+  // The original `varianceFlag` only marks contracts where actual > budget
+  // today, missing the entire demo narrative (HERO-001 has +AED 105.7M
+  // projected overrun but actuals haven't exceeded budget yet). Three states:
+  //   1. Over budget   — actual already > budget today          (terracotta)
+  //   2. Trending over — projected year-end overrun > 0          (warning)
+  //   3. On track      — neither                                 (success)
+  const isOverToday = row.varianceFlag || row.pctConsumed >= 100;
+  const isTrendingOver = !isOverToday && projectedAed > 0;
+
   return (
+    // E12-table fix: column widths now live on shared <colgroup> in both
+    // head and body tables (see file's main render), so per-td widths are
+    // intentionally OMITTED here — colgroup is authoritative.
     <tr className="border-b border-border transition-colors hover:bg-surface/50 last:border-0">
       <td className="px-4 py-3">
         <p className="font-medium text-ink">{row.contractNumber}</p>
-        <p className="text-xs text-ink-muted">{row.titleEn}</p>
-        {row.titleAr && (
-          <p className="text-xs text-ink-subtle" dir="rtl">
-            {row.titleAr}
-          </p>
-        )}
+        {/* E12-bilingual fix: only show AR title when actor language is AR.
+            In EN mode showing both is noise and clutters the row. */}
+        <p className="text-xs text-ink-muted">{isAr && row.titleAr ? row.titleAr : row.titleEn}</p>
       </td>
       <td className="px-4 py-3 text-sm text-ink-muted">
         {row.counterpartyName ?? '—'}
@@ -747,9 +805,19 @@ function PortfolioRow({ row }: { row: PortfolioContractRow }) {
         {projectedAed > 0 ? '+' : ''}{formatAed(row.projectedOverUnderAed)}
       </td>
       <td className="px-4 py-3">
-        {row.varianceFlag ? (
+        {isOverToday ? (
           <span className="inline-flex items-center rounded-full border border-terracotta/30 bg-terracotta/10 px-2 py-0.5 text-[10px] font-medium text-terracotta">
             {t('financial.budgetBurn.varianceFlag.over')}
+          </span>
+        ) : isTrendingOver ? (
+          <span
+            className="inline-flex items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning"
+            title={t('financial.budgetBurn.varianceFlag.trendingOverTitle', {
+              defaultValue:
+                'Within budget today but projected year-end overrun > 0 based on current run-rate.',
+            })}
+          >
+            {t('financial.budgetBurn.varianceFlag.trendingOver', { defaultValue: 'Trending over' })}
           </span>
         ) : (
           <span className="inline-flex items-center rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
@@ -765,7 +833,7 @@ function PortfolioRow({ row }: { row: PortfolioContractRow }) {
           />
         </div>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 text-right">
         <Link
           to="/app/financial/budget-burn/$contractId"
           params={{ contractId: String(row.contractId) }}

@@ -29,6 +29,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+// E26 fix — title-case + acronym preservation for contract_type chip.
+import { humanizeLabel as humanizeContractType } from "@/features/dashboards/components/dashboard-primitives";
 import {
   ArrowLeft,
   CalendarClock,
@@ -143,6 +145,10 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const canReviewClauses = useAuthStore(selectHasPermission("clause.review"));
   // M14 — CR-F: Risk tab visible to roles with score.read (hidden for contract_recipient)
   const canReadRiskScore = useAuthStore(selectHasPermission("score.read"));
+  // BUG-006 fix (QA Phase 3 autonomous run 2026-05-31): executive + other read-all
+  // roles lack ai.invoke.contract but the panel was always rendered → auto-fired
+  // summary stream produced 403 + spam console errors. Gate panel on permission.
+  const canUseAiInsights = useAuthStore(selectHasPermission("ai.invoke.contract"));
   // R-LC2 LC-E9 — legal counsel may keep Edit (for redlining) but does not
   // need Payments / Signatures tabs (drafter/admin context). Hide both
   // when the active user role is exactly legal_counsel.
@@ -267,20 +273,21 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-semibold tracking-tight text-ink">{displayTitle}</h1>
-          {/* R5 audit — Lovable parity: title (AR) translation paragraph below H1. */}
-          {contract.titleAr && contract.titleAr !== displayTitle && (
-            <p className="mt-1 text-sm text-ink-muted" dir="rtl">{contract.titleAr}</p>
-          )}
-          {!isAr && contract.titleEn && contract.titleAr && contract.titleAr !== contract.titleEn && (
-            // EN view: show AR; AR view already shows AR as displayTitle and EN here
-            null
+          {/* Re-audit fix — only show the OTHER language translation when
+              actor is on AR (showing EN as secondary). When actor is on EN
+              keep the header clean — the Arabic title is noise in the EN
+              experience and clutters the demo screen. */}
+          {isAr && contract.titleEn && contract.titleEn !== displayTitle && (
+            <p className="mt-1 text-sm text-ink-muted">{contract.titleEn}</p>
           )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <ContractStatusBadge status={contract.status} />
             <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-ink-muted">
+              {/* E26 fix — title-case + acronym preservation
+                  ("services" → "Services", "epc" → "EPC"). */}
               {contract.contractType
                 ? t(`contractType.${contract.contractType}`, {
-                    defaultValue: contract.contractType,
+                    defaultValue: humanizeContractType(contract.contractType),
                   })
                 : "—"}
             </span>
@@ -307,6 +314,8 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               counterparty signers; the Watch toggle is a drafter/approver
               affordance, not relevant to a one-off signer. */}
           {!isRecipientOnly && (
+            // E27 fix — title attribute clarifies what the button does;
+            // aria-pressed conveys current state to screen readers.
             <Button
               type="button"
               variant="outline"
@@ -316,6 +325,10 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               }
               disabled={watchMutation.isPending}
               className="hidden sm:inline-flex"
+              aria-pressed={!!watching}
+              title={watching
+                ? t("contracts.detail.actions.unwatchTitle", { defaultValue: "You are subscribed to this contract. Click to unsubscribe from change alerts." })
+                : t("contracts.detail.actions.watchTitle", { defaultValue: "Subscribe to change alerts for this contract." })}
             >
               {watching ? (
                 <>
@@ -650,50 +663,98 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       </div>
 
       {/* Tab panels */}
-      {tab === "overview" && <OverviewPanel contract={contract} canManageTags={canManageTags} />}
+      {/* E25 fix — wrap each conditionally-rendered tab body in
+          <div role="tabpanel"> so screen readers can pair the active
+          <button role="tab"> with its panel content. */}
+      {tab === "overview" && (
+        <div role="tabpanel" aria-labelledby="tab-overview">
+          <OverviewPanel contract={contract} canManageTags={canManageTags} />
+        </div>
+      )}
       {tab === "document" && (
-        <DocumentTabExtension
-          contractId={contract.id}
-          versionId={currentVersionId ?? 0}
-          ingestionStatus={
-            currentVersionId ? ingestionQuery.data?.ingestionStatus : undefined
-          }
-          extractionEngine={ingestionQuery.data?.extractionEngine}
-          pageCount={ingestionQuery.data?.pageCount}
-          lowConfidencePageCount={ingestionQuery.data?.lowConfidencePageCount}
-        >
-          <ContractDocumentTab contract={contract} />
-        </DocumentTabExtension>
+        <div role="tabpanel" aria-labelledby="tab-document">
+          <DocumentTabExtension
+            contractId={contract.id}
+            versionId={currentVersionId ?? 0}
+            ingestionStatus={
+              currentVersionId ? ingestionQuery.data?.ingestionStatus : undefined
+            }
+            extractionEngine={ingestionQuery.data?.extractionEngine}
+            pageCount={ingestionQuery.data?.pageCount}
+            lowConfidencePageCount={ingestionQuery.data?.lowConfidencePageCount}
+          >
+            <ContractDocumentTab contract={contract} />
+          </DocumentTabExtension>
+        </div>
       )}
       {tab === "attachments" && (
-        <ContractAttachmentsTab
-          contractId={contract.id}
-          currentVersionId={currentVersionId}
-        />
+        <div role="tabpanel" aria-labelledby="tab-attachments">
+          <ContractAttachmentsTab
+            contractId={contract.id}
+            currentVersionId={currentVersionId}
+          />
+        </div>
       )}
-      {tab === "comments" && <ContractCommentsTab contractId={contract.id} />}
+      {tab === "comments" && (
+        <div role="tabpanel" aria-labelledby="tab-comments">
+          <ContractCommentsTab contractId={contract.id} />
+        </div>
+      )}
       {tab === "edit" && (
-        <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />
+        <div role="tabpanel" aria-labelledby="tab-edit">
+          <ContractEditForm contract={contract} onSaved={() => setTab("overview")} />
+        </div>
       )}
-      {tab === "payments" && <PaymentScheduleTab contractId={contract.id} canEdit={canEdit} />}
-      {tab === "versions" && <ContractVersionList contractId={contract.id} canCreate={canEdit} />}
-      {tab === "activity" && <ContractActivityLog contractId={contract.id} />}
+      {tab === "payments" && (
+        <div role="tabpanel" aria-labelledby="tab-payments">
+          <PaymentScheduleTab contractId={contract.id} canEdit={canEdit} />
+        </div>
+      )}
+      {tab === "versions" && (
+        <div role="tabpanel" aria-labelledby="tab-versions">
+          <ContractVersionList contractId={contract.id} canCreate={canEdit} />
+        </div>
+      )}
+      {tab === "activity" && (
+        <div role="tabpanel" aria-labelledby="tab-activity">
+          <ContractActivityLog contractId={contract.id} />
+        </div>
+      )}
       {tab === "signatures" && (
-        <ContractSignaturesTab
-          contractId={contract.id}
-          contractNumber={contract.contractNumber}
-        />
+        <div role="tabpanel" aria-labelledby="tab-signatures">
+          <ContractSignaturesTab
+            contractId={contract.id}
+            contractNumber={contract.contractNumber}
+          />
+        </div>
       )}
-      {tab === "tree" && <ContractTreeTimeline contractId={contract.id} />}
-      {tab === "clauses" && <ContractClausesTab contractId={contract.id} />}
+      {tab === "tree" && (
+        <div role="tabpanel" aria-labelledby="tab-tree">
+          <ContractTreeTimeline contractId={contract.id} />
+        </div>
+      )}
+      {tab === "clauses" && (
+        <div role="tabpanel" aria-labelledby="tab-clauses">
+          <ContractClausesTab contractId={contract.id} />
+        </div>
+      )}
       {/* M14 — CR-F: Risk tab */}
-      {tab === "risk" && <ContractRiskTab contractId={contract.id} />}
+      {tab === "risk" && (
+        <div role="tabpanel" aria-labelledby="tab-risk">
+          <ContractRiskTab contractId={contract.id} />
+        </div>
+      )}
 
       {/* Inline AI insights — Lovable layout.
           R-RC1 — recipients are external counterparty signers and don't
           hold ai.invoke.contract; hide the panel rather than render an
-          empty/forbidden state. */}
-      {!isRecipientOnly && <ContractAIInsightsPanel contractId={contract.id} />}
+          empty/forbidden state.
+          BUG-006 fix — Eman Executive + other read-all roles also lack
+          ai.invoke.contract; the panel previously rendered + auto-fired
+          a 403 stream. Now gated explicitly on canUseAiInsights. */}
+      {!isRecipientOnly && canUseAiInsights && (
+        <ContractAIInsightsPanel contractId={contract.id} />
+      )}
 
       {/* Modals */}
       {statusOpen && (
@@ -860,13 +921,16 @@ interface TabButtonProps {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  /** E25 fix — used as id so role=tabpanel can pair via aria-labelledby. */
+  panelId?: string;
 }
 
-function TabButton({ active, onClick, children }: TabButtonProps) {
+function TabButton({ active, onClick, children, panelId }: TabButtonProps) {
   return (
     <button
       type="button"
       role="tab"
+      id={panelId}
       aria-selected={active}
       onClick={onClick}
       className={cn(

@@ -85,6 +85,11 @@ function defaultLandingForRole(
     operations:          { route: "/app/dashboards/operations",        module: "dashboards.operations" },
     finance_treasury:    { route: "/app/dashboards/finance-treasury",  module: "dashboards.finance_treasury" },
     compliance_esg:      { route: "/app/dashboards/compliance-esg",    module: "dashboards.compliance_esg" },
+    // BUG-011 fix (QA Phase 3 autonomous run 2026-05-31): the
+    // procurement_supplier_risk role was added in CR-M (mig 292) AFTER CR-G's
+    // landing map was set; the entry was missing → Pari Procurement landed on
+    // bare /app instead of her dashboard. Add it now.
+    procurement_supplier_risk: { route: "/app/dashboards/procurement",     module: "dashboards.procurement" },
   };
   const c = roleName ? candidates[roleName] : undefined;
   if (!c) return "/app";
@@ -196,6 +201,7 @@ export function LoginForm() {
     { key: "operations", name: "Omar Operations",     role: "Operations",         initials: "OO", email: "operations@musanad.local" },
     { key: "finance",    name: "Fatima Finance",      role: "Finance & Treasury", initials: "FF", email: "finance@musanad.local"    },
     { key: "compliance", name: "Khalid Compliance",   role: "Compliance & ESG",   initials: "KC", email: "compliance@musanad.local" },
+    { key: "procurement",name: "Pari Procurement",    role: "Procurement Risk",   initials: "PP", email: "procurement@musanad.local" },
   ];
 
   const signInAs = (email: string) => {

@@ -158,14 +158,28 @@ export function ExecutiveBudgetBurnSection({ budgetBurnSummary }: Props) {
         </div>
       )}
 
-      {/* On-track banner when all contracts within budget */}
+      {/* E13/E37 fix — replace the unconditional "all healthy" banner with
+          a narrative-aware message that always surfaces the
+          year-end-projection story. Even when overBudgetCount === 0 today,
+          the user is reminded that HERO-001 (and others) may be trending
+          toward breach. Direct link into Budget Burn so the executive can
+          drill in. */}
       {overBudgetCount === 0 && (
-        <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2">
-          <AlertTriangle className="h-4 w-4 text-success" aria-hidden="true" />
-          <p className="text-xs text-success">
-            {t('financial.budgetBurn.executive.allOnTrack', {
+        <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+          <p className="flex-1 text-xs text-ink">
+            {t('financial.budgetBurn.executive.zeroOverButCheckTrend', {
+              defaultValue:
+                '{{count}} contract(s) within budget today — review year-end run-rate projections; one or more may be trending toward overrun.',
               count: contractsWithBudget,
-            })}
+            })}{' '}
+            <Link
+              to="/app/financial/budget-burn"
+              className="ms-1 inline-flex items-center gap-0.5 font-medium text-warning underline-offset-2 hover:underline"
+            >
+              {t('financial.budgetBurn.executive.viewProjections', { defaultValue: 'View projections' })}
+              <ChevronRight className="h-3 w-3" aria-hidden="true" />
+            </Link>
           </p>
         </div>
       )}

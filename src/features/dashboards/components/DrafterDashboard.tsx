@@ -527,41 +527,63 @@ export function DrafterDashboard() {
             </div>
             <div className="grid items-center gap-4 md:grid-cols-[260px_1fr]">
               <div className="relative h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={byStage}
-                      dataKey="count"
-                      nameKey="key"
-                      innerRadius={55}
-                      outerRadius={85}
-                      paddingAngle={2}
-                      stroke="var(--card)"
-                      strokeWidth={2}
-                      isAnimationActive={false}
-                    >
-                      {byStage.map((d, i) => (
-                        <Cell key={i} fill={d.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--card)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 11,
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-mono text-2xl font-semibold text-ink">
-                    {pipelineTotal}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("dashboards.common.total", { defaultValue: "Total" })}
-                  </span>
-                </div>
+                {pipelineTotal === 0 ? (
+                  /* BUG-004 fix (QA Phase 3 autonomous run 2026-05-30): when this
+                     persona has no drafts yet, the Pie rendered an invisible chart
+                     with center "0 / Total" and no message — Q2 CH9 fail (empty
+                     state not handled gracefully). Now shows a clear empty state. */
+                  <div className="flex h-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface/40 p-4 text-center">
+                    <PieIcon className="h-8 w-8 text-ink-subtle" aria-hidden />
+                    <p className="text-sm font-medium text-ink">
+                      {t("dashboards.drafter.byStage.emptyTitle", {
+                        defaultValue: "No drafts yet",
+                      })}
+                    </p>
+                    <p className="text-xs text-ink-muted">
+                      {t("dashboards.drafter.byStage.emptySubtitle", {
+                        defaultValue: "Start a new contract from Compose to see your pipeline distribution.",
+                      })}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={byStage}
+                          dataKey="count"
+                          nameKey="key"
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={2}
+                          stroke="var(--card)"
+                          strokeWidth={2}
+                          isAnimationActive={false}
+                        >
+                          {byStage.map((d, i) => (
+                            <Cell key={i} fill={d.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 8,
+                            fontSize: 11,
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="font-mono text-2xl font-semibold text-ink">
+                        {pipelineTotal}
+                      </span>
+                      <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
+                        {t("dashboards.common.total", { defaultValue: "Total" })}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {byStage.map((d, i) => (

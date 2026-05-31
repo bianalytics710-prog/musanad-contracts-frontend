@@ -25,6 +25,8 @@
 import { useState, useMemo } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+// E41 fix — humanize grade slug for display.
+import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -61,10 +63,10 @@ import type {
 } from '@/types/entities/trade-margin.types';
 
 // Chart color tokens — semantic, no raw hex (C13)
-const C1 = 'oklch(var(--chart-1))'; // gold — sell
-const C2 = 'oklch(var(--chart-2))'; // sage — buy
-const C3 = 'oklch(var(--chart-3))';
-const C4 = 'oklch(var(--chart-4))';
+const C1 = 'var(--chart-1)'; // gold — sell
+const C2 = 'var(--chart-2)'; // sage — buy
+const C3 = 'var(--chart-3)';
+const C4 = 'var(--chart-4)';
 const CHART_COLORS = [C1, C2, C3, C4];
 
 export const Route = createFileRoute('/app/financial/trade-margin/')({
@@ -119,8 +121,11 @@ function SideBadge({ side }: { side: TradeSide }) {
   const { t } = useTranslation();
   const isSell = side === 'sell';
   return (
+    // E42 fix — drop forced uppercase so the badge reads "Sell" / "Buy"
+    // and stops conflicting with the row's other side cell that uses
+    // title-case.
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wider ${
         isSell
           ? 'border border-gold/30 bg-gold/10 text-gold'
           : 'border border-sage/30 bg-sage/10 text-sage'
@@ -642,8 +647,10 @@ function PositionRow({ row }: { row: TradePositionListItem }) {
         </p>
       </td>
       <td className="px-4 py-3 text-sm text-ink-muted">
+        {/* E41 fix — humanize grade slug ("west_african_x" → "West African (WAF)",
+            "murban" → "Murban"). */}
         {t(`financial.tradeMargin.grade.${row.grade}`, {
-          defaultValue: row.grade,
+          defaultValue: humanizeLabel(row.grade),
         })}
       </td>
       <td className="px-4 py-3 text-sm text-ink-muted">

@@ -146,9 +146,6 @@ export function RiskAssistantPanel() {
   const textareaId = useId();
   const panelId = useId();
 
-  // Silent-hide when caller lacks ai.invoke.risk_assistant
-  if (!hasPermission) return null;
-
   const persona = derivePersona(user?.role?.name);
 
   const scrollToBottom = useCallback(() => {
@@ -176,6 +173,14 @@ export function RiskAssistantPanel() {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [isOpen]);
+
+  // Silent-hide when caller lacks ai.invoke.risk_assistant.
+  // BUG-001 fix (QA Phase 3 autonomous run 2026-05-30): this early-return MUST come
+  // AFTER all hook calls to comply with Rules of Hooks. Previously placed at line 150
+  // (after only 11 hooks) — Zustand hydration race flipped hasPermission between
+  // renders, causing "Rendered more hooks than during the previous render" crashes
+  // on direct URL navigation to any /app/* route. Now all 17+ hooks run unconditionally.
+  if (!hasPermission) return null;
 
   function handleClose() {
     if (isStreaming) {

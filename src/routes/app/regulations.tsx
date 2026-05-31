@@ -48,6 +48,8 @@ import {
 } from "@/services/api/impact-signal.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+// E30 fix — title-case + acronym preservation for category display.
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
@@ -106,6 +108,11 @@ function ImpactWatchView() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<ImpactCategory | "all">("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // E31 fix — opt-in toggle to show only signals materially affecting at
+  // least one contract. 206 items is overwhelming; the toggle lets
+  // executives narrow to the actionable subset. Default OFF so the page
+  // is never empty for a persona whose data has 0 impacted_contract rows.
+  const [onlyImpacted, setOnlyImpacted] = useState(false);
   const debounced = useDebounce(search, 300);
   const qc = useQueryClient();
   const canEdit = useAuthStore(selectHasPermission("contract.edit"));
@@ -118,9 +125,22 @@ function ImpactWatchView() {
         q: debounced || undefined,
       }),
     staleTime: 60_000,
+    // BUG-008 fix (QA Phase 3 autonomous run 2026-05-31): retry:false suppresses
+    // the 4× retry storm on 403. Root-cause fixed at the DB layer (mig 349
+    // extended fn_impact_signal_list permission check to accept
+    // contract.read.all + insights.executive + insights.compliance_esg), so
+    // executive/exec-dashboard personas now have access. retry:false is
+    // defence-in-depth for any future role that doesn't qualify.
+    retry: false,
   });
 
-  const items = list?.data ?? [];
+  // E31 fix — default-filter to signals with impactedContractCount > 0
+  // so the executive sees actionable rows first. Toggle reveals all.
+  const rawItems = list?.data ?? [];
+  const items = useMemo(
+    () => (onlyImpacted ? rawItems.filter((s) => (s.impactedContractCount ?? 0) > 0) : rawItems),
+    [rawItems, onlyImpacted],
+  );
   const selectedItem = useMemo(
     () => (selectedId == null ? null : items.find((i) => i.id === selectedId) ?? null),
     [items, selectedId],
@@ -247,6 +267,20 @@ function ImpactWatchView() {
             {t(`impactWatch.category.${c.labelKey}`, { defaultValue: c.defaultLabel })}
           </button>
         ))}
+        {/* E31 fix — "Only with impacted contracts" toggle (default ON)
+            keeps the executive focused on the actionable subset. */}
+        <button
+          type="button"
+          onClick={() => setOnlyImpacted((v) => !v)}
+          aria-pressed={onlyImpacted}
+          className={`ms-auto rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            onlyImpacted
+              ? "border border-gold bg-gold/10 text-ink"
+              : "border border-border bg-surface text-ink-muted hover:border-gold"
+          }`}
+        >
+          {t("impactWatch.onlyImpacted", { defaultValue: "Only with impacted contracts" })}
+        </button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -301,7 +335,7 @@ function ImpactWatchView() {
                         const Icon = CATEGORY_ICON[selectedItem.category];
                         return <Icon className="h-3 w-3" />;
                       })()}
-                      {t(`impactWatch.category.${selectedItem.category}`, { defaultValue: selectedItem.category })}
+                      {t(`impactWatch.category.${selectedItem.category}`, { defaultValue: humanizeLabel(selectedItem.category) })}
                     </span>
                     <span className="font-mono">{selectedItem.source}</span>
                     <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase ${SEVERITY_TONE[selectedItem.severity] ?? "bg-muted text-ink-muted"}`}>
@@ -618,12 +652,14 @@ function SignalListRow({
             : "border-border bg-card hover:border-gold/50"
         }`}
       >
-        <div className="flex w-full items-center gap-2 text-[10px] uppercase tracking-wider text-ink-subtle">
+        {/* E30 fix — drop forced uppercase wrapper; humanizeLabel produces
+            "Market & Financial" not "MARKET_FINANCIAL". */}
+        <div className="flex w-full items-center gap-2 text-[10px] tracking-wider text-ink-subtle">
           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${CATEGORY_TONE[item.category]}`}>
             <Icon className="h-3 w-3" />
-            {t(`impactWatch.category.${item.category}`, { defaultValue: item.category })}
+            {t(`impactWatch.category.${item.category}`, { defaultValue: humanizeLabel(item.category) })}
           </span>
-          <span className={`rounded-full px-2 py-0.5 font-mono ${SEVERITY_TONE[item.severity] ?? "bg-muted text-ink-muted"}`}>
+          <span className={`rounded-full px-2 py-0.5 font-mono capitalize ${SEVERITY_TONE[item.severity] ?? "bg-muted text-ink-muted"}`}>
             {item.severity}
           </span>
           <span className="ms-auto font-mono">{formatDate(item.publishedDate)}</span>

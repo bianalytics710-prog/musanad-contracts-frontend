@@ -37,6 +37,8 @@ import type {
 } from '@/types/risk-case.types';
 import { StatusBadge, PriorityBadge, SlaCountdown } from '@/components/risk-cases/Badges';
 import { CreateRiskCaseDialog } from '@/components/risk-cases/CreateRiskCaseDialog';
+// Re-audit fix — humanize assignedRole slug display.
+import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
 
 export const Route = createFileRoute('/app/risk-cases/')({
   component: () => (
@@ -338,9 +340,11 @@ function RiskCaseListView() {
                         {t(`riskCases.caseTypes.${item.caseType}`, { defaultValue: item.caseType })}
                       </td>
                       <td className="px-4 py-3 text-xs text-ink">
-                        {item.assignedUserName ?? item.assignedRole ?? (
+                        {/* Re-audit fix — humanize role slug ("compliance_esg" →
+                            "Compliance ESG", "legal_counsel" → "Legal Counsel"). */}
+                        {item.assignedUserName ?? (item.assignedRole ? humanizeLabel(item.assignedRole) : (
                           <span className="text-ink-muted">{t('riskCases.list.unassigned')}</span>
-                        )}
+                        ))}
                       </td>
                       <td className="px-4 py-3">
                         <SlaCountdown seconds={item.slaCountdownSeconds} />

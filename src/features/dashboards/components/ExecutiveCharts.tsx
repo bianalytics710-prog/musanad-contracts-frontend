@@ -40,7 +40,7 @@ import type {
   ExecutiveThroughputMonthRow,
   ExecutiveTopSupplierRow,
 } from "@/types/entities/dashboards.types";
-import { formatAedCompact, formatNumber } from "./dashboard-primitives";
+import { formatAedAxis, formatAedCompact, formatNumber, humanizeLabel } from "./dashboard-primitives";
 
 const PIE_COLORS = [
   "#bb945a",
@@ -118,8 +118,10 @@ export function SpendByCategoryCard({
                   className="inline-block h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
                 />
-                <span className="capitalize text-ink">
-                  {r.category.replace(/_/g, " ")}
+                {/* E16 fix: title-case + acronym preservation
+                    ("gas_spa" → "Gas SPA", "epc" → "EPC"). */}
+                <span className="text-ink">
+                  {humanizeLabel(r.category)}
                 </span>
               </span>
               <span className="font-mono text-xs text-ink-muted">
@@ -318,12 +320,32 @@ export function CycleTimeFunnelCard({ funnel }: { funnel: ExecutiveCycleTimeFunn
           <BarChart
             data={data}
             layout="vertical"
-            margin={{ top: 8, right: 24, bottom: 8, left: 80 }}
+            margin={{ top: 8, right: 24, bottom: 8, left: 140 }}
           >
             <CartesianGrid strokeDasharray="2 4" opacity={0.3} />
-            <XAxis type="number" fontSize={10} tickFormatter={(v) => `${v}d`} />
-            <YAxis dataKey="stage" type="category" fontSize={11} />
-            <Tooltip formatter={(v: number) => `${v.toFixed(1)} d`} />
+            {/* E8 fix: X-axis formatter rounds to whole days when value
+                >= 1d, else shows hours — no nonsensical "0.35d". */}
+            <XAxis
+              type="number"
+              fontSize={10}
+              tickFormatter={(v: number) =>
+                v >= 1 ? `${Math.round(v)} d` : `${Math.round(v * 24)} h`
+              }
+            />
+            {/* E8/E11 fix: width=140 so stage labels render with spaces
+                ("Legal review", "Counterparty signature") instead of being
+                squished into "Legalreview". interval=0 ensures every label
+                shows. */}
+            <YAxis
+              dataKey="stage"
+              type="category"
+              fontSize={11}
+              width={140}
+              interval={0}
+            />
+            <Tooltip formatter={(v: number) =>
+              v >= 1 ? `${v.toFixed(1)} days` : `${(v * 24).toFixed(0)} hours`
+            } />
             <Bar dataKey="days" fill="#7a8b6f" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -386,9 +408,12 @@ export function ExpiryCliffCard({ rows }: { rows: ExecutiveExpiryCliffBucket[] }
   if (rows.length === 0) return null;
   return (
     <section className="rounded-lg border border-border bg-card p-4">
+      {/* E6 fix — renamed to "Expiry cliff — value distribution" so the
+          chart isn't confused with the count-based "Expiry cliffs" KPI
+          tiles earlier on the page. */}
       <h3 className="mb-3 text-sm font-semibold text-ink">
         {t("dashboards.executive.charts.expiryCliff.title", {
-          defaultValue: "Expiry cliff by horizon",
+          defaultValue: "Expiry cliff — value distribution",
         })}
       </h3>
       <div className="h-64">
