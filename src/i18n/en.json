@@ -115,6 +115,12 @@
     "description": "Enterprise contract lifecycle management, industry-agnostic, UAE-first."
   },
   "common": {
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
     "search": "Search",
     "save": "Save",
     "saving": "Saving…",
@@ -813,6 +819,7 @@
     "colCounterparty": "Counterparty",
     "colValue": "Value",
     "colSignatory": "Signatory",
+    "colDrafter": "Drafter",
     "colStatus": "Status",
     "colEndDate": "End date",
     "showingRange": "{{from}}–{{to}} of {{total}}",
@@ -8674,11 +8681,18 @@
       },
       "grade": {
         "murban": "Murban",
-        "west_african_x": "West African X",
+        "west_african_x": "West African (WAF)",
         "brent": "Brent",
         "dubai": "Dubai",
         "wti": "WTI",
-        "other": "Other"
+        "other": "Other",
+        "basra_light": "Basra Light",
+        "basra_heavy": "Basra Heavy",
+        "permian_light": "Permian Light",
+        "urals": "Urals",
+        "kebco": "KEBCO",
+        "bonny_light": "Bonny Light",
+        "forcados": "Forcados"
       },
       "pricingBasis": {
         "murban_osp": "Murban OSP",
@@ -8712,7 +8726,10 @@
         "refining": "Refining",
         "transport": "Transport",
         "storage": "Storage",
-        "downstream_sale": "Downstream sale"
+        "downstream_sale": "Downstream sale",
+        "benchmark_price": "Revenue (OSP)",
+        "net_margin": "Net margin",
+        "revenue": "Revenue"
       },
       "aggregate": {
         "groupByLabel": "Group by",
@@ -8841,10 +8858,12 @@
           "deltaUsd": "Delta (USD)"
         },
         "delta": {
-          "title": "OSP before / after — margin impact",
+          "title": "Portfolio margin impact",
           "previousOsp": "Previous OSP",
           "newOsp": "New OSP",
-          "deltaLabel": "Portfolio Δ"
+          "deltaLabel": "Portfolio Δ",
+          "previousAggregate": "Aggregate margin (before)",
+          "portfolioCaption": "All open positions in this benchmark"
         }
       },
       "executive": {

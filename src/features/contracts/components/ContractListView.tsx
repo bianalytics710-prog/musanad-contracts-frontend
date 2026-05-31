@@ -48,6 +48,11 @@ import {
   type ContractStatus,
   type GoverningLaw,
 } from "@/types/entities/contract.types";
+// E23 fix — title-case + acronym preservation for contract_type display.
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
+
+const humanizeContractType = (slug: string | null | undefined): string =>
+  humanizeLabel(slug ?? "");
 import { useContractList } from "@/features/contracts/hooks/useContracts";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { ContractDeleteDialog } from "./ContractDeleteDialog";
@@ -595,9 +600,14 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colCounterparty", { defaultValue: "Counterparty" })}
                 </th>
-                {/* R-LC6 LC-D2 — Signatory column. */}
+                {/* R-LC6 LC-D2 / F60 — column shows c.signatoryFirstName +
+                    Last (which is actually the DRAFTER from
+                    fn_contract_list's drafted_by JOIN). Renaming to
+                    "Drafter" so the header is honest about what it shows
+                    and stops looking like every row is signed by the same
+                    person. */}
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                  {t("contracts.colSignatory", { defaultValue: "Signatory" })}
+                  {t("contracts.colDrafter", { defaultValue: "Drafter" })}
                 </th>
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colStatus")}
@@ -634,8 +644,11 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-ink-muted">
-                      <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider">
-                        {t(`contractType.${c.contractType}`, { defaultValue: c.contractType })}
+                      {/* E23 fix: drop uppercase tracking — "services" /
+                          "epc" / "gas_spa" become "Services" / "EPC" /
+                          "Gas SPA" via humanizeLabel without forced caps. */}
+                      <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[11px] tracking-wider">
+                        {t(`contractType.${c.contractType}`, { defaultValue: humanizeContractType(c.contractType) })}
                       </span>
                     </td>
                     {/* R-LC6 LC-D1 — Counterparty (locale-aware). */}

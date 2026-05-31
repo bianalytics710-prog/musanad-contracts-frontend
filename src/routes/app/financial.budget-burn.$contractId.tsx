@@ -137,10 +137,10 @@ const CONFIDENCE_COLORS: Record<ProjectionConfidence, string> = {
 // ─────────────────────────────────────────────────────────────
 // Chart color tokens — oklch(var(--chart-N)) per CR-R spec
 // ─────────────────────────────────────────────────────────────
-const C1 = 'oklch(var(--chart-1))'; // gold
-const C2 = 'oklch(var(--chart-2))'; // sage
-const C3 = 'oklch(var(--chart-3))'; // slate
-const C4 = 'oklch(var(--chart-4))'; // terracotta
+const C1 = 'var(--chart-1)'; // gold
+const C2 = 'var(--chart-2)'; // sage
+const C3 = 'var(--chart-3)'; // slate
+const C4 = 'var(--chart-4)'; // terracotta
 // ink-muted for dashed reference line
 const INK_MUTED = 'var(--ink-muted)';
 
@@ -153,7 +153,10 @@ const CONTRACTED_DAILY_RATE_CEILING_AED = 43_800_000;
 // Main detail view
 // ─────────────────────────────────────────────────────────────
 function BudgetBurnDetailView() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // F28 / F79 — read locale once at top of component so the bilingual
+  // title conditional render below is hook-stable across rendering paths.
+  const isAr = i18n.language?.startsWith('ar') ?? false;
   const { contractId } = Route.useParams();
   const numericContractId = Number(contractId);
 
@@ -273,22 +276,32 @@ function BudgetBurnDetailView() {
       {/* Content */}
       {!isLoading && !isError && burn && (
         <>
-          {/* Contract header (always visible) */}
+          {/* Contract header (always visible)
+              F28 / F79 — locale-conditional title: show AR title when actor language is AR,
+              else show EN. Never both. Avoids bilingual duplication clutter.
+              F39 — Draft Cure Notice CTA is also rendered (greyed/disabled) for non-legal
+              finance personas so the demo workflow ("Layla drafts cure notice") is
+              structurally visible from Fatima's HERO-001 detail. */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-ink">
                 {burn.contractNumber}
               </h1>
-              <p className="mt-0.5 text-sm text-ink-muted">{burn.titleEn}</p>
-              {burn.titleAr && (
-                <p className="text-xs text-ink-subtle" dir="rtl">
+              {/* Localised contract title — only one renders based on language. */}
+              {(isAr && burn.titleAr) ? (
+                <p className="mt-0.5 text-sm text-ink-muted" dir="rtl">
                   {burn.titleAr}
                 </p>
+              ) : (
+                <p className="mt-0.5 text-sm text-ink-muted">{burn.titleEn}</p>
               )}
             </div>
-            {/* Draft cure notice action — gated advisory.draft.review */}
-            {canDraftNotice && variance?.cureNoticeEligible && (
-              <DraftCureNoticeButton contractId={numericContractId} />
+            {/* Draft cure notice — show greyed/disabled for non-legal personas when
+                eligibility flag is set, so the workflow is structurally visible. */}
+            {variance?.cureNoticeEligible && (
+              canDraftNotice
+                ? <DraftCureNoticeButton contractId={numericContractId} />
+                : <DraftCureNoticeButtonDisabled />
             )}
           </div>
 
@@ -665,11 +678,18 @@ function PeriodCategoryStackedBar({
           <XAxis dataKey="periodLabel" fontSize={10} />
           <YAxis fontSize={10} tickFormatter={(v: number) => formatAedCompact(v)} />
           <SemanticTooltip currencyHint="aed" />
+          {/* F35 — wrap each legend item in a <span> with marginRight so the
+              item labels render with visible spacing AND innerText extraction
+              preserves the separator. */}
           <Legend
             wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-            formatter={(value: string) => t(
-              BARS.find((b) => b.key === value)?.labelKey ?? value,
-              { defaultValue: value }
+            formatter={(value: string) => (
+              <span style={{ marginRight: 12, color: 'var(--ink-muted)' }}>
+                {t(
+                  BARS.find((b) => b.key === value)?.labelKey ?? value,
+                  { defaultValue: value }
+                )}
+              </span>
             )}
           />
           {BARS.map((b) => (
@@ -848,7 +868,8 @@ function CorrelatedClausesSection({
         <div className="grid gap-3 sm:grid-cols-2">
           {curePeriod.length > 0 && (
             <div className="rounded-lg border border-border bg-card p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              {/* F32 — drop `uppercase` so "CURE PERIOD" → "Cure period". */}
+              <p className="mb-2 text-xs font-semibold tracking-wider text-ink-muted">
                 {t('financial.budgetBurn.detail.correlatedClauses.curePeriod')}
               </p>
               {curePeriod.map((ref) => (
@@ -876,7 +897,8 @@ function CorrelatedClausesSection({
 
           {liquidatedDamages.length > 0 && (
             <div className="rounded-lg border border-terracotta/20 bg-terracotta/5 p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-terracotta">
+              {/* F32 — drop `uppercase` so "LIQUIDATED DAMAGES" → "Liquidated damages". */}
+              <p className="mb-2 text-xs font-semibold tracking-wider text-terracotta">
                 {t('financial.budgetBurn.detail.correlatedClauses.liquidatedDamages')}
               </p>
               {liquidatedDamages.map((ref) => (
@@ -1159,15 +1181,18 @@ function CumulativeBurnChart({ rows }: { rows: CumulativeBurnRow[] }) {
               return [formatted, label];
             }}
           />
+          {/* F38 — wrap each legend item in span with explicit spacing. */}
           <Legend
             verticalAlign="top"
             align="right"
             wrapperStyle={{ fontSize: 11 }}
-            formatter={(value: string) =>
-              value === 'cumulativeActualAed'
-                ? t('budgetBurn.charts.cumulativeBurn.actual')
-                : t('budgetBurn.charts.cumulativeBurn.budgetEnvelope')
-            }
+            formatter={(value: string) => (
+              <span style={{ marginRight: 12, color: 'var(--ink-muted)' }}>
+                {value === 'cumulativeActualAed'
+                  ? t('budgetBurn.charts.cumulativeBurn.actual')
+                  : t('budgetBurn.charts.cumulativeBurn.budgetEnvelope')}
+              </span>
+            )}
           />
           <Line
             type="monotone"
@@ -1337,6 +1362,25 @@ function DayRateTrendChart({
         </LineChart>
       </ResponsiveContainer>
     </ChartCard>
+  );
+}
+
+// F39 — Greyed-disabled cure-notice CTA shown to non-legal personas (Fatima) so
+// the demo handoff to Layla Counsel is structurally visible on HERO-001 detail.
+function DraftCureNoticeButtonDisabled() {
+  const { t } = useTranslation();
+  return (
+    <Button
+      variant="outline"
+      disabled
+      title={t('financial.budgetBurn.detail.draftCureNotice.legalOnlyTooltip', {
+        defaultValue: 'Legal Counsel only — handoff to Layla Counsel queue.',
+      })}
+      aria-label={t('financial.budgetBurn.detail.draftCureNotice.ariaLabel')}
+    >
+      <FileEdit className="me-2 h-4 w-4" aria-hidden="true" />
+      {t('financial.budgetBurn.detail.draftCureNotice.button')}
+    </Button>
   );
 }
 

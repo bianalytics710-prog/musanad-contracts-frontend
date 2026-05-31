@@ -36,6 +36,7 @@ import {
   KpiTile,
   TimeRangeSelector,
   rangeFromWindowDays,
+  humanizeLabel,
 } from './dashboard-primitives';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { formatDateTime, formatDate, formatHijriDate } from '@/utils/datetime';
@@ -75,17 +76,46 @@ function formatNumber(n: number): string {
   return new Intl.NumberFormat('en-AE').format(n);
 }
 
+// F2 — helper text for KPI delta vs prior window. Returns short signed strings
+// like "+12.3% vs prior" or "−2 vs prior"; returns "—" when prev is undefined
+// or zero so we never divide by zero.
+function kpiDeltaHelper(
+  current: number,
+  prev: number | undefined,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any,
+  kind: 'aed' | 'count'
+): string | undefined {
+  if (prev === undefined || prev === null || Number.isNaN(prev)) return undefined;
+  if (kind === 'count') {
+    const delta = current - prev;
+    if (delta === 0) return t('dashboards.common.kpiDelta.unchanged', { defaultValue: 'No change vs prior' });
+    const sign = delta > 0 ? '+' : '−';
+    return `${sign}${Math.abs(delta)} ${t('dashboards.common.kpiDelta.vsPrior', { defaultValue: 'vs prior' })}`;
+  }
+  // aed: pct change
+  if (!prev) return undefined;
+  const pct = ((current - prev) / prev) * 100;
+  if (!Number.isFinite(pct)) return undefined;
+  const sign = pct > 0 ? '+' : pct < 0 ? '−' : '';
+  return `${sign}${Math.abs(pct).toFixed(1)}% ${t('dashboards.common.kpiDelta.vsPrior', { defaultValue: 'vs prior' })}`;
+}
+
+// F9 / F76 — severity badge displays locale-aware label via i18n.
+// Drop `uppercase` class so "HIGH" → "High" (EN) / "عالٍ" (AR).
 function SeverityBadge({ severity }: { severity: string }) {
+  const { t } = useTranslation();
   const colorMap: Record<string, string> = {
     critical: 'bg-terracotta/20 text-terracotta border-terracotta/30',
     high: 'bg-amber/20 text-amber border-amber/30',
     medium: 'bg-gold/20 text-ink border-gold/30',
     low: 'bg-sage/20 text-sage border-sage/30',
   };
-  const cls = colorMap[severity.toLowerCase()] ?? 'bg-muted text-ink-muted border-border';
+  const key = severity.toLowerCase();
+  const cls = colorMap[key] ?? 'bg-muted text-ink-muted border-border';
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>
-      {severity}
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wider ${cls}`}>
+      {t(`common.severity.${key}`, { defaultValue: humanizeLabel(severity) })}
     </span>
   );
 }
@@ -160,7 +190,7 @@ export function FinanceTreasuryDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
-          {/* KPI strip */}
+          {/* KPI strip — F2 adds delta-vs-prior helper text computed from kpiPrev */}
           <section
             aria-label={t('dashboards.financeTreasury.kpiGroupLabel')}
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
@@ -169,21 +199,45 @@ export function FinanceTreasuryDashboard() {
               label={t('dashboards.financeTreasury.kpis.totalExposure')}
               value={formatAedCompact(data.kpi.totalExposureAed)}
               variant="success"
+              helper={kpiDeltaHelper(
+                Number(data.kpi.totalExposureAed),
+                Number(data.kpiPrev?.totalExposureAed),
+                t,
+                'aed'
+              )}
             />
             <KpiTile
               label={t('dashboards.financeTreasury.kpis.fxExposure')}
               value={formatAedCompact(data.kpi.fxExposureNonAedAed)}
               variant={Number(data.kpi.fxExposureNonAedAed) > 0 ? 'warning' : 'default'}
+              helper={kpiDeltaHelper(
+                Number(data.kpi.fxExposureNonAedAed),
+                Number(data.kpiPrev?.fxExposureNonAedAed),
+                t,
+                'aed'
+              )}
             />
             <KpiTile
               label={t('dashboards.financeTreasury.kpis.priceReviewTriggered')}
               value={formatNumber(data.kpi.priceReviewTriggeredCount)}
               variant={data.kpi.priceReviewTriggeredCount > 0 ? 'warning' : 'default'}
+              helper={kpiDeltaHelper(
+                data.kpi.priceReviewTriggeredCount,
+                data.kpiPrev?.priceReviewTriggeredCount,
+                t,
+                'count'
+              )}
             />
             <KpiTile
               label={t('dashboards.financeTreasury.kpis.paymentDelays')}
               value={formatNumber(data.kpi.paymentDelaysCount)}
               variant={data.kpi.paymentDelaysCount > 0 ? 'risk' : 'default'}
+              helper={kpiDeltaHelper(
+                data.kpi.paymentDelaysCount,
+                data.kpiPrev?.paymentDelaysCount,
+                t,
+                'count'
+              )}
             />
           </section>
 
@@ -328,14 +382,19 @@ function PriceReviewList({ rows }: { rows: PriceReviewRow[] }) {
                 <td className="py-2 pe-3">
                   {row.indexName ? (
                     <span className="inline-flex rounded bg-gold/15 px-2 py-0.5 font-mono text-[10px] text-ink">
-                      {row.indexName}
+                      {/* F5 — humanize Index column slug ("brent" → "Brent") */}
+                      {humanizeLabel(row.indexName)}
                     </span>
                   ) : (
                     <span className="text-ink-subtle">—</span>
                   )}
                 </td>
-                <td className="py-2 pe-3 text-xs text-ink-muted max-w-xs truncate">
-                  {row.triggerHeadline}
+                <td className="py-2 pe-3 text-xs text-ink-muted max-w-xs truncate" title={row.triggerHeadline}>
+                  {/* F6 — drop snake_case slugs from the BE-formed headline
+                          and rewrite "X clause present" → "X clause active". */}
+                  {row.triggerHeadline
+                    ?.replace(/price_review/gi, 'price-review')
+                    ?.replace(/clause present/gi, 'clause active')}
                 </td>
                 <td className="py-2 pe-3 font-mono tabular-nums text-ink">
                   {formatAedCompact(row.marAed)}
@@ -343,9 +402,9 @@ function PriceReviewList({ rows }: { rows: PriceReviewRow[] }) {
                 <td className="py-2 pe-3 text-xs text-ink-subtle">
                   {formatDateTime(row.occurredAt, { showTime: false })}
                 </td>
-                {/* H5 per-row actions */}
+                {/* H5 per-row actions — F17: gap-2 + better separation between pill buttons */}
                 <td className="py-2 pe-3">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => {

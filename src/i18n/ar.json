@@ -115,6 +115,12 @@
     "description": "منصة مؤسسية لإدارة دورة حياة العقود، متعددة القطاعات، مصمّمة للإمارات أولاً."
   },
   "common": {
+    "severity": {
+      "critical": "حرج",
+      "high": "عالٍ",
+      "medium": "متوسط",
+      "low": "منخفض"
+    },
     "search": "بحث",
     "save": "حفظ",
     "saving": "جارٍ الحفظ…",
@@ -813,6 +819,7 @@
     "colCounterparty": "الطرف الآخر",
     "colValue": "القيمة",
     "colSignatory": "الموقّع",
+    "colDrafter": "المُحرّر",
     "colStatus": "الحالة",
     "colEndDate": "تاريخ الانتهاء",
     "showingRange": "{{from}}–{{to}} من {{total}}",
@@ -7834,207 +7841,207 @@
   "ops": {
     "actions": {
       "acknowledge": {
-        "title": "[NEEDS TRANSLATION] Acknowledge event",
-        "description": "[NEEDS TRANSLATION] Record acknowledgement of this operational event.",
-        "confirm": "[NEEDS TRANSLATION] Acknowledge",
-        "success": "[NEEDS TRANSLATION] Event acknowledged.",
-        "error": "[NEEDS TRANSLATION] Failed to acknowledge.",
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Add context…"
+        "title": "Acknowledge event",
+        "description": "Record acknowledgement of this operational event.",
+        "confirm": "Acknowledge",
+        "success": "Event acknowledged.",
+        "error": "Failed to acknowledge.",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "Add context…"
       },
       "linkRemedy": {
-        "title": "[NEEDS TRANSLATION] Link contract remedy",
-        "description": "[NEEDS TRANSLATION] Link this event to a contractual remedy.",
-        "confirm": "[NEEDS TRANSLATION] Link remedy",
-        "success": "[NEEDS TRANSLATION] Remedy linked.",
-        "error": "[NEEDS TRANSLATION] Failed to link remedy.",
-        "contractIdLabel": "[NEEDS TRANSLATION] Contract ID",
-        "contractIdPlaceholder": "[NEEDS TRANSLATION] Enter contract UUID",
-        "contractIdRequired": "[NEEDS TRANSLATION] Contract ID is required.",
-        "clauseIdLabel": "[NEEDS TRANSLATION] Clause ID (optional)",
-        "clauseIdPlaceholder": "[NEEDS TRANSLATION] Enter clause UUID",
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Describe the remedy…"
+        "title": "Link contract remedy",
+        "description": "Link this event to a contractual remedy.",
+        "confirm": "Link remedy",
+        "success": "Remedy linked.",
+        "error": "Failed to link remedy.",
+        "contractIdLabel": "Contract ID",
+        "contractIdPlaceholder": "Enter contract UUID",
+        "contractIdRequired": "Contract ID is required.",
+        "clauseIdLabel": "Clause ID (optional)",
+        "clauseIdPlaceholder": "Enter clause UUID",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "Describe the remedy…"
       },
       "escalate": {
-        "title": "[NEEDS TRANSLATION] Escalate event",
-        "description": "[NEEDS TRANSLATION] Escalate this event to another team.",
-        "confirm": "[NEEDS TRANSLATION] Escalate",
-        "success": "[NEEDS TRANSLATION] Event escalated.",
-        "error": "[NEEDS TRANSLATION] Failed to escalate.",
+        "title": "Escalate event",
+        "description": "Escalate this event to another team.",
+        "confirm": "Escalate",
+        "success": "Event escalated.",
+        "error": "Failed to escalate.",
         "toRoleLabel": {
-          "label": "[NEEDS TRANSLATION] Escalate to",
-          "procurement": "[NEEDS TRANSLATION] Procurement",
-          "legal": "[NEEDS TRANSLATION] Legal",
-          "executive": "[NEEDS TRANSLATION] Executive"
+          "label": "Escalate to",
+          "procurement": "Procurement",
+          "legal": "Legal",
+          "executive": "Executive"
         },
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Reason for escalation…"
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "Reason for escalation…"
       }
     }
   },
   "finance": {
     "actions": {
       "priceReview": {
-        "title": "[NEEDS TRANSLATION] Initiate price review",
-        "description": "[NEEDS TRANSLATION] Trigger a formal price-review process.",
-        "confirm": "[NEEDS TRANSLATION] Initiate review",
-        "shortLabel": "[NEEDS TRANSLATION] Price review",
-        "success": "[NEEDS TRANSLATION] Price review initiated.",
-        "error": "[NEEDS TRANSLATION] Failed to initiate price review.",
-        "correlationIdLabel": "[NEEDS TRANSLATION] Correlation ID",
-        "correlationIdPlaceholder": "[NEEDS TRANSLATION] Enter correlation UUID",
-        "correlationIdRequired": "[NEEDS TRANSLATION] Correlation ID is required.",
-        "reasonLabel": "[NEEDS TRANSLATION] Reason",
+        "title": "بدء مراجعة السعر",
+        "description": "تشغيل عملية مراجعة سعر رسمية.",
+        "confirm": "بدء المراجعة",
+        "shortLabel": "مراجعة السعر",
+        "success": "تم بدء مراجعة السعر.",
+        "error": "تعذر بدء مراجعة السعر.",
+        "correlationIdLabel": "معرف الترابط",
+        "correlationIdPlaceholder": "أدخل معرف الترابط UUID",
+        "correlationIdRequired": "معرف الترابط مطلوب.",
+        "reasonLabel": "السبب",
         "reason": {
-          "index_crossed": "[NEEDS TRANSLATION] Index threshold crossed",
-          "escalation": "[NEEDS TRANSLATION] Escalated from operations",
-          "manual": "[NEEDS TRANSLATION] Manual"
+          "index_crossed": "تجاوز عتبة المؤشر",
+          "escalation": "تصعيد من العمليات",
+          "manual": "يدوي"
         },
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Additional context…"
+        "noteLabel": "ملاحظة (اختياري)",
+        "notePlaceholder": "سياق إضافي…"
       },
       "paymentHold": {
-        "title": "[NEEDS TRANSLATION] Recommend payment hold",
-        "description": "[NEEDS TRANSLATION] Flag for a payment hold recommendation.",
-        "confirm": "[NEEDS TRANSLATION] Recommend hold",
-        "shortLabel": "[NEEDS TRANSLATION] Hold payment",
-        "success": "[NEEDS TRANSLATION] Payment hold recommended.",
-        "error": "[NEEDS TRANSLATION] Failed to recommend payment hold.",
-        "invoiceRefLabel": "[NEEDS TRANSLATION] Invoice reference (optional)",
-        "invoiceRefPlaceholder": "[NEEDS TRANSLATION] INV-2026-001",
-        "amountAedLabel": "[NEEDS TRANSLATION] Amount at risk (AED)",
-        "amountAedPlaceholder": "[NEEDS TRANSLATION] 0.00",
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Reason for hold…"
+        "title": "التوصية بتعليق الدفع",
+        "description": "وضع علامة لتوصية بتعليق الدفع.",
+        "confirm": "التوصية بالتعليق",
+        "shortLabel": "تعليق الدفع",
+        "success": "تمت التوصية بتعليق الدفع.",
+        "error": "تعذرت التوصية بتعليق الدفع.",
+        "invoiceRefLabel": "مرجع الفاتورة (اختياري)",
+        "invoiceRefPlaceholder": "INV-2026-001",
+        "amountAedLabel": "المبلغ المعرض للمخاطر (درهم)",
+        "amountAedPlaceholder": "0.00",
+        "noteLabel": "ملاحظة (اختياري)",
+        "notePlaceholder": "سبب التعليق…"
       },
       "hedgeReview": {
-        "title": "[NEEDS TRANSLATION] Initiate hedge review",
-        "description": "[NEEDS TRANSLATION] Request a hedging strategy review.",
-        "confirm": "[NEEDS TRANSLATION] Initiate hedge review",
-        "shortLabel": "[NEEDS TRANSLATION] Hedge review",
-        "success": "[NEEDS TRANSLATION] Hedge review initiated.",
-        "error": "[NEEDS TRANSLATION] Failed to initiate hedge review.",
-        "pairLabel": "[NEEDS TRANSLATION] Currency pair (optional)",
-        "pairInvalid": "[NEEDS TRANSLATION] Must be XXX/YYY format.",
-        "exposureAedLabel": "[NEEDS TRANSLATION] Exposure (AED, optional)",
-        "exposureAedPlaceholder": "[NEEDS TRANSLATION] 0.00",
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Hedging context…"
+        "title": "بدء مراجعة التحوط",
+        "description": "طلب مراجعة استراتيجية التحوط.",
+        "confirm": "بدء مراجعة التحوط",
+        "shortLabel": "مراجعة التحوط",
+        "success": "تم بدء مراجعة التحوط.",
+        "error": "تعذر بدء مراجعة التحوط.",
+        "pairLabel": "زوج العملات (اختياري)",
+        "pairInvalid": "يجب أن يكون بصيغة XXX/YYY.",
+        "exposureAedLabel": "التعرض (درهم، اختياري)",
+        "exposureAedPlaceholder": "0.00",
+        "noteLabel": "ملاحظة (اختياري)",
+        "notePlaceholder": "سياق التحوط…"
       }
     }
   },
   "compliance": {
     "actions": {
       "raiseFlag": {
-        "title": "[NEEDS TRANSLATION] Raise compliance flag",
-        "description": "[NEEDS TRANSLATION] Record a compliance concern.",
-        "confirm": "[NEEDS TRANSLATION] Raise flag",
-        "shortLabel": "[NEEDS TRANSLATION] Raise flag",
-        "success": "[NEEDS TRANSLATION] Compliance flag raised.",
-        "error": "[NEEDS TRANSLATION] Failed to raise flag.",
-        "flagKindLabel": "[NEEDS TRANSLATION] Flag kind",
+        "title": "Raise compliance flag",
+        "description": "Record a compliance concern.",
+        "confirm": "Raise flag",
+        "shortLabel": "Raise flag",
+        "success": "Compliance flag raised.",
+        "error": "Failed to raise flag.",
+        "flagKindLabel": "Flag kind",
         "flagKind": {
-          "sanctions": "[NEEDS TRANSLATION] Sanctions",
-          "esg": "[NEEDS TRANSLATION] ESG",
-          "audit_rights": "[NEEDS TRANSLATION] Audit rights",
-          "other": "[NEEDS TRANSLATION] Other"
+          "sanctions": "Sanctions",
+          "esg": "ESG",
+          "audit_rights": "Audit rights",
+          "other": "Other"
         },
-        "severityLabel": "[NEEDS TRANSLATION] Severity",
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Describe the concern…"
+        "severityLabel": "Severity",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "Describe the concern…"
       },
       "supplierAudit": {
-        "title": "[NEEDS TRANSLATION] Initiate supplier audit",
-        "description": "[NEEDS TRANSLATION] Request a formal supplier audit.",
-        "confirm": "[NEEDS TRANSLATION] Initiate audit",
-        "shortLabel": "[NEEDS TRANSLATION] Supplier audit",
-        "success": "[NEEDS TRANSLATION] Supplier audit initiated.",
-        "error": "[NEEDS TRANSLATION] Failed to initiate audit.",
-        "scopeLabel": "[NEEDS TRANSLATION] Audit scope",
+        "title": "Initiate supplier audit",
+        "description": "Request a formal supplier audit.",
+        "confirm": "Initiate audit",
+        "shortLabel": "Supplier audit",
+        "success": "Supplier audit initiated.",
+        "error": "Failed to initiate audit.",
+        "scopeLabel": "Audit scope",
         "scope": {
-          "financial": "[NEEDS TRANSLATION] Financial",
-          "operational": "[NEEDS TRANSLATION] Operational",
-          "esg": "[NEEDS TRANSLATION] ESG",
-          "sanctions": "[NEEDS TRANSLATION] Sanctions screening",
-          "full": "[NEEDS TRANSLATION] Full audit"
+          "financial": "Financial",
+          "operational": "Operational",
+          "esg": "ESG",
+          "sanctions": "Sanctions screening",
+          "full": "Full audit"
         },
-        "targetDateLabel": "[NEEDS TRANSLATION] Target date (optional)",
-        "noteLabel": "[NEEDS TRANSLATION] Note (optional)",
-        "notePlaceholder": "[NEEDS TRANSLATION] Scope details…"
+        "targetDateLabel": "Target date (optional)",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "Scope details…"
       },
       "recommendHold": {
-        "title": "[NEEDS TRANSLATION] Recommend contract hold",
-        "description": "[NEEDS TRANSLATION] Recommend holding contract obligations.",
-        "confirm": "[NEEDS TRANSLATION] Recommend hold",
-        "shortLabel": "[NEEDS TRANSLATION] Recommend hold",
-        "success": "[NEEDS TRANSLATION] Hold recommended.",
-        "error": "[NEEDS TRANSLATION] Failed to recommend hold.",
-        "reasonLabel": "[NEEDS TRANSLATION] Reason",
-        "reasonPlaceholder": "[NEEDS TRANSLATION] Detailed reason…",
-        "reasonRequired": "[NEEDS TRANSLATION] Reason is required.",
-        "holdUntilLabel": "[NEEDS TRANSLATION] Proposed hold until (optional)"
+        "title": "Recommend contract hold",
+        "description": "Recommend holding contract obligations.",
+        "confirm": "Recommend hold",
+        "shortLabel": "Recommend hold",
+        "success": "Hold recommended.",
+        "error": "Failed to recommend hold.",
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Detailed reason…",
+        "reasonRequired": "Reason is required.",
+        "holdUntilLabel": "Proposed hold until (optional)"
       },
       "recommendTermination": {
-        "title": "[NEEDS TRANSLATION] Recommend termination",
-        "description": "[NEEDS TRANSLATION] Recommend contract termination.",
-        "confirm": "[NEEDS TRANSLATION] Recommend termination",
-        "shortLabel": "[NEEDS TRANSLATION] Recommend termination",
-        "success": "[NEEDS TRANSLATION] Termination recommendation logged.",
-        "error": "[NEEDS TRANSLATION] Failed to submit recommendation.",
-        "groundsLabel": "[NEEDS TRANSLATION] Legal grounds",
+        "title": "Recommend termination",
+        "description": "Recommend contract termination.",
+        "confirm": "Recommend termination",
+        "shortLabel": "Recommend termination",
+        "success": "Termination recommendation logged.",
+        "error": "Failed to submit recommendation.",
+        "groundsLabel": "Legal grounds",
         "grounds": {
-          "sanctions": "[NEEDS TRANSLATION] Sanctions exposure",
-          "material_breach": "[NEEDS TRANSLATION] Material breach",
-          "esg_violation": "[NEEDS TRANSLATION] ESG violation",
-          "non_performance": "[NEEDS TRANSLATION] Non-performance",
-          "regulatory_compliance": "[NEEDS TRANSLATION] Regulatory non-compliance",
-          "other": "[NEEDS TRANSLATION] Other"
+          "sanctions": "Sanctions exposure",
+          "material_breach": "Material breach",
+          "esg_violation": "ESG violation",
+          "non_performance": "Non-performance",
+          "regulatory_compliance": "Regulatory non-compliance",
+          "other": "Other"
         },
-        "reasonLabel": "[NEEDS TRANSLATION] Reason",
-        "reasonPlaceholder": "[NEEDS TRANSLATION] Justification…",
-        "reasonRequired": "[NEEDS TRANSLATION] Reason is required."
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Justification…",
+        "reasonRequired": "Reason is required."
       },
       "icvUpload": {
-        "title": "[NEEDS TRANSLATION] Upload ICV certificate",
-        "description": "[NEEDS TRANSLATION] Upload ICV certificate. PDF, PNG, JPG (max 10 MB).",
-        "confirm": "[NEEDS TRANSLATION] Upload",
-        "uploading": "[NEEDS TRANSLATION] Uploading…",
-        "success": "[NEEDS TRANSLATION] ICV certificate uploaded.",
-        "error": "[NEEDS TRANSLATION] Failed to upload.",
-        "fileLabel": "[NEEDS TRANSLATION] Certificate file",
-        "filePlaceholder": "[NEEDS TRANSLATION] Click to select file",
-        "fileRequired": "[NEEDS TRANSLATION] Please select a file.",
-        "fileTypeError": "[NEEDS TRANSLATION] Only PDF, PNG or JPG files accepted.",
-        "fileSizeError": "[NEEDS TRANSLATION] File size must be under {{maxMb}} MB.",
-        "validUntilLabel": "[NEEDS TRANSLATION] Valid until (recommended)",
-        "uploadButton": "[NEEDS TRANSLATION] Upload ICV",
-        "uploadButtonAriaLabel": "[NEEDS TRANSLATION] Upload ICV for {{contract}}"
+        "title": "Upload ICV certificate",
+        "description": "Upload ICV certificate. PDF, PNG, JPG (max 10 MB).",
+        "confirm": "Upload",
+        "uploading": "Uploading…",
+        "success": "ICV certificate uploaded.",
+        "error": "Failed to upload.",
+        "fileLabel": "Certificate file",
+        "filePlaceholder": "Click to select file",
+        "fileRequired": "Please select a file.",
+        "fileTypeError": "Only PDF, PNG or JPG files accepted.",
+        "fileSizeError": "File size must be under {{maxMb}} MB.",
+        "validUntilLabel": "Valid until (recommended)",
+        "uploadButton": "Upload ICV",
+        "uploadButtonAriaLabel": "Upload ICV for {{contract}}"
       }
     },
     "sanctionsChain": {
-      "listAriaLabel": "[NEEDS TRANSLATION] Sub-contractor chain",
-      "sanctionedBadge": "[NEEDS TRANSLATION] Sanctioned",
-      "depthLabel": "[NEEDS TRANSLATION] depth {{depth}}",
-      "raiseFlagButton": "[NEEDS TRANSLATION] Flag",
-      "raiseFlagAriaLabel": "[NEEDS TRANSLATION] Raise flag for {{name}}"
+      "listAriaLabel": "Sub-contractor chain",
+      "sanctionedBadge": "Sanctioned",
+      "depthLabel": "depth {{depth}}",
+      "raiseFlagButton": "Flag",
+      "raiseFlagAriaLabel": "Raise flag for {{name}}"
     }
   },
   "audit": {
     "rights": {
       "drilldown": {
-        "title": "[NEEDS TRANSLATION] Audit rights clauses",
-        "loadFailed": "[NEEDS TRANSLATION] Failed to load audit rights.",
-        "empty": "[NEEDS TRANSLATION] No audit-rights clauses found.",
-        "clauseCount": "[NEEDS TRANSLATION] clauses",
+        "title": "Audit rights clauses",
+        "loadFailed": "Failed to load audit rights.",
+        "empty": "No audit-rights clauses found.",
+        "clauseCount": "clauses",
         "table": {
-          "clauseType": "[NEEDS TRANSLATION] Clause type",
-          "scope": "[NEEDS TRANSLATION] Scope",
-          "frequency": "[NEEDS TRANSLATION] Frequency",
-          "dateRange": "[NEEDS TRANSLATION] Date range",
-          "daysToExpiry": "[NEEDS TRANSLATION] Days to expiry",
-          "severity": "[NEEDS TRANSLATION] Severity",
-          "summary": "[NEEDS TRANSLATION] Summary"
+          "clauseType": "Clause type",
+          "scope": "Scope",
+          "frequency": "Frequency",
+          "dateRange": "Date range",
+          "daysToExpiry": "Days to expiry",
+          "severity": "Severity",
+          "summary": "Summary"
         }
       }
     }
@@ -8674,11 +8681,18 @@
       },
       "grade": {
         "murban": "مربان",
-        "west_african_x": "غرب أفريقيا X",
+        "west_african_x": "غرب أفريقيا (WAF)",
         "brent": "برنت",
         "dubai": "دبي",
         "wti": "WTI",
-        "other": "أخرى"
+        "other": "أخرى",
+        "basra_light": "البصرة الخفيف",
+        "basra_heavy": "البصرة الثقيل",
+        "permian_light": "بيرميان الخفيف",
+        "urals": "أورال",
+        "kebco": "كيبكو",
+        "bonny_light": "بوني لايت",
+        "forcados": "فوركادوس"
       },
       "pricingBasis": {
         "murban_osp": "OSP مربان",
@@ -8712,7 +8726,10 @@
         "refining": "تكرير",
         "transport": "نقل",
         "storage": "تخزين",
-        "downstream_sale": "مبيعات التكرير"
+        "downstream_sale": "مبيعات التكرير",
+        "benchmark_price": "الإيرادات (السعر الرسمي)",
+        "net_margin": "الهامش الصافي",
+        "revenue": "الإيرادات"
       },
       "aggregate": {
         "groupByLabel": "تجميع حسب",
@@ -8841,10 +8858,12 @@
           "deltaUsd": "التغيير (دولار)"
         },
         "delta": {
-          "title": "سعر مرجان قبل / بعد — أثر الهامش",
+          "title": "أثر هامش المحفظة",
           "previousOsp": "سعر مرجان السابق",
           "newOsp": "سعر مرجان الجديد",
-          "deltaLabel": "تغيير المحفظة"
+          "deltaLabel": "تغيير المحفظة",
+          "previousAggregate": "الهامش الإجمالي (قبل)",
+          "portfolioCaption": "جميع المراكز المفتوحة لهذا المعيار"
         }
       },
       "executive": {
@@ -8921,7 +8940,7 @@
         "brent": "برنت",
         "dubai": "دبي",
         "wti": "WTI",
-        "west_african_x": "غرب أفريقيا X",
+        "west_african_x": "غرب أفريقيا (WAF)",
         "usd_aed": "صرف دولار/درهم"
       },
       "unit": {

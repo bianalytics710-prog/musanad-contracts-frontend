@@ -385,6 +385,145 @@ export function formatAedCompact(
   }
 }
 
+/**
+ * E7 fix — chart tick formatter for AED axis values. Returns short
+ * unit-suffixed strings ("AED 30B", "AED 12M", "AED 4K") so a y-axis
+ * showing tens-of-billions doesn't render as "30000.0M".
+ */
+export function formatAedAxis(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1_000_000_000) return `${sign}AED ${(abs / 1_000_000_000).toFixed(abs >= 100_000_000_000 ? 0 : 1)}B`;
+  if (abs >= 1_000_000) return `${sign}AED ${(abs / 1_000_000).toFixed(abs >= 100_000_000 ? 0 : 1)}M`;
+  if (abs >= 1_000) return `${sign}AED ${Math.round(abs / 1_000)}K`;
+  return `${sign}AED ${abs.toFixed(0)}`;
+}
+
+/**
+ * E5/E15/E16/E20/E23/E26/E30/E41 fix — turn snake_case / lowercase enum
+ * slugs into human title-case labels for chart axes, table cells, badges.
+ *   "abu_dhabi"        → "Abu Dhabi"
+ *   "gas_spa"          → "Gas SPA"  (preserves common UAE acronyms)
+ *   "MARKET_FINANCIAL" → "Market & Financial"
+ *   "fx_usd_aed"       → "FX USD/AED"
+ *   "icv_in_country_value" → "ICV (In-Country Value)"
+ * Strings that already contain a mixed-case alpha word are returned
+ * untouched so already-formatted names ("Mubadala Investment Company")
+ * pass through.
+ */
+const HUMANIZE_OVERRIDES: Record<string, string> = {
+  abu_dhabi: "Abu Dhabi",
+  dubai: "Dubai",
+  sharjah: "Sharjah",
+  ajman: "Ajman",
+  fujairah: "Fujairah",
+  ras_al_khaimah: "Ras Al Khaimah",
+  umm_al_quwain: "Umm Al Quwain",
+  gas_spa: "Gas SPA",
+  epc: "EPC",
+  msa: "MSA",
+  nda: "NDA",
+  difc: "DIFC",
+  adgm: "ADGM",
+  uae_federal: "UAE Federal",
+  market_financial: "Market & Financial",
+  supply_chain: "Supply Chain",
+  geopolitical: "Geopolitical",
+  regulatory: "Regulatory",
+  informational: "Informational",
+  fx_usd_aed: "FX USD/AED",
+  murban_osp: "Murban OSP",
+  brent: "Brent",
+  dubai_crude: "Dubai Crude",
+  west_african_x: "West African (WAF)",
+  icv_in_country_value: "ICV (In-Country Value)",
+  key_personnel: "Key Personnel",
+  strike_lockout: "Strike & Lockout",
+  cure_period: "Cure Period",
+  liquidated_damages: "Liquidated Damages",
+  payment_terms: "Payment Terms",
+  termination: "Termination",
+  force_majeure: "Force Majeure",
+  // Status labels
+  active: "Active",
+  draft: "Draft",
+  expired: "Expired",
+  terminated: "Terminated",
+  in_approval: "In approval",
+  fully_signed: "Fully signed",
+  expiring_soon: "Expiring soon",
+  awaiting_counterparty: "Awaiting counterparty",
+  // Risk-kind buckets
+  sanctions: "Sanctions",
+  hormuz: "Hormuz",
+  weather: "Weather",
+  esg: "ESG",
+  epc_sla: "EPC SLA",
+  // Sides
+  sell: "Sell",
+  buy: "Buy",
+  // Roles
+  legal_review: "Legal review",
+  approval_chain: "Approval chain",
+  counterparty_signature: "Counterparty signature",
+  drafting: "Drafting",
+  // Persona / role labels (F66 — Procurement & Supplier Risk)
+  procurement_supplier_risk: "Procurement & Supplier Risk",
+  finance_treasury: "Finance & Treasury",
+  legal_counsel: "Legal Counsel",
+  compliance_esg: "Compliance & ESG",
+  operations: "Operations",
+  platform_admin: "Platform Admin",
+  super_admin: "Super Admin",
+  contract_drafter: "Contract Drafter",
+  contract_approver: "Contract Approver",
+  contract_recipient: "Contract Recipient",
+  executive: "Executive",
+  // Severity badges (F9 / F76 — humanise + drop uppercase)
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+  // Trade-margin grades (F42 / F56 — real grade names instead of "Other")
+  basra_light: "Basra Light",
+  basra_heavy: "Basra Heavy",
+  permian_light: "Permian Light",
+  urals: "Urals",
+  kebco: "KEBCO",
+  bonny_light: "Bonny Light",
+  forcados: "Forcados",
+  // Triggers / sources (F50 / F75)
+  price_change: "Price change",
+  manual_recompute: "Manual recompute",
+  scheduled_recompute: "Scheduled recompute",
+  demo_reset: "Demo reset",
+  price_review: "Price review",
+};
+
+// Acronyms that should be UPPERCASED after the title-case pass so multi-word
+// slugs like "compliance_esg" → "Compliance ESG" not "Compliance Esg".
+const ACRONYMS = new Set([
+  "esg", "epc", "spa", "uae", "adnoc", "msa", "nda", "icv", "kpi",
+  "ai", "api", "fm", "fx", "osp", "sla", "ld", "vat", "id", "url",
+  "difc", "adgm", "uk", "us", "eu", "un", "waf",
+]);
+
+export function humanizeLabel(slug: string | null | undefined): string {
+  if (!slug) return "";
+  const lower = slug.toLowerCase().trim();
+  const override = HUMANIZE_OVERRIDES[lower];
+  if (override) return override;
+  // If the string contains spaces already AND mixed case (not a slug), return as-is.
+  if (/[a-z][A-Z]/.test(slug)) return slug;
+  // Snake / kebab → title-case words, then upper-case any acronyms.
+  return lower
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .map((word) => (ACRONYMS.has(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join(" ");
+}
+
 export function formatUsd(value: number | null, locale: string = "en-US"): string {
   if (value == null) return "—";
   try {

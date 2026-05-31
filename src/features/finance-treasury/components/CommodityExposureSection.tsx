@@ -119,12 +119,17 @@ function SingleCommodityCard({ name, card, color }: CommodityCardProps) {
                 >
                   {c.contractNumber}
                 </Link>
-                <span className="text-[10px] text-ink-subtle">
-                  {t("dashboards.financeTreasury.commodityExposure.threshold", {
-                    value: c.threshold,
-                    defaultValue: `threshold $${c.threshold}`,
-                  })}
-                </span>
+                {/* F10 — only render the threshold label when a numeric value
+                    is present; otherwise the template falls through to a
+                    bare "threshold $" with no number. */}
+                {typeof c.threshold === "number" && !Number.isNaN(c.threshold) && (
+                  <span className="text-[10px] text-ink-subtle">
+                    {t("dashboards.financeTreasury.commodityExposure.threshold", {
+                      value: c.threshold,
+                      defaultValue: `threshold $${c.threshold}`,
+                    })}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

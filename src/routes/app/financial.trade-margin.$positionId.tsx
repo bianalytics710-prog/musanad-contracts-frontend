@@ -94,12 +94,12 @@ type TabId =
 // ─────────────────────────────────────────────────────────────
 // Chart color tokens (C13: oklch(var(--chart-N)), no raw hex)
 // ─────────────────────────────────────────────────────────────
-const C1 = 'oklch(var(--chart-1))'; // gold
-const C2 = 'oklch(var(--chart-2))'; // sage
-const C3 = 'oklch(var(--chart-3))'; // slate/muted
-const C4 = 'oklch(var(--chart-4))'; // terracotta
-const C5 = 'oklch(var(--chart-5))'; // purple
-const SUCCESS = 'oklch(var(--success))';
+const C1 = 'var(--chart-1)'; // gold
+const C2 = 'var(--chart-2)'; // sage
+const C3 = 'var(--chart-3)'; // slate/muted
+const C4 = 'var(--chart-4)'; // terracotta
+const C5 = 'var(--chart-5)'; // purple
+const SUCCESS = 'var(--success)';
 const GOLD_VAR = 'var(--gold)';
 const INK_MUTED_VAR = 'var(--ink-muted)';
 
@@ -280,11 +280,17 @@ function TradeMarginDetailView() {
     staleTime: 60_000,
   });
 
-  // Tab definitions — Buy-&-Refine only rendered for side='buy'
+  // Tab definitions — Buy-&-Refine only rendered for side='buy'.
+  // F55 — Murban Benchmark only rendered when the position is priced on Murban OSP.
+  // Showing this tab on a Basra Light spot buy is irrelevant and confusing.
   const TABS: { id: TabId; labelKey: string; hiddenWhen?: boolean }[] = useMemo(
     () => [
       { id: 'overview', labelKey: 'financial.tradeMargin.detail.tabs.overview' },
-      { id: 'murbanBenchmark', labelKey: 'financial.tradeMargin.detail.tabs.murbanBenchmark' },
+      {
+        id: 'murbanBenchmark',
+        labelKey: 'financial.tradeMargin.detail.tabs.murbanBenchmark',
+        hiddenWhen: position?.pricingBasis !== 'murban_osp',
+      },
       { id: 'marginBreakdown', labelKey: 'financial.tradeMargin.detail.tabs.marginBreakdown' },
       {
         id: 'buyAndRefine',
@@ -294,7 +300,7 @@ function TradeMarginDetailView() {
       { id: 'historyTrends', labelKey: 'financial.tradeMargin.detail.tabs.historyTrends' },
       { id: 'recompute', labelKey: 'financial.tradeMargin.detail.tabs.recompute' },
     ],
-    [position?.side],
+    [position?.side, position?.pricingBasis],
   );
 
   const visibleTabs = TABS.filter((tab) => !tab.hiddenWhen);
@@ -559,8 +565,11 @@ function BackLink() {
 // PositionHeader — always visible above tab strip
 // ─────────────────────────────────────────────────────────────
 function PositionHeader({ position }: { position: TradePosition }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isSell = position.side === 'sell';
+  // F47 / F58 — locale-conditional render: only show counterparty Arabic when actor locale = ar,
+  // and only show English when actor locale = en. Avoid bilingual duplication in either mode.
+  const isAr = i18n.language?.startsWith('ar');
   return (
     <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -569,8 +578,10 @@ function PositionHeader({ position }: { position: TradePosition }) {
             <h1 className="text-2xl font-semibold tracking-tight text-ink">
               {position.positionRef}
             </h1>
+            {/* F46 / F57 — drop `uppercase` class on side badge; t() value
+                renders title-case ("Sell" / "Buy") via existing i18n keys. */}
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wider ${
                 isSell
                   ? 'border border-gold/30 bg-gold/10 text-gold'
                   : 'border border-sage/30 bg-sage/10 text-sage'
@@ -598,12 +609,14 @@ function PositionHeader({ position }: { position: TradePosition }) {
           <p className="text-xs text-ink-muted">
             {t('financial.tradeMargin.detail.counterparty')}
           </p>
-          <p className="font-medium text-ink">
-            {position.counterparty.nameEn}
-          </p>
-          {position.counterparty.nameAr && (
-            <p className="text-xs text-ink-muted" dir="rtl">
+          {/* F47 / F58 — locale-conditional: AR if isAr, else EN. Never both. */}
+          {isAr && position.counterparty.nameAr ? (
+            <p className="font-medium text-ink" dir="rtl">
               {position.counterparty.nameAr}
+            </p>
+          ) : (
+            <p className="font-medium text-ink">
+              {position.counterparty.nameEn}
             </p>
           )}
         </div>
@@ -865,11 +878,17 @@ function MurbanBenchmarkTab({
               axisLine={false}
               width={52}
             />
+            {/* F49 — explicit formatter with " " margin so legend items render
+                with visible spacing AND innerText extraction preserves it
+                ("Brent · Dubai · Murban OSP" not "BrentDubaiMurban OSP"). */}
             <Legend
               verticalAlign="top"
               align="right"
               iconType="line"
               wrapperStyle={{ fontSize: 11, paddingBottom: 4 }}
+              formatter={(value: string) => (
+                <span style={{ marginRight: 12, color: 'var(--ink-muted)' }}>{value}</span>
+              )}
             />
             <SemanticTooltip currencyHint="usd-per-bbl" />
 
@@ -1423,10 +1442,14 @@ function BuyAndRefineTab({ position }: { position: TradePosition }) {
               axisLine={false}
               width={48}
             />
+            {/* F59 — Buy & Refine waterfall legend with explicit spacing. */}
             <Legend
               verticalAlign="top"
               align="right"
               wrapperStyle={{ fontSize: 10 }}
+              formatter={(value: string) => (
+                <span style={{ marginRight: 10, color: 'var(--ink-muted)' }}>{value}</span>
+              )}
             />
             <SemanticTooltip currencyHint="usd-per-bbl" />
             {costTypes.map((type, idx) => (
@@ -1579,7 +1602,9 @@ function HistoryTrendsTab({
             <YAxis
               yAxisId="left"
               orientation="left"
-              tickFormatter={(v: number) => `$${v.toFixed(1)}`}
+              /* F54 — drop decimal precision on whole-dollar Y-axis ticks
+                 ($30 not $30.0). Tooltip retains 2-decimal precision. */
+              tickFormatter={(v: number) => `$${Math.round(v)}`}
               tick={{ fontSize: 10, fill: 'var(--color-ink-muted)' }}
               tickLine={false}
               axisLine={false}
@@ -1594,10 +1619,14 @@ function HistoryTrendsTab({
               axisLine={false}
               width={52}
             />
+            {/* F53 — recompute history legend with explicit spacing. */}
             <Legend
               verticalAlign="top"
               align="right"
               wrapperStyle={{ fontSize: 11, paddingBottom: 4 }}
+              formatter={(value: string) => (
+                <span style={{ marginRight: 12, color: 'var(--ink-muted)' }}>{value}</span>
+              )}
             />
             <SemanticTooltip currencyHint="usd-per-bbl" />
 
@@ -2024,16 +2053,21 @@ function OspDeltaPanel({ delta }: { delta: OspDelta }) {
       </h3>
 
       <div className="flex items-center gap-4">
-        {/* Before card */}
+        {/* Before card — portfolio aggregate margin BEFORE recompute.
+            BUG-003 fix (QA Phase 3 autonomous run 2026-05-30): previously showed
+            "Previous OSP" with delta.before.osp (= marginPerBbl) — mislabeled the
+            margin/bbl as OSP. fn_margin_recompute_for_price_change does not return
+            the prior OSP; we only have the prior portfolio aggregate margin. Show
+            that honestly instead of fabricating an OSP label. */}
         <div className="flex-1 rounded-lg border border-border bg-surface p-4 text-center">
           <p className="text-xs text-ink-muted mb-1">
-            {t('financial.tradeMargin.recompute.delta.previousOsp')}
+            {t('financial.tradeMargin.recompute.delta.previousAggregate')}
           </p>
           <p className="text-lg font-semibold tabular-nums text-ink">
-            {formatUsdPerBblStr(delta.before.osp)}
-          </p>
-          <p className="mt-1 text-xs tabular-nums text-ink-muted">
             {formatAedCompact(delta.before.marginAed)}
+          </p>
+          <p className="mt-1 text-[11px] text-ink-subtle">
+            {t('financial.tradeMargin.recompute.delta.portfolioCaption')}
           </p>
         </div>
 
@@ -2056,7 +2090,7 @@ function OspDeltaPanel({ delta }: { delta: OspDelta }) {
           </div>
         </div>
 
-        {/* After card */}
+        {/* After card — new OSP + portfolio aggregate after recompute */}
         <div className="flex-1 rounded-lg border border-border bg-card p-4 text-center">
           <p className="text-xs text-ink-muted mb-1">
             {t('financial.tradeMargin.recompute.delta.newOsp')}

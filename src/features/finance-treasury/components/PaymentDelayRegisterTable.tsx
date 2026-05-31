@@ -7,14 +7,25 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
-import { formatAedCompact } from "@/features/dashboards/components/dashboard-primitives";
+import { formatAedCompact, humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 import { DashboardEmptyState } from "@/features/dashboards/components/dashboard-primitives";
+
+// F9 / F76 — local hook-using badge that pulls the locale-aware
+// label via i18n, falling back to humanizeLabel when the key is missing.
+function useSeverityLabel(severity: string): string {
+  const { t } = useTranslation();
+  const key = severity.toLowerCase();
+  return t(`common.severity.${key}`, { defaultValue: humanizeLabel(severity) });
+}
 import {
   RecommendPaymentHoldDialog,
 } from "./ActionDialogs";
 import type { PaymentDelayRow } from "@/types/entities/crg-dashboards.types";
 
+// F9 / F76 — severity badge displays locale-aware label via i18n.
+// Drop `uppercase` class so "HIGH" → "High" (EN) / "عالٍ" (AR).
 function SeverityBadge({ severity }: { severity: string }) {
+  const label = useSeverityLabel(severity);
   const colorMap: Record<string, string> = {
     critical: "bg-terracotta/20 text-terracotta border-terracotta/30",
     high: "bg-amber/20 text-amber border-amber/30",
@@ -24,9 +35,9 @@ function SeverityBadge({ severity }: { severity: string }) {
   const cls = colorMap[severity.toLowerCase()] ?? "bg-muted text-ink-muted border-border";
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wider ${cls}`}
     >
-      {severity}
+      {label}
     </span>
   );
 }
