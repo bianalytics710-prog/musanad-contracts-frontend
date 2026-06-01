@@ -281,6 +281,67 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
       linkUrl: "/app/reports",
     },
   ],
+  // D60 — drafter-relevant seed. Default seed sent Dana an approver
+  // notification ("MUSANAD-2026-003 awaiting your approval") which the
+  // contract drafter persona would never receive in reality. Replaces with
+  // drafter-actor notifications: revision returns, approvals on her drafts,
+  // template updates, signature dispatches, draft-template recommendations.
+  contract_drafter: [
+    {
+      id: "cd1",
+      severity: "high",
+      titleEn: "Draft returned for revision — MUSANAD-2026-006 (DXB Airport Concession Renewal)",
+      titleAr: "أُعيدت المسوّدة للمراجعة — MUSANAD-2026-006 (تجديد امتياز مطار دبي)",
+      bodyEn: "Approver requested wording change in Section 12 (Termination for Convenience). Update + resubmit.",
+      bodyAr: "طلب المُعتمد تعديل صياغة في البند 12 (الإنهاء للملاءمة). حدّث وأعد الإرسال.",
+      linkUrl: "/app/contracts/6",
+    },
+    {
+      id: "cd2",
+      severity: "high",
+      titleEn: "Your draft was approved — MUSANAD-2026-013 ready for signature dispatch",
+      titleAr: "تمت الموافقة على مسوّدتك — MUSANAD-2026-013 جاهزة لإرسال التوقيع",
+      bodyEn: "Approver Aisha Approver signed off. Open contract and click Send for Signing.",
+      bodyAr: "وقّع المُعتمِد عائشة. افتح العقد واضغط إرسال للتوقيع.",
+      linkUrl: "/app/contracts/13",
+    },
+    {
+      id: "cd3",
+      severity: "medium",
+      titleEn: "Template updated — Vendor Services Agreement v2.4 published",
+      titleAr: "تم تحديث القالب — اتفاقية خدمات المورّد v2.4 منشورة",
+      bodyEn: "Force-majeure language harmonised with ADNOC offshore standard. Existing drafts may need refresh.",
+      bodyAr: "تمت مطابقة صياغة القوة القاهرة مع المعيار البحري لأدنوك.",
+      linkUrl: "/app/templates",
+    },
+    {
+      id: "cd4",
+      severity: "high",
+      titleEn: "Signature dispatched — MUSANAD-2026-015 sent to counterparty",
+      titleAr: "تم إرسال التوقيع — MUSANAD-2026-015 أُرسلت للطرف المقابل",
+      bodyEn: "Etisalat Group (e&) signing link generated; awaiting counterparty.",
+      bodyAr: "تم إنشاء رابط توقيع لمجموعة اتصالات (e&)؛ في انتظار الطرف المقابل.",
+      linkUrl: "/app/contracts/15",
+    },
+    {
+      id: "cd5",
+      severity: "medium",
+      titleEn: "Clause library — UAE PDPL Compliance clause updated",
+      titleAr: "مكتبة البنود — تم تحديث بند الامتثال لقانون حماية البيانات الإماراتي",
+      bodyEn: "PDPL Article 24 amendment integrated. Re-insert in any active drafts.",
+      bodyAr: "تم دمج تعديل المادة 24 من قانون حماية البيانات. أعد إدراج البند في أي مسوّدات قيد العمل.",
+      linkUrl: "/app/clauses",
+    },
+    {
+      id: "cd6",
+      severity: "info",
+      titleEn: "Weekly drafter briefing — 4 drafts in progress, average cycle 12.7 days",
+      titleAr: "موجز المُحرّر الأسبوعي — 4 مسوّدات قيد العمل، متوسط الدورة 12.7 يوماً",
+      bodyEn: "On-track for your monthly draft target. Open dashboard for pipeline view.",
+      bodyAr: "ضمن المسار نحو هدف المسوّدات الشهري. افتح اللوحة لعرض سير العمل.",
+      linkUrl: "/app/dashboards/drafter",
+    },
+  ],
 };
 
 function generateSeedFor(userId: number, roleName?: string | null): AppNotification[] {

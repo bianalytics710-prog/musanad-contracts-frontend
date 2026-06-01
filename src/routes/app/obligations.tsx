@@ -23,6 +23,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore, selectHasPermission, readPersistedAuthSnapshot } from "@/store/auth.store";
 import { CreateObligationDialog } from "@/features/m_parity/components/CreateEntityDialogs";
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 
 export const Route = createFileRoute("/app/obligations")({
   beforeLoad: () => {
@@ -231,18 +232,28 @@ function ObligationsView() {
                     : "border-border hover:border-gold/50",
                 )}
               >
+                {/* D44 — category label humanized (was "payment" lowercase
+                    next to "Renewal" Title-Case neighbours); overdue line
+                    now always renders so the format is consistent across
+                    all categories ("X overdue" appears on every pill, with
+                    "0 overdue" muted when none — instead of "0 overdue"
+                    being conditionally hidden which made the pills look
+                    inconsistent. */}
                 <p className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                  {cat.replace(/_/g, " ")}
+                  {humanizeLabel(cat)}
                 </p>
                 <p className="mt-1 font-mono text-xl font-semibold text-ink">{c.total}</p>
-                {c.overdue > 0 && (
-                  <p className="mt-0.5 font-mono text-[10px] text-terracotta">
-                    {t("obligations.overdueN", {
-                      defaultValue: "{{count}} overdue",
-                      count: c.overdue,
-                    })}
-                  </p>
-                )}
+                <p
+                  className={cn(
+                    "mt-0.5 font-mono text-[10px]",
+                    c.overdue > 0 ? "text-terracotta" : "text-ink-subtle",
+                  )}
+                >
+                  {t("obligations.overdueN", {
+                    defaultValue: "{{count}} overdue",
+                    count: c.overdue,
+                  })}
+                </p>
               </button>
             ))}
           </div>
@@ -402,7 +413,12 @@ function DirectionCard({
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
       </div>
       <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p>
-      <p className="mt-3 font-mono text-3xl font-semibold text-ink">{count}</p>
+      {/* D42 — count rendered as a block-level paragraph + an sr-only
+          separator before the overdue/dueSoon row so the DOM textContent
+          reads "19 · 0 overdue · 3 due soon" instead of "190 overdue
+          3 due soon" the inline siblings used to produce. */}
+      <p className="mt-3 block font-mono text-3xl font-semibold text-ink">{count}</p>
+      <span className="sr-only"> · </span>
       <div className="mt-2 flex flex-wrap gap-3 text-xs">
         <span className={overdue > 0 ? "text-terracotta" : "text-ink-subtle"}>
           {t("obligations.overdueN", {
@@ -410,6 +426,7 @@ function DirectionCard({
             count: overdue,
           })}
         </span>
+        <span className="sr-only"> · </span>
         <span className="text-ink-subtle">
           {t("obligations.dueSoonN", {
             defaultValue: "{{count}} due soon",
@@ -471,6 +488,10 @@ function ObligationList({ items, isAr }: { items: ObligationListItem[]; isAr: bo
               params={{ id: String(o.contractId) }}
               className="flex items-start gap-3 p-3 transition hover:bg-surface"
             >
+              {/* D45 — status / category / direction were previously rendered
+                  without explicit visual separation, producing a "payment
+                  owed to us Payment milestone — …" DOM mash. Each chip now
+                  has visible padding + an ARIA-readable separator. */}
               <span
                 className={`mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
                   STATUS_TONE[o.status] ?? ""
@@ -479,28 +500,32 @@ function ObligationList({ items, isAr }: { items: ObligationListItem[]; isAr: bo
                 {o.status === "overdue" && <Zap className="h-3 w-3" />}
                 {o.status === "completed" && <CheckCircle2 className="h-3 w-3" />}
                 {o.status === "in_progress" && <Clock className="h-3 w-3" />}
-                {o.status.replace(/_/g, " ")}
+                {humanizeLabel(o.status)}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {o.contractNumber} · {o.obligationType}
+                    {o.contractNumber}
+                  </span>
+                  <span className="font-mono text-[10px] text-ink-subtle" aria-hidden>·</span>
+                  <span className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+                    {humanizeLabel(o.obligationType)}
                   </span>
                   <span
                     className={cn(
-                      "font-mono text-[10px] uppercase tracking-wider",
+                      "rounded-full px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
                       isOurs(o) && !isTheirs(o)
-                        ? "text-gold"
+                        ? "bg-gold/10 text-gold"
                         : isTheirs(o) && !isOurs(o)
-                          ? "text-sage"
-                          : "text-ink-subtle",
+                          ? "bg-sage/10 text-sage"
+                          : "bg-surface text-ink-subtle",
                     )}
                   >
                     {isOurs(o) && !isTheirs(o)
-                      ? t("obligations.weOwe.tag", { defaultValue: "we owe" })
+                      ? t("obligations.weOwe.tag", { defaultValue: "We owe" })
                       : isTheirs(o) && !isOurs(o)
-                        ? t("obligations.owedToUs.tag", { defaultValue: "owed to us" })
-                        : t("obligations.both.tag", { defaultValue: "both" })}
+                        ? t("obligations.owedToUs.tag", { defaultValue: "Owed to us" })
+                        : t("obligations.both.tag", { defaultValue: "Both" })}
                   </span>
                 </div>
                 <p className="text-sm text-ink">

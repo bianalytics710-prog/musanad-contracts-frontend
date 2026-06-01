@@ -18,10 +18,11 @@
  * array is at 100. AC-S3-05 / AC-S3-06: row-level validation lives in
  * paymentScheduleRowSchema (compose-wizard-schemas.ts).
  */
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,19 @@ import {
   type GoverningLaw,
   type RelationshipType,
 } from "@/types/entities/contract.types";
+import { contractsService } from "@/services/api/contracts.service";
+
+// D25 — UAE emirates enum mirrors the Parties page filter values + Parties
+// form so any contract recorded here lines up with the rest of the app.
+const EMIRATE_OPTIONS = [
+  "Abu Dhabi",
+  "Dubai",
+  "Sharjah",
+  "Ajman",
+  "Umm Al Quwain",
+  "Ras Al Khaimah",
+  "Fujairah",
+] as const;
 import {
   PAYMENT_SCHEDULE_RECURRENCE_VALUES,
   PAYMENT_SCHEDULE_STATUS_VALUES,
@@ -237,6 +251,9 @@ export function Step2Parties({ value, onChange, disabled = false }: Step2Parties
               )}
             </div>
 
+            {/* D26 — currency is now a <select> over ISO-4217 codes
+                relevant to UAE contracting. Was a free-text input that
+                accepted any 3-character string. */}
             <div>
               <label
                 htmlFor="compose-currency"
@@ -244,14 +261,32 @@ export function Step2Parties({ value, onChange, disabled = false }: Step2Parties
               >
                 {t("contracts.fields.currency")}
               </label>
-              <Input
+              <select
                 id="compose-currency"
-                type="text"
                 {...form.register("currency")}
                 disabled={disabled}
-                maxLength={3}
-                className="mt-1"
-              />
+                className={cn(
+                  "mt-1 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
+                {[
+                  "AED",
+                  "USD",
+                  "EUR",
+                  "GBP",
+                  "SAR",
+                  "QAR",
+                  "KWD",
+                  "BHD",
+                  "OMR",
+                ].map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -306,18 +341,32 @@ export function Step2Parties({ value, onChange, disabled = false }: Step2Parties
               />
             </div>
 
+            {/* D25 — emirate is now a select over the 7 UAE emirates,
+                matching the Parties page filter. Free-text was letting
+                "dubai" / "Dubai " / "Duabi" all into the database. */}
             <div>
               <label htmlFor="compose-emirate" className="block text-xs font-medium text-ink-muted">
                 {t("contracts.fields.emirate")}
               </label>
-              <Input
+              <select
                 id="compose-emirate"
-                type="text"
                 {...form.register("emirate")}
                 disabled={disabled}
-                maxLength={100}
-                className="mt-1"
-              />
+                className={cn(
+                  "mt-1 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
+                <option value="">{t("contracts.fields.notSet")}</option>
+                {EMIRATE_OPTIONS.map((e) => (
+                  <option key={e} value={e}>
+                    {t(`contracts.emirateOptions.${e.replace(/\s+/g, "_").toLowerCase()}`, {
+                      defaultValue: e,
+                    })}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -363,22 +412,19 @@ export function Step2Parties({ value, onChange, disabled = false }: Step2Parties
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="compose-parentContractId"
-                className="block text-xs font-medium text-ink-muted"
-              >
-                {t("contracts.fields.parentContractId")}
-              </label>
-              <Input
-                id="compose-parentContractId"
-                type="number"
-                min={1}
-                {...form.register("parentContractId")}
-                disabled={disabled}
-                className="mt-1"
-              />
-            </div>
+            {/* D27 — parentContractId was a numeric ID input that required
+                the drafter to know the DB primary key of the parent contract.
+                Now a search input bound to a <datalist> of contract numbers
+                from /api/v1/contracts; selecting a number resolves the id
+                and writes it into parentContractId behind the scenes. */}
+            <ParentContractSearch
+              currentId={watched.parentContractId ?? null}
+              disabled={disabled}
+              onResolve={(id) => form.setValue("parentContractId", id as never)}
+              labelKey="contracts.fields.parentContractId"
+              helpKey="contracts.compose.fields.parentContractHelp"
+            />
+            <input type="hidden" {...form.register("parentContractId")} />
 
             <div>
               <label
@@ -640,5 +686,100 @@ export function Step2Parties({ value, onChange, disabled = false }: Step2Parties
 // Re-export the unused recurrence type so consumers can import alongside
 // the component if needed; the wizard parent doesn't need it directly.
 export type { PaymentScheduleRecurrence };
+
+/**
+ * D27 — drop-in search for the parent-contract picker.
+ *
+ * Renders a text input bound to a `<datalist>` of contract numbers fetched
+ * via contractsService.list. As the drafter types and picks a number, we
+ * resolve to the row's id and write it into parentContractId (number) on
+ * the parent form. The datalist is limited to 50 most-recent contracts so
+ * the dropdown stays responsive; if the drafter needs an older contract
+ * they can paste its number and we still resolve.
+ */
+function ParentContractSearch({
+  currentId,
+  disabled,
+  onResolve,
+  labelKey,
+  helpKey,
+}: {
+  currentId: number | null;
+  disabled?: boolean;
+  onResolve: (id: number | null) => void;
+  labelKey: string;
+  helpKey: string;
+}) {
+  const { t } = useTranslation();
+  const [query, setQuery] = useState("");
+
+  const listQuery = useQuery({
+    queryKey: ["compose-parent-contracts"],
+    queryFn: () => contractsService.list({ limit: 50 }),
+    staleTime: 5 * 60_000,
+  });
+  const rows = listQuery.data?.data ?? [];
+
+  // Whenever the rendered value changes, try to resolve to a contract id
+  // and propagate up. If the value clears, propagate null.
+  useEffect(() => {
+    if (!query.trim()) {
+      if (currentId !== null) onResolve(null);
+      return;
+    }
+    const hit = rows.find(
+      (r) =>
+        r.contractNumber?.toLowerCase() === query.trim().toLowerCase() ||
+        String(r.id) === query.trim(),
+    );
+    if (hit && hit.id !== currentId) onResolve(hit.id);
+    // If no hit, leave currentId as-is — user might still be typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, rows.length]);
+
+  // Seed the input with the current contractNumber on first render.
+  useEffect(() => {
+    if (currentId && !query && rows.length > 0) {
+      const hit = rows.find((r) => r.id === currentId);
+      if (hit) setQuery(hit.contractNumber ?? "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows.length]);
+
+  return (
+    <div>
+      <label htmlFor="compose-parentContractSearch" className="block text-xs font-medium text-ink-muted">
+        {t(labelKey)}
+      </label>
+      <Input
+        id="compose-parentContractSearch"
+        type="text"
+        list="compose-parent-contracts-datalist"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        disabled={disabled || listQuery.isLoading}
+        maxLength={50}
+        autoComplete="off"
+        placeholder={t("contracts.compose.fields.parentContractPlaceholder", {
+          defaultValue: "Type or pick a contract number",
+        })}
+        className="mt-1"
+      />
+      <datalist id="compose-parent-contracts-datalist">
+        {rows.map((r) => (
+          <option key={r.id} value={r.contractNumber ?? ""}>
+            {r.titleEn ?? ""}
+          </option>
+        ))}
+      </datalist>
+      <p className="mt-1 text-[11px] text-ink-subtle">
+        {t(helpKey, {
+          defaultValue:
+            "Leave blank if this is a standalone contract. Pick a parent only for Amendment / Renewal / Extension / SOW under MSA.",
+        })}
+      </p>
+    </div>
+  );
+}
 
 export default Step2Parties;

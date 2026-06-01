@@ -32,7 +32,10 @@ const ROLE_RELEVANT_KINDS: Record<string, ReadonlyArray<NotificationKindPref>> =
   compliance_esg:            ['alert', 'advisory', 'system', 'risk_case', 'report'],
   procurement_supplier_risk: ['alert', 'system', 'risk_case', 'report'],
   legal_counsel:             NOTIFICATION_KINDS_PREF,
-  contract_drafter:          ['alert', 'advisory', 'approval_request', 'signature_request', 'system', 'report'],
+  // D59 — risk_case row added because the drafter has Risk Cases in her
+  // sidebar (R-LC2 / Pari role-modules), so a case touching a contract
+  // she drafted should be subscribable here. Was previously missing.
+  contract_drafter:          ['alert', 'advisory', 'approval_request', 'signature_request', 'system', 'risk_case', 'report'],
   contract_approver:         ['alert', 'advisory', 'approval_request', 'system', 'risk_case', 'report'],
   contract_approver_2:       ['alert', 'advisory', 'approval_request', 'system', 'risk_case', 'report'],
   contract_recipient:        ['alert', 'signature_request', 'system', 'report'],

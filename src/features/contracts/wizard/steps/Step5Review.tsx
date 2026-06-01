@@ -181,10 +181,10 @@ export function Step5Review({ state }: Step5ReviewProps) {
         </CardContent>
       </Card>
 
-      {/* Attachments deferred banner */}
-      <div className="rounded-md border border-amber/40 bg-amber-tint/40 px-3 py-2 text-[11px] text-amber-ink">
-        {t("contracts.compose.steps.step5.attachmentsDeferred")}
-      </div>
+      {/* D29 — "Attachments will appear here once the Attachments module
+          is enabled" stub removed. The Attachments tab on the contract
+          detail page is fully wired; the drafter can upload files there
+          after the draft is created. */}
     </div>
   );
 }

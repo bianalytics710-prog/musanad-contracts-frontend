@@ -188,10 +188,14 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
                 </CommandItem>
                 <CommandItem onSelect={handleToggleLang}>
                   <Languages className="me-2 h-4 w-4" />
+                  {/* D62 — the trailing locale code now reflects the TARGET
+                      language (the one the action will switch to), matching
+                      the TopBar O35 fix policy. Was previously showing the
+                      current locale. */}
                   {t("commandPalette.actions.toggleLanguage", {
                     defaultValue: "Toggle language",
                   })}{" "}
-                  ({locale === "ar" ? "ع" : "EN"})
+                  ({locale === "ar" ? "EN" : "AR"})
                 </CommandItem>
                 {user && (
                   <CommandItem

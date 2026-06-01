@@ -26,6 +26,7 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import { CreateClauseDialog } from "@/features/m_parity/components/CreateEntityDialogs";
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 
 export const Route = createFileRoute("/app/clauses/")({
   component: () => (
@@ -223,7 +224,10 @@ function ClausesMasterDetailView() {
                   setCategory((prev) => (prev === cat ? "" : cat));
                   setShowFavouritesOnly(false);
                 }}
-                label={cat.replace(/_/g, " ")}
+                /* D35 — category labels now pass through humanizeLabel for
+                   UAE acronym preservation + title casing. Was "force
+                   majeure" / "non compete" / "data protection" lowercase. */
+                label={humanizeLabel(cat)}
                 count={count}
               />
             ))}
@@ -282,17 +286,22 @@ function ClausesMasterDetailView() {
                       selectedId === c.id && "bg-surface",
                     )}
                   >
+                    {/* D36 — variant chip + category chip now render with
+                        clear margin between them and humanizeLabel for the
+                        category slug. Was previously rendering as a glued
+                        "standardassignment" / "alternativeconfidentiality"
+                        mash in textContent. */}
                     <span
                       className={`mt-0.5 inline-flex shrink-0 items-center rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
                         variantTone[c.variant] ?? ""
                       }`}
                     >
-                      {c.variant}
+                      {humanizeLabel(c.variant)}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
                         <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                          {c.category.replace(/_/g, " ")}
+                          {humanizeLabel(c.category)}
                         </span>
                       </div>
                       <p className="text-sm text-ink">
@@ -457,23 +466,26 @@ function ClauseDetailPanel({
       <header className="border-b border-border p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
+            {/* D35/D36 — category + variant chips humanized for the
+                detail panel, mirroring the list-row fix above. */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                {data.category.replace(/_/g, " ")}
+                {humanizeLabel(data.category)}
               </span>
               <span className="rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                {data.variant}
+                {humanizeLabel(data.variant)}
               </span>
               <span className="font-mono text-[10px] text-ink-subtle">
                 {data.usageCount}× used
               </span>
             </div>
-            <h2 className="mt-2 text-base font-semibold text-ink">{data.titleEn}</h2>
-            {data.titleAr && (
-              <p className="mt-0.5 text-xs text-ink-muted" dir="rtl">
-                {data.titleAr}
-              </p>
-            )}
+            {/* D37 — locale-conditional title render. Was previously
+                rendering titleEn AND titleAr stacked regardless of mode,
+                producing "No Assignment Without Consent / عدم التنازل
+                بدون موافقة" in EN. Now: EN-only in EN, AR-only in AR. */}
+            <h2 className="mt-2 text-base font-semibold text-ink" dir={isAr ? "rtl" : "ltr"}>
+              {isAr && data.titleAr ? data.titleAr : data.titleEn}
+            </h2>
           </div>
           <Button
             type="button"

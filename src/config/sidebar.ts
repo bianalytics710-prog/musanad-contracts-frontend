@@ -199,8 +199,18 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "clauses",
     "parties",
     "obligations",
-    // M15 / CR-G — procurement risk dashboard accessible to drafter
-    "dashboards.procurement",
+    // D61 — Impact Watch added to the drafter's ROLE_MODULES so the
+    // ⌘K command palette (which reads modulesForRole) lists it alongside
+    // the sidebar (which reads effectiveModules). Both surfaces stay in
+    // sync; the BE perm gate for impact_signals was unlocked in mig 425.
+    "regulations",
+    // D48 — "dashboards.procurement" (M15 / CR-G) removed from the
+    // drafter's sidebar. Procurement supplier-risk is Pari's persona
+    // surface; surfacing the same dashboard to the contract drafter
+    // added noise and didn't intersect her workflow. If a drafter needs
+    // counterparty risk context, deep-linking from the contract detail
+    // page is the canonical path. Pari + Eman + Omar retain their own
+    // entries unchanged.
     // M19 / M20 — Risk Cases + Reports
     "riskCases",
     "reports",

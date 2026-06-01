@@ -12,6 +12,7 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { TemplatePreviewDialog } from "@/features/templates/components/TemplatePreviewDialog";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import { CreateTemplateDialog } from "@/features/m_parity/components/CreateEntityDialogs";
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 
 export const Route = createFileRoute("/app/templates/")({
   component: () => (
@@ -182,7 +183,11 @@ function TemplatesListView() {
                   : "border border-border bg-surface text-ink-muted hover:border-gold"
               }`}
             >
-              {t(`contractType.${tp}`, { defaultValue: tp.replace(/_/g, " ") })}
+              {/* D33 — filter pill labels now humanized via shared helper
+                  so the "msa" and "vendor / services" pills match the per-
+                  card chips (D32). Falls back to humanizeLabel when the
+                  i18n key is missing. */}
+              {t(`contractType.${tp}`, { defaultValue: humanizeLabel(tp) })}
             </button>
           ))}
         </div>
@@ -208,8 +213,12 @@ function TemplatesListView() {
               className="flex h-full flex-col rounded-lg border border-border bg-card p-4 transition-colors hover:border-gold"
             >
               <div className="flex items-start justify-between gap-2">
+                {/* D32 — type chip now passes through humanizeLabel which knows
+                    UAE acronyms (NDA / MSA / SLA / EPC / etc.). Previously
+                    rendered raw lowercase slugs ("msa" / "nda" / "llc
+                    incorporation"). */}
                 <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-                  {tpl.contractType.replace(/_/g, " ")}
+                  {humanizeLabel(tpl.contractType)}
                 </span>
                 {tpl.language === "bilingual" && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
@@ -225,12 +234,11 @@ function TemplatesListView() {
               >
                 {isAr && tpl.nameAr ? tpl.nameAr : tpl.nameEn}
               </Link>
-              {/* R-LC5 LC-G3 — Arabic title under English (Lovable parity). */}
-              {!isAr && tpl.nameAr && (
-                <p className="mt-0.5 text-xs text-ink-subtle" dir="rtl">
-                  {tpl.nameAr}
-                </p>
-              )}
+              {/* D31 — bilingual title duplication removed. The original
+                  R-LC5 LC-G3 pattern rendered the Arabic name under the
+                  English title in EN mode (and vice versa). Per the Dana
+                  audit + E26 fix family: in EN mode only EN; in AR mode
+                  only AR; the language toggle is the source of truth. */}
               {tpl.descriptionEn && !isAr && (
                 <p className="mt-1 line-clamp-2 text-xs text-ink-muted">
                   {tpl.descriptionEn}
@@ -241,19 +249,32 @@ function TemplatesListView() {
                   {tpl.descriptionAr}
                 </p>
               )}
-              <div className="mt-3 flex flex-wrap gap-1">
-                {tpl.regulatoryTags.slice(0, 2).map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-subtle"
-                  >
-                    {tag.replace(/_/g, " ")}
+              {/* D34 — tag chips previously rendered as adjacent inline
+                  <span> siblings without DOM-level separation, producing
+                  textContent like "vendorsla+1" / "ndaconfidentiality".
+                  The container still uses flex-wrap + gap visually but
+                  each chip is now followed by an sr-only "," so the DOM
+                  + screen-reader reading is "vendor, sla, +1" and the
+                  visible chips show humanized labels with explicit
+                  background pills. */}
+              <div className="mt-3 flex flex-wrap gap-1.5" role="list">
+                {tpl.regulatoryTags.slice(0, 2).map((tag, idx, arr) => (
+                  <span key={tag} role="listitem" className="contents">
+                    <span className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-subtle">
+                      {humanizeLabel(tag)}
+                    </span>
+                    {idx < arr.length - 1 && (
+                      <span className="sr-only">, </span>
+                    )}
                   </span>
                 ))}
                 {tpl.regulatoryTags.length > 2 && (
-                  <span className="font-mono text-[10px] text-ink-subtle">
-                    +{tpl.regulatoryTags.length - 2}
-                  </span>
+                  <>
+                    <span className="sr-only">, </span>
+                    <span className="rounded-full bg-surface/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-subtle">
+                      +{tpl.regulatoryTags.length - 2}
+                    </span>
+                  </>
                 )}
               </div>
               <p className="mt-2 font-mono text-[11px] text-ink-subtle">

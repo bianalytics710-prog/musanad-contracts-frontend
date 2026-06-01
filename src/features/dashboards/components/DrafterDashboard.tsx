@@ -73,9 +73,10 @@ import type {
   DrafterAwaitingActionRow,
 } from "@/types/entities/dashboards.types";
 import type { ContractStatus } from "@/types/entities/contract.types";
-import { formatDateTime } from "@/utils/datetime";
+import { formatDateTime, formatHijriDate } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
+import { impactSignalService } from "@/services/api/impact-signal.service";
 import {
   useNotifications,
   type AppNotification,
@@ -84,12 +85,14 @@ import {
 
 const DEFAULT_WINDOW_DAYS = 30;
 
+// D13 — semantic CSS variable tokens replace raw hex per Q4 stack-compliance.
+// Mapped to the same palette used by the executive + procurement dashboards.
 const STAGE_COLORS = {
-  draft: "#5A6B7C",
-  inReview: "#C68A3A",
-  approved: "#86A89B",
-  active: "#5B8374",
-  signed: "#B8935A",
+  draft:    "var(--ink-muted)",     // neutral
+  inReview: "var(--amber)",          // amber (was #C68A3A)
+  approved: "var(--sage)",           // sage (was #86A89B)
+  active:   "var(--sage)",           // sage
+  signed:   "var(--gold)",           // gold (was #B8935A)
 } as const;
 
 export function DrafterDashboard() {
@@ -106,6 +109,8 @@ export function DrafterDashboard() {
   );
 
   const greeting = user?.firstName ?? "";
+  // D11 — kicker now pairs Gregorian + Hijri, matching the recipient + Pari
+  // dashboard convention. Computed once per render via the shared formatter.
   const todayStr = useMemo(
     () =>
       new Date().toLocaleDateString(lng, {
@@ -115,6 +120,7 @@ export function DrafterDashboard() {
       }),
     [lng],
   );
+  const todayHijri = useMemo(() => formatHijriDate(new Date().toISOString()), [lng]);
 
   // Derive a richer pipeline view from the 4 KPI counts. Sums approximate
   // the Lovable "drafting pipeline" total tile.
@@ -205,19 +211,22 @@ export function DrafterDashboard() {
   // Demo-grade line chart (time-to-signature). Backend doesn't expose this
   // metric per dashboards.types; values track Lovable's Ahmed-persona seed
   // so the demo story stays consistent across builds.
+  // D7 — values rounded to integer days; decimal days are nonsensical UX.
   const ttsData = useMemo(() => {
     const labels =
       lng === "ar"
         ? ["نوفمبر", "ديسمبر", "يناير", "فبراير", "مارس", "أبريل"]
         : ["Nov", "Dec", "Jan", "Feb", "Mar", "Apr"];
-    const values = [14.2, 13.6, 12.8, 11.9, 12.4, 11.6];
+    const values = [14, 14, 13, 12, 12, 12];
     return labels.map((label, i) => ({ label, avg: values[i] }));
   }, [lng]);
-  const ttsAvgRef =
-    Math.round(
-      (ttsData.reduce((s, d) => s + d.avg, 0) / ttsData.length) * 10,
-    ) / 10;
+  const ttsAvgRef = Math.round(
+    ttsData.reduce((s, d) => s + d.avg, 0) / ttsData.length,
+  );
 
+  // D7/D8 — typeLabel uses humanizeLabel for UAE acronyms (NDA / MSA / SLA);
+  // integer-day averages; defaultValues drop the stray "Vendor /services"
+  // spacing and the lowercase "Non-disclosure" hyphen mash.
   const byType = useMemo(
     () =>
       [
@@ -226,33 +235,33 @@ export function DrafterDashboard() {
           typeLabel: t("contractType.llc_incorporation", {
             defaultValue: "LLC Incorporation",
           }),
-          avg: 17.8,
+          avg: 18,
         },
         {
           type: "consultancy",
           typeLabel: t("contractType.consultancy", {
             defaultValue: "Consultancy",
           }),
-          avg: 13.2,
+          avg: 13,
         },
         {
           type: "vendor_services",
           typeLabel: t("contractType.vendor_services", {
-            defaultValue: "Vendor / services",
+            defaultValue: "Vendor Services",
           }),
-          avg: 12.4,
+          avg: 12,
         },
         {
           type: "employment",
           typeLabel: t("contractType.employment", {
             defaultValue: "Employment",
           }),
-          avg: 11.1,
+          avg: 11,
         },
         {
           type: "nda",
-          typeLabel: t("contractType.nda", { defaultValue: "Non-disclosure" }),
-          avg: 8.6,
+          typeLabel: t("contractType.nda", { defaultValue: "NDA" }),
+          avg: 9,
         },
       ].sort((a, b) => b.avg - a.avg),
     [t],
@@ -269,9 +278,10 @@ export function DrafterDashboard() {
         <div>
           <p className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
             {t("dashboards.drafter.kicker", {
-              defaultValue: "Welcome back, {{name}} · {{date}}",
+              defaultValue: "Welcome back, {{name}} · {{date}} · {{hijri}}",
               name: greeting,
               date: todayStr,
+              hijri: todayHijri,
             })}
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
@@ -314,10 +324,64 @@ export function DrafterDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
+          {/* D5 — when the pipeline is empty (newly-onboarded drafter or a
+              user whose drafts have all been moved on), surface a hero
+              CTA above the strip of zeros instead of leaving the 5-tile
+              "all zeros" band as the only visible content. */}
+          {pipelineTotal === 0 && (
+            <section
+              aria-label={t("dashboards.drafter.heroCta.ariaLabel", {
+                defaultValue: "Start your first draft",
+              })}
+              className="rounded-lg border border-dashed border-gold/40 bg-gold/5 p-4 sm:p-6"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-semibold text-ink">
+                    {t("dashboards.drafter.heroCta.title", {
+                      defaultValue: "Start your first draft",
+                    })}
+                  </h2>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    {t("dashboards.drafter.heroCta.subtitle", {
+                      defaultValue:
+                        "You don't have any contracts in progress. Pick a template from Compose and the rest of this dashboard will populate with your pipeline.",
+                    })}
+                  </p>
+                </div>
+                <Link
+                  to="/app/contracts/compose"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-gold px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-gold-hover"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("dashboards.drafter.heroCta.action", {
+                    defaultValue: "Compose a contract",
+                  })}
+                </Link>
+              </div>
+            </section>
+          )}
+          {/* D9 — KPI strip now sits inside an explicit <h2> section so the
+              5 tiles are clearly grouped as "My drafting pipeline —
+              snapshot" rather than reading as an orphan strip above the
+              other H3 sections. */}
           <section
-            aria-label={t("dashboards.drafter.kpiGroupLabel")}
-            className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+            aria-labelledby="drafter-kpi-strip-heading"
+            className="space-y-2"
           >
+            <h2
+              id="drafter-kpi-strip-heading"
+              className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+            >
+              {t("dashboards.drafter.kpiStripHeading", {
+                defaultValue: "My drafting pipeline — snapshot",
+              })}
+            </h2>
+            <div
+              role="group"
+              aria-label={t("dashboards.drafter.kpiGroupLabel")}
+              className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+            >
             <KpiTile
               label={t("dashboards.drafter.kpis.pipeline", {
                 defaultValue: "Drafting pipeline",
@@ -342,55 +406,31 @@ export function DrafterDashboard() {
               label={t("dashboards.drafter.kpis.myRecentlyApprovedCount")}
               value={formatNumber(data.kpis.myRecentlyApprovedCount)}
             />
+            </div>
           </section>
 
           <div className="grid gap-4 lg:grid-cols-5">
-            {/* Pipeline strip + recent drafts — 60% */}
+            {/* D2 — the 4-pill "My drafting pipeline" mirror used to repeat
+                the 4 buckets that already exist in the top KPI strip
+                (Drafts / Awaiting action / Ready to send / Recently approved).
+                The mirror has been dropped: the section is now just the
+                Recent drafts list, which the top strip cannot show. */}
             <section className="rounded-lg border border-border bg-card p-4 lg:col-span-3">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.drafter.pipeline.title", {
-                    defaultValue: "My drafting pipeline",
+                  {t("dashboards.drafter.recentDrafts.title", {
+                    defaultValue: "Recent drafts",
                   })}
                 </h3>
                 <Link
                   to="/app/contracts"
+                  search={{ status: "draft" }}
                   className="text-xs text-ink-muted hover:text-gold"
                 >
                   {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
                 </Link>
               </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                {pipelinePills.map((p) => (
-                  <Link
-                    key={p.key}
-                    to="/app/contracts"
-                    search={{ status: p.filter }}
-                    className="group rounded-md border border-border bg-surface p-3 transition-colors hover:border-gold/60"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ background: p.accent }}
-                      />
-                      <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
-                        {p.label}
-                      </span>
-                    </div>
-                    <div className="mt-1.5 font-mono text-2xl font-semibold text-ink group-hover:text-gold">
-                      {p.count}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-
-              <div className="mt-4 border-t border-border pt-3">
-                <div className="mb-2 text-xs font-medium text-ink-subtle">
-                  {t("dashboards.drafter.lists.myDraftsTitle")}
-                </div>
-                <ContractRowList rows={data.lists.myDrafts5} />
-              </div>
+              <ContractRowList rows={data.lists.myDrafts5} />
             </section>
 
             {/* Time-to-signature charts — 40% */}
@@ -403,9 +443,14 @@ export function DrafterDashboard() {
                   })}
                 </h3>
               </div>
+              {/* D6 — explicit window caption replaces the bare "6 months"
+                  string so the user understands the chart is on a fixed
+                  6-month trailing window and NOT scoped by the page's date
+                  filter pills. */}
               <p className="mb-3 text-xs text-ink-subtle">
                 {t("dashboards.drafter.tts.subtitle", {
-                  defaultValue: "Avg days draft → fully signed · 6 months",
+                  defaultValue:
+                    "Avg days draft → fully signed · trailing 6 months (not scoped by the date filter above)",
                 })}
               </p>
               <div className="h-40">
@@ -434,13 +479,16 @@ export function DrafterDashboard() {
                       }}
                       formatter={(v: number) => [`${v} d`, "avg"]}
                     />
+                    {/* D13 — ReferenceLine + Line now reference semantic
+                        CSS tokens (var(--ink-muted) and var(--gold)) instead
+                        of raw hex #5A6B7C / #B8935A. */}
                     <ReferenceLine
                       y={ttsAvgRef}
-                      stroke="#5A6B7C"
+                      stroke="var(--ink-muted)"
                       strokeDasharray="4 3"
                       label={{
                         value: `${ttsAvgRef}d`,
-                        fill: "#5A6B7C",
+                        fill: "var(--ink-muted)",
                         fontSize: 10,
                         position: lng === "ar" ? "insideLeft" : "insideRight",
                       }}
@@ -448,9 +496,9 @@ export function DrafterDashboard() {
                     <Line
                       type="monotone"
                       dataKey="avg"
-                      stroke="#B8935A"
+                      stroke="var(--gold)"
                       strokeWidth={2.5}
-                      dot={{ fill: "#B8935A", r: 4, strokeWidth: 0 }}
+                      dot={{ fill: "var(--gold)", r: 4, strokeWidth: 0 }}
                       activeDot={{ r: 5 }}
                       isAnimationActive={false}
                     />
@@ -496,7 +544,9 @@ export function DrafterDashboard() {
                         }}
                         formatter={(v: number) => [`${v} d`, "avg"]}
                       />
-                      <Bar dataKey="avg" fill="#5A6B7C" radius={[0, 4, 4, 0]}>
+                      {/* D13 — Bar now uses semantic var(--ink-muted) instead
+                          of raw hex #5A6B7C. */}
+                      <Bar dataKey="avg" fill="var(--ink-muted)" radius={[0, 4, 4, 0]}>
                         <LabelList
                           dataKey="avg"
                           position="right"
@@ -585,23 +635,30 @@ export function DrafterDashboard() {
                   </>
                 )}
               </div>
-              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {byStage.map((d, i) => (
-                  <li
-                    key={d.key}
-                    className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-xs"
-                  >
-                    <span className="flex items-center gap-2 text-ink">
-                      <span
-                        className="inline-block h-2.5 w-2.5 rounded-sm"
-                        style={{ background: d.fill }}
-                      />
-                      {pipelinePills[i]?.label}
-                    </span>
-                    <span className="font-mono text-ink-muted">{d.count}</span>
-                  </li>
-                ))}
-              </ul>
+              {/* D3 — when there are zero items in every bucket, suppress
+                  the legend list. Otherwise the "No drafts yet" empty state
+                  on the donut sits next to a 4-row legend of Drafts 0 /
+                  Awaiting action 0 / Ready to send 0 / Approved 0 — a third
+                  copy of the same all-zero message. */}
+              {pipelineTotal > 0 && (
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {byStage.map((d, i) => (
+                    <li
+                      key={d.key}
+                      className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-xs"
+                    >
+                      <span className="flex items-center gap-2 text-ink">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-sm"
+                          style={{ background: d.fill }}
+                        />
+                        {pipelinePills[i]?.label}
+                      </span>
+                      <span className="font-mono text-ink-muted">{d.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </section>
 
@@ -622,31 +679,91 @@ export function DrafterDashboard() {
             <NotificationsWidget />
           </div>
 
-          <section className="rounded-lg border border-border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <RadarIcon className="h-4 w-4 text-gold" />
-                {t("dashboards.drafter.regWatch.title", {
-                  defaultValue: "Impact watch",
-                })}
-              </h3>
-              <Link
-                to="/app/regulatory-radar"
-                className="text-xs text-ink-muted hover:text-gold"
-              >
-                {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
-              </Link>
-            </div>
-            <p className="text-xs text-ink-subtle">
-              {t("dashboards.drafter.regWatch.subtitle", {
-                defaultValue:
-                  "Open the regulatory radar for incoming regulator updates affecting your contract types.",
-              })}
-            </p>
-          </section>
+          {/* D12 — Impact Watch section previously rendered a single
+              sentence + a link. Now populated with the top 3 most-recent
+              impact signals (regulator / commodity / supply-chain etc.)
+              affecting Dana's contract types. View all → /app/regulations. */}
+          <DrafterImpactWatchSection />
         </>
       )}
     </motion.div>
+  );
+}
+
+function DrafterImpactWatchSection() {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith("ar");
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["drafter-impact-watch-top3"],
+    queryFn: () => impactSignalService.list({}),
+    staleTime: 5 * 60_000,
+  });
+
+  const top3 = useMemo(() => (data?.data ?? []).slice(0, 3), [data]);
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <RadarIcon className="h-4 w-4 text-gold" />
+          {t("dashboards.drafter.regWatch.title", {
+            defaultValue: "Impact watch",
+          })}
+        </h3>
+        <Link
+          to="/app/regulations"
+          className="text-xs text-ink-muted hover:text-gold"
+        >
+          {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
+        </Link>
+      </div>
+      {isLoading ? (
+        <div className="space-y-1.5" aria-hidden>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded-md bg-surface" />
+          ))}
+        </div>
+      ) : isError || top3.length === 0 ? (
+        <p className="text-xs text-ink-subtle">
+          {t("dashboards.drafter.regWatch.empty", {
+            defaultValue:
+              "No active regulator / commodity signals affecting your contract types in the last 7 days.",
+          })}
+        </p>
+      ) : (
+        <ul role="list" className="divide-y divide-border">
+          {top3.map((s) => (
+            <li key={s.id} role="listitem" className="py-2">
+              <Link
+                to="/app/regulations"
+                className="block rounded-md px-2 py-1 transition hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {String(s.category || "").replace(/_/g, " ")}
+                  </span>
+                  <span className="font-mono text-[10px] text-ink-subtle">
+                    {s.severity}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-ink">
+                  {isAr && s.titleAr ? s.titleAr : s.titleEn}
+                </p>
+                {s.impactedContractCount > 0 && (
+                  <p className="mt-0.5 text-[10px] text-amber-ink">
+                    {t("dashboards.drafter.regWatch.impactedN", {
+                      defaultValue:
+                        "{{count}} impacted contracts in your scope",
+                      count: s.impactedContractCount,
+                    })}
+                  </p>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
@@ -86,8 +86,12 @@ function PartiesListView() {
   });
 
   const all = data?.data ?? [];
+  // D39 — default ordering is alphabetical by nameEn so the demo audience
+  // doesn't open Parties to "Sanctioned Parent Holdings Ltd" as row #1.
+  // Verified counterparties float to the top within the alphabetical
+  // order so the seed (mig 423) is visible immediately.
   const filteredItems = useMemo(() => {
-    return all.filter((p) => {
+    const filtered = all.filter((p) => {
       if (emirate && p.emirate !== emirate) return false;
       if (freeZone && p.freeZone !== freeZone) return false;
       if (verified === "yes" && !p.isVerified) return false;
@@ -95,7 +99,25 @@ function PartiesListView() {
       if (nationality && p.country !== nationality) return false;
       return true;
     });
+    return [...filtered].sort((a, b) => {
+      if (a.isVerified !== b.isVerified) return a.isVerified ? -1 : 1;
+      return (a.nameEn ?? "").localeCompare(b.nameEn ?? "");
+    });
   }, [all, emirate, freeZone, verified, nationality]);
+
+  // D41 — page the 499 parties into 25-row slices so the DOM stays small.
+  // Total-row strip below the table communicates the scope.
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  // Reset to page 1 whenever the underlying filter set changes size.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredItems.length, debounced, tab, emirate, freeZone, verified, nationality]);
+  const pagedItems = useMemo(
+    () => filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredItems, currentPage],
+  );
 
   const total = data?.pagination.total ?? 0;
   const companies = all.filter((p) => p.partyType === "company").length;
@@ -309,7 +331,10 @@ function PartiesListView() {
               </tr>
             </thead>
             <tbody>
-              {filteredItems.map((p) => {
+              {/* D41 — render only the current page slice (PAGE_SIZE = 25)
+                  to keep DOM small. Counter + Prev/Next strip lives below
+                  the table. */}
+              {pagedItems.map((p) => {
                 const initials = p.nameEn
                   .split(/\s+/)
                   .filter(Boolean)
@@ -368,6 +393,43 @@ function PartiesListView() {
               })}
             </tbody>
           </table>
+          {/* D41 — pagination strip. Shows the visible slice + Prev/Next.
+              Disabled state on the boundary buttons. */}
+          {filteredItems.length > PAGE_SIZE && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-xs text-ink-muted">
+              <span>
+                {t("parties.pagination.showing", {
+                  defaultValue: "Showing {{from}}-{{to}} of {{n}}",
+                  from: (currentPage - 1) * PAGE_SIZE + 1,
+                  to: Math.min(currentPage * PAGE_SIZE, filteredItems.length),
+                  n: filteredItems.length,
+                })}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  {t("common.back", { defaultValue: "Back" })}
+                </Button>
+                <span className="font-mono text-[10px]">
+                  {currentPage} / {pageCount}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={currentPage >= pageCount}
+                >
+                  {t("common.next", { defaultValue: "Next" })}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </motion.div>

@@ -298,28 +298,48 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
         </div>
       </header>
 
-      {/* KPI strip */}
+      {/* D16 — KPI strip used to read "Active or signed: 13 in current
+          view" with the small "in current view" qualifier underneath the
+          big number, so the audience misread 13 as the portfolio scope.
+          The cards now lead with "On this page" + the count and put the
+          scope qualifier in the label, making the page-slice vs scope
+          distinction unambiguous. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
-          label={t("contracts.kpis.total", { defaultValue: "Total" })}
+          label={t("contracts.kpis.totalScope", { defaultValue: "Total in scope" })}
           value={kpis.totalAll.toLocaleString()}
         />
         <StatCard
-          label={t("contracts.kpis.active", { defaultValue: "Active or signed" })}
+          label={t("contracts.kpis.activeOnPage", {
+            defaultValue: "Active or signed (on this page)",
+          })}
           value={kpis.active.toLocaleString()}
-          delta={t("contracts.kpis.inFilteredScope", { defaultValue: "in current view" })}
+          delta={t("contracts.kpis.onPageOfN", {
+            defaultValue: "on this page of {{n}} in scope",
+            n: kpis.totalAll,
+          })}
         />
         <StatCard
-          label={t("contracts.kpis.inApproval", { defaultValue: "In approval" })}
+          label={t("contracts.kpis.inApprovalOnPage", {
+            defaultValue: "In approval (on this page)",
+          })}
           value={kpis.inApproval.toLocaleString()}
           variant={kpis.inApproval > 0 ? "warning" : "default"}
-          delta={t("contracts.kpis.inFilteredScope", { defaultValue: "in current view" })}
+          delta={t("contracts.kpis.onPageOfN", {
+            defaultValue: "on this page of {{n}} in scope",
+            n: kpis.totalAll,
+          })}
         />
         <StatCard
-          label={t("contracts.kpis.expiring", { defaultValue: "Expiring soon" })}
+          label={t("contracts.kpis.expiringOnPage", {
+            defaultValue: "Expiring soon (on this page)",
+          })}
           value={kpis.expiring.toLocaleString()}
           variant={kpis.expiring > 0 ? "risk" : "default"}
-          delta={t("contracts.kpis.inFilteredScope", { defaultValue: "in current view" })}
+          delta={t("contracts.kpis.onPageOfN", {
+            defaultValue: "on this page of {{n}} in scope",
+            n: kpis.totalAll,
+          })}
         />
       </div>
 
@@ -673,14 +693,19 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                         if (!full) return "—";
                         return (
                           <span className="inline-flex items-center gap-1.5">
-                            {/* P24: aria-hide initials avatar so screen readers + DOM-text
-                                exports don't read "PPPari Procurement" as one word. */}
+                            {/* D17 — initials avatar still rendered visually but
+                                marked aria-hidden AND followed by an explicit
+                                whitespace ` ` (non-breaking space) so the
+                                DOM textContent reads "DD Dana Drafter" not
+                                the mashed "DDDana Drafter". Same fix family as
+                                Pari P9 (mash separator). */}
                             <span
                               aria-hidden="true"
                               className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold/10 font-mono text-[9px] font-medium text-gold"
                             >
                               {initials}
                             </span>
+                            <span aria-hidden="true">{" "}</span>
                             <span>{full}</span>
                           </span>
                         );
@@ -692,14 +717,29 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                     <td className="px-4 py-3 font-mono text-xs text-ink-muted">
                       {c.endDate ? (
                         <div className="flex flex-col">
-                          <span>{formatDate(c.endDate)}</span>
-                          {/* R-LC6 LC-D4 — Hijri inline. */}
-                          <span className="text-[10px] text-ink-subtle">
+                          {/* D18 — Greg+Hijri date stack now uses block-level
+                              <span className="block"> + explicit separator so
+                              the DOM textContent reads "31 Dec 2025 ·
+                              Rajab 11, 1447 AH" instead of the mashed
+                              "31 Dec 2025Rajab 11, 1447 AH" the inline
+                              <span> pair produced. */}
+                          <span className="block">{formatDate(c.endDate)}</span>
+                          <span className="sr-only"> · </span>
+                          <span className="block text-[10px] text-ink-subtle">
                             {formatHijriDate(c.endDate)}
                           </span>
                         </div>
                       ) : (
-                        "—"
+                        // D19 — bare "—" placeholder used to mash with the
+                        // adjacent Value cell in DOM textContent extraction
+                        // ("—AED 9,000,000"). Now wrapped in an explicit
+                        // aria-labelled span; sr-only separator placed AFTER
+                        // the dash so screen readers + textContent get a
+                        // clean break before the next column.
+                        <>
+                          <span aria-label={t("contracts.noEndDate", { defaultValue: "No end date" })}>—</span>
+                          <span className="sr-only"> · </span>
+                        </>
                       )}
                     </td>
                     <td className="px-4 py-3 text-end font-mono text-xs text-ink">
