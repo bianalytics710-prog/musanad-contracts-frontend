@@ -15,7 +15,8 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { riskScoreService } from "@/services/api/risk-score.service";
 import {
   Building2,
   FileText,
@@ -88,16 +89,18 @@ export function ContractInfoCards({
       new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime();
     const days = Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
     if (days === 0) return "—";
-    // Lovable parity: humanize term — "1 year" / "2 years" / "6 months" / "45 days".
+    // A34 (Aisha audit fix 2026-06-01) — drop decimal months ("12.1 months"
+    // is nonsensical). Round to whole years / months / days. Lovable parity:
+    // humanize term — "1 year" / "2 years" / "6 months" / "45 days".
     if (days >= 365) {
-      const years = Math.round((days / 365) * 10) / 10;
+      const years = Math.round(days / 365);
       return t("contracts.detail.metaCard.termYearsHuman", {
         defaultValue: years === 1 ? "{{years}} year" : "{{years}} years",
         years,
       });
     }
     if (days >= 30) {
-      const months = Math.round((days / 30) * 10) / 10;
+      const months = Math.round(days / 30);
       return t("contracts.detail.metaCard.termMonthsHuman", {
         defaultValue: months === 1 ? "{{months}} month" : "{{months}} months",
         months,
@@ -118,7 +121,22 @@ export function ContractInfoCards({
   // contract attributes — a plausible placeholder until a precomputed
   // ai_risk_score lands on the contract row. Score buckets match Lovable's
   // Low / Medium / High tints.
-  const riskScore = useMemo(() => {
+  //
+  // A32/A33 (Aisha audit fix 2026-06-01) — the Risk tab shows the canonical
+  // BE health_score (e.g. 58 for Crescent); this card used to show a FE
+  // heuristic value (e.g. 50) creating a visible mismatch. Now we attempt
+  // to load the BE score via riskScoreService and use it; on permission
+  // failure or while loading we fall back to the heuristic so the badge
+  // still renders for actors without score.read.
+  const canReadScore = useAuthStore(selectHasPermission("score.read"));
+  const beScoreQuery = useQuery({
+    queryKey: ["contract-info-cards-health-score", contract.id],
+    queryFn: () => riskScoreService.getRiskScore(contract.id),
+    enabled: canReadScore && typeof contract.id === "number",
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const heuristicScore = useMemo(() => {
     let score = 20;
     if (contract.valueAed !== null && contract.valueAed >= 1_000_000) score += 25;
     else if (contract.valueAed !== null && contract.valueAed >= 500_000) score += 15;
@@ -134,6 +152,8 @@ export function ContractInfoCards({
     if (gl === "ADGM" || gl === "DIFC") score += 5;
     return Math.min(100, Math.max(0, score));
   }, [contract]);
+  const beScore = beScoreQuery.data?.healthScore;
+  const riskScore = typeof beScore === "number" ? beScore : heuristicScore;
   const riskBucket = riskScore < 30 ? "low" : riskScore < 60 ? "medium" : "high";
   const riskTint =
     riskBucket === "low"
@@ -233,21 +253,34 @@ export function ContractInfoCards({
           </Row>
           <Row label={t("contracts.fields.startDate", { defaultValue: "Start" })}>
             <div className="flex flex-col items-end">
-              <span className="font-mono text-sm text-ink">{formatDate(contract.startDate)}</span>
+              {/* D58 — Greg+Hijri date stack rewritten to use block-level
+                  spans + an sr-only separator so the DOM textContent reads
+                  "01 Jan 2024 · Jumada II 19, 1445 AH" instead of the
+                  inline-span mash that produced "01 Jan 2024Jumada II 19,
+                  1445 AH". Same fix family as the contracts-list D18. */}
+              <span className="block font-mono text-sm text-ink">{formatDate(contract.startDate)}</span>
               {contract.startDate && (
-                <span className="font-mono text-[10px] text-ink-subtle">
-                  {formatHijriDate(contract.startDate)}
-                </span>
+                <>
+                  <span className="sr-only"> · </span>
+                  <span className="block font-mono text-[10px] text-ink-subtle">
+                    {formatHijriDate(contract.startDate)}
+                  </span>
+                </>
               )}
             </div>
           </Row>
           <Row label={t("contracts.fields.endDate", { defaultValue: "End" })}>
             <div className="flex flex-col items-end">
-              <span className="font-mono text-sm text-ink">{formatDate(contract.endDate)}</span>
+              {/* D58 — same Greg+Hijri block-level + sr-only separator
+                  treatment as the startDate block above. */}
+              <span className="block font-mono text-sm text-ink">{formatDate(contract.endDate)}</span>
               {contract.endDate && (
-                <span className="font-mono text-[10px] text-ink-subtle">
-                  {formatHijriDate(contract.endDate)}
-                </span>
+                <>
+                  <span className="sr-only"> · </span>
+                  <span className="block font-mono text-[10px] text-ink-subtle">
+                    {formatHijriDate(contract.endDate)}
+                  </span>
+                </>
               )}
             </div>
           </Row>
@@ -301,7 +334,10 @@ export function ContractInfoCards({
       <Card className="overflow-hidden">
         <header className="border-b border-border/60 bg-card/50 px-5 py-3">
           <h2 className="text-base font-semibold text-ink">
-            {t("contracts.detail.overviewCard.title", { defaultValue: "Overview" })}
+            {/* A29 (Aisha audit fix) — was "Overview", duplicates the
+                tab name and reads as "Overview > Overview". Renamed to
+                "Quick stats" so the visual hierarchy is unambiguous. */}
+            {t("contracts.detail.overviewCard.title", { defaultValue: "Quick stats" })}
           </h2>
         </header>
         <dl className="divide-y divide-border/60">
@@ -347,19 +383,23 @@ export function ContractInfoCards({
           >
             <span className="font-mono text-sm text-ink">v{contract.currentVersion}</span>
           </Row>
-          {/* R5 audit 8.1.3 — AI risk score badge. */}
+          {/* R5 audit 8.1.3 — AI risk score badge.
+              A31/A33 (Aisha audit) — relabel "AI risk score" → "Health
+              score" (matches the Risk tab gauge). The `·` separator is
+              now wrapped with leading + trailing whitespace so the badge
+              reads "58 · Medium risk" cleanly. */}
           <Row
             label={
               <span className="inline-flex items-center gap-2 text-ink-muted">
                 <Shield className="h-4 w-4" aria-hidden />
-                {t("contracts.detail.overviewCard.aiRisk", { defaultValue: "AI risk score" })}
+                {t("contracts.detail.overviewCard.healthScore", { defaultValue: "Health score" })}
               </span>
             }
           >
             <span className={`inline-flex items-center gap-2 rounded-full px-2 py-0.5 text-xs font-medium ${riskTint}`}>
               <span className="font-mono">{riskScore}</span>
               <span className="text-[10px] uppercase tracking-wider">
-                ·{" "}
+                {" · "}
                 {t(`contracts.detail.overviewCard.aiRisk_${riskBucket}`, {
                   defaultValue:
                     riskBucket === "low"

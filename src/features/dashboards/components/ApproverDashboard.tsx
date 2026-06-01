@@ -40,6 +40,7 @@ import {
   asWindowQuery,
   formatAed,
   formatNumber,
+  humanizeLabel,
   rangeFromWindowDays,
 } from "./dashboard-primitives";
 import type {
@@ -53,7 +54,15 @@ const DEFAULT_WINDOW_DAYS = 30;
 
 function formatHours(value: number | null, t: (k: string) => string): string {
   if (value == null) return t("dashboards.common.noDataDash");
-  return `${value.toFixed(1)} ${t("dashboards.common.hoursAbbrev")}`;
+  // A14/A19 (Aisha audit) — collapse durations past 24h into "Nd Hh" so the
+  // pending-queue + KPI tiles don't show nonsensical decimal hours like
+  // "688.4h" for items aged 28 days. < 24h still renders as integer "Nh".
+  if (value >= 24) {
+    const d = Math.floor(value / 24);
+    const h = Math.round(value - d * 24);
+    return h > 0 ? `${d}d ${h}h` : `${d}d`;
+  }
+  return `${Math.round(value)} ${t("dashboards.common.hoursAbbrev")}`;
 }
 
 /** R5 audit 7.4.1 — render a delta hint like "+2 vs prev". */
@@ -300,8 +309,8 @@ export function ApproverDashboard() {
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
                       <Clock className="h-3 w-3" />
-                      {topPending.hoursWaiting.toFixed(1)}
-                      {t("dashboards.common.hoursAbbrev")}
+                      {/* A14/A19 — humanized duration (Nd / Nd Hh / Nh). */}
+                      {formatHours(topPending.hoursWaiting, t)}
                     </span>
                   </div>
                   <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-card">
@@ -310,6 +319,16 @@ export function ApproverDashboard() {
                     })}
                     <ArrowRight className="h-4 w-4 rtl:rotate-180" />
                   </div>
+                  {/* A20 (Aisha audit) — surface remaining pending count so the
+                      hero doesn't hide the rest of the queue. */}
+                  {queueSegments.mine > 1 && (
+                    <p className="mt-2 text-[11px] text-ink-muted">
+                      {t("dashboards.approver.hero.plusMore", {
+                        count: queueSegments.mine - 1,
+                        defaultValue: `+${queueSegments.mine - 1} more pending →`,
+                      })}
+                    </p>
+                  )}
                 </div>
                 {slaBreaches > 0 && (
                   <div className="flex flex-col items-center gap-1 rounded-lg bg-terracotta/15 px-3 py-2 text-terracotta">
@@ -411,8 +430,11 @@ export function ApproverDashboard() {
               <div className="mb-3 flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-gold" />
                 <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.approver.decisionsByValue.title", {
-                    defaultValue: "Decisions by contract value · last 90 days",
+                  {/* A17 (Aisha audit) — chart caption follows the active
+                      date filter instead of hardcoded "last 90 days". */}
+                  {t("dashboards.approver.decisionsByValue.titleDynamic", {
+                    days: windowDays,
+                    defaultValue: `Decisions by contract value · last ${windowDays} days`,
                   })}
                 </h3>
               </div>
@@ -448,8 +470,10 @@ export function ApproverDashboard() {
               <div className="mb-3 flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-gold" />
                 <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.approver.approvalsByApprover.title", {
-                    defaultValue: "Approvals by approver · last 30 days",
+                  {/* A17 (Aisha audit) — caption follows active date filter. */}
+                  {t("dashboards.approver.approvalsByApprover.titleDynamic", {
+                    days: windowDays,
+                    defaultValue: `Approvals by approver · last ${windowDays} days`,
                   })}
                 </h3>
               </div>
@@ -616,8 +640,10 @@ export function ApproverDashboard() {
                         className="inline-block h-2.5 w-2.5 rounded-sm"
                         style={{ background: d.fill }}
                       />
+                      {/* A13 (Aisha audit) — humanize so the legend never shows
+                          the raw camelCase `requestResubmission` slug. */}
                       {t(`dashboards.approver.decisionMix.${d.key}`, {
-                        defaultValue: d.key,
+                        defaultValue: humanizeLabel(d.key),
                       })}
                     </span>
                     <span className="font-mono text-ink-muted">{d.count}</span>
@@ -708,8 +734,8 @@ function PendingQueueList({ rows }: { rows: ApproverPendingQueueRow[] }) {
                     breach ? "text-terracotta" : "text-ink"
                   }`}
                 >
-                  {row.hoursWaiting.toFixed(1)}
-                  {t("dashboards.common.hoursAbbrev")}
+                  {/* A14 (Aisha audit) — humanize 688.4h → 28d 16h. */}
+                  {formatHours(row.hoursWaiting, t)}
                 </td>
               </tr>
             );

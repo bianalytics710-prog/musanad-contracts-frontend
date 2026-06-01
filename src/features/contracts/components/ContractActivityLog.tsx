@@ -48,6 +48,7 @@ import {
   type ContractActivityListQuery,
 } from "@/types/entities/contract.types";
 import { cn } from "@/lib/utils";
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 
 interface ContractActivityLogProps {
@@ -269,9 +270,16 @@ function ActivityItem({ activity }: ActivityItemProps) {
   const { t } = useTranslation();
   const Icon = ICONS[activity.activityType] ?? Activity;
   const tone = ICON_TONE[activity.activityType] ?? "bg-surface text-ink";
-  const actorName = activity.actor
-    ? `${activity.actor.firstName} ${activity.actor.lastName}`
+  // A36 (Aisha audit fix 2026-06-01) — never display "(Removed user)"; the
+  // raw "(Removed user)" string reads as a bug. Coerce to "System" so the
+  // feed stays readable when an actor row was hard-deleted.
+  const rawActorName = activity.actor
+    ? `${activity.actor.firstName} ${activity.actor.lastName}`.trim()
     : t("contracts.activity.unknownActor");
+  const actorName =
+    rawActorName === "(Removed user)" || rawActorName.toLowerCase() === "removed user"
+      ? t("contracts.activity.systemActor", { defaultValue: "System" })
+      : rawActorName;
 
   return (
     <li className="relative">
@@ -286,9 +294,11 @@ function ActivityItem({ activity }: ActivityItemProps) {
       <div className="rounded-lg border border-border bg-card p-3">
         <div className="flex items-start justify-between gap-2">
           <div>
+            {/* A35 (Aisha audit fix 2026-06-01) — humanize raw activity_type
+                slugs ("ai_risk_score_updated" → "AI risk score updated"). */}
             <p className="text-sm font-medium text-ink">
               {t(`contracts.activity.types.${activity.activityType}`, {
-                defaultValue: activity.activityType,
+                defaultValue: humanizeActivityType(activity.activityType),
               })}
             </p>
             {activity.descriptionEn && (
@@ -304,6 +314,17 @@ function ActivityItem({ activity }: ActivityItemProps) {
       </div>
     </li>
   );
+}
+
+/**
+ * A35 (Aisha audit fix 2026-06-01) — turn `ai_risk_score_updated` /
+ * `submitted_for_approval` / etc into "AI risk score updated" /
+ * "Submitted for approval". Leveraging humanizeLabel preserves UAE
+ * acronyms (AI / ICV / SLA).
+ */
+function humanizeActivityType(slug: string | null | undefined): string {
+  if (!slug) return "";
+  return humanizeLabel(slug);
 }
 
 function ActivityMetadata({ activity }: { activity: ContractActivity }) {

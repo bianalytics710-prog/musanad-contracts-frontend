@@ -28,7 +28,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2, XCircle, MessageCircleQuestion } from "lucide-react";
+import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2, XCircle, MessageCircleQuestion, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { translateApiError } from "@/lib/translate-api-error";
@@ -144,20 +144,26 @@ export function ApprovalsListView() {
   const items = activeData?.data ?? [];
   const pagination = activeData?.pagination;
 
+  // A5 (Aisha audit) — KPI tiles read "Pending decisions / SLA breaches /
+  // Avg waiting / Pending value". Locked to the pending dataset so they keep
+  // pending-only semantics regardless of which tab is open. Switching tabs
+  // changes the table; the KPIs reflect the inbox snapshot.
+  const pendingItems = data?.data ?? [];
+  const pendingTotal = data?.pagination?.total ?? pendingItems.length;
   const slaBreaches = useMemo(
-    () => items.filter((i) => i.hoursPending > 24).length,
-    [items],
+    () => pendingItems.filter((i) => i.hoursPending > 24).length,
+    [pendingItems],
   );
   const avgWaitHours = useMemo(() => {
-    if (items.length === 0) return 0;
+    if (pendingItems.length === 0) return 0;
     return Math.round(
-      items.reduce((s, i) => s + i.hoursPending, 0) / items.length,
+      pendingItems.reduce((s, i) => s + i.hoursPending, 0) / pendingItems.length,
     );
-  }, [items]);
+  }, [pendingItems]);
   const totalValue = useMemo(
     () =>
-      items.reduce((s, i) => s + (i.valueAed ?? 0), 0),
-    [items],
+      pendingItems.reduce((s, i) => s + (i.valueAed ?? 0), 0),
+    [pendingItems],
   );
 
   // R3 audit 6.3.1: bulk approve fires a decide mutation for each selected
@@ -222,10 +228,14 @@ export function ApprovalsListView() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs text-ink-subtle">
+            {/* A6 (Aisha audit) — "urgent" overloaded both "Urgent priority"
+                badge and "SLA breach"; rename to SLA-breach count which is
+                what the value actually measures. A5 — always show
+                Pending-tab counts here so the kicker matches the KPI strip. */}
             {t("approval.list.eyebrow", {
-              count: pagination?.total ?? items.length,
+              count: pendingTotal,
               urgent: slaBreaches,
-              defaultValue: "{{count}} pending · {{urgent}} urgent",
+              defaultValue: "{{count}} pending · {{urgent}} SLA breaches",
             })}
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
@@ -238,10 +248,12 @@ export function ApprovalsListView() {
           size="sm"
           onClick={() => void activeRefetch()}
           disabled={activeIsFetching}
-          aria-label={t("common.retry")}
+          aria-label={t("common.refresh", { defaultValue: "Refresh" })}
         >
+          {/* A12 (Aisha audit) — "Retry" wrongly implied an error state on a
+              healthy page; "Refresh" matches industry norm for pull-to-update. */}
           <RefreshCw className={activeIsFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-          {t("common.retry")}
+          {t("common.refresh", { defaultValue: "Refresh" })}
         </Button>
       </header>
 
@@ -255,7 +267,11 @@ export function ApprovalsListView() {
             </p>
           </div>
           <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
-            {pagination?.total ?? items.length}
+            {/* A5 (Aisha audit fix) — Lock the tile to pendingTotal (the
+                pending query result count). Switching tabs no longer flips
+                this from "3 pending" to "4 approved" — the label says
+                Pending decisions so it always means pending. */}
+            {pendingTotal}
           </p>
         </div>
         <div className={`rounded-lg border border-border bg-card p-4 ${slaBreaches > 0 ? "border-l-2 border-l-terracotta" : ""}`}>
@@ -305,7 +321,10 @@ export function ApprovalsListView() {
               label: t("approval.list.tabs.pending", {
                 defaultValue: "Pending my approval",
               }),
-              badge: pagination?.total ?? items.length,
+              /* A5 (Aisha audit fix) — badge stays at pending count even when
+                 a non-pending tab is active so the user can always see "you
+                 have N waiting" from any tab. */
+              badge: pendingTotal,
             },
             {
               key: "approved",
@@ -875,6 +894,24 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
               className="text-amber-ink hover:bg-amber-tint/40"
             >
               <MessageCircleQuestion className="h-4 w-4" />
+            </Button>
+            {/* A11 (Aisha audit fix 2026-06-01) — row Delegate icon mirrors
+                the modal so the segmented modal control + row vocabulary
+                stay aligned. Click opens the same shared decision dialog
+                preset to the Delegate flow. */}
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("approval.decide.delegate", { defaultValue: "Delegate" })}
+              title={t("approval.decide.delegate", { defaultValue: "Delegate" })}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAct(row, "delegate");
+              }}
+              className="text-ink-muted hover:bg-surface"
+            >
+              <UserPlus className="h-4 w-4" />
             </Button>
           </div>
         )}

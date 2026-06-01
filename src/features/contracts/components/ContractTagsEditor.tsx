@@ -20,6 +20,18 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSetContractTags } from "@/features/contracts/hooks/useContracts";
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
+
+/**
+ * A30 (Aisha audit fix 2026-06-01) — render tag chip text in human form.
+ * Tags are stored lowercase for canonical lookups; on display we title-case
+ * via humanizeLabel which also handles UAE acronyms (ESG / EPC / ICV) and
+ * emirate names (Abu Dhabi / Sharjah).
+ */
+function humanizeTagDisplay(tag: string): string {
+  if (!tag) return tag;
+  return humanizeLabel(tag);
+}
 
 interface ContractTagsEditorProps {
   contractId: number;
@@ -130,7 +142,11 @@ export function ContractTagsEditor({
             key={tag}
             className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-ink"
           >
-            {tag}
+            {/* A30 (Aisha audit fix 2026-06-01) — humanize tag display so
+                "energy" / "sharjah" render as "Energy" / "Sharjah". The
+                underlying stored value stays lowercase for canonical
+                lookups; only the visible chip is title-cased. */}
+            {humanizeTagDisplay(tag)}
             {editable && (
               <button
                 type="button"

@@ -69,7 +69,7 @@ import { useContract } from "@/features/contracts/hooks/useContracts";
 import { formatDate, formatDateTime } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
 import { translateApiError } from "@/lib/translate-api-error";
-import { useAuthStore, selectHasPermission } from "@/store/auth.store";
+import { useAuthStore, selectHasPermission, selectUser } from "@/store/auth.store";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { ContractStatusDialog } from "./ContractStatusDialog";
 import { ContractDeleteDialog } from "./ContractDeleteDialog";
@@ -126,7 +126,10 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   // R-LC2 LC-E10 — default tab → Document (Lovable parity; was "overview").
-  const [tab, setTab] = useState<Tab>("document");
+  // A28 (Aisha audit fix 2026-06-01) — approvers want metadata + parties +
+  // approval stages on landing, not the legal body text. Default to overview
+  // again; the Document tab is one click away.
+  const [tab, setTab] = useState<Tab>("overview");
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusPreset, setStatusPreset] = useState<ContractStatus | undefined>(undefined);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -138,7 +141,17 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
 
   // FE-C3 — defense-in-depth RBAC gating. BE returns 403 if a user without
   // a permission still hits the endpoint; these flags simply hide actions.
-  const canEdit = useAuthStore(selectHasPermission("contract.edit"));
+  const canEditPerm = useAuthStore(selectHasPermission("contract.edit"));
+  // D57 — elevated-editor + privileged-role flags computed here; the
+  // contract-aware portion (own-draft) is computed below once `data` is
+  // loaded into `contract`, since the row is needed to inspect status and
+  // draftedBy.id.
+  const isElevatedEditor = useAuthStore(
+    selectHasPermission("contract.edit.all"),
+  );
+  const isPrivilegedRole = useAuthStore(
+    selectHasPermission("clause.review"), // legal_counsel proxy for redlining
+  );
   const canDelete = useAuthStore(selectHasPermission("contract.delete"));
   const canChangeStatus = useAuthStore(selectHasPermission("contract.status.update"));
   const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
@@ -161,8 +174,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const userRole = useAuthStore((s) => s.user?.role.name ?? null);
   const isLegalCounselOnly = userRole === "legal_counsel";
   const isRecipientOnly = userRole === "contract_recipient";
-  const canSeePaymentsTab = canEdit && !isLegalCounselOnly && !isRecipientOnly;
-  const canSeeSignaturesTab = canEdit && !isLegalCounselOnly && !isRecipientOnly;
+  // D57 — canSeePaymentsTab + canSeeSignaturesTab depend on canEdit, which
+  // is finalised below once `contract` is loaded. These two derived flags
+  // are likewise computed after the `const contract = data` line.
 
   const { data, isLoading, isError, error, refetch } = useContract(contractId);
 
@@ -265,6 +279,21 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const contract = data;
   const isAr = i18n.language?.startsWith("ar");
   const displayTitle = isAr && contract.titleAr ? contract.titleAr : contract.titleEn;
+
+  // D57 — drafter's contract.edit scope is "edit-own-while-draft" only.
+  // Now that `contract` is loaded, finalise canEdit by combining the
+  // contract-aware own-draft check with the elevated-editor + privileged
+  // perms computed above. A contract in active / in_approval / fully_signed
+  // is locked even for the drafter who created it; legal_counsel keeps
+  // Edit for redlining; contract.edit.all keeps Edit for admins.
+  const isOwnDraft =
+    contract.status === "draft" &&
+    contract.draftedBy?.id != null &&
+    contract.draftedBy.id === currentUserId;
+  const canEdit =
+    canEditPerm && (isOwnDraft || isElevatedEditor || isPrivilegedRole);
+  const canSeePaymentsTab = canEdit && !isLegalCounselOnly && !isRecipientOnly;
+  const canSeeSignaturesTab = canEdit && !isLegalCounselOnly && !isRecipientOnly;
 
   return (
     <div className="mx-auto w-full max-w-[1280px] space-y-4 p-6">
@@ -386,18 +415,10 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                 {t("contracts.detail.actions.sign", { defaultValue: "Sign" })}
               </Button>
             )}
-          {!isRecipientOnly && canEdit && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setTab("edit")}
-              className="hidden sm:inline-flex"
-            >
-              <PencilLine className="h-3.5 w-3.5" />
-              {t("common.edit")}
-            </Button>
-          )}
+          {/* D54 — duplicate "Edit" header button removed. The Edit tab in
+              the tab strip below is the canonical entry point; rendering
+              the same affordance twice in different chrome (top-right
+              button + 5th tab) was confusing without adding value. */}
           {/* L45 — Draft Cure Notice action surfaced to legal_counsel.
               Links to the advisory queue with the contract pre-filtered so Layla
               lands on (or can create) a cure notice tied to this contract. */}

@@ -208,7 +208,8 @@
       "empty": "No data available",
       "error": "Failed to load chart data"
     },
-    "moduleDisabled": "This module is not available for your account."
+    "moduleDisabled": "This module is not available for your account.",
+    "refresh": "Refresh"
   },
   "budgetBurn": {
     "detail": {
@@ -503,7 +504,8 @@
     "activateHint": "Active templates appear in the composer.",
     "publish": "Publish template",
     "publishedToast": "Template published",
-    "validationFix": "Please complete the required fields before continuing."
+    "validationFix": "Please complete the required fields before continuing.",
+    "title": "Templates"
   },
   "settings": {
     "preferencesKicker": "Personal preferences",
@@ -736,27 +738,31 @@
   },
   "contractType": {
     "employment": "Employment",
-    "vendor_services": "Vendor / services",
+    "vendor_services": "Vendor Services",
     "service": "Service",
-    "nda": "Non-disclosure",
+    "nda": "NDA",
     "consultancy": "Consultancy",
     "advisory": "Advisory",
     "lease": "Lease",
     "agency": "Agency",
     "distribution": "Distribution",
     "shareholders": "Shareholders",
-    "llc_incorporation": "LLC incorporation",
+    "llc_incorporation": "LLC Incorporation",
     "trademark_license": "Trademark licence",
     "franchise": "Franchise",
     "share_purchase": "Share purchase",
-    "master_services": "Master services",
+    "master_services": "Master Services",
     "sow": "Statement of work",
     "supply": "Supply",
     "concession": "Concession",
     "joint_venture": "Joint venture",
     "settlement": "Settlement",
     "facilities": "Facilities",
-    "management": "Management"
+    "management": "Management",
+    "services": "Services",
+    "epc": "EPC",
+    "gas_spa": "Gas SPA",
+    "msa": "MSA"
   },
   "languageLabel": {
     "en": "English",
@@ -958,7 +964,11 @@
       "updatedAt": "Last updated {{when}}",
       "notFound": "Contract not found",
       "forbidden": "You don't have access to this contract.",
-      "backToList": "Back to contracts"
+      "backToList": "Back to contracts",
+      "overviewCard": {
+        "title": "Quick stats",
+        "healthScore": "Health score"
+      }
     },
     "delete": {
       "title": "Delete contract",
@@ -1055,7 +1065,7 @@
     },
     "compose": {
       "title": "Compose contract",
-      "subtitle": "Walk through five steps to draft a new contract with milestones.",
+      "subtitle": "Walk through four steps to draft a new contract with milestones.",
       "newCta": "Compose contract",
       "submit": "Create contract",
       "discardDraft": "Discard draft",
@@ -1063,19 +1073,20 @@
       "stepIndex": "Step {{n}} of {{total}}",
       "forbiddenSubtitle": "You don't have permission to draft contracts.",
       "fields": {
-        "ourPartyName": "Our party (name)",
-        "counterpartyName": "Counterparty (name)",
-        "partyDeferredHelp": "Free text — full party records arrive with the Parties module.",
-        "partyDeferredValue": "Pending Parties module",
+        "ourPartyName": "Our party",
+        "counterpartyName": "Counterparty",
+        "partyHelp": "Pick from the suggested list — or type a new party name.",
+        "contractTypeChoose": "Choose a contract type…",
         "template": "Template",
-        "templateEmpty": "No templates available",
-        "templateDeferredHelp": "Templates arrive with the Templates module."
+        "templateNone": "Start from a blank draft (no template)",
+        "templateLoading": "Loading templates…",
+        "templateError": "Could not load templates — continue from a blank draft."
       },
       "steps": {
         "step1": {
           "tabLabel": "Setup",
           "title": "Step 1 — Setup",
-          "subtitle": "Pick the contract type and language. Party and template pickers will arrive with their modules."
+          "subtitle": "Pick the contract type, language, parties, and (optionally) a template to start from."
         },
         "step2": {
           "tabLabel": "Key terms",
@@ -1084,10 +1095,10 @@
         },
         "step3": {
           "tabLabel": "Clauses",
-          "aiPanelTitle": "AI drafting",
-          "aiDeferredHelp": "AI drafting lands with the AI Features module.",
           "clausesTitle": "Clause library",
-          "clausesDeferredHelp": "Clause library lands with the Clauses module.",
+          "clausesHelp": "Insert standard / alternative / fallback clauses from the library into the contract body.",
+          "clausesEmpty": "No clauses match.",
+          "clauseInserted": "{{label}} inserted into the English body.",
           "bodyTitle": "Body",
           "bodySubtitle": "Type or paste the contract body in either or both languages."
         },
@@ -1096,8 +1107,7 @@
           "setupSection": "Setup",
           "keyTermsSection": "Key terms",
           "bodySection": "Body",
-          "paymentScheduleEmpty": "No milestones — you can add them later from the Payments tab.",
-          "attachmentsDeferred": "Attachments will appear here once the Attachments module is enabled."
+          "paymentScheduleEmpty": "No milestones — you can add them later from the Payments tab."
         }
       },
       "phases": {
@@ -1229,7 +1239,8 @@
         "retry": "Retry extraction",
         "retryQueued": "Re-extraction queued. The document is being processed."
       }
-    }
+    },
+    "noEndDate": "No end date"
   },
   "contractDetail": {
     "breadcrumbHome": "Home",
@@ -1724,10 +1735,13 @@
           "required": "Required."
         }
       }
+    },
+    "pagination": {
+      "showing": "Showing {{from}}-{{to}} of {{n}}"
     }
   },
   "clauses": {
-    "title": "Clause Library",
+    "title": "Clauses",
     "kicker": "{{count}} clauses · {{categories}} categories",
     "newClause": "New clause",
     "allClauses": "All clauses",
@@ -6373,7 +6387,10 @@
       "sortOption": {
         "oldest": "Oldest first",
         "newest": "Newest first",
-        "highest_value": "Highest value"
+        "highest_value": "Highest value",
+        "value_desc": "Highest value",
+        "sla_urgency": "SLA: Most urgent first",
+        "value_asc": "Lowest value"
       },
       "col": {
         "contract": "Contract",
@@ -6389,7 +6406,12 @@
       "actAction": "Act",
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago",
-      "showingRange": "Showing {{from}}–{{to}} of {{total}}"
+      "showingRange": "Showing {{from}}–{{to}} of {{total}}",
+      "eyebrow": "{{count}} pending · {{urgent}} SLA breaches",
+      "priority": {
+        "highValue": "High Value",
+        "urgent": "Urgent"
+      }
     },
     "decide": {
       "title": "Act on this approval",
@@ -6400,33 +6422,36 @@
       "actionLabel": {
         "approve": "Approve",
         "reject": "Reject",
-        "request_resubmission": "Resubmit",
+        "request_resubmission": "Request resubmission",
         "delegate": "Delegate"
       },
       "approve": "Approve",
       "reject": "Reject",
       "requestResubmission": "Request resubmission",
       "requestInfo": "Request info",
-      "noteOptional": "Optional comment",
+      "noteOptional": "Optional comment · recommended for audit trail",
       "rejectReason": "Rejection reason",
       "resubmitReason": "What information do you need?",
       "notePlaceholderApprove": "Add an optional comment for the record…",
       "notePlaceholderReject": "Explain why this contract is being rejected (min. 10 characters)…",
       "notePlaceholderResubmit": "Be specific about what the drafter needs to provide (min. 20 characters)…",
-      "rejectWarning": "This halts the approval workflow. The drafter will need to start over to proceed.",
+      "rejectWarning": "This halts the approval workflow. The drafter can edit the contract and resubmit, or close it as not-proceeding.",
       "resubmitWarning": "The contract will return to the drafter for revision. Approval steps reset on resubmission.",
       "minChars": "Minimum {{n}} characters"
     },
     "delegate": {
       "title": "Delegate this approval",
       "submit": "Delegate",
-      "targetUser": "Delegate to user ID",
+      "targetUser": "Delegate to",
       "targetUserPlaceholder": "e.g. 42",
       "targetUserHelp": "User must hold a compatible approver role.",
       "noteOptional": "Optional rationale",
       "notePlaceholder": "Add an optional rationale for the audit log…",
-      "invalidUser": "Enter a positive user ID.",
-      "cannotSelf": "You cannot delegate to yourself."
+      "invalidUser": "Invalid delegate selection.",
+      "cannotSelf": "Cannot delegate to yourself.",
+      "selectCandidate": "Select a peer approver…",
+      "noCandidates": "No eligible delegates available for this step. Ask an admin to add a peer approver with the matching role.",
+      "candidatesFailed": "Could not load eligible delegates."
     },
     "submit": {
       "title": "Submit for approval",
@@ -6560,6 +6585,13 @@
       "submitted": "Contract submitted for approval",
       "matrixSaved": "Matrix rule saved",
       "reassigned": "Step reassigned"
+    },
+    "dashboardDecisionMix": {
+      "approve": "Approved",
+      "reject": "Rejected",
+      "request_resubmission": "Resubmission requested",
+      "requestResubmission": "Resubmission requested",
+      "skipped": "Skipped"
     }
   },
   "signatures": {
@@ -7240,14 +7272,15 @@
       }
     },
     "drafter": {
-      "title": "Drafter Dashboard",
+      "title": "My drafting workspace",
       "subtitle": "Your drafts and what is awaiting your action.",
       "kpiGroupLabel": "Drafter key performance indicators",
       "kpis": {
         "myDraftsCount": "My drafts",
         "awaitingMyActionCount": "Awaiting my action",
         "readyToSendCount": "Ready to send",
-        "myRecentlyApprovedCount": "Recently approved"
+        "myRecentlyApprovedCount": "Recently approved",
+        "pipeline": "Drafting pipeline"
       },
       "lists": {
         "myDraftsTitle": "My drafts",
@@ -7258,7 +7291,53 @@
       "lastDecisionNote": "Last decision note",
       "errors": {
         "loadFailed": "Could not load the drafter dashboard."
-      }
+      },
+      "kicker": "Welcome back, {{name}} · {{date}} · {{hijri}}",
+      "newContract": "New contract",
+      "pills": {
+        "draft": "Drafts",
+        "awaitingAction": "Awaiting action",
+        "readyToSend": "Ready to send",
+        "approved": "Approved"
+      },
+      "recentDrafts": {
+        "title": "Recent drafts"
+      },
+      "tts": {
+        "title": "Time to signature",
+        "subtitle": "Avg days draft → fully signed · trailing 6 months (not scoped by the date filter above)",
+        "byType": "By contract type"
+      },
+      "byStage": {
+        "title": "My contracts by stage",
+        "emptyTitle": "No drafts yet",
+        "emptySubtitle": "Start a new contract from Compose to see your pipeline distribution."
+      },
+      "templateUsage": {
+        "title": "Template usage",
+        "subtitle": "Most-used templates",
+        "error": "Could not load templates.",
+        "empty": "No templates yet.",
+        "usedN": "{{count}}"
+      },
+      "regWatch": {
+        "title": "Impact Watch",
+        "empty": "No active regulator / commodity signals affecting your contract types in the last 7 days.",
+        "impactedN": "{{count}} impacted contracts in your scope"
+      },
+      "notifications": {
+        "title": "My notifications",
+        "unreadN": "{{count}} unread",
+        "empty": "Nothing to show yet.",
+        "viewAll": "View all"
+      },
+      "heroCta": {
+        "title": "Start your first draft",
+        "subtitle": "You don't have any contracts in progress. Pick a template from Compose and the rest of this dashboard will populate with your pipeline.",
+        "action": "Compose a contract",
+        "ariaLabel": "Start your first draft"
+      },
+      "kpiStripHeading": "My drafting pipeline — snapshot"
     },
     "approver": {
       "title": "Your approvals",
@@ -8230,7 +8309,8 @@
       "title": "Risk Cases",
       "subtitle": "Active risk-management workflow for correlation alerts, obligations and SLA breaches.",
       "empty": "No risk cases match your filters",
-      "unassigned": "Unassigned"
+      "unassigned": "Unassigned",
+      "drafterScopeCaption": "Read-only view — these are department-wide risk cases; none are assigned to you directly."
     },
     "detail": {
       "actionsTitle": "Actions",

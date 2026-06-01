@@ -164,6 +164,26 @@ export function useDelegateApproval(
   });
 }
 
+// ─── A38 (Aisha audit) — Delegate candidates (name+role picker source) ─────
+
+import type { DelegateCandidatesResponse } from "@/services/api/approval.service";
+
+export function useDelegateCandidates(
+  stepId: number | null | undefined,
+  options?: Omit<
+    UseQueryOptions<DelegateCandidatesResponse, ApiError>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  return useQuery<DelegateCandidatesResponse, ApiError>({
+    queryKey: [...approvalKeys.all, "delegateCandidates", stepId],
+    queryFn: () => approvalService.delegateCandidates(stepId as number),
+    enabled: typeof stepId === "number" && stepId > 0,
+    staleTime: 60_000,
+    ...options,
+  });
+}
+
 // ─── S6 — Preview ────────────────────────────────────────────────────────────
 
 export function usePreviewApprovalChain(

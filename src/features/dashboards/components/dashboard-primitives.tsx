@@ -505,6 +505,34 @@ const HUMANIZE_OVERRIDES: Record<string, string> = {
   scheduled_recompute: "Scheduled recompute",
   demo_reset: "Demo reset",
   price_review: "Price review",
+  // A4 (Aisha audit) — collapse the "Internal:harness" osint source slug
+  // to a clean label so the demo doesn't reveal test-fixture naming.
+  "internal:harness": "Demo fixture",
+  // Approval-action vocabulary (A11 / A13 / A41 — single canonical strings
+  // used across row icons, modal segmented control, modal title,
+  // decision-mix donut legend, and audit log labels).
+  approve: "Approved",
+  reject: "Rejected",
+  requestresubmission: "Resubmission requested",
+  request_resubmission: "Resubmission requested",
+  request_changes: "Changes requested",
+  resubmit: "Resubmission requested",
+  delegate: "Delegated",
+  skipped: "Skipped",
+  // A7 — Priority enum surfaces (chips in /app/approvals).
+  high_value: "High Value",
+  urgent: "Urgent",
+  routine: "Routine",
+  // A30 — Tags (lowercase in seed).
+  energy: "Energy",
+  // A35 — Activity feed event_type slugs.
+  ai_risk_score_updated: "AI risk score updated",
+  submitted_for_approval: "Submitted for approval",
+  approval_decision_recorded: "Approval decision recorded",
+  comment_added: "Comment added",
+  attachment_added: "Attachment added",
+  signature_recorded: "Signature recorded",
+  version_created: "Version created",
 };
 
 // Acronyms that should be UPPERCASED after the title-case pass so multi-word

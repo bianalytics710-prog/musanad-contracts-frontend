@@ -74,8 +74,11 @@ function defaultLandingForRole(
   // not in effectiveModules, the FE RequireModule boundary would 404+redirect,
   // so steer the redirect proactively to the always-available insights hub.
   const candidates: Record<string, { route: string; module?: string }> = {
-    contract_approver:   { route: "/app/approvals",                    module: "approvals" },
-    contract_approver_2: { route: "/app/approvals",                    module: "approvals" },
+    // A1 — Aisha audit fix (2026-06-01): approver personas land on their
+    // dashboard (not the queue list) to match Dana / Layla / Eman parity.
+    // /app/dashboards/approver is gated by insights_hub (mig 340).
+    contract_approver:   { route: "/app/dashboards/approver",          module: "insights_hub" },
+    contract_approver_2: { route: "/app/dashboards/approver",          module: "insights_hub" },
     contract_drafter:    { route: "/app/dashboards/drafter",           module: "insights_hub" },
     legal_counsel:       { route: "/app/dashboards/legal-counsel",     module: "insights_hub" },
     executive:           { route: "/app/dashboards/executive",         module: "dashboards.executive" },

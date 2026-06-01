@@ -21,7 +21,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, Eye, Plus, Search } from 'luc
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuthStore, selectHasPermission } from '@/store/auth.store';
+import { useAuthStore, selectHasPermission, selectUser } from '@/store/auth.store';
 import { riskCaseService } from '@/services/api/risk-case.service';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateTime } from '@/utils/datetime';
@@ -106,6 +106,15 @@ function RiskCaseListView() {
         <div>
           <h1 className="text-2xl font-semibold text-ink">{t('riskCases.list.title')}</h1>
           <p className="mt-1 text-sm text-ink-muted">{t('riskCases.list.subtitle')}</p>
+          {/* D51 — scope caption clarifies that the contract_drafter sees
+              department-wide risk cases in read mode (none assigned to her
+              directly), so the empty assigned-to-me state doesn't read as
+              "the platform has no cases". */}
+          <ScopeCaption />
+          {/* A43 (Aisha audit fix 2026-06-01) — surface a banner whenever a
+              case is approaching SLA-breach in the next 24h. Otherwise
+              critical-priority cases are easy to miss in a long table. */}
+          <ImminentSlaBanner items={items} />
         </div>
         {canCreate && (
           <Button onClick={() => setShowCreate(true)}>
@@ -320,12 +329,27 @@ function RiskCaseListView() {
                         <Link
                           to="/app/risk-cases/$caseId"
                           params={{ caseId: String(item.id) }}
-                          className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                          className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded block"
                         >
                           {item.title}
                         </Link>
+                        {/* D50 — case title + linked contract title were
+                            rendered as inline+block siblings which made the
+                            DOM textContent read "Case TitleContract Title"
+                            (no separator). Adding an explicit "Contract:"
+                            prefix + block-level paragraph keeps them
+                            visually identical but readable for screen
+                            readers and DOM extractors. */}
                         {item.contractTitle && (
-                          <p className="mt-0.5 text-xs text-ink-muted truncate" title={item.contractTitle}>
+                          <p
+                            className="mt-0.5 text-xs text-ink-muted truncate"
+                            title={item.contractTitle}
+                          >
+                            <span className="text-ink-subtle">
+                              {t("riskCases.linkedContractPrefix", {
+                                defaultValue: "Contract:",
+                              })}
+                            </span>{" "}
                             {item.contractTitle}
                           </p>
                         )}
@@ -418,5 +442,60 @@ function RiskCaseListView() {
 
       <CreateRiskCaseDialog open={showCreate} onClose={() => setShowCreate(false)} />
     </motion.div>
+  );
+}
+
+/**
+ * D51 — scope caption for personas like contract_drafter who land here with
+ * read-only access but no cases directly assigned. Renders a one-line
+ * advisory below the H1 so the page doesn't read as "no cases on the
+ * platform" when in fact she's looking at the department-wide queue.
+ */
+function ScopeCaption() {
+  const { t } = useTranslation();
+  const user = useAuthStore(selectUser);
+  const roleName = user?.role?.name;
+  if (roleName !== 'contract_drafter') return null;
+  return (
+    <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
+      <span aria-hidden="true">•</span>
+      {t('riskCases.list.drafterScopeCaption', {
+        defaultValue:
+          'Read-only view — these are department-wide risk cases; none are assigned to you directly.',
+      })}
+    </p>
+  );
+}
+
+/**
+ * A43 (Aisha audit fix 2026-06-01) — renders a banner when one or more
+ * cases is due within the next 24 hours. Mid-table critical cases were too
+ * easy to miss; the banner pulls the count above the fold and links the
+ * user to the at-risk subset via the standard SLA filter.
+ */
+function ImminentSlaBanner({ items }: { items: Array<{ dueAt: string | null; status: string }> }) {
+  const { t } = useTranslation();
+  const within24hCount = items.filter((c) => {
+    if (!c.dueAt) return false;
+    if (['closed', 'rejected'].includes(c.status)) return false;
+    const due = new Date(c.dueAt).getTime();
+    const now = Date.now();
+    const hours = (due - now) / (1000 * 60 * 60);
+    return hours > 0 && hours <= 24;
+  }).length;
+  if (within24hCount === 0) return null;
+  return (
+    <div className="mt-2 flex items-start gap-2 rounded-md border border-terracotta/40 bg-terracotta/5 px-3 py-2 text-xs text-terracotta">
+      <span aria-hidden="true">⚠</span>
+      <p className="font-medium">
+        {t('riskCases.list.imminentSlaBanner', {
+          count: within24hCount,
+          defaultValue:
+            within24hCount === 1
+              ? '1 case nearing SLA breach in next 24h — review now'
+              : `${within24hCount} cases nearing SLA breach in next 24h — review now`,
+        })}
+      </p>
+    </div>
   );
 }

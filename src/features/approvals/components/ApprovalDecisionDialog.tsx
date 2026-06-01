@@ -39,6 +39,7 @@ import { useDoubleSubmitLock } from "@/features/imports/hooks/useDoubleSubmitLoc
 import {
   useDecideApproval,
   useDelegateApproval,
+  useDelegateCandidates,
 } from "@/features/approvals/hooks/useApprovals";
 import type { DecideKind } from "@/types/entities/approval.types";
 import { cn } from "@/lib/utils";
@@ -290,43 +291,16 @@ export function ApprovalDecisionDialog({
 
         <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3">
           {kind === "delegate" && (
-            <div>
-              <label
-                htmlFor={userId}
-                className="block text-xs font-medium text-ink-muted"
-              >
-                {t("approval.delegate.targetUser")}
-              </label>
-              <input
-                id={userId}
-                type="number"
-                inputMode="numeric"
-                min={1}
-                value={delegatedToUserId}
-                onChange={(e) => setDelegatedToUserId(e.target.value)}
-                disabled={isPending}
-                className={cn(
-                  "mt-1 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
-                  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                )}
-                placeholder={t("approval.delegate.targetUserPlaceholder")}
-                aria-describedby={`${userId}-help`}
-              />
-              <p id={`${userId}-help`} className="mt-1 text-[11px] text-ink-subtle">
-                {t("approval.delegate.targetUserHelp")}
-              </p>
-              {kind === "delegate" && delegatedToUserId && !delegateUserIdValid && (
-                <p className="mt-1 text-[11px] text-destructive">
-                  {t("approval.delegate.invalidUser")}
-                </p>
-              )}
-              {kind === "delegate" && !delegateNotSelf && (
-                <p className="mt-1 text-[11px] text-destructive">
-                  {t("approval.delegate.cannotSelf")}
-                </p>
-              )}
-            </div>
+            <DelegateUserPicker
+              stepId={stepId}
+              currentUserId={currentUserId ?? null}
+              value={delegatedToUserId}
+              onChange={setDelegatedToUserId}
+              disabled={isPending}
+              fieldId={userId}
+              delegateUserIdValid={delegateUserIdValid}
+              delegateNotSelf={delegateNotSelf}
+            />
           )}
 
           {kind && (
@@ -400,3 +374,113 @@ export function ApprovalDecisionDialog({
 }
 
 export default ApprovalDecisionDialog;
+
+/**
+ * A38 (Aisha audit fix 2026-06-01) — Delegate-to picker. Replaces the raw
+ * numeric user ID input with a name+role dropdown fed by
+ * fn_approval_delegate_candidates (mig 429). Empty + loading + no-candidate
+ * states all render appropriate copy so ADNOC reviewers never see a stray
+ * "e.g. 42" placeholder.
+ */
+function DelegateUserPicker(props: {
+  stepId: number;
+  currentUserId: number | null;
+  value: string;
+  onChange: (next: string) => void;
+  disabled: boolean;
+  fieldId: string;
+  delegateUserIdValid: boolean;
+  delegateNotSelf: boolean;
+}) {
+  const { t } = useTranslation();
+  const {
+    stepId,
+    currentUserId,
+    value,
+    onChange,
+    disabled,
+    fieldId,
+    delegateUserIdValid,
+    delegateNotSelf,
+  } = props;
+  const { data, isLoading, isError } = useDelegateCandidates(stepId);
+  const allCandidates = data?.data ?? [];
+  const candidates = currentUserId
+    ? allCandidates.filter((c) => c.id !== currentUserId)
+    : allCandidates;
+
+  const roleLabel = (slug: string) =>
+    t(`roles.${slug}`, { defaultValue: slug.replace(/_/g, " ") });
+
+  return (
+    <div>
+      <label
+        htmlFor={fieldId}
+        className="block text-xs font-medium text-ink-muted"
+      >
+        {t("approval.delegate.targetUser", { defaultValue: "Delegate to" })}
+      </label>
+      {isLoading ? (
+        <p className="mt-1 text-[11px] text-ink-subtle">
+          {t("common.loading", { defaultValue: "Loading…" })}
+        </p>
+      ) : isError ? (
+        <p className="mt-1 text-[11px] text-destructive">
+          {t("approval.delegate.candidatesFailed", {
+            defaultValue: "Could not load eligible delegates.",
+          })}
+        </p>
+      ) : candidates.length === 0 ? (
+        <p className="mt-1 text-[11px] text-ink-subtle">
+          {t("approval.delegate.noCandidates", {
+            defaultValue:
+              "No eligible delegates available for this step. Ask an admin to add a peer approver with the matching role.",
+          })}
+        </p>
+      ) : (
+        <select
+          id={fieldId}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className={cn(
+            "mt-1 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+          )}
+          aria-describedby={`${fieldId}-help`}
+        >
+          <option value="">
+            {t("approval.delegate.selectCandidate", {
+              defaultValue: "Select a peer approver…",
+            })}
+          </option>
+          {candidates.map((c) => (
+            <option key={c.id} value={String(c.id)}>
+              {`${c.firstName} ${c.lastName} · ${roleLabel(c.role)}`}
+            </option>
+          ))}
+        </select>
+      )}
+      <p id={`${fieldId}-help`} className="mt-1 text-[11px] text-ink-subtle">
+        {t("approval.delegate.targetUserHelp", {
+          defaultValue: "User must hold a compatible approver role.",
+        })}
+      </p>
+      {value && !delegateUserIdValid && (
+        <p className="mt-1 text-[11px] text-destructive">
+          {t("approval.delegate.invalidUser", {
+            defaultValue: "Invalid delegate selection.",
+          })}
+        </p>
+      )}
+      {!delegateNotSelf && (
+        <p className="mt-1 text-[11px] text-destructive">
+          {t("approval.delegate.cannotSelf", {
+            defaultValue: "Cannot delegate to yourself.",
+          })}
+        </p>
+      )}
+    </div>
+  );
+}

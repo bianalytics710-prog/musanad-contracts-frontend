@@ -38,6 +38,18 @@ import type {
 const APPROVALS_BASE = "/api/v1/approvals";
 const CONTRACTS_BASE = "/api/v1/contracts";
 
+/** A38 — delegate candidate shape returned by fn_approval_delegate_candidates. */
+export interface DelegateCandidate {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+}
+export interface DelegateCandidatesResponse {
+  data: DelegateCandidate[];
+}
+
 function toParams(q: object | undefined): Record<string, unknown> {
   if (!q) return {};
   const out: Record<string, unknown> = {};
@@ -81,6 +93,19 @@ export const approvalService = {
     const { data } = await apiClient.post<DelegateApprovalResponse>(
       `${APPROVALS_BASE}/${stepId}/delegate`,
       payload,
+    );
+    return data;
+  },
+
+  /**
+   * A38 (Aisha audit fix) — GET /api/v1/approvals/:stepId/delegate-candidates.
+   * Backs the Delegate-to dropdown so users don't need to type raw user IDs.
+   */
+  delegateCandidates: async (
+    stepId: number,
+  ): Promise<DelegateCandidatesResponse> => {
+    const { data } = await apiClient.get<DelegateCandidatesResponse>(
+      `${APPROVALS_BASE}/${stepId}/delegate-candidates`,
     );
     return data;
   },

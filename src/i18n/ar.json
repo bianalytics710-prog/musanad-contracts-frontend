@@ -208,7 +208,8 @@
       "empty": "لا توجد بيانات متاحة",
       "error": "فشل تحميل بيانات الرسم البياني"
     },
-    "moduleDisabled": "هذه الوحدة غير متاحة لحسابك."
+    "moduleDisabled": "هذه الوحدة غير متاحة لحسابك.",
+    "refresh": "تحديث"
   },
   "budgetBurn": {
     "detail": {
@@ -503,7 +504,8 @@
     "activateHint": "تظهر القوالب النشطة في المُؤلف.",
     "publish": "نشر القالب",
     "publishedToast": "تم نشر القالب",
-    "validationFix": "يرجى استكمال الحقول المطلوبة قبل المتابعة."
+    "validationFix": "يرجى استكمال الحقول المطلوبة قبل المتابعة.",
+    "title": "القوالب"
   },
   "settings": {
     "preferencesKicker": "التفضيلات الشخصية",
@@ -736,7 +738,7 @@
   },
   "contractType": {
     "employment": "توظيف",
-    "vendor_services": "خدمات / موردين",
+    "vendor_services": "خدمات الموردين",
     "service": "خدمة",
     "nda": "عدم إفشاء",
     "consultancy": "استشارات",
@@ -745,18 +747,22 @@
     "agency": "وكالة",
     "distribution": "توزيع",
     "shareholders": "مساهمين",
-    "llc_incorporation": "تأسيس ذ.م.م",
+    "llc_incorporation": "تأسيس ذ.م.م",
     "trademark_license": "ترخيص علامة تجارية",
     "franchise": "امتياز تجاري",
     "share_purchase": "شراء أسهم",
-    "master_services": "خدمات إطارية",
+    "master_services": "اتفاقية خدمات رئيسية",
     "sow": "بيان عمل",
     "supply": "توريد",
     "concession": "امتياز",
     "joint_venture": "مشروع مشترك",
     "settlement": "تسوية",
     "facilities": "مرافق",
-    "management": "إدارة"
+    "management": "إدارة",
+    "services": "خدمات",
+    "epc": "هندسة وتوريد وإنشاء",
+    "gas_spa": "اتفاقية بيع وشراء غاز",
+    "msa": "اتفاقية الخدمات الرئيسية"
   },
   "languageLabel": {
     "en": "إنجليزية",
@@ -958,7 +964,11 @@
       "updatedAt": "آخر تحديث {{when}}",
       "notFound": "العقد غير موجود",
       "forbidden": "ليس لديك صلاحية الوصول إلى هذا العقد.",
-      "backToList": "العودة إلى العقود"
+      "backToList": "العودة إلى العقود",
+      "overviewCard": {
+        "title": "إحصاءات سريعة",
+        "healthScore": "درجة الصحة"
+      }
     },
     "delete": {
       "title": "حذف العقد",
@@ -1055,7 +1065,7 @@
     },
     "compose": {
       "title": "تأليف عقد",
-      "subtitle": "اتبع خمس خطوات لصياغة عقد جديد مع المعالم.",
+      "subtitle": "اتبع أربع خطوات لصياغة عقد جديد مع المعالم.",
       "newCta": "تأليف عقد",
       "submit": "إنشاء العقد",
       "discardDraft": "تجاهل المسودة",
@@ -1063,19 +1073,20 @@
       "stepIndex": "الخطوة {{n}} من {{total}}",
       "forbiddenSubtitle": "ليس لديك صلاحية صياغة العقود.",
       "fields": {
-        "ourPartyName": "طرفنا (الاسم)",
-        "counterpartyName": "الطرف المقابل (الاسم)",
-        "partyDeferredHelp": "نص حر — سجلات الأطراف الكاملة ستصل مع وحدة الأطراف.",
-        "partyDeferredValue": "قيد وحدة الأطراف",
+        "ourPartyName": "طرفنا",
+        "counterpartyName": "الطرف المقابل",
+        "partyHelp": "اختر من القائمة المقترحة — أو اكتب اسم طرف جديد.",
+        "contractTypeChoose": "اختر نوع العقد…",
         "template": "القالب",
-        "templateEmpty": "لا توجد قوالب متاحة",
-        "templateDeferredHelp": "ستصل القوالب مع وحدة القوالب."
+        "templateNone": "ابدأ من مسودة فارغة (بدون قالب)",
+        "templateLoading": "جارٍ تحميل القوالب…",
+        "templateError": "تعذر تحميل القوالب — تابع من مسودة فارغة."
       },
       "steps": {
         "step1": {
           "tabLabel": "الإعداد",
           "title": "الخطوة 1 — الإعداد",
-          "subtitle": "اختر نوع العقد ولغته. ستتوفر منتقيات الأطراف والقوالب مع وحداتها."
+          "subtitle": "اختر نوع العقد ولغته وأطرافه و(اختيارياً) القالب الذي ستبدأ منه."
         },
         "step2": {
           "tabLabel": "البنود الأساسية",
@@ -1084,10 +1095,10 @@
         },
         "step3": {
           "tabLabel": "البنود",
-          "aiPanelTitle": "صياغة بالذكاء الاصطناعي",
-          "aiDeferredHelp": "ستصل صياغة الذكاء الاصطناعي مع وحدة ميزات الذكاء الاصطناعي.",
           "clausesTitle": "مكتبة البنود",
-          "clausesDeferredHelp": "ستصل مكتبة البنود مع وحدة البنود.",
+          "clausesHelp": "أدرج البنود القياسية أو البديلة أو الاحتياطية من المكتبة في نص العقد.",
+          "clausesEmpty": "لا توجد بنود مطابقة.",
+          "clauseInserted": "تمت إضافة \"{{label}}\" إلى النص الإنجليزي.",
           "bodyTitle": "النص",
           "bodySubtitle": "اكتب أو الصق نص العقد بأي من اللغتين أو كلتيهما."
         },
@@ -1096,8 +1107,7 @@
           "setupSection": "الإعداد",
           "keyTermsSection": "البنود الأساسية",
           "bodySection": "النص",
-          "paymentScheduleEmpty": "لا توجد معالم — يمكن إضافتها لاحقاً من تبويب المدفوعات.",
-          "attachmentsDeferred": "ستظهر المرفقات هنا عند تفعيل وحدة المرفقات."
+          "paymentScheduleEmpty": "لا توجد معالم — يمكن إضافتها لاحقاً من تبويب المدفوعات."
         }
       },
       "phases": {
@@ -1229,7 +1239,8 @@
         "retry": "إعادة الاستخراج",
         "retryQueued": "تمت جدولة إعادة الاستخراج. جارٍ معالجة الوثيقة."
       }
-    }
+    },
+    "noEndDate": "بدون تاريخ انتهاء"
   },
   "contractDetail": {
     "breadcrumbHome": "الرئيسية",
@@ -1724,6 +1735,9 @@
           "required": "مطلوب."
         }
       }
+    },
+    "pagination": {
+      "showing": "عرض {{from}}-{{to}} من {{n}}"
     }
   },
   "clauses": {
@@ -6373,7 +6387,10 @@
       "sortOption": {
         "oldest": "الأقدم أولاً",
         "newest": "الأحدث أولاً",
-        "highest_value": "الأعلى قيمة"
+        "highest_value": "الأعلى قيمة",
+        "value_desc": "القيمة الأعلى",
+        "sla_urgency": "الأكثر إلحاحًا في SLA",
+        "value_asc": "القيمة الأدنى"
       },
       "col": {
         "contract": "العقد",
@@ -6389,7 +6406,12 @@
       "actAction": "اتخاذ إجراء",
       "hoursAgo": "منذ {{count}} ساعة",
       "daysAgo": "منذ {{count}} يوم",
-      "showingRange": "عرض {{from}}–{{to}} من {{total}}"
+      "showingRange": "عرض {{from}}–{{to}} من {{total}}",
+      "eyebrow": "{{count}} قيد الموافقة · {{urgent}} خرق لاتفاقية مستوى الخدمة",
+      "priority": {
+        "highValue": "قيمة عالية",
+        "urgent": "عاجل"
+      }
     },
     "decide": {
       "title": "اتخذ إجراءً بشأن هذه الموافقة",
@@ -6398,35 +6420,38 @@
       "resubmitTitle": "طلب إعادة التقديم",
       "legend": "اختر إجراءً",
       "actionLabel": {
-        "approve": "اعتماد",
+        "approve": "موافقة",
         "reject": "رفض",
-        "request_resubmission": "إعادة تقديم",
+        "request_resubmission": "طلب إعادة تقديم",
         "delegate": "تفويض"
       },
       "approve": "اعتماد",
       "reject": "رفض",
       "requestResubmission": "طلب إعادة التقديم",
       "requestInfo": "طلب معلومات",
-      "noteOptional": "ملاحظة اختيارية",
+      "noteOptional": "تعليق اختياري · يُنصح به للسجل التدقيقي",
       "rejectReason": "سبب الرفض",
       "resubmitReason": "ما المعلومات التي تحتاجها؟",
       "notePlaceholderApprove": "أضف تعليقًا اختياريًا للسجل…",
       "notePlaceholderReject": "اشرح سبب رفض هذا العقد (10 أحرف كحد أدنى)…",
       "notePlaceholderResubmit": "حدد بدقّة ما يلزم على المحرر تقديمه (20 حرفًا كحد أدنى)…",
-      "rejectWarning": "يؤدي ذلك إلى إيقاف سير الاعتماد. سيحتاج المحرر إلى البدء من جديد للمتابعة.",
+      "rejectWarning": "يوقف هذا تدفّق الموافقة. يمكن للمسوّد تعديل العقد وإعادة التقديم، أو إغلاقه دون متابعة.",
       "resubmitWarning": "سيُعاد العقد إلى المحرر للمراجعة. سيتم إعادة تعيين خطوات الاعتماد عند إعادة التقديم.",
       "minChars": "الحد الأدنى {{n}} حرفًا"
     },
     "delegate": {
       "title": "تفويض هذه الموافقة",
       "submit": "تفويض",
-      "targetUser": "تفويض إلى معرّف المستخدم",
+      "targetUser": "تفويض إلى",
       "targetUserPlaceholder": "مثال: 42",
-      "targetUserHelp": "يجب أن يحمل المستخدم دور معتمِد متوافق.",
+      "targetUserHelp": "يجب أن يحمل المستخدم دورًا متوافقًا.",
       "noteOptional": "مبرّر اختياري",
       "notePlaceholder": "أضف مبرّرًا اختياريًا لسجل التدقيق…",
-      "invalidUser": "أدخل معرّف مستخدم موجبًا.",
-      "cannotSelf": "لا يمكنك التفويض لنفسك."
+      "invalidUser": "اختيار مفوَّض غير صالح.",
+      "cannotSelf": "لا يمكن التفويض إلى نفسك.",
+      "selectCandidate": "اختر مفوَّضًا…",
+      "noCandidates": "لا يوجد مفوَّض مؤهل لهذه الخطوة. اطلب من المسؤول إضافة دور موافق متوافق.",
+      "candidatesFailed": "تعذّر تحميل المفوَّضين المؤهلين."
     },
     "submit": {
       "title": "إرسال للموافقة",
@@ -6560,6 +6585,13 @@
       "submitted": "أُرسل العقد للموافقة",
       "matrixSaved": "حُفظت قاعدة المصفوفة",
       "reassigned": "أُعيد تعيين الخطوة"
+    },
+    "dashboardDecisionMix": {
+      "approve": "تمت الموافقة",
+      "reject": "رُفض",
+      "request_resubmission": "طلب إعادة تقديم",
+      "requestResubmission": "طلب إعادة تقديم",
+      "skipped": "تم التخطي"
     }
   },
   "signatures": {
@@ -7240,14 +7272,15 @@
       }
     },
     "drafter": {
-      "title": "لوحة المُحرّر",
+      "title": "مساحة العمل لمسوّداتي",
       "subtitle": "مسوّداتك وما ينتظر تصرفك.",
       "kpiGroupLabel": "مؤشرات أداء المُحرّر",
       "kpis": {
         "myDraftsCount": "مسوّداتي",
         "awaitingMyActionCount": "بانتظار إجرائي",
         "readyToSendCount": "جاهز للإرسال",
-        "myRecentlyApprovedCount": "تمت الموافقة مؤخرًا"
+        "myRecentlyApprovedCount": "تمت الموافقة مؤخرًا",
+        "pipeline": "سير عمل المسوّدات"
       },
       "lists": {
         "myDraftsTitle": "مسوّداتي",
@@ -7258,7 +7291,53 @@
       "lastDecisionNote": "ملاحظة آخر قرار",
       "errors": {
         "loadFailed": "تعذر تحميل لوحة المُحرّر."
-      }
+      },
+      "kicker": "مرحباً مجدداً يا {{name}} · {{date}} · {{hijri}}",
+      "newContract": "عقد جديد",
+      "pills": {
+        "draft": "مسوّدات",
+        "awaitingAction": "بانتظار إجراء",
+        "readyToSend": "جاهزة للإرسال",
+        "approved": "تمت الموافقة"
+      },
+      "recentDrafts": {
+        "title": "أحدث المسوّدات"
+      },
+      "tts": {
+        "title": "الوقت حتى التوقيع",
+        "subtitle": "متوسط الأيام من المسوّدة إلى التوقيع الكامل · آخر 6 أشهر (لا تتأثر بفلتر التاريخ أعلاه)",
+        "byType": "حسب نوع العقد"
+      },
+      "byStage": {
+        "title": "عقودي حسب المرحلة",
+        "emptyTitle": "لا توجد مسوّدات بعد",
+        "emptySubtitle": "ابدأ عقداً جديداً من شاشة الإنشاء لعرض توزيع سير العمل."
+      },
+      "templateUsage": {
+        "title": "استخدام القوالب",
+        "subtitle": "القوالب الأكثر استخداماً",
+        "error": "تعذّر تحميل القوالب.",
+        "empty": "لا توجد قوالب بعد.",
+        "usedN": "{{count}}"
+      },
+      "regWatch": {
+        "title": "مراقبة الأثر",
+        "empty": "لا توجد إشارات تنظيمية أو سلعية نشطة تؤثر على أنواع عقودك خلال آخر 7 أيام.",
+        "impactedN": "{{count}} عقد متأثر ضمن نطاقك"
+      },
+      "notifications": {
+        "title": "إشعاراتي",
+        "unreadN": "{{count}} غير مقروء",
+        "empty": "لا توجد بيانات لعرضها بعد.",
+        "viewAll": "عرض الكل"
+      },
+      "heroCta": {
+        "title": "ابدأ مسوّدتك الأولى",
+        "subtitle": "ليس لديك أي عقود قيد العمل. اختر قالباً من شاشة الإنشاء وستظهر بقية لوحة المعلومات بمسوّداتك.",
+        "action": "إنشاء عقد",
+        "ariaLabel": "ابدأ مسوّدتك الأولى"
+      },
+      "kpiStripHeading": "سير عمل مسوّداتي — لقطة"
     },
     "approver": {
       "title": "موافقاتك",
@@ -8230,7 +8309,8 @@
       "title": "حالات المخاطر",
       "subtitle": "سير عمل إدارة المخاطر النشط لتنبيهات الارتباط والالتزامات وانتهاكات اتفاقية مستوى الخدمة.",
       "empty": "لا توجد حالات مخاطر تطابق الفلاتر",
-      "unassigned": "غير مُعيَّن"
+      "unassigned": "غير مُعيَّن",
+      "drafterScopeCaption": "عرض للقراءة فقط — هذه حالات مخاطر على مستوى القسم؛ لا توجد حالة مسندة إليك مباشرة."
     },
     "detail": {
       "actionsTitle": "الإجراءات",

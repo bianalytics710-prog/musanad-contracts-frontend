@@ -52,7 +52,7 @@ import {
   InitiateCureNoticeDialog,
   InitiateIcvRemediationDialog,
 } from '@/features/procurement/components/ActionDialogs';
-import { useAuthStore, selectUser } from '@/store/auth.store';
+import { useAuthStore, selectUser, selectHasPermission } from '@/store/auth.store';
 import { formatDateTime, formatDate, formatHijriDate } from '@/utils/datetime';
 import type { DashboardRangeKey } from '@/types/entities/dashboards.types';
 import type {
@@ -103,6 +103,15 @@ const DEFAULT_WINDOW = 90;
 export function ProcurementDashboard() {
   const { t } = useTranslation();
   const user = useAuthStore(selectUser);
+  // A22 (Aisha audit fix 2026-06-01) — Aisha (contract_approver) DOES have
+  // risk.acknowledge per Annex D (used to accept-risk on her own approval
+  // queue), so a pure permission gate isn't enough. The Cure Notice
+  // initiator is conceptually a PROCUREMENT-write action — restrict the
+  // section to roles whose primary workflow is procurement (procurement_
+  // supplier_risk + legal_counsel for the cure-notice authoring path).
+  // Aisha sees the read-only scorecard without the write CTA.
+  const roleName = useAuthStore((s) => s.user?.role?.name);
+  const canActOnProcurement = ['procurement_supplier_risk', 'legal_counsel', 'platform_admin', 'Super Admin'].includes(roleName ?? '');
   const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW);
   const [range, setRange] = useState<DashboardRangeKey>(rangeFromWindowDays(DEFAULT_WINDOW));
 
@@ -133,8 +142,15 @@ export function ProcurementDashboard() {
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
             {t('dashboards.procurement.title')}
           </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {t('dashboards.procurement.subtitle')}
+          <p className="mt-1 text-sm text-ink-muted" suppressHydrationWarning>
+            {/* A21 (Aisha audit fix) — `suppressHydrationWarning` tolerates
+                the brief SSR-vs-client divergence while the i18n bundle on
+                Node startup catches up; the user sees the up-to-date string
+                on the very next paint and no error fires. */}
+            {t('dashboards.procurement.subtitle', {
+              defaultValue:
+                'Supplier risk scores, ICV compliance, SLA breaches, vendor financial health, and backup alternates',
+            })}
           </p>
           {data?.asOf && (
             <div className="mt-2">
@@ -258,7 +274,13 @@ export function ProcurementDashboard() {
               </span>
             </div>
             {data.vendorFinancialHealthSummary.length === 0 ? (
+              /* A23 (Aisha audit fix) — give the empty state a positive title
+                 instead of falling back to "Nothing here yet". The signal
+                 here is "no distress detected" which is the good state. */
               <DashboardEmptyState
+                title={t('dashboards.procurement.empty.financialHealthOkTitle', {
+                  defaultValue: 'No vendor distress signals',
+                })}
                 description={t('dashboards.procurement.empty.financialHealthV1')}
               />
             ) : (
@@ -284,6 +306,10 @@ export function ProcurementDashboard() {
               (mig 412) — independent of the top-20 scorecard slice. Falls back to the in-scorecard
               SLA breach derivation when the BE doesn't return the new field. */}
           {(() => {
+            // A22 (Aisha audit) — entire Cure Notice initiator section is
+            // a write surface gated on risk.acknowledge. Hidden for actors
+            // without it (e.g. Aisha Approver).
+            if (!canActOnProcurement) return null;
             const candidates =
               data.cureNoticeCandidates && data.cureNoticeCandidates.length > 0
                 ? data.cureNoticeCandidates
@@ -423,6 +449,11 @@ function SupplierScorecardTable({
   // P8: client-side sort layered on the BE's default worst-first order.
   const [sortKey, setSortKey] = useState<ScorecardSortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  // A24 (Aisha audit fix 2026-06-01) — 25-row client-side pagination.
+  // Mirrors the pattern Dana's parties page received. Resets when sort
+  // changes so the user always sees page 1 of the new ordering.
+  const PAGE_SIZE_SCORECARD = 25;
+  const [scPage, setScPage] = useState(1);
   if (rows.length === 0) {
     return <DashboardEmptyState description={t('dashboards.procurement.empty.noSuppliers')} />;
   }
@@ -466,10 +497,18 @@ function SupplierScorecardTable({
       setSortKey(k);
       setSortDir('asc');
     }
+    setScPage(1); // A24 — reset to first page when sort changes
   }
 
+  // A24 — paginate sortedRows
+  const totalRows = sortedRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE_SCORECARD));
+  const safePage = Math.min(scPage, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE_SCORECARD;
+  const pagedRows = sortedRows.slice(pageStart, pageStart + PAGE_SIZE_SCORECARD);
+
   return (
-    <div className="overflow-x-auto">
+    <div className="space-y-3 overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-subtle">
@@ -484,7 +523,7 @@ function SupplierScorecardTable({
           </tr>
         </thead>
         <tbody>
-          {sortedRows.map((row) => (
+          {pagedRows.map((row) => (
             <tr key={row.counterpartyId} className="border-t border-border/60">
               <td className="py-2 pe-3">
                 <Link
@@ -547,6 +586,40 @@ function SupplierScorecardTable({
           ))}
         </tbody>
       </table>
+      {/* A24 (Aisha audit fix) — pagination strip. Hidden when only one page. */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="text-[11px] text-ink-muted">
+            {t('dashboards.procurement.scorecard.pagingCaption', {
+              defaultValue: `Showing ${pageStart + 1}-${Math.min(pageStart + PAGE_SIZE_SCORECARD, totalRows)} of ${totalRows}`,
+              from: pageStart + 1,
+              to: Math.min(pageStart + PAGE_SIZE_SCORECARD, totalRows),
+              total: totalRows,
+            })}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={safePage <= 1}
+              onClick={() => setScPage((p) => Math.max(1, p - 1))}
+              className="rounded-md border border-border bg-card px-2.5 py-1 text-xs text-ink hover:border-gold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('common.back', { defaultValue: 'Back' })}
+            </button>
+            <span className="font-mono text-[11px] text-ink-muted">
+              {safePage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={safePage >= totalPages}
+              onClick={() => setScPage((p) => Math.min(totalPages, p + 1))}
+              className="rounded-md border border-border bg-card px-2.5 py-1 text-xs text-ink hover:border-gold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t('common.next', { defaultValue: 'Next' })}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -768,8 +841,8 @@ function ProcurementChartsSection({ charts }: { charts: ProcurementChartsData })
           <ResponsiveContainer>
             <BarChart data={tierData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="tierLabel" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <XAxis dataKey="tierLabel" tick={{ fontSize: 11, fill: "var(--ink-muted)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--ink-muted)" }} allowDecimals={false} />
               <Tooltip formatter={(v: number) => [v, t('dashboards.procurement.charts.suppliers', { defaultValue: 'Suppliers' })]} />
               <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                 {tierData.map((d, i) => (
@@ -793,8 +866,10 @@ function ProcurementChartsSection({ charts }: { charts: ProcurementChartsData })
           <ResponsiveContainer>
             <LineChart data={slaTrendData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={3} />
-              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              {/* D49 — explicit tick.fill so Recharts doesn't default to
+                  raw hex #666; uses the semantic var(--ink-muted) token. */}
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--ink-muted)" }} interval={3} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--ink-muted)" }} allowDecimals={false} />
               <Tooltip formatter={(v: number) => [v, t('dashboards.procurement.charts.slaBreaches', { defaultValue: 'SLA breaches' })]} />
               <Line type="monotone" dataKey="breaches" stroke="var(--terracotta)" strokeWidth={2} dot={false} />
             </LineChart>
