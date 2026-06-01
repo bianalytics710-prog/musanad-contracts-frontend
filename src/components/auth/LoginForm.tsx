@@ -194,17 +194,19 @@ export function LoginForm() {
   // All seeded users share the bootstrap admin's bcrypt hash (ChangeMe@123).
   // Hidden in production builds via import.meta.env.PROD guard.
   const personas: Array<{ key: string; name: string; role: string; initials: string; email: string }> = [
-    { key: "super",     name: "Bootstrap Admin",   role: "Super Admin",       initials: "BA", email: "admin@musanad.local"     },
-    { key: "platform",  name: "Omar Al Mansoori",  role: "Platform Admin",    initials: "OM", email: "platform@musanad.local"  },
-    { key: "legal",     name: "Layla Counsel",     role: "Legal Counsel",     initials: "LC", email: "legal@musanad.local"     },
-    { key: "drafter",   name: "Dana Drafter",      role: "Contract Drafter",  initials: "DD", email: "drafter@musanad.local"   },
-    { key: "approver",  name: "Aisha Approver",    role: "Contract Approver", initials: "AA", email: "approver@musanad.local"  },
-    { key: "recipient", name: "Rashid Recipient",  role: "Contract Recipient", initials: "RR", email: "recipient@musanad.local" },
-    { key: "executive",  name: "Eman Executive",      role: "Executive",          initials: "EE", email: "executive@musanad.local"  },
-    { key: "operations", name: "Omar Operations",     role: "Operations",         initials: "OO", email: "operations@musanad.local" },
-    { key: "finance",    name: "Fatima Finance",      role: "Finance & Treasury", initials: "FF", email: "finance@musanad.local"    },
-    { key: "compliance", name: "Khalid Compliance",   role: "Compliance & ESG",   initials: "KC", email: "compliance@musanad.local" },
-    { key: "procurement",name: "Pari Procurement",    role: "Procurement Risk",   initials: "PP", email: "procurement@musanad.local" },
+    // OqoodAI rebrand 2026-06-01 — drop role-label last names; first names
+    // Arab; family names Emirati. Login email + password unchanged.
+    { key: "super",     name: "System Admin",      role: "Super Admin",        initials: "SA", email: "admin@musanad.local"     },
+    { key: "platform",  name: "Omar Al Mansoori",  role: "Platform Admin",     initials: "OM", email: "platform@musanad.local"  },
+    { key: "legal",     name: "Layla Al Hashemi",  role: "Legal Counsel",      initials: "LH", email: "legal@musanad.local"     },
+    { key: "drafter",   name: "Hala Al Suwaidi",   role: "Contract Drafter",   initials: "HS", email: "drafter@musanad.local"   },
+    { key: "approver",  name: "Aisha Al Nahyan",   role: "Contract Approver",  initials: "AN", email: "approver@musanad.local"  },
+    { key: "recipient", name: "Rashid Al Awadi",   role: "Contract Recipient", initials: "RA", email: "recipient@musanad.local" },
+    { key: "executive",  name: "Eman Al Mazrouei",   role: "Executive",          initials: "EM", email: "executive@musanad.local"  },
+    { key: "operations", name: "Yusuf Al Falasi",    role: "Operations",         initials: "YF", email: "operations@musanad.local" },
+    { key: "finance",    name: "Fatima Al Marri",    role: "Finance & Treasury", initials: "FM", email: "finance@musanad.local"    },
+    { key: "compliance", name: "Khalid Al Qubaisi",  role: "Compliance & ESG",   initials: "KQ", email: "compliance@musanad.local" },
+    { key: "procurement",name: "Hessa Al Hamadi",    role: "Procurement Risk",   initials: "HH", email: "procurement@musanad.local" },
   ];
 
   const signInAs = (email: string) => {
@@ -216,9 +218,14 @@ export function LoginForm() {
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex max-w-[1280px] items-center justify-between px-6 py-5">
         <Link to="/" className="flex items-center gap-2">
-          <span
-            className="block rounded-full bg-gold"
-            style={{ width: brand.mark.size, height: brand.mark.size }}
+          {/* OqoodAI mark (small navy O + nib monogram) */}
+          <img
+            src={brand.logo.monogram}
+            alt=""
+            width={26}
+            height={26}
+            className="block"
+            aria-hidden="true"
           />
           <span
             className="text-[18px] font-medium tracking-tight text-ink"
@@ -250,7 +257,7 @@ export function LoginForm() {
             {t("auth.marketing.kicker", { defaultValue: "AE · CLM workspace" })}
           </p>
           <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-ink">
-            {t("auth.marketing.title", { defaultValue: "Sign in to Musanad." })}
+            {t("auth.marketing.title", { defaultValue: `Sign in to ${brand.name}.` })}
           </h2>
           <p className="mt-3 max-w-md text-sm text-ink-muted">
             {t("auth.marketing.subtitle", {
@@ -332,7 +339,7 @@ export function LoginForm() {
           <Card className="border border-border">
             <CardHeader>
               <CardTitle className="text-2xl">
-                {t("auth.signInTitle", { defaultValue: "Sign in to Musanad" })}
+                {t("auth.signInTitle", { defaultValue: `Sign in to ${brand.name}` })}
               </CardTitle>
               <p className="text-sm text-ink-muted">
                 {t("auth.signInSubtitle", {

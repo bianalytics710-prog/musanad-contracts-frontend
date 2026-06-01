@@ -73,8 +73,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      // OqoodAI favicon (SVG primary, png fallback).
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "icon", type: "image/png", href: "/icons/icon-512.png" },
-      { rel: "apple-touch-icon", href: "/icons/icon-512.png" },
+      { rel: "apple-touch-icon", href: "/oqoodai-mark.svg" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {

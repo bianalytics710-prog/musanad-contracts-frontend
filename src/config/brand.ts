@@ -1,34 +1,44 @@
 /**
- * MUSANAD — Brand configuration.
+ * OqoodAI — Brand configuration.
  *
  * Single source of truth for all white-label brand strings, marks, and product
  * metadata. To rebrand for a different customer, edit ONLY this file.
+ *
+ * Rebranded 2026-06-01: Musanad → OqoodAI (see project-artifacts/qa/
+ * OQOODAI_REBRAND_REPORT.md). Aspects intentionally preserved: persona email
+ * addresses (*@musanad.local), repo names, package.json names.
  */
 
 export const brand = {
   /** Latin product name. */
-  name: "Musanad",
-  /** Arabic product name. */
-  nameArabic: "مُسَنَد",
+  name: "OqoodAI",
+  /** Arabic product name (rendered Latin to match the logo wordmark). */
+  nameArabic: "OqoodAI",
   /** English meaning of the Arabic root. */
-  meaning: "supported, backed by",
+  meaning: "contract, agreement (Arabic عقود)",
   /** Short tagline (English). */
-  tagline: "Contract Lifecycle Management for the UAE",
+  tagline: "Global Technology. Local Trust.",
   /** Short tagline (Arabic). */
-  taglineArabic: "إدارة دورة حياة العقود لدولة الإمارات",
+  taglineArabic: "تقنية عالمية. ثقة محلية.",
   /** Long-form descriptor. */
   description:
     "Enterprise contract lifecycle management, industry-agnostic, UAE-first. Drafting, approval, signing, and regulatory intelligence in one workspace.",
   /** Owner / vendor name (shown in footer, legal pages). */
-  vendor: "Musanad Technologies FZ-LLC",
+  vendor: "OqoodAI Technologies FZ-LLC",
   /** Primary support address. */
-  supportEmail: "support@musanad.app",
+  supportEmail: "support@oqood.ai",
   /** Marketing website. */
-  website: "https://musanad.app",
+  website: "https://oqood.ai",
   /** Logo mark — small gold dot rendered next to the wordmark. */
   mark: {
     color: "var(--color-gold)",
     size: 6, // px
+  },
+  /** Public SVG logo paths. */
+  logo: {
+    wordmark: "/oqoodai-logo.svg",
+    monogram: "/oqoodai-mark.svg",
+    favicon: "/favicon.svg",
   },
   /** Wordmark typography. */
   wordmark: {

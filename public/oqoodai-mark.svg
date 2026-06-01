@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="OqoodAI mark">
+  <title>OqoodAI</title>
+  <defs>
+    <linearGradient id="m-ring" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a4f7c"/>
+      <stop offset="100%" stop-color="#0f2440"/>
+    </linearGradient>
+    <linearGradient id="m-nib" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6ed7c4"/>
+      <stop offset="100%" stop-color="#2f8f7a"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(32,32)">
+    <circle r="26" fill="none" stroke="url(#m-ring)" stroke-width="6"/>
+    <g>
+      <rect x="-8" y="-15" width="16" height="3" rx="1" fill="url(#m-nib)"/>
+      <rect x="-8" y="-16" width="16" height="1" rx="0.5" fill="#9defd6"/>
+      <path d="M -9 -12 L 9 -12 L 0 12 Z" fill="url(#m-nib)"/>
+      <line x1="0" y1="-12" x2="0" y2="7" stroke="#0a1c33" stroke-width="1"/>
+      <circle cx="0" cy="-4" r="1.5" fill="#0a1c33"/>
+    </g>
+  </g>
+</svg>

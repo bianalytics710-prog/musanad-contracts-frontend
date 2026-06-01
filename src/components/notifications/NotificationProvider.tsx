@@ -57,8 +57,8 @@ const SEED_NOTIFICATIONS: Omit<AppNotification, "createdAt" | "readAt">[] = [
   {
     id: "n2",
     severity: "high",
-    titleEn: "Contract expiring in 30 days: MUSANAD-2026-007",
-    titleAr: "عقد ينتهي خلال 30 يومًا: MUSANAD-2026-007",
+    titleEn: "Contract expiring in 30 days: OQOOD-2026-007",
+    titleAr: "عقد ينتهي خلال 30 يومًا: OQOOD-2026-007",
     bodyEn: "Trigger renewal-decision workflow with the line-of-business owner.",
     bodyAr: "ابدأ سير عمل قرار التجديد.",
     linkUrl: "/app/contracts/7",
@@ -66,10 +66,10 @@ const SEED_NOTIFICATIONS: Omit<AppNotification, "createdAt" | "readAt">[] = [
   {
     id: "n3",
     severity: "high",
-    // L92 — was citing MUSANAD-2026-027 while the actual Approvals queue
-    // shows MUSANAD-2026-003. Realign to the canonical pending row.
-    titleEn: "MUSANAD-2026-003 awaiting your approval (22h pending)",
-    titleAr: "MUSANAD-2026-003 بانتظار موافقتك (22 ساعة معلقة)",
+    // L92 — was citing OQOOD-2026-027 while the actual Approvals queue
+    // shows OQOOD-2026-003. Realign to the canonical pending row.
+    titleEn: "OQOOD-2026-003 awaiting your approval (22h pending)",
+    titleAr: "OQOOD-2026-003 بانتظار موافقتك (22 ساعة معلقة)",
     bodyEn: "Mubadala Investment Advisory, AED 950,000.",
     bodyAr: "استشارات مبادلة الاستثمارية، 950,000 درهم.",
     linkUrl: "/app/approvals",
@@ -86,8 +86,8 @@ const SEED_NOTIFICATIONS: Omit<AppNotification, "createdAt" | "readAt">[] = [
   {
     id: "n5",
     severity: "info",
-    titleEn: "MUSANAD-2026-005 fully signed",
-    titleAr: "تم توقيع MUSANAD-2026-005 بالكامل",
+    titleEn: "OQOOD-2026-005 fully signed",
+    titleAr: "تم توقيع OQOOD-2026-005 بالكامل",
     bodyEn: "All required parties have signed the contract.",
     bodyAr: "وقع جميع الأطراف المطلوبين على العقد.",
     linkUrl: "/app/contracts/9",
@@ -292,8 +292,8 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "rr1",
       severity: "high",
-      titleEn: "Signing invitation — MUSANAD-2026-013 (Emaar Properties Lease MSA)",
-      titleAr: "دعوة توقيع — MUSANAD-2026-013 (اتفاقية إيجار إعمار العقارية الرئيسية)",
+      titleEn: "Signing invitation — OQOOD-2026-013 (Emaar Properties Lease MSA)",
+      titleAr: "دعوة توقيع — OQOOD-2026-013 (اتفاقية إيجار إعمار العقارية الرئيسية)",
       bodyEn: "Counterparty Crescent Petroleum has requested your signature on this MSA. Open the contract to start the signing flow.",
       bodyAr: "طلبت كريسنت بتروليوم توقيعك على هذه الاتفاقية الرئيسية. افتح العقد لبدء التوقيع.",
       linkUrl: "/app/contracts/13",
@@ -301,8 +301,8 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "rr2",
       severity: "info",
-      titleEn: "MUSANAD-2026-019 fully signed (ADCB Treasury Services Agreement)",
-      titleAr: "تم توقيع MUSANAD-2026-019 بالكامل (اتفاقية خدمات الخزانة لـ ADCB)",
+      titleEn: "OQOOD-2026-019 fully signed (ADCB Treasury Services Agreement)",
+      titleAr: "تم توقيع OQOOD-2026-019 بالكامل (اتفاقية خدمات الخزانة لـ ADCB)",
       bodyEn: "All required parties have countersigned. A signed PDF copy is available from the contract detail page.",
       bodyAr: "وقّع جميع الأطراف على العقد. تتوفر نسخة PDF موقعة من صفحة تفاصيل العقد.",
       linkUrl: "/app/contracts/19",
@@ -310,8 +310,8 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "rr3",
       severity: "medium",
-      titleEn: "MUSANAD-2026-028 expiring in 60 days (AWS Marketplace Reseller Agreement)",
-      titleAr: "MUSANAD-2026-028 ينتهي خلال 60 يومًا (اتفاقية AWS Marketplace)",
+      titleEn: "OQOOD-2026-028 expiring in 60 days (AWS Marketplace Reseller Agreement)",
+      titleAr: "OQOOD-2026-028 ينتهي خلال 60 يومًا (اتفاقية AWS Marketplace)",
       bodyEn: "If you would like to renew, contact the counterparty's commercial team before expiry.",
       bodyAr: "إذا رغبت في التجديد، تواصل مع الفريق التجاري للطرف المقابل قبل انتهاء الصلاحية.",
       linkUrl: "/app/contracts/28",
@@ -319,8 +319,8 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "rr4",
       severity: "info",
-      titleEn: "MUSANAD-2026-023 fully signed (Tabreed District Cooling Master Agreement)",
-      titleAr: "تم توقيع MUSANAD-2026-023 بالكامل (اتفاقية تبريد المناطق الرئيسية)",
+      titleEn: "OQOOD-2026-023 fully signed (Tabreed District Cooling Master Agreement)",
+      titleAr: "تم توقيع OQOOD-2026-023 بالكامل (اتفاقية تبريد المناطق الرئيسية)",
       bodyEn: "Full execution recorded. Counter-signed PDF available on the contract detail.",
       bodyAr: "تم تسجيل التوقيع الكامل. نسخة PDF موقعة متاحة.",
       linkUrl: "/app/contracts/23",
@@ -328,7 +328,7 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "rr5",
       severity: "info",
-      titleEn: "Welcome — your Musanad signing workspace is ready",
+      titleEn: "Welcome — your OqoodAI signing workspace is ready",
       titleAr: "مرحبًا — مساحة العمل لتوقيع العقود جاهزة",
       bodyEn: "Open the My contracts page to see contracts where you are a signatory.",
       bodyAr: "افتح صفحة عقودي لعرض العقود التي أنت أحد موقعيها.",
@@ -336,7 +336,7 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     },
   ],
   // D60 — drafter-relevant seed. Default seed sent Dana an approver
-  // notification ("MUSANAD-2026-003 awaiting your approval") which the
+  // notification ("OQOOD-2026-003 awaiting your approval") which the
   // contract drafter persona would never receive in reality. Replaces with
   // drafter-actor notifications: revision returns, approvals on her drafts,
   // template updates, signature dispatches, draft-template recommendations.
@@ -344,8 +344,8 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "cd1",
       severity: "high",
-      titleEn: "Draft returned for revision — MUSANAD-2026-006 (DXB Airport Concession Renewal)",
-      titleAr: "أُعيدت المسوّدة للمراجعة — MUSANAD-2026-006 (تجديد امتياز مطار دبي)",
+      titleEn: "Draft returned for revision — OQOOD-2026-006 (DXB Airport Concession Renewal)",
+      titleAr: "أُعيدت المسوّدة للمراجعة — OQOOD-2026-006 (تجديد امتياز مطار دبي)",
       bodyEn: "Approver requested wording change in Section 12 (Termination for Convenience). Update + resubmit.",
       bodyAr: "طلب المُعتمد تعديل صياغة في البند 12 (الإنهاء للملاءمة). حدّث وأعد الإرسال.",
       linkUrl: "/app/contracts/6",
@@ -353,8 +353,8 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "cd2",
       severity: "high",
-      titleEn: "Your draft was approved — MUSANAD-2026-013 ready for signature dispatch",
-      titleAr: "تمت الموافقة على مسوّدتك — MUSANAD-2026-013 جاهزة لإرسال التوقيع",
+      titleEn: "Your draft was approved — OQOOD-2026-013 ready for signature dispatch",
+      titleAr: "تمت الموافقة على مسوّدتك — OQOOD-2026-013 جاهزة لإرسال التوقيع",
       bodyEn: "Approver Aisha Approver signed off. Open contract and click Send for Signing.",
       bodyAr: "وقّع المُعتمِد عائشة. افتح العقد واضغط إرسال للتوقيع.",
       linkUrl: "/app/contracts/13",
@@ -371,8 +371,8 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
     {
       id: "cd4",
       severity: "high",
-      titleEn: "Signature dispatched — MUSANAD-2026-015 sent to counterparty",
-      titleAr: "تم إرسال التوقيع — MUSANAD-2026-015 أُرسلت للطرف المقابل",
+      titleEn: "Signature dispatched — OQOOD-2026-015 sent to counterparty",
+      titleAr: "تم إرسال التوقيع — OQOOD-2026-015 أُرسلت للطرف المقابل",
       bodyEn: "Etisalat Group (e&) signing link generated; awaiting counterparty.",
       bodyAr: "تم إنشاء رابط توقيع لمجموعة اتصالات (e&)؛ في انتظار الطرف المقابل.",
       linkUrl: "/app/contracts/15",

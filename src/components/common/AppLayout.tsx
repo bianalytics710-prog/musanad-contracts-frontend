@@ -57,9 +57,14 @@ export function AppLayout({ children }: AppLayoutProps) {
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
           <Link to="/app" className="flex items-center gap-2">
-            <span
-              className="block rounded-full bg-gold"
-              style={{ width: brand.mark.size, height: brand.mark.size }}
+            {/* OqoodAI mark */}
+            <img
+              src={brand.logo.monogram}
+              alt=""
+              width={26}
+              height={26}
+              className="block"
+              aria-hidden="true"
             />
             <span
               className="text-[18px] font-medium tracking-tight text-ink"

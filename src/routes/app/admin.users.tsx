@@ -247,8 +247,13 @@ function AdminUsersView() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <span className="grid h-8 w-8 place-items-center rounded-full bg-gold/15 font-mono text-xs font-semibold text-gold">
+                          {/* OqoodAI rebrand — "Al X" surnames render X not A. */}
                           {u.firstName[0]}
-                          {u.lastName[0]}
+                          {(() => {
+                            const ln = u.lastName ?? "";
+                            const m = ln.match(/^Al\s+(\S)/i);
+                            return m ? m[1] : ln[0] ?? "";
+                          })()}
                         </span>
                         <span className="font-medium text-ink">
                           {u.firstName} {u.lastName}

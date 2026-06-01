@@ -53,8 +53,13 @@ function SettingsView() {
           </div>
           <div className="flex items-center gap-4">
             <span className="grid h-14 w-14 place-items-center rounded-full bg-gold/15 font-mono text-lg font-semibold text-gold">
+              {/* OqoodAI rebrand — "Al X" surnames render X not A. */}
               {user.firstName[0]}
-              {user.lastName[0]}
+              {(() => {
+                const ln = user.lastName ?? "";
+                const m = ln.match(/^Al\s+(\S)/i);
+                return m ? m[1] : ln[0] ?? "";
+              })()}
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-base font-medium text-ink">

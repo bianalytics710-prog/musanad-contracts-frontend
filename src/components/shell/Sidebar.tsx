@@ -29,7 +29,15 @@ import { useNavigate } from "@tanstack/react-router";
 
 function getInitials(firstName: string | undefined, lastName: string | undefined): string {
   const first = firstName?.[0] ?? "";
-  const last = lastName?.[0] ?? "";
+  // OqoodAI rebrand 2026-06-01 — Emirati family names typically use "Al X"
+  // patterns. Take the X letter (after "Al ") rather than the redundant
+  // leading A, so "Aisha Al Nahyan" reads "AN" not "AA".
+  let last = lastName?.[0] ?? "";
+  const ln = (lastName ?? "").trim();
+  if (/^Al\s+\S/i.test(ln)) {
+    const m = ln.match(/^Al\s+(\S)/i);
+    if (m && m[1]) last = m[1];
+  }
   return (first + last).toUpperCase() || "U";
 }
 
@@ -77,9 +85,14 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     >
       <div className="flex h-14 items-center justify-between px-4">
         <Link to="/app" className="flex items-center gap-2">
-          <span
-            className="block rounded-full bg-gold"
-            style={{ width: brand.mark.size, height: brand.mark.size }}
+          {/* OqoodAI mark (small navy O + nib monogram) */}
+          <img
+            src={brand.logo.monogram}
+            alt=""
+            width={24}
+            height={24}
+            className="block shrink-0"
+            aria-hidden="true"
           />
           {!collapsed && (
             <span

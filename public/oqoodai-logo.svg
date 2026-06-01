@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" role="img" aria-label="OqoodAI">
+  <title>OqoodAI</title>
+  <defs>
+    <linearGradient id="oq-ring" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a4f7c"/>
+      <stop offset="100%" stop-color="#0f2440"/>
+    </linearGradient>
+    <linearGradient id="oq-nib" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6ed7c4"/>
+      <stop offset="100%" stop-color="#2f8f7a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer dark ring (the "O") -->
+  <g transform="translate(120,90)">
+    <circle r="78" fill="none" stroke="url(#oq-ring)" stroke-width="18"/>
+    <!-- subtle inner highlight ring -->
+    <circle r="63" fill="none" stroke="#0a1c33" stroke-width="2" opacity="0.5"/>
+
+    <!-- Fountain pen nib (mint) -->
+    <g>
+      <!-- nib cap (rectangular top) -->
+      <rect x="-22" y="-44" width="44" height="8" rx="2" fill="url(#oq-nib)"/>
+      <rect x="-22" y="-46" width="44" height="3" rx="1" fill="#9defd6"/>
+      <!-- nib body (triangle pointing down) -->
+      <path d="M -24 -36 L 24 -36 L 0 36 Z" fill="url(#oq-nib)"/>
+      <!-- nib slit -->
+      <line x1="0" y1="-36" x2="0" y2="20" stroke="#0a1c33" stroke-width="2"/>
+      <!-- nib breather hole -->
+      <circle cx="0" cy="-10" r="4" fill="#0a1c33"/>
+    </g>
+  </g>
+
+  <!-- Wordmark: "OqoodAI" -->
+  <text x="120" y="220"
+        text-anchor="middle"
+        font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+        font-weight="700"
+        font-size="46"
+        fill="url(#oq-ring)"
+        letter-spacing="-1">OqoodAI<tspan font-size="14" baseline-shift="super" font-weight="500">®</tspan></text>
+
+  <!-- Tagline -->
+  <text x="120" y="248"
+        text-anchor="middle"
+        font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+        font-weight="400"
+        font-size="13"
+        fill="#1f3a5c"
+        letter-spacing="0.2">Global Technology. Local Trust.</text>
+</svg>

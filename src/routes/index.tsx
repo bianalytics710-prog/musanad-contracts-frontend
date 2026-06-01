@@ -516,8 +516,8 @@ function Landing() {
               <h2 className="text-3xl font-semibold tracking-tight text-ink md:text-5xl">
                 {t("landing.ctaReady", {
                   defaultValue: isAr
-                    ? "جاهز لرؤية مُسَنَد قيد التشغيل؟"
-                    : "Ready to see Musanad in action?",
+                    ? `جاهز لرؤية ${brand.name} قيد التشغيل؟`
+                    : `Ready to see ${brand.name} in action?`,
                 })}
               </h2>
               <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-muted">

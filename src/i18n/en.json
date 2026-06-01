@@ -153,7 +153,7 @@
     "settings": "Settings",
     "profile": "Profile",
     "comingSoon": "Coming soon",
-    "comingSoonDescription": "This area is reserved for an upcoming part of Musanad.",
+    "comingSoonDescription": "This area is reserved for an upcoming part of OqoodAI.",
     "today": "Today",
     "yesterday": "Yesterday",
     "all": "All",
@@ -510,7 +510,7 @@
   "settings": {
     "preferencesKicker": "Personal preferences",
     "theme": "Theme",
-    "themeDescription": "Choose how Musanad looks. System matches your device.",
+    "themeDescription": "Choose how OqoodAI looks. System matches your device.",
     "themeLight": "Light",
     "themeDark": "Dark",
     "themeSystem": "System",
@@ -591,10 +591,10 @@
   "landing": {
     "kicker": "UAE-first contract intelligence",
     "headline": "Contracts, drafted, approved, and signed with confidence.",
-    "subhead": "Musanad is the contract lifecycle platform built for UAE enterprises — federal regulations, bilingual workflows, and the full document journey in one workspace.",
+    "subhead": "OqoodAI is the contract lifecycle platform built for UAE enterprises — federal regulations, bilingual workflows, and the full document journey in one workspace.",
     "ctaPrimary": "Sign in",
     "ctaSecondary": "Explore the product",
-    "featuresKicker": "What lives in Musanad",
+    "featuresKicker": "What lives in OqoodAI",
     "feature1Title": "Bilingual by design",
     "feature1Body": "Every clause, template, and contract is authored side-by-side in Arabic and English with parity tracking.",
     "feature2Title": "Anchored in UAE law",
@@ -623,7 +623,7 @@
     "banner": "Offline mode"
   },
   "auth": {
-    "signInTitle": "Sign in to Musanad",
+    "signInTitle": "Sign in to OqoodAI",
     "signInSubtitle": "Use UAE Pass or your work email.",
     "uaePass": "Sign in with UAE Pass",
     "email": "Email",
@@ -634,7 +634,7 @@
     "uaePassVerifying": "Verifying your identity…",
     "uaePassVerifyingSub": "Securely connecting to UAE Pass.",
     "uaePassChoose": "Select an account",
-    "uaePassChooseSub": "Demo identities pre-seeded for Musanad.",
+    "uaePassChooseSub": "Demo identities pre-seeded for OqoodAI.",
     "uaePassFooter": "This is a demonstration of the UAE Pass flow. No real federation is performed.",
     "verifiedLevel": "Verified",
     "premiumLevel": "Premium",
@@ -652,12 +652,12 @@
   },
   "dashboard": {
     "welcome": "Welcome back, {{name}}",
-    "welcomeSubtitle": "Here is your Musanad workspace.",
+    "welcomeSubtitle": "Here is your OqoodAI workspace.",
     "account": "Account",
     "role": "Role",
     "permissions": "Permissions",
     "session": "Session",
-    "sessionSubtitle": "Your active Musanad session.",
+    "sessionSubtitle": "Your active OqoodAI session.",
     "signedInAs": "Signed in as {{first}} {{last}}",
     "now": "Now (display tz)",
     "foundation": "M0 Foundation",
@@ -2262,7 +2262,7 @@
   "import": {
     "switchBulk": "Switch to bulk import",
     "title": "Import existing contract",
-    "kicker": "Bring an existing PDF or Word contract into Musanad",
+    "kicker": "Bring an existing PDF or Word contract into OqoodAI",
     "step1": "Upload",
     "step2": "Review extracted data",
     "step3": "Save",
@@ -2642,7 +2642,7 @@
     },
     "m3": {
       "heading": "Sign contract",
-      "footer": "Powered by Musanad — secured by token-bearer authentication.",
+      "footer": "Powered by OqoodAI — secured by token-bearer authentication.",
       "toasts": {
         "signed": "Signature recorded.",
         "declined": "Decline recorded."
@@ -3075,7 +3075,7 @@
       },
       "prefs": {
         "title": "Notification preferences",
-        "description": "Choose how Musanad keeps you informed about new regulatory activity.",
+        "description": "Choose how OqoodAI keeps you informed about new regulatory activity.",
         "subAll": "Subscribe to all regulators",
         "subAllHint": "Receive every regulator's updates by default.",
         "perRegulator": "Per-regulator subscriptions",
@@ -3657,7 +3657,7 @@
   "admin": {
     "dashboard": {
       "title": "System overview",
-      "kicker": "Musanad · UAE Region · {{env}}"
+      "kicker": "OqoodAI · UAE Region · {{env}}"
     },
     "stats": {
       "activeUsers": "Active users",
@@ -5544,7 +5544,7 @@
       "webhooks": "Outgoing webhooks",
       "addWebhook": "Add endpoint",
       "noWebhooks": "No webhook endpoints configured.",
-      "webhooksStub": "Webhooks fire on the selected events. Endpoints receive a signed JSON payload — verify the X-Musanad-Signature header before processing.",
+      "webhooksStub": "Webhooks fire on the selected events. Endpoints receive a signed JSON payload — verify the X-OqoodAI-Signature header before processing.",
       "scim": "SCIM provisioning",
       "scimEnabled": "Enable SCIM 2.0",
       "scimHint": "Sync users and roles automatically from your identity provider (Okta, Entra ID, JumpCloud).",
@@ -5763,7 +5763,7 @@
     "dontShow": "Don't show again",
     "finish": "Get started",
     "step1": {
-      "title": "Welcome to Musanad admin",
+      "title": "Welcome to OqoodAI admin",
       "body": "You're signed in as a Platform Admin. The left sidebar gives you access to every area of the system — contracts, templates, regulations, and more."
     },
     "step2": {
@@ -5816,7 +5816,7 @@
       "synced": "Synced"
     },
     "install": {
-      "title": "Add Musanad to your home screen",
+      "title": "Add OqoodAI to your home screen",
       "subtitle": "Quick access for approvals and signing",
       "later": "Maybe later",
       "cta": "Install"
