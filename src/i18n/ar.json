@@ -7462,20 +7462,25 @@
       "title": "عقودي",
       "subtitle": "عقودك وصندوق التوقيع الخاص بك.",
       "kpiGroupLabel": "مؤشرات أداء المستلم",
+      "welcomeLine": "{{greeting}}، {{first}} {{last}} · {{date}} · {{hijri}}",
+      "welcomeComma": "، ",
       "kpis": {
         "myContractsCount": "عقودي",
         "pendingMySignatureCount": "بانتظار توقيعي",
         "signedByMeWindow": "وقّعتُ",
+        "signedByMeCount": "وقّعتُ",
         "signedByMeWindowHelper": "تُحسب التواقيع الداخلية فقط — لا تُشمل تواقيع المدعوين الخارجيين.",
         "myObligationsCount": "التزاماتي",
         "myObligationsHint": "قادمة مع وحدة الالتزامات — هذه البلاطة معطلة عمدًا."
       },
       "lists": {
-        "myContractsTitle": "عقودي",
+        "myContractsTitle": "السجل النشط",
         "myContractsDescription": "العقود التي تظهر فيها كموقّع.",
         "pendingSignaturesTitle": "تواقيع معلقة",
         "pendingSignaturesDescription": "الدعوات النشطة الموجهة إليك.",
+        "pendingSignaturesEmpty": "لا توجد دعوات توقيع نشطة. ستظهر هنا الدعوات الجديدة من الأطراف المقابلة.",
         "counterpartyPending": "تفاصيل الطرف المقابل: قيد التحضير",
+        "counterpartyLabel": "الطرف المقابل",
         "invitationSent": "أُرسلت الدعوة",
         "invitationExpires": "تنتهي"
       },

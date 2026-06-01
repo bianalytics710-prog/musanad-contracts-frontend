@@ -227,6 +227,14 @@ export interface Contract {
   language: ContractLanguage;
   ourPartyId: number | null;
   counterpartyId: number | null;
+  /** R17 (Rashid audit 2026-06-01) — party display names shipped inline so
+   * the FE renders OUR PARTY / COUNTERPARTY without requiring the
+   * party.read.all permission (Recipient lacks it). Falls back to null when
+   * the party is missing in DB. */
+  ourPartyNameEn?: string | null;
+  ourPartyNameAr?: string | null;
+  counterpartyNameEn?: string | null;
+  counterpartyNameAr?: string | null;
   valueAed: number | null;
   currency: string;
   startDate: string | null;

@@ -262,11 +262,9 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
             {t("contracts.kicker", { defaultValue: "Contract register" })}
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">{t("contracts.title")}</h1>
-          {pagination && (
-            <p className="mt-1 text-sm text-ink-muted">
-              {t("contracts.totalCount", { count: pagination.total })}
-            </p>
-          )}
+          {/* R14 (Rashid audit 2026-06-01) — the KPI strip already shows
+              "Total in scope: N" right below; the H1 subtitle "N total" was
+              the same count twice. Hide when the KPI tile is visible (always). */}
         </div>
 
         <div className="flex items-center gap-2">
@@ -303,43 +301,74 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
           big number, so the audience misread 13 as the portfolio scope.
           The cards now lead with "On this page" + the count and put the
           scope qualifier in the label, making the page-slice vs scope
-          distinction unambiguous. */}
+          distinction unambiguous.
+          R11+R14 (Rashid audit 2026-06-01) — when there's no pagination
+          (totalAll <= pageSize) the "(on this page)" qualifier and the
+          duplicated "on this page of N in scope" caption are dead weight,
+          and the H1 already shows the same count. Drop both qualifiers in
+          that case. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           label={t("contracts.kpis.totalScope", { defaultValue: "Total in scope" })}
           value={kpis.totalAll.toLocaleString()}
         />
         <StatCard
-          label={t("contracts.kpis.activeOnPage", {
-            defaultValue: "Active or signed (on this page)",
-          })}
+          label={
+            kpis.totalAll <= items.length
+              ? t("contracts.kpis.active", {
+                  defaultValue: "Active or signed",
+                })
+              : t("contracts.kpis.activeOnPage", {
+                  defaultValue: "Active or signed (on this page)",
+                })
+          }
           value={kpis.active.toLocaleString()}
-          delta={t("contracts.kpis.onPageOfN", {
-            defaultValue: "on this page of {{n}} in scope",
-            n: kpis.totalAll,
-          })}
+          delta={
+            kpis.totalAll <= items.length
+              ? undefined
+              : t("contracts.kpis.onPageOfN", {
+                  defaultValue: "on this page of {{n}} in scope",
+                  n: kpis.totalAll,
+                })
+          }
         />
         <StatCard
-          label={t("contracts.kpis.inApprovalOnPage", {
-            defaultValue: "In approval (on this page)",
-          })}
+          label={
+            kpis.totalAll <= items.length
+              ? t("contracts.kpis.inApproval", { defaultValue: "In approval" })
+              : t("contracts.kpis.inApprovalOnPage", {
+                  defaultValue: "In approval (on this page)",
+                })
+          }
           value={kpis.inApproval.toLocaleString()}
           variant={kpis.inApproval > 0 ? "warning" : "default"}
-          delta={t("contracts.kpis.onPageOfN", {
-            defaultValue: "on this page of {{n}} in scope",
-            n: kpis.totalAll,
-          })}
+          delta={
+            kpis.totalAll <= items.length
+              ? undefined
+              : t("contracts.kpis.onPageOfN", {
+                  defaultValue: "on this page of {{n}} in scope",
+                  n: kpis.totalAll,
+                })
+          }
         />
         <StatCard
-          label={t("contracts.kpis.expiringOnPage", {
-            defaultValue: "Expiring soon (on this page)",
-          })}
+          label={
+            kpis.totalAll <= items.length
+              ? t("contracts.kpis.expiring", { defaultValue: "Expiring soon" })
+              : t("contracts.kpis.expiringOnPage", {
+                  defaultValue: "Expiring soon (on this page)",
+                })
+          }
           value={kpis.expiring.toLocaleString()}
           variant={kpis.expiring > 0 ? "risk" : "default"}
-          delta={t("contracts.kpis.onPageOfN", {
-            defaultValue: "on this page of {{n}} in scope",
-            n: kpis.totalAll,
-          })}
+          delta={
+            kpis.totalAll <= items.length
+              ? undefined
+              : t("contracts.kpis.onPageOfN", {
+                  defaultValue: "on this page of {{n}} in scope",
+                  n: kpis.totalAll,
+                })
+          }
         />
       </div>
 
@@ -359,7 +388,16 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
               type="search"
               value={searchInput}
               onChange={handleSearchChange}
-              placeholder={t("contracts.searchPlaceholder")}
+              // R15 (Rashid audit 2026-06-01) — recipient view uses a
+              // signer-tailored placeholder. Other roles keep the existing
+              // "Search number, title, counterparty…" prompt.
+              placeholder={
+                isRecipientOnly
+                  ? t("contracts.searchPlaceholderRecipient", {
+                      defaultValue: "Search number or title…",
+                    })
+                  : t("contracts.searchPlaceholder")
+              }
               className="ps-9"
               autoComplete="off"
             />
@@ -380,12 +418,23 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
               setStatusFilter((v as ContractStatus) || "");
               setPage(1);
             }}
-            options={QUICK_FILTERS.map((f) => ({
-              value: f.key,
-              label: f.key
-                ? t(`contractStatus.${f.key}`, { defaultValue: f.defaultLabel })
-                : t("contracts.filterAll", { defaultValue: f.defaultLabel }),
-            }))}
+            options={QUICK_FILTERS
+              // R13 (Rashid audit 2026-06-01) — trim internal-workflow
+              // status options for Recipient view (rejected / resubmission
+              // requested / amended / draft / in_approval don't apply to an
+              // external counterparty signer).
+              .filter((f) =>
+                !isRecipientOnly ||
+                !["draft", "in_approval", "amended", "rejected", "resubmission_requested"].includes(
+                  f.key as string,
+                ),
+              )
+              .map((f) => ({
+                value: f.key,
+                label: f.key
+                  ? t(`contractStatus.${f.key}`, { defaultValue: f.defaultLabel })
+                  : t("contracts.filterAll", { defaultValue: f.defaultLabel }),
+              }))}
           />
           <FilterSelect
             label={t("contracts.filters.type", { defaultValue: "Type" })}
@@ -396,10 +445,19 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
             }}
             options={[
               { value: "", label: t("common.all", { defaultValue: "All" }) },
-              ...CONTRACT_TYPE_OPTIONS.map((o) => ({
-                value: o.value,
-                label: t(`contracts.contractType.${o.value}`, { defaultValue: o.label }),
-              })),
+              ...CONTRACT_TYPE_OPTIONS
+                // R12 (Rashid audit 2026-06-01) — for Recipient view, limit
+                // type options to types actually present in the user's
+                // scope (computed from visible items). Avoids 10 dead
+                // dropdown options for a 5-row scope.
+                .filter((o) =>
+                  !isRecipientOnly ||
+                  items.some((c) => c.contractType === o.value),
+                )
+                .map((o) => ({
+                  value: o.value,
+                  label: t(`contracts.contractType.${o.value}`, { defaultValue: o.label }),
+                })),
             ]}
           />
           <FilterSelect
@@ -602,6 +660,11 @@ interface ContractTableProps {
 function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
+  // R10 (Rashid audit 2026-06-01) — Recipient view hides the Drafter
+  // column (header + cell) since internal team members aren't disclosed
+  // to external counterparty signers.
+  const userRole = useAuthStore((s) => s.user?.role.name ?? null);
+  const isRecipientOnly = userRole === "contract_recipient";
 
   return (
     <Card>
@@ -628,10 +691,15 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                     fn_contract_list's drafted_by JOIN). Renaming to
                     "Drafter" so the header is honest about what it shows
                     and stops looking like every row is signed by the same
-                    person. */}
-                <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                  {t("contracts.colDrafter", { defaultValue: "Drafter" })}
-                </th>
+                    person.
+                    R10 (Rashid audit 2026-06-01) — hide for Recipient:
+                    external counterparty signer shouldn't see the internal
+                    drafter's name. */}
+                {!isRecipientOnly && (
+                  <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {t("contracts.colDrafter", { defaultValue: "Drafter" })}
+                  </th>
+                )}
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colStatus")}
                 </th>
@@ -683,34 +751,32 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                         return cpName ?? "—";
                       })()}
                     </td>
-                    {/* R-LC6 LC-D2 — Signatory (drafter). */}
-                    <td className="px-4 py-3 text-xs text-ink-muted">
-                      {(() => {
-                        const fn = c.signatoryFirstName ?? "";
-                        const ln = c.signatoryLastName ?? "";
-                        const initials = `${fn[0] ?? ""}${ln[0] ?? ""}`.toUpperCase();
-                        const full = `${fn} ${ln}`.trim();
-                        if (!full) return "—";
-                        return (
-                          <span className="inline-flex items-center gap-1.5">
-                            {/* D17 — initials avatar still rendered visually but
-                                marked aria-hidden AND followed by an explicit
-                                whitespace ` ` (non-breaking space) so the
-                                DOM textContent reads "DD Dana Drafter" not
-                                the mashed "DDDana Drafter". Same fix family as
-                                Pari P9 (mash separator). */}
-                            <span
-                              aria-hidden="true"
-                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold/10 font-mono text-[9px] font-medium text-gold"
-                            >
-                              {initials}
+                    {/* R-LC6 LC-D2 — Signatory (drafter).
+                        R10 (Rashid audit 2026-06-01) — hide column cell for
+                        Recipient view (header also hidden above). */}
+                    {!isRecipientOnly && (
+                      <td className="px-4 py-3 text-xs text-ink-muted">
+                        {(() => {
+                          const fn = c.signatoryFirstName ?? "";
+                          const ln = c.signatoryLastName ?? "";
+                          const initials = `${fn[0] ?? ""}${ln[0] ?? ""}`.toUpperCase();
+                          const full = `${fn} ${ln}`.trim();
+                          if (!full) return "—";
+                          return (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span
+                                aria-hidden="true"
+                                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold/10 font-mono text-[9px] font-medium text-gold"
+                              >
+                                {initials}
+                              </span>
+                              <span aria-hidden="true">{" "}</span>
+                              <span>{full}</span>
                             </span>
-                            <span aria-hidden="true">{" "}</span>
-                            <span>{full}</span>
-                          </span>
-                        );
-                      })()}
-                    </td>
+                          );
+                        })()}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <ContractStatusBadge status={c.status} />
                     </td>

@@ -1026,6 +1026,11 @@ interface OverviewPanelProps {
 
 function OverviewPanel({ contract, canManageTags }: OverviewPanelProps) {
   const { t } = useTranslation();
+  // R19+R20 (Rashid audit 2026-06-01) — gate the People + Tags sub-cards
+  // so external counterparty signers don't see internal personnel + triage
+  // tags on the Document overview.
+  const userRole = useAuthStore((s) => s.user?.role.name ?? null);
+  const isRecipientOnly = userRole === "contract_recipient";
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-4">
@@ -1116,29 +1121,39 @@ function OverviewPanel({ contract, canManageTags }: OverviewPanelProps) {
       </div>
 
       <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("contracts.detail.peopleTitle")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Person label={t("contracts.detail.draftedBy")} user={contract.draftedBy} />
-            <Person label={t("contracts.detail.reviewedBy")} user={contract.reviewedBy} />
-            <Person label={t("contracts.detail.approvedBy")} user={contract.approvedBy} />
-          </CardContent>
-        </Card>
+        {/* R19 (Rashid audit 2026-06-01) — hide "People" (Drafted by /
+            Reviewed by / Approved by) from Recipient view. Internal team
+            members aren't disclosed to external counterparty signers. */}
+        {!isRecipientOnly && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("contracts.detail.peopleTitle")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Person label={t("contracts.detail.draftedBy")} user={contract.draftedBy} />
+              <Person label={t("contracts.detail.reviewedBy")} user={contract.reviewedBy} />
+              <Person label={t("contracts.detail.approvedBy")} user={contract.approvedBy} />
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("contracts.tags.title")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ContractTagsEditor
-              contractId={contract.id}
-              initialTags={contract.tags}
-              editable={canManageTags}
-            />
-          </CardContent>
-        </Card>
+        {/* R20 (Rashid audit 2026-06-01) — hide internal triage Tags from
+            Recipient view (High Value / Multi Year / etc. are portfolio
+            management labels, not signer-relevant). */}
+        {!isRecipientOnly && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("contracts.tags.title")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ContractTagsEditor
+                contractId={contract.id}
+                initialTags={contract.tags}
+                editable={canManageTags}
+              />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

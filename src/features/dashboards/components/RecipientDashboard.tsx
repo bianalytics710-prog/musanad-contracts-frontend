@@ -43,6 +43,7 @@ import type {
 } from "@/types/entities/dashboards.types";
 import { formatDate, formatDateTime, formatHijriDate } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
+import { ContractStatusBadge } from "@/features/contracts/components/ContractStatusBadge";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
@@ -75,24 +76,44 @@ export function RecipientDashboard() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           {/* R-RC0 — welcome line + Hijri date strip (Lovable parity, mirrors LC + approver). */}
+          {/* R42/R44 (Rashid audit 2026-06-01) — AR mode previously used a
+              Latin comma and produced mixed-direction text when the actor's
+              Latin name landed in the middle of an Arabic banner. The i18n
+              template now uses the locale-appropriate comma (Arabic comma
+              in ar.json), and the name is rendered inside <bdi> so the RTL
+              flow doesn't break around the Latin glyphs. */}
           <p className="text-xs text-ink-subtle">
-            {user
-              ? `${t("dashboards.common.welcome", { defaultValue: "Welcome back" })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
-              : `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`}
+            {user ? (
+              <>
+                <span>{t("dashboards.common.welcome", { defaultValue: "Welcome back" })}</span>
+                <span>{t("dashboards.recipient.welcomeComma", { defaultValue: ", " })}</span>
+                <bdi>{user.firstName} {user.lastName}</bdi>
+                <span> · {formatDate(nowISO)} · {formatHijriDate(nowISO)}</span>
+              </>
+            ) : (
+              `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
+            )}
           </p>
           {/* R-RC0 — H1 wording: "My contracts" (Lovable parity, recipient-tailored). */}
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
             {t("dashboards.recipient.title", { defaultValue: "My contracts" })}
           </h1>
         </div>
-        <TimeRangeSelector
-          range={range}
-          windowDays={windowDays}
-          onChange={({ range: r, windowDays: d }) => {
-            setRange(r);
-            setWindowDays(d);
-          }}
-        />
+        {/* R1+R7 (Rashid audit 2026-06-01) — Recipient dashboard is snapshot
+            only (myContracts / pending / signedByMe are all lifetime KPIs);
+            the date filter scoped nothing visible. BE now signals
+            windowApplies=false (mig 435); hide the orphan pill row when so.
+            When the BE has not been redeployed yet, default to hiding. */}
+        {data?.windowApplies === true && (
+          <TimeRangeSelector
+            range={range}
+            windowDays={windowDays}
+            onChange={({ range: r, windowDays: d }) => {
+              setRange(r);
+              setWindowDays(d);
+            }}
+          />
+        )}
       </header>
 
       {isLoading && !data ? (
@@ -171,16 +192,30 @@ export function RecipientDashboard() {
               }
             />
             <KpiTile
-              label={t("dashboards.recipient.kpis.signedByMeWindow")}
-              value={formatNumber(data.kpis.signedByMeWindow)}
+              /* R3 — renamed to signedByMeCount (no window indicator); the
+                 BE now counts fully_signed contracts OR signature_event 'signed'
+                 by caller, so the tile reconciles with the visible list. */
+              label={t("dashboards.recipient.kpis.signedByMeCount", {
+                defaultValue: "Signed by me",
+              })}
+              value={formatNumber(
+                (data.kpis as { signedByMeCount?: number; signedByMeWindow?: number })
+                  .signedByMeCount ??
+                  (data.kpis as { signedByMeWindow?: number }).signedByMeWindow ??
+                  0,
+              )}
               variant="success"
             />
           </section>
 
           <div className="grid gap-3 lg:grid-cols-2">
             <section className="rounded-lg border border-border bg-card p-4">
+              {/* R6 — the page H1 already says "My contracts"; rename this
+                  section header to differentiate ("Active register"). */}
               <h3 className="mb-2 text-sm font-semibold text-ink">
-                {t("dashboards.recipient.lists.myContractsTitle")}
+                {t("dashboards.recipient.lists.myContractsTitle", {
+                  defaultValue: "Active register",
+                })}
               </h3>
               <p className="mb-3 text-xs text-ink-subtle">
                 {t("dashboards.recipient.lists.myContractsDescription")}
@@ -205,40 +240,56 @@ export function RecipientDashboard() {
 }
 
 function MyContractsList({ rows }: { rows: RecipientMyContractsRow[] }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language === "ar";
   if (rows.length === 0) {
     return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
   }
   return (
     <ul role="list" className="divide-y divide-border">
-      {rows.map((row) => (
-        <li key={row.id} role="listitem" className="py-2">
-          <Link
-            to="/app/contracts/$id"
-            params={{ id: String(row.id) }}
-            className="block rounded-md px-2 py-1 transition hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label={t("dashboards.common.openContractAria", {
-              number: row.contractNumber,
-              title: row.titleEn,
-            })}
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="font-mono text-xs text-ink-subtle">
-                {row.contractNumber}
-              </span>
-              <span className="font-mono text-[11px] uppercase tracking-wider text-ink-subtle">
-                {t(`contractStatus.${row.status}`, {
-                  defaultValue: row.status,
-                })}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-ink">{row.titleEn}</p>
-            <p className="text-[11px] text-ink-muted">
-              {t("dashboards.recipient.lists.counterpartyPending")}
-            </p>
-          </Link>
-        </li>
-      ))}
+      {rows.map((row) => {
+        // R41 — locale-aware title (use titleAr in AR mode when present).
+        const displayTitle = isAr && row.titleAr ? row.titleAr : row.titleEn;
+        // R4 — show the real counterparty name instead of the
+        // "Counterparty details: pending" placeholder. BE mig 435 now ships
+        // the field for recipient scope. Falls back gracefully when null.
+        const counterpartyName =
+          (isAr ? row.counterpartyNameAr : row.counterpartyNameEn) ??
+          row.counterpartyNameEn ??
+          null;
+        return (
+          <li key={row.id} role="listitem" className="py-2">
+            <Link
+              to="/app/contracts/$id"
+              params={{ id: String(row.id) }}
+              className="block rounded-md px-2 py-1 transition hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-label={t("dashboards.common.openContractAria", {
+                number: row.contractNumber,
+                title: displayTitle,
+              })}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-xs text-ink-subtle">
+                  {row.contractNumber}
+                </span>
+                {/* R5 — replace ad-hoc uppercase font-mono label with the
+                    shared title-case status badge ("Fully signed" not
+                    "FULLY SIGNED"). */}
+                <ContractStatusBadge status={row.status as never} />
+              </div>
+              <p className="mt-1 text-sm text-ink">{displayTitle}</p>
+              {counterpartyName ? (
+                <p className="text-[11px] text-ink-muted">
+                  {t("dashboards.recipient.lists.counterpartyLabel", {
+                    defaultValue: "Counterparty",
+                  })}
+                  : {counterpartyName}
+                </p>
+              ) : null}
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -250,7 +301,17 @@ function PendingSignaturesList({
 }) {
   const { t } = useTranslation();
   if (rows.length === 0) {
-    return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
+    // R9 — single empty-state line; previous "Nothing here yet — Nothing to
+    // show yet." rendered the same message twice. The signer-facing copy
+    // explains the next step in one short line.
+    return (
+      <DashboardEmptyState
+        description={t("dashboards.recipient.lists.pendingSignaturesEmpty", {
+          defaultValue:
+            "No active signing invitations. New invitations from counterparties will appear here.",
+        })}
+      />
+    );
   }
   return (
     <ul role="list" className="divide-y divide-border">

@@ -281,6 +281,60 @@ const SEED_BY_ROLE: Record<string, typeof SEED_NOTIFICATIONS> = {
       linkUrl: "/app/reports",
     },
   ],
+  // R35/R36 — recipient-relevant seed. The generic default seed leaked
+  // notifications for contracts outside the recipient's scope and for an
+  // "awaiting your approval" event Rashid (a signer-only role) would never
+  // receive. Replace with signer-facing notifications grounded in contracts
+  // Rashid is actually a signature_party on (013, 019, 023, 028, 029) and
+  // signer-appropriate event types (signing invitation, full execution,
+  // regulatory updates affecting his contracts only).
+  contract_recipient: [
+    {
+      id: "rr1",
+      severity: "high",
+      titleEn: "Signing invitation — MUSANAD-2026-013 (Emaar Properties Lease MSA)",
+      titleAr: "دعوة توقيع — MUSANAD-2026-013 (اتفاقية إيجار إعمار العقارية الرئيسية)",
+      bodyEn: "Counterparty Crescent Petroleum has requested your signature on this MSA. Open the contract to start the signing flow.",
+      bodyAr: "طلبت كريسنت بتروليوم توقيعك على هذه الاتفاقية الرئيسية. افتح العقد لبدء التوقيع.",
+      linkUrl: "/app/contracts/13",
+    },
+    {
+      id: "rr2",
+      severity: "info",
+      titleEn: "MUSANAD-2026-019 fully signed (ADCB Treasury Services Agreement)",
+      titleAr: "تم توقيع MUSANAD-2026-019 بالكامل (اتفاقية خدمات الخزانة لـ ADCB)",
+      bodyEn: "All required parties have countersigned. A signed PDF copy is available from the contract detail page.",
+      bodyAr: "وقّع جميع الأطراف على العقد. تتوفر نسخة PDF موقعة من صفحة تفاصيل العقد.",
+      linkUrl: "/app/contracts/19",
+    },
+    {
+      id: "rr3",
+      severity: "medium",
+      titleEn: "MUSANAD-2026-028 expiring in 60 days (AWS Marketplace Reseller Agreement)",
+      titleAr: "MUSANAD-2026-028 ينتهي خلال 60 يومًا (اتفاقية AWS Marketplace)",
+      bodyEn: "If you would like to renew, contact the counterparty's commercial team before expiry.",
+      bodyAr: "إذا رغبت في التجديد، تواصل مع الفريق التجاري للطرف المقابل قبل انتهاء الصلاحية.",
+      linkUrl: "/app/contracts/28",
+    },
+    {
+      id: "rr4",
+      severity: "info",
+      titleEn: "MUSANAD-2026-023 fully signed (Tabreed District Cooling Master Agreement)",
+      titleAr: "تم توقيع MUSANAD-2026-023 بالكامل (اتفاقية تبريد المناطق الرئيسية)",
+      bodyEn: "Full execution recorded. Counter-signed PDF available on the contract detail.",
+      bodyAr: "تم تسجيل التوقيع الكامل. نسخة PDF موقعة متاحة.",
+      linkUrl: "/app/contracts/23",
+    },
+    {
+      id: "rr5",
+      severity: "info",
+      titleEn: "Welcome — your Musanad signing workspace is ready",
+      titleAr: "مرحبًا — مساحة العمل لتوقيع العقود جاهزة",
+      bodyEn: "Open the My contracts page to see contracts where you are a signatory.",
+      bodyAr: "افتح صفحة عقودي لعرض العقود التي أنت أحد موقعيها.",
+      linkUrl: "/app/dashboards/recipient",
+    },
+  ],
   // D60 — drafter-relevant seed. Default seed sent Dana an approver
   // notification ("MUSANAD-2026-003 awaiting your approval") which the
   // contract drafter persona would never receive in reality. Replaces with

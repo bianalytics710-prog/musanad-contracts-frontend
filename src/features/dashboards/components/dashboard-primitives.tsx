@@ -613,11 +613,24 @@ export function formatPercent(value: number | null, locale: string = "en-US"): s
 
 export function formatNumber(
   value: number | null | undefined,
-  locale: string = "en-US",
+  locale?: string,
 ): string {
   if (value == null) return "—";
+  // R43 (Rashid audit 2026-06-01) — when the document is in AR mode, render
+  // counts with Arabic-Indic digits ("٥" not "5") so the KPI tile is
+  // consistent with the Hijri date strip. Falls back to the caller's
+  // override or browser default.
+  const effectiveLocale = (() => {
+    if (locale) return locale;
+    if (typeof document !== "undefined") {
+      const lang = document.documentElement.lang;
+      if (lang === "ar") return "ar-AE-u-nu-arab";
+      if (lang === "en") return "en-AE";
+    }
+    return "en-US";
+  })();
   try {
-    return new Intl.NumberFormat(locale).format(value);
+    return new Intl.NumberFormat(effectiveLocale).format(value);
   } catch {
     return String(value);
   }

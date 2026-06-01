@@ -142,9 +142,17 @@ export function SigningCeremony({ invitationToken }: Props) {
 
   if (isError || !view) {
     const code = error?.code ?? "";
+    // R40 (Rashid audit 2026-06-01) — when the BE rejects the token lookup
+    // (400/404/410 or VALIDATION_ERROR + invitation_invalid_or_expired),
+    // surface a token-not-found explanation instead of the form-validation
+    // copy. There IS no form on this page; "Some fields need attention" is
+    // misleading. Treat any 4xx as "link no longer valid".
     const isExpired =
       error?.status === 410 ||
-      code === "invitation_invalid_or_expired";
+      error?.status === 404 ||
+      error?.status === 400 ||
+      code === "invitation_invalid_or_expired" ||
+      code === "VALIDATION_ERROR";
     return (
       <PageShell>
         <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-8 text-center">

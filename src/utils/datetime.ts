@@ -33,14 +33,16 @@ function getDisplayTimezone(): string {
 }
 
 function getActiveLocale(): string {
+  // R43 (Rashid audit 2026-06-01) — force `nu-arab` (Arabic-Indic digits)
+  // when the runtime locale is AR. Plain `ar-AE` defaults to Latin digits
+  // on V8, producing "01 يونيو 2026" alongside Hijri "١٥" — mixed scripts.
+  // The Unicode extension `-u-nu-arab` picks Arabic-Indic across the board.
   if (typeof document !== "undefined") {
     const lang = document.documentElement.lang;
-    if (lang === "ar") return "ar-AE";
+    if (lang === "ar") return "ar-AE-u-nu-arab";
     if (lang === "en") return "en-AE";
   }
-  // brand.defaultLocale is one of brand.locales — currently ["en", "ar"].
-  // We compare via string equality to keep the type narrowing local.
-  return (brand.defaultLocale as string) === "ar" ? "ar-AE" : "en-AE";
+  return (brand.defaultLocale as string) === "ar" ? "ar-AE-u-nu-arab" : "en-AE";
 }
 
 /**

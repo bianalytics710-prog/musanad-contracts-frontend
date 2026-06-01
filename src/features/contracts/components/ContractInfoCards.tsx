@@ -202,14 +202,30 @@ export function ContractInfoCards({
     if (!preferred) return p.nameEn || p.nameAr || "—";
     return preferred;
   };
+  // R17 (Rashid audit 2026-06-01) — when the dedicated parties.getById
+  // call is blocked (e.g. recipient lacks party.read.all), fall back to
+  // the inline names shipped by fn_contract_get_by_id (mig 437). This
+  // closes the OUR PARTY="—" / COUNTERPARTY="—" placeholders for Recipient.
+  const ourPartyInline =
+    isAr && contract.ourPartyNameAr
+      ? contract.ourPartyNameAr
+      : contract.ourPartyNameEn ?? null;
+  const counterpartyInline =
+    isAr && contract.counterpartyNameAr
+      ? contract.counterpartyNameAr
+      : contract.counterpartyNameEn ?? null;
   const ourPartyName =
     partyResults[0].isLoading
       ? "…"
-      : partyName(partyResults[0].data ?? undefined);
+      : partyResults[0].data
+        ? partyName(partyResults[0].data)
+        : ourPartyInline ?? "—";
   const counterpartyName =
     partyResults[1].isLoading
       ? "…"
-      : partyName(partyResults[1].data ?? undefined);
+      : partyResults[1].data
+        ? partyName(partyResults[1].data)
+        : counterpartyInline ?? "—";
 
   return (
     <div className="space-y-4">
@@ -387,30 +403,35 @@ export function ContractInfoCards({
               A31/A33 (Aisha audit) — relabel "AI risk score" → "Health
               score" (matches the Risk tab gauge). The `·` separator is
               now wrapped with leading + trailing whitespace so the badge
-              reads "58 · Medium risk" cleanly. */}
-          <Row
-            label={
-              <span className="inline-flex items-center gap-2 text-ink-muted">
-                <Shield className="h-4 w-4" aria-hidden />
-                {t("contracts.detail.overviewCard.healthScore", { defaultValue: "Health score" })}
+              reads "58 · Medium risk" cleanly.
+              R18 (Rashid audit 2026-06-01) — HIDE for Recipient: the
+              internal CRIP risk score should not be exposed to an external
+              counterparty signer (this contract's counterparty IS Rashid). */}
+          {!isRecipientOnly && (
+            <Row
+              label={
+                <span className="inline-flex items-center gap-2 text-ink-muted">
+                  <Shield className="h-4 w-4" aria-hidden />
+                  {t("contracts.detail.overviewCard.healthScore", { defaultValue: "Health score" })}
+                </span>
+              }
+            >
+              <span className={`inline-flex items-center gap-2 rounded-full px-2 py-0.5 text-xs font-medium ${riskTint}`}>
+                <span className="font-mono">{riskScore}</span>
+                <span className="text-[10px] uppercase tracking-wider">
+                  {" · "}
+                  {t(`contracts.detail.overviewCard.aiRisk_${riskBucket}`, {
+                    defaultValue:
+                      riskBucket === "low"
+                        ? "Low risk"
+                        : riskBucket === "medium"
+                          ? "Medium risk"
+                          : "High risk",
+                  })}
+                </span>
               </span>
-            }
-          >
-            <span className={`inline-flex items-center gap-2 rounded-full px-2 py-0.5 text-xs font-medium ${riskTint}`}>
-              <span className="font-mono">{riskScore}</span>
-              <span className="text-[10px] uppercase tracking-wider">
-                {" · "}
-                {t(`contracts.detail.overviewCard.aiRisk_${riskBucket}`, {
-                  defaultValue:
-                    riskBucket === "low"
-                      ? "Low risk"
-                      : riskBucket === "medium"
-                        ? "Medium risk"
-                        : "High risk",
-                })}
-              </span>
-            </span>
-          </Row>
+            </Row>
+          )}
         </dl>
       </Card>
     </div>

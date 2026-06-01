@@ -30,7 +30,7 @@ import {
   type ContractCommentFilter,
 } from "@/services/api/contract-comment.service";
 import { formatDateTime } from "@/utils/datetime";
-import { useAuthStore, selectUser } from "@/store/auth.store";
+import { useAuthStore, selectHasPermission, selectUser } from "@/store/auth.store";
 import { translateApiError } from "@/lib/translate-api-error";
 import type { ApiError } from "@/lib/api-client";
 
@@ -38,12 +38,20 @@ interface Props {
   contractId: number;
 }
 
+// R27 (Rashid audit 2026-06-01) — Recipient lacks contract.comment.write.
+// The composer should not render a writable textarea + Send button if the
+// caller can't post. The list-mode rendering stays the same so signers can
+// still READ comments their counterparty left.
+
 const FILTERS: ContractCommentFilter[] = ["all", "unresolved", "mine", "mentions_me"];
 
 export function ContractCommentsTab({ contractId }: Props) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const user = useAuthStore(selectUser);
+  // R27 — gate the composer on the actual write permission.
+  const canWriteComment = useAuthStore(selectHasPermission("contract.comment.write"));
+  const isRecipientOnly = user?.role?.name === "contract_recipient";
   const [filter, setFilter] = useState<ContractCommentFilter>("all");
   const [body, setBody] = useState("");
   const [replyTo, setReplyTo] = useState<{ id: number; author: string } | null>(null);
@@ -170,10 +178,19 @@ export function ContractCommentsTab({ contractId }: Props) {
               {t("contracts.comments.emptyTitle", { defaultValue: "No comments yet" })}
             </h3>
             <p className="max-w-md text-xs text-ink-muted">
-              {t("contracts.comments.emptyBody", {
-                defaultValue:
-                  "Add a comment to flag a question for the drafter or document a decision.",
-              })}
+              {/* R26 (Rashid audit 2026-06-01) — empty-state copy is
+                  audience-aware. For Recipient the "drafter" framing is
+                  wrong (external signer doesn't escalate internally);
+                  surface a signer-appropriate prompt instead. */}
+              {isRecipientOnly
+                ? t("contracts.comments.emptyBodyRecipient", {
+                    defaultValue:
+                      "No comments on this contract. Comments left by the counterparty's team will appear here.",
+                  })
+                : t("contracts.comments.emptyBody", {
+                    defaultValue:
+                      "Add a comment to flag a question for the drafter or document a decision.",
+                  })}
             </p>
           </div>
         ) : (
@@ -279,49 +296,53 @@ export function ContractCommentsTab({ contractId }: Props) {
           </ul>
         )}
 
-        {/* Composer */}
-        <div className="rounded-md border border-border bg-card p-3">
-          {replyTo && (
-            <div className="mb-2 flex items-center justify-between rounded-sm bg-surface/40 px-2 py-1 text-[11px] text-ink-muted">
-              <span>
-                {t("contracts.comments.replyingTo", {
-                  author: replyTo.author,
-                  defaultValue: `Replying to ${replyTo.author}`,
-                })}
-              </span>
-              <button
+        {/* R27 (Rashid audit 2026-06-01) — only render the composer when
+            the caller actually has contract.comment.write. Recipient
+            sees the read-only feed only. */}
+        {canWriteComment && (
+          <div className="rounded-md border border-border bg-card p-3">
+            {replyTo && (
+              <div className="mb-2 flex items-center justify-between rounded-sm bg-surface/40 px-2 py-1 text-[11px] text-ink-muted">
+                <span>
+                  {t("contracts.comments.replyingTo", {
+                    author: replyTo.author,
+                    defaultValue: `Replying to ${replyTo.author}`,
+                  })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setReplyTo(null)}
+                  className="text-ink-subtle transition-colors hover:text-ink"
+                >
+                  {t("common.cancel")}
+                </button>
+              </div>
+            )}
+            <textarea
+              ref={composerRef}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder={t("contracts.comments.composerPlaceholder", {
+                defaultValue: "Press ⌘+Enter to send · @ to mention",
+              })}
+              rows={3}
+              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            <div className="mt-2 flex items-center justify-end">
+              <Button
                 type="button"
-                onClick={() => setReplyTo(null)}
-                className="text-ink-subtle transition-colors hover:text-ink"
+                size="sm"
+                onClick={submit}
+                disabled={!body.trim() || createMutation.isPending}
               >
-                {t("common.cancel")}
-              </button>
+                {createMutation.isPending
+                  ? t("common.saving")
+                  : t("contracts.comments.send", { defaultValue: "Send" })}
+              </Button>
             </div>
-          )}
-          <textarea
-            ref={composerRef}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={t("contracts.comments.composerPlaceholder", {
-              defaultValue: "Press ⌘+Enter to send · @ to mention",
-            })}
-            rows={3}
-            className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <div className="mt-2 flex items-center justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={submit}
-              disabled={!body.trim() || createMutation.isPending}
-            >
-              {createMutation.isPending
-                ? t("common.saving")
-                : t("contracts.comments.send", { defaultValue: "Send" })}
-            </Button>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

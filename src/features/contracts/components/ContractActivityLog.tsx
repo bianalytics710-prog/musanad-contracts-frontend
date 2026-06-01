@@ -50,10 +50,27 @@ import {
 import { cn } from "@/lib/utils";
 import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 import { ContractStatusBadge } from "./ContractStatusBadge";
+import { useAuthStore, selectUser } from "@/store/auth.store";
 
 interface ContractActivityLogProps {
   contractId: number;
 }
+
+// R22+R23 (Rashid audit 2026-06-01) — for an external counterparty signer
+// the Activity feed should only narrate signer-relevant events. Internal AI
+// events, approval-chain churn, and tag changes are not their concern AND
+// disclose internal workflow + (in the AI summary case) portfolio
+// concentration metrics. Whitelist of types Recipient is allowed to see.
+const RECIPIENT_ALLOWED_ACTIVITY_TYPES: ReadonlySet<string> = new Set([
+  "created",
+  "sent_for_signature",
+  "signer_viewed",
+  "signer_signed",
+  "signer_declined",
+  "fully_executed",
+  "signature_invalidated",
+  "status_changed",
+]);
 
 const ICONS: Record<
   ActivityType,
@@ -113,6 +130,9 @@ const ICON_TONE: Record<ActivityType, string> = {
 export function ContractActivityLog({ contractId }: ContractActivityLogProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ActivityType | "">("");
+  // R22+R23 — role-aware filtering for the Recipient view.
+  const user = useAuthStore(selectUser);
+  const isRecipient = user?.role?.name === "contract_recipient";
 
   const query: ContractActivityListQuery = useMemo(
     () => ({
@@ -130,7 +150,11 @@ export function ContractActivityLog({ contractId }: ContractActivityLogProps) {
     setFilter((ACTIVITY_TYPE_VALUES as readonly string[]).includes(v) ? (v as ActivityType) : "");
   };
 
-  const items = data?.data ?? [];
+  const rawItems = data?.data ?? [];
+  // R22+R23 — strip non-signer-relevant events from the Recipient view.
+  const items = isRecipient
+    ? rawItems.filter((a) => RECIPIENT_ALLOWED_ACTIVITY_TYPES.has(a.activityType))
+    : rawItems;
 
   // R5 audit 8.4.1 — filter pills (All / Reviews / Approvals / Signatures /
   // Comments / Edits) instead of the 21-value <select>. Pills map to type
@@ -218,11 +242,15 @@ export function ContractActivityLog({ contractId }: ContractActivityLogProps) {
             className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">{t("common.all")}</option>
-            {ACTIVITY_TYPE_VALUES.map((v) => (
-              <option key={v} value={v}>
-                {t(`contracts.activity.types.${v}`, { defaultValue: v })}
-              </option>
-            ))}
+            {ACTIVITY_TYPE_VALUES
+              .filter((v) => !isRecipient || RECIPIENT_ALLOWED_ACTIVITY_TYPES.has(v))
+              .map((v) => (
+                <option key={v} value={v}>
+                  {/* R24 — humanize raw enum slugs so the dropdown never
+                      shows snake_case (`submitted_for_approval` etc). */}
+                  {t(`contracts.activity.types.${v}`, { defaultValue: humanizeLabel(v) })}
+                </option>
+              ))}
           </select>
         </div>
       </CardHeader>
@@ -253,7 +281,7 @@ export function ContractActivityLog({ contractId }: ContractActivityLogProps) {
           <ol className="relative space-y-3 ps-6">
             <span aria-hidden="true" className="absolute inset-y-2 start-[10px] w-px bg-border" />
             {items.map((a) => (
-              <ActivityItem key={a.id} activity={a} />
+              <ActivityItem key={a.id} activity={a} anonymizeActor={isRecipient} />
             ))}
           </ol>
         )}
@@ -264,9 +292,12 @@ export function ContractActivityLog({ contractId }: ContractActivityLogProps) {
 
 interface ActivityItemProps {
   activity: ContractActivity;
+  /** R22 — when true, replace the named actor with a generic role label so
+   * external counterparty signers don't see internal team member names. */
+  anonymizeActor?: boolean;
 }
 
-function ActivityItem({ activity }: ActivityItemProps) {
+function ActivityItem({ activity, anonymizeActor }: ActivityItemProps) {
   const { t } = useTranslation();
   const Icon = ICONS[activity.activityType] ?? Activity;
   const tone = ICON_TONE[activity.activityType] ?? "bg-surface text-ink";
@@ -276,10 +307,16 @@ function ActivityItem({ activity }: ActivityItemProps) {
   const rawActorName = activity.actor
     ? `${activity.actor.firstName} ${activity.actor.lastName}`.trim()
     : t("contracts.activity.unknownActor");
-  const actorName =
+  const namedActor =
     rawActorName === "(Removed user)" || rawActorName.toLowerCase() === "removed user"
       ? t("contracts.activity.systemActor", { defaultValue: "System" })
       : rawActorName;
+  // R22 — for Recipient view: collapse all actor names to a generic
+  // "Internal team" label rather than disclosing the named drafter /
+  // approver / executive to an external counterparty.
+  const actorName = anonymizeActor
+    ? t("contracts.activity.internalTeamActor", { defaultValue: "Internal team" })
+    : namedActor;
 
   return (
     <li className="relative">

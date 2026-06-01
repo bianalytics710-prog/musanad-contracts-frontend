@@ -114,7 +114,10 @@ export interface ApproverPendingQueueRow {
   hoursWaiting: number;
 }
 
-/** Recipient my-contracts row — joined contract + signature_party. */
+/** Recipient my-contracts row — joined contract + signature_party.
+ * R4/R17 (Rashid audit 2026-06-01): now ships counterpartyId + party names
+ * so the FE list + detail Parties section can populate real values rather
+ * than rendering "Counterparty details: pending" / "—" placeholders. */
 export interface RecipientMyContractsRow {
   id: number;
   contractNumber: string;
@@ -122,15 +125,22 @@ export interface RecipientMyContractsRow {
   titleAr: string | null;
   status: string;
   ourPartyId: number;
-  /** Always null until parties module ships. */
-  counterpartyId: null;
+  ourPartyNameEn: string | null;
+  ourPartyNameAr: string | null;
+  counterpartyId: number | null;
+  counterpartyNameEn: string | null;
+  counterpartyNameAr: string | null;
+  updatedAt?: string | null;
 }
 
-/** Recipient pending-signature row — joined signature_invitation + party + contract. */
+/** Recipient pending-signature row — joined signature_invitation + party + contract.
+ * R4 (Rashid audit 2026-06-01): adds counterpartyNameEn so the hero card can
+ * render the counterparty alongside the contract number. */
 export interface RecipientPendingSignatureRow {
   invitationId: number;
   contractId: number;
   contractNumber: string;
+  counterpartyNameEn?: string | null;
   /** signature_invitation.invitation_sent_at AS sentAt (S2-22-FIX-5a). */
   sentAt: string;
   /** signature_invitation.invitation_expires_at AS expiresAt. */
@@ -492,12 +502,14 @@ export interface RecipientDashboardKpis {
   myContractsCount: number;
   pendingMySignatureCount: number;
   /**
-   * actor_user_id-keyed; external-only invitation signers are NOT counted
-   * (DN-19) — internal recipients (UAE-PASS / app-authenticated) are.
+   * R3 (Rashid audit 2026-06-01) — renamed from `signedByMeWindow`. Counts
+   * any contract the recipient is a signer-of AND that's either fully_signed
+   * OR has a signature_event signed by them. Lifetime-scoped, not windowed,
+   * to reconcile with the visible "My contracts" list.
    */
-  signedByMeWindow: number;
-  /** Placeholder until obligations module ships (AC-S5-04). */
-  myObligationsCount: PlaceholderKpi;
+  signedByMeCount: number;
+  /** Optional during transition — newer BE (mig 435+) drops the placeholder. */
+  myObligationsCount?: PlaceholderKpi;
 }
 
 export interface RecipientDashboardLists {
@@ -508,6 +520,9 @@ export interface RecipientDashboardLists {
 export interface RecipientDashboardSnapshot {
   kpis: RecipientDashboardKpis;
   lists: RecipientDashboardLists;
+  /** R7 — signals whether ANY field on the dashboard scopes by window. When
+   * false, the FE hides the orphan date-pill row. */
+  windowApplies?: boolean;
 }
 
 // ─── Router (S6) ────────────────────────────────────────────────────────────

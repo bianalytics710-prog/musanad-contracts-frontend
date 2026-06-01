@@ -7462,20 +7462,25 @@
       "title": "My contracts",
       "subtitle": "Your contracts and signature inbox.",
       "kpiGroupLabel": "Recipient key performance indicators",
+      "welcomeLine": "{{greeting}}, {{first}} {{last}} · {{date}} · {{hijri}}",
+      "welcomeComma": ", ",
       "kpis": {
         "myContractsCount": "My contracts",
         "pendingMySignatureCount": "Pending my signature",
         "signedByMeWindow": "Signed by me",
+        "signedByMeCount": "Signed by me",
         "signedByMeWindowHelper": "Counts internal signatures only — external invitation signers are not included.",
         "myObligationsCount": "My obligations",
         "myObligationsHint": "Coming with the Obligations module — this tile is intentionally disabled."
       },
       "lists": {
-        "myContractsTitle": "My contracts",
+        "myContractsTitle": "Active register",
         "myContractsDescription": "Contracts where you are listed as a signatory.",
         "pendingSignaturesTitle": "Pending signatures",
         "pendingSignaturesDescription": "Active invitations addressed to you.",
+        "pendingSignaturesEmpty": "No active signing invitations. New invitations from counterparties will appear here.",
         "counterpartyPending": "Counterparty details: pending",
+        "counterpartyLabel": "Counterparty",
         "invitationSent": "Invitation sent",
         "invitationExpires": "Expires"
       },

@@ -229,7 +229,12 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                 <Languages className="me-2 h-4 w-4" />
                 {t("common.language", { defaultValue: "Language" })} ({locale === "ar" ? "ع" : "EN"})
               </DropdownMenuItem>
-              <DropdownMenuItem disabled>
+              {/* R38 (Rashid audit 2026-06-01) — Settings used to be a
+                  disabled no-op. Wire it to the profile/notification-
+                  preferences surface that every authed user has. */}
+              <DropdownMenuItem
+                onClick={() => void navigate({ to: "/app/profile/notification-preferences" })}
+              >
                 <Settings className="me-2 h-4 w-4" />
                 {t("common.settings", { defaultValue: "Settings" })}
               </DropdownMenuItem>

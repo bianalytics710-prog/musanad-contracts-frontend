@@ -14,6 +14,28 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { selectUser, useAuthStore } from "@/store/auth.store";
 import { formatDateTime } from "@/utils/datetime";
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
+
+// R29 (Rashid audit 2026-06-01) — humanize the raw role slug for display in
+// the launcher subtitle. Maps a snake_case role name to a presentation label.
+// Falls back through humanizeLabel for unknown roles (e.g. "operations" →
+// "Operations").
+const ROLE_DISPLAY_OVERRIDES: Record<string, string> = {
+  "Super Admin": "Super Admin",
+  platform_admin: "Platform Admin",
+  legal_counsel: "Legal Counsel",
+  contract_drafter: "Contract Drafter",
+  contract_approver: "Contract Approver",
+  contract_approver_2: "Contract Approver (Stage 2)",
+  contract_recipient: "Contract Recipient",
+  executive: "Executive",
+  operations: "Operations",
+  finance_treasury: "Finance & Treasury",
+  compliance_esg: "Compliance & ESG",
+  procurement_supplier_risk: "Procurement & Supplier Risk",
+};
+const humanizeRole = (raw: string): string =>
+  ROLE_DISPLAY_OVERRIDES[raw] ?? humanizeLabel(raw);
 
 export const Route = createFileRoute("/app/")({
   component: AppDashboard,
@@ -44,17 +66,26 @@ function buildGroups(roleName: string, permissions: string[]): ModuleGroup[] {
 
   const groups: ModuleGroup[] = [];
 
-  // Insights — every role has a dashboard
+  // Insights — every role has a dashboard.
+  // R30 (Rashid audit 2026-06-01) — drop the generic "My dashboard" tile
+  // when a role-specific tile already exists; both routes resolve to the
+  // same page and the duplicate confused readers.
+  const hasRoleSpecificDashboard =
+    isAdmin || isExecutive || isDrafter || isApprover || isLegal || isRecipient;
   groups.push({
     key: "insights",
     title: "Insights",
     tiles: [
-      {
-        key: "router",
-        to: "/app/dashboards/insights",
-        title: "My dashboard",
-        description: "Auto-routes to the dashboard for your role.",
-      },
+      ...(hasRoleSpecificDashboard
+        ? []
+        : [
+            {
+              key: "router",
+              to: "/app/dashboards/insights",
+              title: "My dashboard",
+              description: "Auto-routes to the dashboard for your role.",
+            },
+          ]),
       ...(isAdmin
         ? [
             { key: "admin", to: "/app/dashboards/admin", title: "Admin dashboard", description: "System-wide KPIs, AI cost, ingestion." },
@@ -69,7 +100,7 @@ function buildGroups(roleName: string, permissions: string[]): ModuleGroup[] {
       ...(isDrafter ? [{ key: "drafter", to: "/app/dashboards/drafter", title: "Drafter dashboard", description: "My drafts, awaiting action, ready to send." }] : []),
       ...(isApprover ? [{ key: "approver", to: "/app/dashboards/approver", title: "Approver dashboard", description: "Pending queue, decision velocity." }] : []),
       ...(isLegal ? [{ key: "legal", to: "/app/dashboards/legal-counsel", title: "Legal counsel dashboard", description: "Regulatory updates, open impacts, audit." }] : []),
-      ...(isRecipient ? [{ key: "recipient", to: "/app/dashboards/recipient", title: "Recipient dashboard", description: "My contracts, pending signing tasks." }] : []),
+      ...(isRecipient ? [{ key: "recipient", to: "/app/dashboards/recipient", title: "My contracts", description: "Contracts where you are a signatory and pending signing tasks." }] : []),
     ],
   });
 
@@ -142,6 +173,31 @@ function buildGroups(roleName: string, permissions: string[]): ModuleGroup[] {
     }
   }
 
+  // R31 (Rashid audit 2026-06-01) — surface every reachable nav target on
+  // the launcher (Reports for any role with report.read; Profile for any
+  // authed user; both were silently missing).
+  if (has("report.read") || isAdmin || isExecutive || isDrafter || isApprover || isLegal || isRecipient) {
+    groups.push({
+      key: "reports",
+      title: "Reports",
+      tiles: [
+        { key: "reports", to: "/app/reports", title: "Reports library", description: "Generate role-specific operational and briefing reports." },
+      ],
+    });
+  }
+  groups.push({
+    key: "profile",
+    title: "Profile",
+    tiles: [
+      {
+        key: "notification-prefs",
+        to: "/app/profile/notification-preferences",
+        title: "Notification preferences",
+        description: "Choose channels and priority thresholds for each notification type.",
+      },
+    ],
+  });
+
   return groups.filter((g) => g.tiles.length > 0);
 }
 
@@ -172,10 +228,12 @@ function AppDashboard() {
             {t("home.welcome", { defaultValue: "Welcome back, {{name}}", name: user.firstName })}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {t("home.subtitle", {
-              defaultValue: "Signed in as {{role}}. {{count}} permissions active.",
-              role: user.role.name,
-              count: user.permissions.length,
+            {/* R29 (Rashid audit 2026-06-01) — humanize the role slug
+                ("contract_recipient" → "Contract Recipient") and drop the
+                developer-debug "N permissions active" string. */}
+            {t("home.subtitleHumanRole", {
+              defaultValue: "Signed in as {{role}}",
+              role: humanizeRole(user.role.name),
             })}
           </p>
         </div>

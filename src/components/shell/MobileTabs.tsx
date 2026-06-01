@@ -12,6 +12,16 @@ const ALL_TABS = [
   { to: "/app/more", icon: MoreHorizontal, key: "nav.more", defaultLabel: "More", showAlways: true },
 ] as const;
 
+// R39 (Rashid audit 2026-06-01) — role-aware mobile-tab labels so the same
+// destination (/app/dashboards/insights → /app/dashboards/recipient) uses
+// the same wording as the launcher H1 ("My contracts" not "Insights").
+// Falls through to the default label for roles not in this map.
+const ROLE_TAB_LABEL_OVERRIDES: Record<string, Partial<Record<string, string>>> = {
+  contract_recipient: {
+    "nav.insights": "My contracts",
+  },
+};
+
 export function MobileTabs() {
   const { t } = useTranslation();
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -53,7 +63,13 @@ export function MobileTabs() {
           >
             <Icon className={cn("h-5 w-5", active && "text-gold")} />
             <span className={cn(active && "font-medium text-ink")}>
-              {t(tab.key, { defaultValue: tab.defaultLabel })}
+              {(() => {
+                const overrides = user?.role?.name
+                  ? ROLE_TAB_LABEL_OVERRIDES[user.role.name]
+                  : undefined;
+                const override = overrides?.[tab.key];
+                return t(tab.key, { defaultValue: override ?? tab.defaultLabel });
+              })()}
             </span>
           </Link>
         );

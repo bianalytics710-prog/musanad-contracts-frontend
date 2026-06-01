@@ -24,6 +24,14 @@ import {
   PRIORITY_MIN_OPTIONS,
 } from '@/types/notification-preferences.types';
 
+// R32 (Rashid audit 2026-06-01) — role-aware channels filter. External
+// counterparty signers (contract_recipient) are not part of the internal
+// org's Teams or Slack workspaces; Email + In-app are the only deliverable
+// channels for them. Other roles see the full set.
+const ROLE_RELEVANT_CHANNELS: Record<string, ReadonlyArray<NotificationChannelPref>> = {
+  contract_recipient: ['email', 'in_app'],
+};
+
 // O30: role-aware kinds filter. Drop notification types the role would never
 // actually receive — keeps the matrix focused on the user's real surface area.
 const ROLE_RELEVANT_KINDS: Record<string, ReadonlyArray<NotificationKindPref>> = {
@@ -55,6 +63,9 @@ export function NotificationPreferencesMatrix() {
   const roleName = user?.role?.name;
   const visibleKinds: ReadonlyArray<NotificationKindPref> =
     (roleName ? ROLE_RELEVANT_KINDS[roleName] : undefined) ?? NOTIFICATION_KINDS_PREF;
+  // R32 — for Recipient, only render Email + In-app columns.
+  const visibleChannels: ReadonlyArray<NotificationChannelPref> =
+    (roleName ? ROLE_RELEVANT_CHANNELS[roleName] : undefined) ?? NOTIFICATION_CHANNELS_PREF;
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: [QUERY_KEY],
@@ -150,7 +161,7 @@ export function NotificationPreferencesMatrix() {
               <th scope="col" className="w-48 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
                 {t('profile.notificationPreferences.columns.kind')}
               </th>
-              {NOTIFICATION_CHANNELS_PREF.map((ch) => (
+              {visibleChannels.map((ch) => (
                 <th
                   key={ch}
                   scope="col"
@@ -167,7 +178,7 @@ export function NotificationPreferencesMatrix() {
                 <th scope="row" className="px-4 py-4 text-left text-sm font-medium text-ink">
                   {t(`profile.notificationPreferences.kinds.${kind}`)}
                 </th>
-                {NOTIFICATION_CHANNELS_PREF.map((ch) => {
+                {visibleChannels.map((ch) => {
                   const cell = getCell(kind, ch);
                   const enabled = cell?.enabled ?? true;
                   const priorityMin = cell?.priorityMin ?? 'high';
