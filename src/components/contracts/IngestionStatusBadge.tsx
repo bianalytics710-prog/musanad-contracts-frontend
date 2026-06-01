@@ -66,7 +66,18 @@ export function IngestionStatusBadge({
 
   const { icon, label, colorClass } = config[status];
 
-  const tooltipParts: string[] = [];
+  // O14: status-specific tooltip explaining what each chip means, so a
+  // standalone "Pending" chip (no engine/confidence yet) still conveys its
+  // semantics. Engine + confidence are appended when present.
+  const statusTooltip: Record<IngestionStatus, string> = {
+    pending: t('contracts.ingestionStatus.pendingTitle', { defaultValue: 'Document text extraction queued — waiting for the ingestion worker.' }),
+    extracting: t('contracts.ingestionStatus.extractingTitle', { defaultValue: 'Document text extraction in progress.' }),
+    complete: t('contracts.ingestionStatus.completeTitle', { defaultValue: 'Document text extracted and indexed.' }),
+    failed: t('contracts.ingestionStatus.failedTitle', { defaultValue: 'Extraction failed — manual review required.' }),
+    partial: t('contracts.ingestionStatus.partialTitle', { defaultValue: 'Extraction partially succeeded — some clauses may need manual review.' }),
+  };
+
+  const tooltipParts: string[] = [statusTooltip[status]];
   if (engine) {
     tooltipParts.push(
       `${t('contracts.ingestionStatus.engine', { defaultValue: 'Engine' })}: ${engine}`,

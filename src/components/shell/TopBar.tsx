@@ -48,9 +48,27 @@ export function TopBar() {
           <Search className="h-4 w-4" />
         </Button>
         <NotificationBell />
-        <Button variant="ghost" size="sm" onClick={toggleLang} className="font-mono text-xs">
+        {/* O35: show TARGET language (not current). In EN mode, label reads "AR" /
+            "العربية"; in AR mode, label reads "EN". Adds explicit aria-label so
+            screen readers announce "Switch to {target}" instead of just "ع". */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleLang}
+          className="font-mono text-xs"
+          aria-label={
+            locale === "ar"
+              ? t("common.switchToEn", { defaultValue: "Switch to English" })
+              : t("common.switchToAr", { defaultValue: "Switch to Arabic" })
+          }
+          title={
+            locale === "ar"
+              ? t("common.switchToEn", { defaultValue: "Switch to English" })
+              : t("common.switchToAr", { defaultValue: "Switch to Arabic" })
+          }
+        >
           <Languages className="me-1 h-3.5 w-3.5" />
-          {locale === "ar" ? "ع" : "EN"}
+          {locale === "ar" ? "EN" : "AR"}
         </Button>
       </div>
     </header>

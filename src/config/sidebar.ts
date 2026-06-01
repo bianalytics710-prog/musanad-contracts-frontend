@@ -297,9 +297,14 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   ],
   // M15 / CR-G — 3 new persona roles with dedicated dashboard modules
   operations: [
-    "insights",
+    // O10/O42 — "insights" removed; operations role lands on /dashboards/operations
+    // directly and "insights" was a duplicate sidebar entry pointing to the same page.
     "dashboards.operations",
     "contracts",
+    // O31 — Impact Watch is operationally relevant (Brent / Hormuz / commodity
+    // signals) and Omar already has read access; expose via sidebar so he can
+    // find it without typing the URL.
+    "regulations",
     // M21 / CR-N — Budget Burn read access
     "financial.budgetBurn",
     "riskCases",
@@ -407,6 +412,9 @@ export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
   // L49 — Advisory templates BE key → FE ModuleKey
   "legal.advisory_templates":       "legal.advisoryTemplates",
   "insights_hub":                   "insights",
+  // O31: BE-returned "impact_signals" module key maps to the FE "regulations"
+  // sidebar entry (Impact Watch).
+  "impact_signals":                 "regulations",
   // "contracts.browse" → "contracts" (FE has one unified contracts key)
   "contracts.browse":               "contracts",
   // "contracts.compose" → "compose"
@@ -453,9 +461,21 @@ export function modulesForEffectiveSet(effectiveModules: string[] | null | undef
     result.push(MODULES.admin);
   }
 
+  // O10/O42: drop the redundant "Insights" entry when the user has any
+  // dedicated persona dashboard. /app/dashboards/insights resolves to the
+  // role's home dashboard, so showing both is a duplicate sidebar entry.
+  const PERSONA_DASHBOARDS: ModuleKey[] = [
+    "dashboards.operations",
+    "dashboards.financeTreasury",
+    "dashboards.complianceEsg",
+    "dashboards.procurement",
+  ];
+  const hasPersonaDashboard = PERSONA_DASHBOARDS.some((k) => seen.has(k));
+  const filtered = hasPersonaDashboard ? result.filter((m) => m.key !== "insights") : result;
+
   // Sort by displayOrder for a consistent sidebar order.
-  result.sort((a, b) => a.displayOrder - b.displayOrder);
-  return result;
+  filtered.sort((a, b) => a.displayOrder - b.displayOrder);
+  return filtered;
 }
 
 export function modulesForRole(roleName: string | null | undefined): SidebarModule[] {

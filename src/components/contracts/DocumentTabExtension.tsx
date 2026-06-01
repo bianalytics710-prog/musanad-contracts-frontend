@@ -98,12 +98,19 @@ export function DocumentTabExtension({
   if (ingestionStatus === 'pending' || ingestionStatus === 'extracting') {
     return (
       <div className="space-y-4">
+        {/* O15: distinguish "queued" (pending) from "in progress" (extracting)
+            so the reader doesn't see "Extracting…" + "no body text yet" as a
+            self-contradiction. */}
         <div className="flex items-center gap-2 rounded-lg border border-sage/30 bg-sage/10 px-4 py-3 text-sm text-sage">
           <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
           <span>
-            {t('contracts.documentTab.extracting', {
-              defaultValue: 'Extracting document text…',
-            })}
+            {ingestionStatus === 'pending'
+              ? t('contracts.documentTab.queued', {
+                  defaultValue: 'Document text extraction queued — the page body will populate once the ingestion worker picks this up.',
+                })
+              : t('contracts.documentTab.extracting', {
+                  defaultValue: 'Extracting document text… The body text will appear here when complete.',
+                })}
           </span>
         </div>
         {children}

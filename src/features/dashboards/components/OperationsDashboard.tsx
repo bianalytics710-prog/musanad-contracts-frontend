@@ -38,6 +38,7 @@ import {
   KpiTile,
   TimeRangeSelector,
   rangeFromWindowDays,
+  humanizeLabel,
 } from './dashboard-primitives';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { formatDateTime, formatDate, formatHijriDate } from '@/utils/datetime';
@@ -166,7 +167,8 @@ export function OperationsDashboard() {
             <KpiTile
               label={t('dashboards.operations.kpis.openSlaBreaches')}
               value={formatNumber(data.kpi.openSlaBreaches)}
-              helper={formatAedCompact(data.kpi.openSlaBreachesMarAed)}
+              // O8: suppress redundant "AED 0" helper when count is 0.
+              helper={data.kpi.openSlaBreaches > 0 ? formatAedCompact(data.kpi.openSlaBreachesMarAed) : undefined}
               variant={data.kpi.openSlaBreaches > 0 ? 'risk' : 'default'}
             />
             <KpiTile
@@ -275,7 +277,7 @@ function SlaBreachesList({ rows }: { rows: SlaBreachRow[] }) {
               <td className="py-2 pe-3 text-ink">{row.counterpartyName}</td>
               <td className="py-2 pe-3">
                 <span className="inline-flex rounded bg-muted px-2 py-0.5 font-mono text-[10px] text-ink-muted">
-                  {row.breachKind}
+                  {humanizeLabel(row.breachKind)}
                 </span>
               </td>
               <td className="py-2 pe-3">
@@ -325,7 +327,16 @@ function DeliveryDelayList({ rows }: { rows: DeliveryDelayRow[] }) {
                 </Link>
               </td>
               <td className="py-2 pe-3 text-ink">{row.counterpartyName}</td>
-              <td className="py-2 pe-3 text-xs text-ink-muted">{row.lastDelayedMilestone ?? '—'}</td>
+              {/* O5: row.lastDelayedMilestone from BE is currently the correlation match_reason
+                  (a rule trigger description). Truncate + de-emphasise so it reads as a contextual
+                  trigger note, not a milestone name. Title attr exposes full text on hover. */}
+              <td className="py-2 pe-3 text-xs text-ink-muted" title={row.lastDelayedMilestone ?? undefined}>
+                {row.lastDelayedMilestone
+                  ? (row.lastDelayedMilestone.length > 60
+                      ? row.lastDelayedMilestone.slice(0, 60) + '…'
+                      : row.lastDelayedMilestone)
+                  : '—'}
+              </td>
               <td className="py-2 pe-3 font-mono tabular-nums text-ink">
                 {row.delayDays != null ? `${row.delayDays}d` : '—'}
               </td>
@@ -432,12 +443,20 @@ function OpsEventsFeed({ rows }: { rows: OpsEventRow[] }) {
                 {row.counterpartyName} · {formatDateTime(row.occurredAt, { showTime: false })}
               </p>
             </div>
+            {/* O4: row.eventType is a rule_id slug (e.g. rule.sla.day_rate_breach).
+                Humanize via humanizeLabel so the chip reads as a human label.
+                The full rule_id stays in the title attr for power-user inspection. */}
             <Link
               to="/app/contracts/$id"
               params={{ id: row.contractId }}
               className="shrink-0 font-mono text-[10px] text-gold hover:underline"
+              title={row.eventType}
             >
-              {row.eventType}
+              {humanizeLabel(
+                row.eventType
+                  ?.replace(/^rule\./, '')
+                  .replace(/\./g, ' '),
+              )}
             </Link>
             {/* Row actions menu (H5) */}
             <div className="relative">

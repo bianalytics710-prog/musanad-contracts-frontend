@@ -69,7 +69,11 @@ export function SlaCountdown({ seconds }: { seconds: number | null }) {
         : `${hours}h ${mins}m`;
   return (
     <span className={`text-xs font-medium ${tone}`} title={t('riskCases.sla.title')}>
-      {overdue ? t('riskCases.sla.overdue', { duration: text }) : text}
+      {/* O24: prefix future-due durations with "Due in" so the column reads
+          consistently against the "Overdue" past-due rows. */}
+      {overdue
+        ? t('riskCases.sla.overdue', { duration: text })
+        : t('riskCases.sla.dueIn', { duration: text, defaultValue: `Due in ${text}` })}
     </span>
   );
 }

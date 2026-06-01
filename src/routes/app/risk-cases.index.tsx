@@ -340,11 +340,19 @@ function RiskCaseListView() {
                         {t(`riskCases.caseTypes.${item.caseType}`, { defaultValue: item.caseType })}
                       </td>
                       <td className="px-4 py-3 text-xs text-ink">
-                        {/* Re-audit fix — humanize role slug ("compliance_esg" →
-                            "Compliance ESG", "legal_counsel" → "Legal Counsel"). */}
-                        {item.assignedUserName ?? (item.assignedRole ? humanizeLabel(item.assignedRole) : (
+                        {/* O22: distinguish person assignment from role-only routing.
+                            When no user is assigned (only a role), render "— · {role}"
+                            so the column reads as pending-assignment rather than
+                            falsely implying a role name is a person name. */}
+                        {item.assignedUserName ? (
+                          item.assignedUserName
+                        ) : item.assignedRole ? (
+                          <span className="text-ink-muted">
+                            — · {humanizeLabel(item.assignedRole)}
+                          </span>
+                        ) : (
                           <span className="text-ink-muted">{t('riskCases.list.unassigned')}</span>
-                        ))}
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <SlaCountdown seconds={item.slaCountdownSeconds} />

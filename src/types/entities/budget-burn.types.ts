@@ -335,8 +335,12 @@ export interface PortfolioSummary {
   totalBudgetAed: string;
   totalActualAed: string;
   totalVarianceAed: string;
-  overBudgetCount: number;
+  // O16: BE returns `overBudgetContractCount` (per mig 410+417+420).
+  // Keep legacy `overBudgetCount` as an optional alias so older callers compile.
+  overBudgetContractCount?: number;
+  overBudgetCount?: number;
   totalProjectedOverrunAed: string;
+  trendingOverContractCount?: number;
 }
 
 export interface BudgetBurnPortfolio {

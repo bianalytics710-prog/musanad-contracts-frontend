@@ -528,9 +528,9 @@ function BudgetBurnPortfolioView() {
                   variant={parseFloat(summary.totalVarianceAed) > 0 ? 'risk' : 'default'}
                 />
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.overBudgetCount')}
-                  value={String(summary.overBudgetCount)}
-                  variant={summary.overBudgetCount > 0 ? 'warning' : 'default'}
+                  label={t('financial.budgetBurn.portfolio.(summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0)')}
+                  value={String((summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0))}
+                  variant={(summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0) > 0 ? 'warning' : 'default'}
                 />
                 <SummaryTile
                   label={t('financial.budgetBurn.portfolio.summary.totalProjectedOverrun')}
@@ -541,7 +541,7 @@ function BudgetBurnPortfolioView() {
               {/* E37 fix — surface the year-end projection narrative on the
                   portfolio page so the demo story (HERO-001 trending toward
                   breach) is visible even when today's overBudgetCount === 0. */}
-              {summary.overBudgetCount === 0 && summary.contractsWithBudget > 0 && (
+              {(summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0) === 0 && summary.contractsWithBudget > 0 && (
                 <div className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-ink">
                   {t('financial.budgetBurn.portfolio.zeroOverButCheckTrend', {
                     defaultValue:

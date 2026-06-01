@@ -11,6 +11,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { notificationPreferencesService } from '@/services/api/notification-preferences.service';
 import { translateApiError } from '@/lib/translate-api-error';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import type {
   NotificationKindPref,
   NotificationChannelPref,
@@ -23,11 +24,34 @@ import {
   PRIORITY_MIN_OPTIONS,
 } from '@/types/notification-preferences.types';
 
+// O30: role-aware kinds filter. Drop notification types the role would never
+// actually receive — keeps the matrix focused on the user's real surface area.
+const ROLE_RELEVANT_KINDS: Record<string, ReadonlyArray<NotificationKindPref>> = {
+  operations:                ['alert', 'system', 'risk_case', 'report'],
+  finance_treasury:          ['alert', 'system', 'risk_case', 'report'],
+  compliance_esg:            ['alert', 'advisory', 'system', 'risk_case', 'report'],
+  procurement_supplier_risk: ['alert', 'system', 'risk_case', 'report'],
+  legal_counsel:             NOTIFICATION_KINDS_PREF,
+  contract_drafter:          ['alert', 'advisory', 'approval_request', 'signature_request', 'system', 'report'],
+  contract_approver:         ['alert', 'advisory', 'approval_request', 'system', 'risk_case', 'report'],
+  contract_approver_2:       ['alert', 'advisory', 'approval_request', 'system', 'risk_case', 'report'],
+  contract_recipient:        ['alert', 'signature_request', 'system', 'report'],
+  executive:                 NOTIFICATION_KINDS_PREF,
+  platform_admin:            NOTIFICATION_KINDS_PREF,
+  'Super Admin':             NOTIFICATION_KINDS_PREF,
+};
+
 const QUERY_KEY = 'notificationPreferences';
 
 export function NotificationPreferencesMatrix() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const user = useAuthStore(selectUser);
+  // O30: filter kinds to role-relevant set; fall back to the full list
+  // when the role isn't mapped (defensive — never hide configurable knobs).
+  const roleName = user?.role?.name;
+  const visibleKinds: ReadonlyArray<NotificationKindPref> =
+    (roleName ? ROLE_RELEVANT_KINDS[roleName] : undefined) ?? NOTIFICATION_KINDS_PREF;
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: [QUERY_KEY],
@@ -135,7 +159,7 @@ export function NotificationPreferencesMatrix() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border bg-card">
-            {NOTIFICATION_KINDS_PREF.map((kind) => (
+            {visibleKinds.map((kind) => (
               <tr key={kind} className="hover:bg-surface/50 transition-colors">
                 <th scope="row" className="px-4 py-4 text-left text-sm font-medium text-ink">
                   {t(`profile.notificationPreferences.kinds.${kind}`)}

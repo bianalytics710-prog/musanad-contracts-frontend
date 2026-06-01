@@ -294,13 +294,19 @@ function RiskCaseDetailView() {
                             so this is now never empty for cases that link
                             to a real contract. Fall back to contractNumber
                             (always populated) as a last resort. */}
+                        {/* O27: prepend contract number alongside the title so the
+                            row reads as "CRQ-ONS-023 — ADNOC Onshore — EPC Crude
+                            Stabilization Unit — Ruwais" (number + title), not just
+                            the bare title. Full label stays clickable. */}
                         <dd className="text-ink truncate ms-2" title={linkedContract.title ?? linkedContract.contractNumber}>
                           <Link
                             to="/app/contracts/$id"
                             params={{ id: String(linkedContract.id) }}
                             className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
                           >
-                            {linkedContract.title ?? linkedContract.contractNumber ?? `#${linkedContract.id}`}
+                            {linkedContract.contractNumber && linkedContract.title
+                              ? `${linkedContract.contractNumber} — ${linkedContract.title}`
+                              : (linkedContract.title ?? linkedContract.contractNumber ?? `#${linkedContract.id}`)}
                           </Link>
                         </dd>
                       </div>
