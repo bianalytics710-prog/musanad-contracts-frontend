@@ -4,7 +4,7 @@
  * Four dialogs:
  *   - ActivateAlternateVendorDialog — backup-supplier activation
  *   - EscalateVendorPerformanceDialog — escalate vendor to legal/exec/compliance/finance
- *   - InitiateCureNoticeDialog — record cure-notice intent (advisory drafter ships in CR-H)
+ *   - InitiateCureNoticeDialog — record cure-notice intent (handed off to legal advisory drafter)
  *   - InitiateIcvRemediationDialog — record ICV remediation intent; can forward to compliance
  *
  * Pattern mirrors src/features/operations/components/ActionDialogs.tsx (Unit-3).
@@ -94,21 +94,30 @@ export function ActivateAlternateVendorDialog({
   vendorName,
   open,
   onClose,
+  suggestedAlternatives,
 }: {
   partyId: string | null;
   vendorName?: string;
   open: boolean;
   onClose: () => void;
+  /** P20: pre-populated list from the dashboard's backup-supplier suggestion engine. */
+  suggestedAlternatives?: Array<{ counterpartyName: string; riskScore: number | null }>;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const { register, handleSubmit, formState, reset } = useForm<ActivateAlternateForm>({
+  const { register, handleSubmit, formState, reset, setValue } = useForm<ActivateAlternateForm>({
     resolver: zodResolver(activateAlternateSchema),
     defaultValues: { alternateVendorName: '', forContractId: '', note: '' },
   });
   useEffect(() => {
-    if (open) reset();
-  }, [open, reset]);
+    if (open) {
+      reset();
+      // P20: if engine suggested alternates, pre-select the top one
+      if (suggestedAlternatives && suggestedAlternatives.length > 0) {
+        setValue('alternateVendorName', suggestedAlternatives[0].counterpartyName);
+      }
+    }
+  }, [open, reset, setValue, suggestedAlternatives]);
   const m = useMutation({
     mutationFn: async (input: ActivateAlternateForm) => {
       if (!partyId) throw new Error('missing partyId');
@@ -144,13 +153,33 @@ export function ActivateAlternateVendorDialog({
           >
             {t('procurement.actions.activateAlternate.alternateVendorLabel')}
           </label>
-          <input
-            id="proc-alt-vendor-name"
-            type="text"
-            {...register('alternateVendorName')}
-            aria-invalid={!!formState.errors.alternateVendorName}
-            className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus-visible:border-gold focus-visible:outline-none"
-          />
+          {suggestedAlternatives && suggestedAlternatives.length > 0 ? (
+            // P20: combobox driven by backup-supplier engine suggestions
+            <select
+              id="proc-alt-vendor-name"
+              {...register('alternateVendorName')}
+              aria-invalid={!!formState.errors.alternateVendorName}
+              className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus-visible:border-gold focus-visible:outline-none"
+            >
+              {suggestedAlternatives.map((alt) => (
+                <option key={alt.counterpartyName} value={alt.counterpartyName}>
+                  {alt.counterpartyName}
+                  {alt.riskScore != null ? ` — ${t('procurement.actions.activateAlternate.scoreLabel', { defaultValue: 'health score' })} ${alt.riskScore}` : ''}
+                </option>
+              ))}
+              <option value="">
+                {t('procurement.actions.activateAlternate.otherOption', { defaultValue: 'Other (enter manually below)' })}
+              </option>
+            </select>
+          ) : (
+            <input
+              id="proc-alt-vendor-name"
+              type="text"
+              {...register('alternateVendorName')}
+              aria-invalid={!!formState.errors.alternateVendorName}
+              className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus-visible:border-gold focus-visible:outline-none"
+            />
+          )}
         </div>
         <div>
           <label htmlFor="proc-alt-contract" className="mb-1 block text-xs font-medium text-ink">
@@ -203,9 +232,12 @@ export function ActivateAlternateVendorDialog({
 
 // ─── Escalate Vendor Performance ────────────────────────────────────────────
 
+// P21: toRole is now required — blanket "Any" broadcast was ambiguous and bypassed audit-routing intent.
 const escalateVendorSchema = z.object({
   reason: z.string().trim().min(1, 'Required').max(1000),
-  toRole: z.enum(['legal', 'executive', 'compliance', 'finance_treasury']).optional(),
+  toRole: z.enum(['legal', 'executive', 'compliance', 'finance_treasury'], {
+    errorMap: () => ({ message: 'Select a queue' }),
+  }),
 });
 type EscalateVendorForm = z.infer<typeof escalateVendorSchema>;
 
@@ -222,19 +254,24 @@ export function EscalateVendorPerformanceDialog({
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const { register, handleSubmit, formState, reset } = useForm<EscalateVendorForm>({
+  const { register, handleSubmit, formState, reset, watch } = useForm<EscalateVendorForm>({
     resolver: zodResolver(escalateVendorSchema),
-    defaultValues: { reason: '', toRole: undefined },
+    defaultValues: { reason: '', toRole: undefined as unknown as EscalateVendorForm['toRole'] },
   });
   useEffect(() => {
     if (open) reset();
   }, [open, reset]);
+  // P21: watch for completed form so the Escalate button visibly stays disabled
+  // until both Reason and a non-empty queue are chosen.
+  const watchedReason = watch('reason');
+  const watchedRole = watch('toRole') as string | undefined;
+  const isReadyToSubmit = !!watchedReason && watchedReason.trim().length > 0 && !!watchedRole;
   const m = useMutation({
     mutationFn: async (input: EscalateVendorForm) => {
       if (!partyId) throw new Error('missing partyId');
       return personaActionsService.escalateVendorPerformance(partyId, {
         reason: input.reason,
-        ...(input.toRole ? { toRole: input.toRole } : {}),
+        toRole: input.toRole,
       });
     },
     onSuccess: () => {
@@ -279,15 +316,22 @@ export function EscalateVendorPerformanceDialog({
           </label>
           <select
             id="proc-esc-role"
+            aria-invalid={!!formState.errors.toRole}
             {...register('toRole')}
             className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm focus-visible:border-gold focus-visible:outline-none"
           >
-            <option value="">{t('procurement.actions.escalateVendor.toRoleAny')}</option>
+            {/* P21: empty default uses "Select a queue…" prompt (was misleading "— Any —"). */}
+            <option value="">{t('procurement.actions.escalateVendor.toRolePlaceholder', { defaultValue: 'Select a queue…' })}</option>
             <option value="legal">{t('procurement.actions.escalateVendor.toRoleLegal')}</option>
             <option value="executive">{t('procurement.actions.escalateVendor.toRoleExecutive')}</option>
             <option value="compliance">{t('procurement.actions.escalateVendor.toRoleCompliance')}</option>
             <option value="finance_treasury">{t('procurement.actions.escalateVendor.toRoleFinanceTreasury')}</option>
           </select>
+          {formState.errors.toRole && (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {formState.errors.toRole.message}
+            </p>
+          )}
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
@@ -296,7 +340,7 @@ export function EscalateVendorPerformanceDialog({
           <Button
             type="submit"
             size="sm"
-            disabled={m.isPending}
+            disabled={m.isPending || !isReadyToSubmit}
             className="bg-amber text-ink hover:bg-amber/90"
           >
             {m.isPending ? t('common.submitting') : t('procurement.actions.escalateVendor.submit')}
@@ -307,7 +351,7 @@ export function EscalateVendorPerformanceDialog({
   );
 }
 
-// ─── Initiate Cure Notice (stub until CR-H ships) ───────────────────────────
+// ─── Initiate Cure Notice ──────────────────────────────────────────────────
 
 const cureNoticeSchema = z.object({
   contractIdInput: z
@@ -386,9 +430,6 @@ export function InitiateCureNoticeDialog({
           ? t('procurement.actions.cureNotice.subtitleNamed', { contract: contractLabel })
           : t('procurement.actions.cureNotice.subtitle')}
       </p>
-      <div className="mb-3 rounded-md border border-amber/40 bg-amber/10 p-2 text-xs text-amber">
-        {t('procurement.actions.cureNotice.stubNotice')}
-      </div>
       <form onSubmit={handleSubmit((v) => m.mutate(v))} className="space-y-3">
         <div>
           <label htmlFor="proc-cure-contract" className="mb-1 block text-xs font-medium text-ink">

@@ -7664,7 +7664,7 @@
       },
       "empty": {
         "noPriceReview": "No Brent/Dubai/Murban price-review correlations in the selected window.",
-        "paymentDelaysV1": "No payment delay signals available — deferred to pilot.",
+        "paymentDelaysV1": "No payment delay signals in the selected window.",
         "noPaymentDelays": "No payment delays detected in the selected window.",
         "noCurrencies": "No active currency data available."
       },
@@ -7739,7 +7739,7 @@
     },
     "procurement": {
       "title": "Procurement supplier-risk dashboard",
-      "subtitle": "Supplier risk scores, ICV compliance, and backup alternatives",
+      "subtitle": "Supplier risk scores, ICV compliance, SLA breaches, vendor financial health, and backup alternates",
       "kpiGroupLabel": "Procurement KPIs",
       "kpis": {
         "totalSuppliers": "Total suppliers",
@@ -7753,7 +7753,7 @@
         "backupSuppliers": "Backup supplier suggestions",
         "financialHealth": "Vendor financial health",
         "cureNoticeAffordance": "Cure notice — initiate for SLA-breached vendors",
-        "cureNoticeHelp": "These vendors have recent SLA breaches. Click to record a cure-notice intent (advisory drafter ships in CR-H)."
+        "cureNoticeHelp": "These vendors have recent SLA breaches against your contracts. Click to draft a formal cure notice — legal counsel will review before dispatch."
       },
       "table": {
         "supplier": "Supplier",
@@ -7779,13 +7779,13 @@
         "noSuppliers": "No supplier data available.",
         "noIcvIssues": "All suppliers meet ICV requirements.",
         "noBackupSuggestions": "No distressed primary suppliers — no backup suggestions needed.",
-        "financialHealthV1": "No vendor financial-health signals available — deferred to pilot."
+        "financialHealthV1": "No vendor financial-health signals in the selected window."
       },
       "errors": {
         "loadFailed": "Failed to load the Procurement dashboard. Please try again."
       },
       "financialHealth": {
-        "sourceCaption": "Source: D&B (mock — live integration in pilot)"
+        "sourceCaption": "Source: external credit-bureau signals (D&B / Bloomberg)"
       }
     }
   },
@@ -8078,9 +8078,9 @@
       "cureNotice": {
         "title": "Initiate cure notice",
         "shortLabel": "Cure notice",
-        "subtitle": "Record cure-notice intent. Advisory drafter ships in CR-H (Unit 5).",
-        "subtitleNamed": "Record cure-notice intent for {{contract}}.",
-        "stubNotice": "Stub: advisory drafter ships in CR-H (Unit 5). Intent will be recorded in audit log.",
+        "subtitle": "Draft a formal cure notice. Legal counsel will review before dispatch.",
+        "subtitleNamed": "Draft a formal cure notice for {{contract}}. Legal counsel will review before dispatch.",
+        "stubNotice": "",
         "contractIdLabel": "Contract id",
         "breachLabel": "Breach description",
         "curePeriodLabel": "Cure period (days)",
@@ -8513,7 +8513,7 @@
     "budgetBurn": {
       "portfolio": {
         "title": "Budget Burn — Portfolio",
-        "subtitle": "Services-contract budget vs actual spend across all budgeted contracts",
+        "subtitle": "Budget vs actual spend across all budgeted contracts",
         "summaryLabel": "Portfolio summary",
         "summary": {
           "contractsWithBudget": "Contracts with budget",

@@ -99,9 +99,9 @@ export function formatDate(utcString: string | null | undefined, locale?: string
 
 /**
  * R3 audit 8.1.2 — Hijri (Islamic Umm al-Qura) calendar formatter.
- * Uses Intl.DateTimeFormat with calendar=islamic-umalqura and falls back
- * to plain "islamic" then ISO truncation when the runtime can't render
- * either. Returns a label like "Dhuʻl-Qiʻdah 19, 1447 AH".
+ * P50 — Pari Polish: locale-aware rendering. EN actor sees "Dhuʻl-Hijjah 14, 1447 AH";
+ * AR actor sees "‏١٤ ذو الحجة ١٤٤٧ هـ" (Eastern Arabic numerals + Arabic month + AH glyph).
+ * Falls back to plain "islamic" calendar then "—" when the runtime can't render either.
  */
 export function formatHijriDate(utcString: string | null | undefined): string {
   if (!utcString) return "—";
@@ -112,12 +112,15 @@ export function formatHijriDate(utcString: string | null | undefined): string {
     month: "long",
     year: "numeric",
   };
+  // P50: use AR locale when the active UI locale is AR so the month renders in Arabic script.
+  const baseLocale = getActiveLocale().startsWith("ar") ? "ar-SA" : "en";
   for (const calendar of ["islamic-umalqura", "islamic"] as const) {
     try {
-      const out = new Intl.DateTimeFormat(`en-u-ca-${calendar}`, opts).format(date);
-      // Intl already appends an era marker on most engines (e.g. "1447 AH").
-      // Add the suffix only if it's missing so we don't render "AH AH".
-      return /\bAH\b/.test(out) ? out : `${out} AH`;
+      const out = new Intl.DateTimeFormat(`${baseLocale}-u-ca-${calendar}`, opts).format(date);
+      // Intl already appends an era marker on most engines (e.g. "1447 AH" / "1447 هـ").
+      // Add the EN suffix only if it's missing AND we're rendering in English.
+      if (baseLocale === "en" && !/\bAH\b/.test(out)) return `${out} AH`;
+      return out;
     } catch {
       // try next
     }

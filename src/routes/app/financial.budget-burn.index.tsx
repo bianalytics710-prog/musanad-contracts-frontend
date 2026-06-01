@@ -48,6 +48,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -584,6 +585,21 @@ function BudgetBurnPortfolioView() {
                     fontSize={10}
                     tickFormatter={(v: number) => `${v.toFixed(0)}%`}
                     domain={[0, 'auto']}
+                    ticks={[0, 25, 50, 75, 100, 125, 150]}
+                  />
+                  {/* P42 — 100% budget breach line */}
+                  <ReferenceLine
+                    x={100}
+                    stroke="var(--terracotta)"
+                    strokeDasharray="3 3"
+                    label={{
+                      value: t('budgetBurn.charts.portfolioConsumption.budgetLine', {
+                        defaultValue: 'Budget = 100%',
+                      }),
+                      position: 'top',
+                      fontSize: 10,
+                      fill: 'var(--terracotta)',
+                    }}
                   />
                   <YAxis
                     dataKey="contractNumber"

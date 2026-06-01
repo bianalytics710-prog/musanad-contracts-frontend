@@ -387,6 +387,39 @@ export interface VendorFinancialHealthRow {
   sourceRef: string | null;
 }
 
+export interface ProcurementConcentrationSlice {
+  counterpartyId: string;
+  counterpartyName: string;
+  totalValueAed: string;
+  sharePct: number | null;
+}
+
+export interface ProcurementTierDistribution {
+  high: number;
+  medium: number;
+  low: number;
+  unscored: number;
+}
+
+export interface ProcurementSlaTrendPoint {
+  weekEnd: string;
+  weeksAgo: number;
+  breachCount: number;
+}
+
+export interface ProcurementChartsData {
+  concentration: ProcurementConcentrationSlice[];
+  tierDistribution: ProcurementTierDistribution;
+  slaTrendWeeks26: ProcurementSlaTrendPoint[];
+}
+
+/** P19 — added in mig 412; vendors eligible for a cure notice regardless of scorecard rank. */
+export interface ProcurementCureNoticeCandidate {
+  counterpartyId: string;
+  counterpartyName: string;
+  slaBreachCount180d: number;
+}
+
 export interface ProcurementSupplierRiskDashboardResponse {
   windowDays: number;
   asOf: string;
@@ -396,6 +429,10 @@ export interface ProcurementSupplierRiskDashboardResponse {
   icvComplianceTracker: IcvComplianceRow[];
   backupSupplierSuggestions: BackupSupplierGroup[];
   vendorFinancialHealthSummary: VendorFinancialHealthRow[];
+  /** Added in mig 408 — drives the 3 P1 charts (concentration donut, tier stacked bar, SLA trend). */
+  chartsData?: ProcurementChartsData;
+  /** Added in mig 412 — surfaces vendors needing cure notices even when not in top-20 scorecard. */
+  cureNoticeCandidates?: ProcurementCureNoticeCandidate[];
 }
 
 // ─── Shared query param ───────────────────────────────────────────────────────

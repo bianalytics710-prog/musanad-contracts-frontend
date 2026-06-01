@@ -9,7 +9,9 @@ import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { translateApiError } from '@/lib/translate-api-error';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -17,6 +19,7 @@ import {
   ArrowUpRight,
   Hand,
   Pause,
+  Play,
   XCircle,
   CircleCheck,
   Paperclip,
@@ -61,6 +64,7 @@ export const Route = createFileRoute('/app/risk-cases/$caseId')({
 function RiskCaseDetailView() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { caseId } = Route.useParams();
   const id = Number(caseId);
 
@@ -86,6 +90,17 @@ function RiskCaseDetailView() {
     queryFn: () => riskCaseService.getById(id),
     enabled: Number.isFinite(id) && id > 0,
     staleTime: 15_000,
+  });
+
+  // P33 — Wake from snooze inline mutation (no dialog needed)
+  const unsnoozeMutation = useMutation({
+    mutationFn: () => riskCaseService.unsnooze(id),
+    onSuccess: () => {
+      toast.success(t('riskCases.actions.unsnoozeSuccess', { defaultValue: 'Case reopened from snooze' }));
+      void qc.invalidateQueries({ queryKey: ['riskCase', id] });
+      void qc.invalidateQueries({ queryKey: ['riskCases'] });
+    },
+    onError: (e) => toast.error(translateApiError(e, t)),
   });
 
   if (!Number.isFinite(id) || id <= 0) {
@@ -131,7 +146,9 @@ function RiskCaseDetailView() {
   const transitionsAvailable = (STRICT_TRANSITIONS[riskCase.status] ?? []).length > 0;
   const canEscalateNow = canEscalate && ESCALATABLE_STATUSES.includes(riskCase.status);
   const canCloseNow = canClose && CLOSABLE_STATUSES.includes(riskCase.status);
-  const canSnoozeNow = !isTerminal && (canCreate || canEscalate);
+  const canSnoozeNow = !isTerminal && (canCreate || canEscalate) && riskCase.status !== 'snoozed';
+  // P33 — Wake from snooze: visible only when case IS snoozed and actor has same gate as snooze.
+  const canUnsnoozeNow = riskCase.status === 'snoozed' && (canCreate || canEscalate);
   const canAcceptRiskNow = canAcceptRisk && !isTerminal;
 
   return (
@@ -405,6 +422,21 @@ function RiskCaseDetailView() {
             >
               <Pause className="me-2 h-4 w-4" aria-hidden="true" />
               {t('riskCases.actions.snooze')}
+            </Button>
+          )}
+
+          {/* P33 — Wake from snooze. Inline mutation, no dialog. */}
+          {canUnsnoozeNow && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              disabled={unsnoozeMutation.isPending}
+              onClick={() => unsnoozeMutation.mutate()}
+            >
+              <Play className="me-2 h-4 w-4" aria-hidden="true" />
+              {unsnoozeMutation.isPending
+                ? t('common.submitting')
+                : t('riskCases.actions.unsnooze', { defaultValue: 'Wake from snooze' })}
             </Button>
           )}
 

@@ -181,6 +181,15 @@ export const riskCaseService = {
     return unwrap<RiskCaseDetail>(data);
   },
 
+  // P33 — Pari Polish Cluster E: wake a snoozed case back to Open.
+  unsnooze: async (id: number): Promise<RiskCaseDetail> => {
+    const { data } = await apiClient.post<{ success: boolean; data: RiskCaseDetail }>(
+      `${BASE}/${id}/unsnooze`,
+      {},
+    );
+    return unwrap<RiskCaseDetail>(data);
+  },
+
   close: async (id: number, payload: CloseRiskCaseDto): Promise<RiskCaseDetail> => {
     const { data } = await apiClient.post<{ success: boolean; data: RiskCaseDetail }>(
       `${BASE}/${id}/close`,

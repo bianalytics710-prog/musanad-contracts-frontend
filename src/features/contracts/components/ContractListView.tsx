@@ -307,19 +307,19 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
         <StatCard
           label={t("contracts.kpis.active", { defaultValue: "Active or signed" })}
           value={kpis.active.toLocaleString()}
-          delta={t("contracts.kpis.thisPage", { defaultValue: "on this page" })}
+          delta={t("contracts.kpis.inFilteredScope", { defaultValue: "in current view" })}
         />
         <StatCard
           label={t("contracts.kpis.inApproval", { defaultValue: "In approval" })}
           value={kpis.inApproval.toLocaleString()}
           variant={kpis.inApproval > 0 ? "warning" : "default"}
-          delta={t("contracts.kpis.thisPage", { defaultValue: "on this page" })}
+          delta={t("contracts.kpis.inFilteredScope", { defaultValue: "in current view" })}
         />
         <StatCard
           label={t("contracts.kpis.expiring", { defaultValue: "Expiring soon" })}
           value={kpis.expiring.toLocaleString()}
           variant={kpis.expiring > 0 ? "risk" : "default"}
-          delta={t("contracts.kpis.thisPage", { defaultValue: "on this page" })}
+          delta={t("contracts.kpis.inFilteredScope", { defaultValue: "in current view" })}
         />
       </div>
 
@@ -673,10 +673,15 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                         if (!full) return "—";
                         return (
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold/10 font-mono text-[9px] font-medium text-gold">
+                            {/* P24: aria-hide initials avatar so screen readers + DOM-text
+                                exports don't read "PPPari Procurement" as one word. */}
+                            <span
+                              aria-hidden="true"
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold/10 font-mono text-[9px] font-medium text-gold"
+                            >
                               {initials}
                             </span>
-                            {full}
+                            <span>{full}</span>
                           </span>
                         );
                       })()}

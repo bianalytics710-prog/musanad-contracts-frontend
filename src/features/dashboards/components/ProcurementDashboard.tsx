@@ -19,7 +19,22 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from '@tanstack/react-router';
-import { Users, ShieldCheck, TrendingUp, AlertTriangle, ArrowUpRight } from 'lucide-react';
+import { Users, ShieldCheck, TrendingUp, AlertTriangle, ArrowUpRight, PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { useProcurementDashboard } from '../hooks/useCrgDashboards';
 import {
   DashboardEmptyState,
@@ -28,6 +43,7 @@ import {
   DashboardLoadingSkeleton,
   KpiTile,
   TimeRangeSelector,
+  humanizeLabel,
   rangeFromWindowDays,
 } from './dashboard-primitives';
 import {
@@ -43,6 +59,7 @@ import type {
   SupplierScorecardRow,
   IcvComplianceRow,
   BackupSupplierGroup,
+  ProcurementChartsData,
 } from '@/types/entities/crg-dashboards.types';
 
 function formatAedCompact(value: string | number): string {
@@ -72,10 +89,11 @@ const tierColors: Record<string, string> = {
 };
 
 function RiskTierBadge({ tier }: { tier: string }) {
+  // P6/P49: humanize tier slug (high/medium/low → High / Medium / Low)
   const cls = tierColors[tier.toLowerCase()] ?? 'bg-muted text-ink-muted border-border';
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${cls}`}>
-      {tier}
+      {humanizeLabel(tier)}
     </span>
   );
 }
@@ -173,6 +191,9 @@ export function ProcurementDashboard() {
             />
           </section>
 
+          {/* P1: Charts row — concentration donut + tier distribution + SLA trend */}
+          {data.chartsData && <ProcurementChartsSection charts={data.chartsData} />}
+
           {/* Supplier Risk Scorecard */}
           <section className="rounded-lg border border-border bg-card p-4">
             <div className="mb-3 flex items-center gap-2">
@@ -259,41 +280,58 @@ export function ProcurementDashboard() {
             )}
           </section>
 
-          {/* Cure-notice trigger affordance — surfaces when there are high-risk SLA breach signals. */}
-          {data.supplierRiskScorecard.some((r) => r.slaBreachCount180d > 0) && (
-            <section className="rounded-lg border border-amber/40 bg-amber/5 p-4">
-              <div className="mb-2 flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber" aria-hidden />
-                <h2 className="text-sm font-semibold text-ink">
-                  {t('dashboards.procurement.sections.cureNoticeAffordance')}
-                </h2>
-              </div>
-              <p className="mb-3 text-xs text-ink-muted">
-                {t('dashboards.procurement.sections.cureNoticeHelp')}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {data.supplierRiskScorecard
-                  .filter((r) => r.slaBreachCount180d > 0)
-                  .slice(0, 5)
-                  .map((r) => (
+          {/* P19: Cure-notice trigger surfaces from the dedicated cureNoticeCandidates list
+              (mig 412) — independent of the top-20 scorecard slice. Falls back to the in-scorecard
+              SLA breach derivation when the BE doesn't return the new field. */}
+          {(() => {
+            const candidates =
+              data.cureNoticeCandidates && data.cureNoticeCandidates.length > 0
+                ? data.cureNoticeCandidates
+                : data.supplierRiskScorecard
+                    .filter((r) => r.slaBreachCount180d > 0)
+                    .map((r) => ({
+                      counterpartyId: r.counterpartyId,
+                      counterpartyName: r.counterpartyName,
+                      slaBreachCount180d: r.slaBreachCount180d,
+                    }));
+            if (candidates.length === 0) return null;
+            return (
+              <section className="rounded-lg border border-amber/40 bg-amber/5 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber" aria-hidden />
+                  <h2 className="text-sm font-semibold text-ink">
+                    {t('dashboards.procurement.sections.cureNoticeAffordance')}
+                  </h2>
+                </div>
+                <p className="mb-3 text-xs text-ink-muted">
+                  {t('dashboards.procurement.sections.cureNoticeHelp')}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {candidates.slice(0, 8).map((c) => (
                     <button
-                      key={`cure-${r.counterpartyId}`}
+                      key={`cure-${c.counterpartyId}`}
                       type="button"
                       onClick={() =>
                         setCureDialog({
-                          contractId: '', // user enters contract id in dialog
-                          label: r.counterpartyName,
+                          contractId: '',
+                          label: c.counterpartyName,
                         })
                       }
                       className="inline-flex items-center gap-1.5 rounded-full border border-amber/50 bg-card px-3 py-1 text-xs font-medium text-ink hover:border-amber hover:bg-amber/10"
                     >
                       <ArrowUpRight className="h-3 w-3" aria-hidden />
-                      {r.counterpartyName}
+                      {c.counterpartyName}
+                      {c.slaBreachCount180d > 0 && (
+                        <span className="ms-1 font-mono text-[10px] text-amber">
+                          ×{c.slaBreachCount180d}
+                        </span>
+                      )}
                     </button>
                   ))}
-              </div>
-            </section>
-          )}
+                </div>
+              </section>
+            );
+          })()}
         </>
       )}
 
@@ -302,6 +340,17 @@ export function ProcurementDashboard() {
         vendorName={activateDialog?.vendorName}
         open={!!activateDialog}
         onClose={() => setActivateDialog(null)}
+        // P20: hand the alternate-vendor list from the engine into the dialog
+        suggestedAlternatives={(() => {
+          if (!activateDialog?.partyId || !data?.backupSupplierSuggestions) return undefined;
+          const match = data.backupSupplierSuggestions.find(
+            (g) => g.primaryCounterpartyId === activateDialog.partyId
+          );
+          return match?.suggestedAlternatives.map((a) => ({
+            counterpartyName: a.counterpartyName,
+            riskScore: a.riskScore,
+          }));
+        })()}
       />
       <EscalateVendorPerformanceDialog
         partyId={escalateDialog?.partyId ?? null}
@@ -325,6 +374,42 @@ export function ProcurementDashboard() {
   );
 }
 
+type ScorecardSortKey = 'counterpartyName' | 'partyType' | 'compositeRiskScore' | 'riskTier' | 'activeContractCount' | 'slaBreachCount180d' | 'totalContractValueAed';
+type SortDir = 'asc' | 'desc';
+
+// P8 — keep the original ranking order (BE already sorts worst-first) by default;
+// click a header to override. ArrowUpDown shows current direction.
+function SortHeader({
+  label, sortKey, currentKey, currentDir, onSort, align = 'start',
+}: {
+  label: string;
+  sortKey: ScorecardSortKey;
+  currentKey: ScorecardSortKey | null;
+  currentDir: SortDir;
+  onSort: (k: ScorecardSortKey) => void;
+  align?: 'start' | 'end';
+}) {
+  const active = currentKey === sortKey;
+  const arrow = !active ? '↕' : currentDir === 'asc' ? '↑' : '↓';
+  const ariaSort: 'ascending' | 'descending' | 'none' = !active ? 'none' : currentDir === 'asc' ? 'ascending' : 'descending';
+  return (
+    <th
+      scope="col"
+      aria-sort={ariaSort}
+      className={`py-2 pe-3 font-medium ${align === 'end' ? 'text-right tabular-nums' : ''}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`inline-flex items-center gap-1 ${active ? 'text-ink' : 'text-ink-subtle hover:text-ink'}`}
+      >
+        <span>{label}</span>
+        <span aria-hidden className="font-mono text-[10px]">{arrow}</span>
+      </button>
+    </th>
+  );
+}
+
 function SupplierScorecardTable({
   rows,
   onActivateAlternate,
@@ -335,26 +420,71 @@ function SupplierScorecardTable({
   onEscalate: (row: SupplierScorecardRow) => void;
 }) {
   const { t } = useTranslation();
+  // P8: client-side sort layered on the BE's default worst-first order.
+  const [sortKey, setSortKey] = useState<ScorecardSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   if (rows.length === 0) {
     return <DashboardEmptyState description={t('dashboards.procurement.empty.noSuppliers')} />;
   }
+
+  const tierOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const sortedRows = sortKey
+    ? [...rows].sort((a, b) => {
+        const va: number | string | null = (() => {
+          switch (sortKey) {
+            case 'totalContractValueAed': return Number(a.totalContractValueAed) || 0;
+            case 'riskTier':              return tierOrder[a.riskTier?.toLowerCase()] ?? 99;
+            case 'compositeRiskScore':    return a.compositeRiskScore ?? Number.POSITIVE_INFINITY;
+            case 'activeContractCount':   return a.activeContractCount;
+            case 'slaBreachCount180d':    return a.slaBreachCount180d;
+            case 'partyType':             return a.partyType ?? '';
+            default:                      return a.counterpartyName ?? '';
+          }
+        })();
+        const vb: number | string | null = (() => {
+          switch (sortKey) {
+            case 'totalContractValueAed': return Number(b.totalContractValueAed) || 0;
+            case 'riskTier':              return tierOrder[b.riskTier?.toLowerCase()] ?? 99;
+            case 'compositeRiskScore':    return b.compositeRiskScore ?? Number.POSITIVE_INFINITY;
+            case 'activeContractCount':   return b.activeContractCount;
+            case 'slaBreachCount180d':    return b.slaBreachCount180d;
+            case 'partyType':             return b.partyType ?? '';
+            default:                      return b.counterpartyName ?? '';
+          }
+        })();
+        const cmp = typeof va === 'number' && typeof vb === 'number'
+          ? va - vb
+          : String(va).localeCompare(String(vb));
+        return sortDir === 'asc' ? cmp : -cmp;
+      })
+    : rows;
+
+  function onSort(k: ScorecardSortKey) {
+    if (sortKey === k) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(k);
+      setSortDir('asc');
+    }
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-subtle">
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.procurement.table.supplier')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.procurement.table.type')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.procurement.table.riskScore')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.procurement.table.riskTier')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.procurement.table.activeContracts')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.procurement.table.slaBreaches')}</th>
-            <th scope="col" className="py-2 pe-3 font-medium tabular-nums">{t('dashboards.procurement.table.totalValue')}</th>
+            <SortHeader label={t('dashboards.procurement.table.supplier')} sortKey="counterpartyName" currentKey={sortKey} currentDir={sortDir} onSort={onSort} />
+            <SortHeader label={t('dashboards.procurement.table.type')} sortKey="partyType" currentKey={sortKey} currentDir={sortDir} onSort={onSort} />
+            <SortHeader label={t('dashboards.procurement.table.riskScore')} sortKey="compositeRiskScore" currentKey={sortKey} currentDir={sortDir} onSort={onSort} align="end" />
+            <SortHeader label={t('dashboards.procurement.table.riskTier')} sortKey="riskTier" currentKey={sortKey} currentDir={sortDir} onSort={onSort} />
+            <SortHeader label={t('dashboards.procurement.table.activeContracts')} sortKey="activeContractCount" currentKey={sortKey} currentDir={sortDir} onSort={onSort} align="end" />
+            <SortHeader label={t('dashboards.procurement.table.slaBreaches')} sortKey="slaBreachCount180d" currentKey={sortKey} currentDir={sortDir} onSort={onSort} align="end" />
+            <SortHeader label={t('dashboards.procurement.table.totalValue')} sortKey="totalContractValueAed" currentKey={sortKey} currentDir={sortDir} onSort={onSort} align="end" />
             <th scope="col" className="py-2 pe-3 font-medium">{t('dashboards.procurement.table.actions', { defaultValue: 'Actions' })}</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sortedRows.map((row) => (
             <tr key={row.counterpartyId} className="border-t border-border/60">
               <td className="py-2 pe-3">
                 <Link
@@ -367,22 +497,32 @@ function SupplierScorecardTable({
               </td>
               <td className="py-2 pe-3">
                 <span className="inline-flex rounded bg-muted px-2 py-0.5 font-mono text-[10px] text-ink-muted">
-                  {row.partyType}
+                  {humanizeLabel(row.partyType)}
                 </span>
               </td>
-              <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+              {/* P10: right-align numeric columns */}
+              <td className="py-2 pe-3 text-right font-mono tabular-nums text-ink">
                 {row.compositeRiskScore ?? '—'}
               </td>
               <td className="py-2 pe-3">
                 <RiskTierBadge tier={row.riskTier} />
               </td>
-              <td className="py-2 pe-3 font-mono tabular-nums text-ink">{row.activeContractCount}</td>
-              <td className="py-2 pe-3 font-mono tabular-nums text-ink">{row.slaBreachCount180d}</td>
-              <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+              <td className="py-2 pe-3 text-right font-mono tabular-nums text-ink">{row.activeContractCount}</td>
+              <td className="py-2 pe-3 text-right font-mono tabular-nums text-ink">{row.slaBreachCount180d}</td>
+              <td className="py-2 pe-3 text-right font-mono tabular-nums text-ink">
                 {formatAedCompact(row.totalContractValueAed)}
               </td>
               <td className="py-2 pe-3">
-                <div className="flex gap-1.5">
+                {/* P9: role=group + sr-only separator so the two action chips don't read
+                    as one glued word in screen-reader / screenshot-export contexts. */}
+                <div
+                  role="group"
+                  aria-label={t('procurement.actions.rowActionsLabel', {
+                    defaultValue: 'Actions for {{vendor}}',
+                    vendor: row.counterpartyName,
+                  })}
+                  className="flex items-center gap-1.5"
+                >
                   <button
                     type="button"
                     onClick={() => onActivateAlternate(row)}
@@ -391,6 +531,8 @@ function SupplierScorecardTable({
                   >
                     {t('procurement.actions.activateAlternate.shortLabel')}
                   </button>
+                  <span aria-hidden className="text-[10px] text-ink-subtle">·</span>
+                  <span className="sr-only"> | </span>
                   <button
                     type="button"
                     onClick={() => onEscalate(row)}
@@ -441,8 +583,8 @@ function IcvComplianceTrackerList({ rows }: { rows: IcvComplianceRow[] }) {
               </td>
               <td className="py-2 pe-3">
                 {row.icvStatus ? (
-                  <span className={`inline-flex rounded border px-2 py-0.5 font-mono text-[10px] uppercase ${row.icvStatus === 'non_compliant' ? 'border-terracotta/30 bg-terracotta/10 text-terracotta' : row.icvStatus === 'compliant' ? 'border-sage/30 bg-sage/10 text-sage' : 'border-border bg-muted text-ink-muted'}`}>
-                    {row.icvStatus.replace('_', ' ')}
+                  <span className={`inline-flex rounded border px-2 py-0.5 font-mono text-[10px] uppercase ${row.icvStatus === 'missing' || row.icvStatus === 'expired' || row.icvStatus === 'non_compliant' ? 'border-terracotta/30 bg-terracotta/10 text-terracotta' : row.icvStatus === 'compliant' || row.icvStatus === 'up_to_date' ? 'border-sage/30 bg-sage/10 text-sage' : row.icvStatus === 'expiring_within_90d' ? 'border-amber/30 bg-amber/10 text-amber' : 'border-border bg-muted text-ink-muted'}`}>
+                    {humanizeLabel(row.icvStatus)}
                   </span>
                 ) : (
                   <span className="text-ink-subtle">—</span>
@@ -483,7 +625,7 @@ function BackupSupplierSuggestionsList({ groups }: { groups: BackupSupplierGroup
                   score: group.primaryRiskScore ?? '—',
                 })}
                 {' · '}
-                <span className="font-mono">{group.category}</span>
+                <span className="font-mono">{humanizeLabel(group.category)}</span>
               </p>
             </div>
             <RiskTierBadge tier={group.primaryRiskScore != null && group.primaryRiskScore < 50 ? 'high' : group.primaryRiskScore != null && group.primaryRiskScore < 75 ? 'medium' : 'low'} />
@@ -505,7 +647,7 @@ function BackupSupplierSuggestionsList({ groups }: { groups: BackupSupplierGroup
                   <span className="font-mono text-xs text-ink-muted">
                     {t('dashboards.procurement.backupSupplier.score', { score: alt.riskScore ?? '—' })}
                   </span>
-                  <span className="font-mono text-[10px] uppercase text-sage">{alt.cleanStatus}</span>
+                  <span className="font-mono text-[10px] uppercase text-sage">{humanizeLabel(alt.cleanStatus)}</span>
                 </div>
               ))}
             </div>
@@ -517,6 +659,149 @@ function BackupSupplierSuggestionsList({ groups }: { groups: BackupSupplierGroup
         </div>
       ))}
     </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// P1: Procurement charts — supplier concentration donut, tier distribution
+// stacked bar, SLA breach trend line. Drives the "this looks like a procurement
+// dashboard" remediation called out in MUSANAD_PARI_REVIEW.md P1.
+// ───────────────────────────────────────────────────────────────────────────
+
+const DONUT_COLORS = [
+  'var(--gold)',
+  'var(--sage)',
+  'var(--terracotta)',
+  'var(--amber)',
+  'var(--ink-muted)',
+  'var(--accent)',
+  'var(--ink-subtle)',
+  'var(--border)',
+];
+
+function ProcurementChartsSection({ charts }: { charts: ProcurementChartsData }) {
+  const { t } = useTranslation();
+
+  const tierData = [
+    { tier: 'high',     count: charts.tierDistribution.high,     fill: 'var(--terracotta)' },
+    { tier: 'medium',   count: charts.tierDistribution.medium,   fill: 'var(--amber)' },
+    { tier: 'low',      count: charts.tierDistribution.low,      fill: 'var(--sage)' },
+    { tier: 'unscored', count: charts.tierDistribution.unscored, fill: 'var(--ink-muted)' },
+  ].map((d) => ({ ...d, tierLabel: humanizeLabel(d.tier) }));
+
+  const concentrationData = charts.concentration.map((c) => ({
+    name: c.counterpartyName,
+    value: Number(c.totalValueAed),
+    pct: c.sharePct ?? 0,
+  }));
+
+  // SLA trend is returned newest-first; flip for left-to-right chart
+  const slaTrendData = [...charts.slaTrendWeeks26]
+    .sort((a, b) => b.weeksAgo - a.weeksAgo)
+    .map((p) => ({
+      label: new Date(p.weekEnd).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      breaches: p.breachCount,
+    }));
+
+  return (
+    <section
+      aria-label={t('dashboards.procurement.charts.sectionLabel', { defaultValue: 'Supplier risk distribution' })}
+      className="grid gap-3 lg:grid-cols-3"
+    >
+      {/* Concentration donut */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <PieChartIcon className="h-4 w-4 text-gold" aria-hidden />
+          <h2 className="text-sm font-semibold text-ink">
+            {t('dashboards.procurement.charts.concentrationTitle', { defaultValue: 'Supplier concentration — top counterparties by contract value' })}
+          </h2>
+        </div>
+        {concentrationData.length === 0 ? (
+          <DashboardEmptyState description={t('dashboards.procurement.charts.concentrationEmpty', { defaultValue: 'No supplier contract value to plot.' })} />
+        ) : (
+          <div style={{ width: '100%', height: 220 }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={concentrationData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                >
+                  {concentrationData.map((_, i) => (
+                    <Cell key={`donut-${i}`} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number, _name: string, props: any) =>
+                    [`${formatAedCompact(value)} (${props.payload.pct.toFixed(1)}%)`, props.payload.name]
+                  }
+                />
+                <Legend
+                  layout="vertical"
+                  align="right"
+                  verticalAlign="middle"
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: '10px', lineHeight: '14px', paddingLeft: 8 }}
+                  formatter={(v) => String(v).slice(0, 26)}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Tier distribution bar */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-gold" aria-hidden />
+          <h2 className="text-sm font-semibold text-ink">
+            {t('dashboards.procurement.charts.tierDistributionTitle', { defaultValue: 'Supplier risk-tier distribution' })}
+          </h2>
+        </div>
+        <div style={{ width: '100%', height: 220 }}>
+          <ResponsiveContainer>
+            <BarChart data={tierData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="tierLabel" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip formatter={(v: number) => [v, t('dashboards.procurement.charts.suppliers', { defaultValue: 'Suppliers' })]} />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                {tierData.map((d, i) => (
+                  <Cell key={`tier-${i}`} fill={d.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* SLA breach 26-week trend */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <LineChartIcon className="h-4 w-4 text-gold" aria-hidden />
+          <h2 className="text-sm font-semibold text-ink">
+            {t('dashboards.procurement.charts.slaTrendTitle', { defaultValue: 'SLA breach trend — last 26 weeks' })}
+          </h2>
+        </div>
+        <div style={{ width: '100%', height: 220 }}>
+          <ResponsiveContainer>
+            <LineChart data={slaTrendData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={3} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip formatter={(v: number) => [v, t('dashboards.procurement.charts.slaBreaches', { defaultValue: 'SLA breaches' })]} />
+              <Line type="monotone" dataKey="breaches" stroke="var(--terracotta)" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </section>
   );
 }
 

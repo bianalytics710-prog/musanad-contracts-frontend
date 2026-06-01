@@ -109,13 +109,20 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 }
 
 export function ContractDocumentTab({ contract }: ContractDocumentTabProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
   const searchId = useId();
 
   const enClauses = useMemo(() => parseClauses(contract.bodyEn ?? null), [contract.bodyEn]);
   const arClauses = useMemo(() => parseClauses(contract.bodyAr ?? null), [contract.bodyAr]);
+
+  // P29: default to active-locale only when both EN+AR exist (was always-both → duplication).
+  const isAr = i18n.language?.startsWith('ar');
+  const hasBoth = !!contract.bodyEn && !!contract.bodyAr;
+  const [showBoth, setShowBoth] = useState(false);
+  const showEn = (showBoth ? true : !isAr) && !!contract.bodyEn;
+  const showAr = (showBoth ? true : isAr) && !!contract.bodyAr;
 
   const tocEn = useMemo(
     () => enClauses.filter((c) => c.heading.length > 0),
@@ -156,6 +163,17 @@ export function ContractDocumentTab({ contract }: ContractDocumentTabProps) {
             count: tocEn.length,
           })}
         </p>
+        {hasBoth && (
+          <label className="ms-auto inline-flex items-center gap-2 text-[11px] text-ink-muted">
+            <input
+              type="checkbox"
+              checked={showBoth}
+              onChange={(e) => setShowBoth(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-border"
+            />
+            {t("contracts.detail.document.showBilingual", { defaultValue: "Show EN + AR side-by-side" })}
+          </label>
+        )}
       </div>
 
       {tocEn.length > 0 && (
@@ -181,8 +199,8 @@ export function ContractDocumentTab({ contract }: ContractDocumentTabProps) {
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {contract.bodyEn && (
+      <div className={`grid gap-4 ${showBoth ? 'lg:grid-cols-2' : ''}`}>
+        {showEn && (
           <DocumentColumn
             label={t("contracts.fields.bodyEn")}
             dir="ltr"
@@ -190,7 +208,7 @@ export function ContractDocumentTab({ contract }: ContractDocumentTabProps) {
             query={debouncedQuery}
           />
         )}
-        {contract.bodyAr && (
+        {showAr && (
           <DocumentColumn
             label={t("contracts.fields.bodyAr")}
             dir="rtl"
