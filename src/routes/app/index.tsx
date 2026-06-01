@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { selectUser, useAuthStore } from "@/store/auth.store";
 import { formatDateTime } from "@/utils/datetime";
 import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
+import { brand } from "@/config/brand";
 
 // R29 (Rashid audit 2026-06-01) — humanize the raw role slug for display in
 // the launcher subtitle. Maps a snake_case role name to a presentation label.
@@ -222,6 +223,21 @@ function AppDashboard() {
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-7xl space-y-8 p-6"
     >
+      {/* OqoodAI rebrand 2026-06-01 — full wordmark + tagline banner so the
+          /app launcher carries brand identity (the sidebar mark alone is too
+          subtle for the landing surface). Banner is decorative; the H1
+          greeting stays as the primary heading below. */}
+      <div className="flex flex-col items-center gap-2 border-b border-border/60 pb-6">
+        <img
+          src={brand.logo.wordmark}
+          alt={`${brand.name} — ${brand.tagline}`}
+          width={180}
+          height={220}
+          className="block h-auto w-[140px] select-none"
+          draggable={false}
+        />
+      </div>
+
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">

@@ -1,52 +1,63 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" role="img" aria-label="OqoodAI">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 340" role="img" aria-label="OqoodAI — Global Technology. Local Trust.">
   <title>OqoodAI</title>
   <defs>
     <linearGradient id="oq-ring" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#2a4f7c"/>
-      <stop offset="100%" stop-color="#0f2440"/>
+      <stop offset="55%" stop-color="#143460"/>
+      <stop offset="100%" stop-color="#091f3d"/>
     </linearGradient>
     <linearGradient id="oq-nib" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#6ed7c4"/>
-      <stop offset="100%" stop-color="#2f8f7a"/>
+      <stop offset="0%" stop-color="#7de4d1"/>
+      <stop offset="55%" stop-color="#3fb29a"/>
+      <stop offset="100%" stop-color="#1d6c5b"/>
+    </linearGradient>
+    <linearGradient id="oq-word" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a4f7c"/>
+      <stop offset="100%" stop-color="#0c2750"/>
     </linearGradient>
   </defs>
 
-  <!-- Outer dark ring (the "O") -->
-  <g transform="translate(120,90)">
-    <circle r="78" fill="none" stroke="url(#oq-ring)" stroke-width="18"/>
-    <!-- subtle inner highlight ring -->
-    <circle r="63" fill="none" stroke="#0a1c33" stroke-width="2" opacity="0.5"/>
+  <!-- Outer dark ring (the "O") with a subtle inner shadow ring -->
+  <g transform="translate(140,108)">
+    <circle r="92" fill="none" stroke="url(#oq-ring)" stroke-width="20"/>
+    <circle r="76" fill="none" stroke="#091f3d" stroke-width="2.5" opacity="0.45"/>
 
-    <!-- Fountain pen nib (mint) -->
+    <!-- Fountain pen nib -->
     <g>
-      <!-- nib cap (rectangular top) -->
-      <rect x="-22" y="-44" width="44" height="8" rx="2" fill="url(#oq-nib)"/>
-      <rect x="-22" y="-46" width="44" height="3" rx="1" fill="#9defd6"/>
-      <!-- nib body (triangle pointing down) -->
-      <path d="M -24 -36 L 24 -36 L 0 36 Z" fill="url(#oq-nib)"/>
+      <!-- nib cap (top bar) -->
+      <rect x="-26" y="-52" width="52" height="9" rx="2.5" fill="url(#oq-nib)"/>
+      <rect x="-26" y="-54" width="52" height="3" rx="1.5" fill="#aff0e0"/>
+
+      <!-- nib body triangle -->
+      <path d="M -29 -43 L 29 -43 L 0 44 Z" fill="url(#oq-nib)"/>
+
       <!-- nib slit -->
-      <line x1="0" y1="-36" x2="0" y2="20" stroke="#0a1c33" stroke-width="2"/>
+      <line x1="0" y1="-43" x2="0" y2="26" stroke="#091f3d" stroke-width="2.4"/>
+
       <!-- nib breather hole -->
-      <circle cx="0" cy="-10" r="4" fill="#0a1c33"/>
+      <circle cx="0" cy="-12" r="5" fill="#091f3d"/>
+
+      <!-- subtle highlight on left edge -->
+      <path d="M -27 -41 L -1 38 L 0 -38 Z" fill="#ffffff" opacity="0.08"/>
     </g>
   </g>
 
   <!-- Wordmark: "OqoodAI" -->
-  <text x="120" y="220"
+  <text x="140" y="262"
         text-anchor="middle"
-        font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+        font-family="'Inter','Segoe UI',system-ui,sans-serif"
         font-weight="700"
-        font-size="46"
-        fill="url(#oq-ring)"
-        letter-spacing="-1">OqoodAI<tspan font-size="14" baseline-shift="super" font-weight="500">®</tspan></text>
+        font-size="52"
+        fill="url(#oq-word)"
+        letter-spacing="-1.2">OqoodAI<tspan font-size="16" baseline-shift="super" font-weight="500" letter-spacing="0">®</tspan></text>
 
   <!-- Tagline -->
-  <text x="120" y="248"
+  <text x="140" y="296"
         text-anchor="middle"
-        font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+        font-family="'Inter','Segoe UI',system-ui,sans-serif"
         font-weight="400"
-        font-size="13"
-        fill="#1f3a5c"
-        letter-spacing="0.2">Global Technology. Local Trust.</text>
+        font-size="14"
+        fill="#2a4f7c"
+        letter-spacing="0.3">Global Technology. Local Trust.</text>
 </svg>

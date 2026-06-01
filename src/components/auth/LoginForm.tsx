@@ -217,19 +217,20 @@ export function LoginForm() {
   return (
     <div className="min-h-screen bg-background">
       <header className="mx-auto flex max-w-[1280px] items-center justify-between px-6 py-5">
-        <Link to="/" className="flex items-center gap-2">
-          {/* OqoodAI mark (small navy O + nib monogram) */}
+        <Link to="/" className="flex items-center gap-2.5">
+          {/* OqoodAI mark — navy O+nib monogram. Sized so the ring reads
+              cleanly against the cream auth-page background. */}
           <img
             src={brand.logo.monogram}
             alt=""
-            width={26}
-            height={26}
+            width={36}
+            height={36}
             className="block"
             aria-hidden="true"
           />
           <span
-            className="text-[18px] font-medium tracking-tight text-ink"
-            style={{ letterSpacing: "-0.3px" }}
+            className="text-[20px] font-semibold tracking-tight text-ink"
+            style={{ letterSpacing: "-0.4px" }}
           >
             {brand.name}
           </span>
@@ -323,12 +324,18 @@ export function LoginForm() {
             </li>
           </ul>
 
-          <p className="mt-12 text-3xl font-semibold text-gold" dir="rtl">
-            مُسَنَد
-          </p>
-          <p className="text-xs text-ink-subtle" dir="rtl">
-            — إدارة دورة حياة العقود لدولة الإمارات
-          </p>
+          {/* OqoodAI rebrand 2026-06-01 — full wordmark SVG with tagline.
+              Replaces the prior Arabic "مُسَنَد — إدارة دورة حياة العقود"
+              watermark so the marketing column proudly carries the new
+              brand identity. */}
+          <img
+            src={brand.logo.wordmark}
+            alt={`${brand.name} — ${brand.tagline}`}
+            width={260}
+            height={300}
+            className="mt-12 block h-auto w-[220px] select-none"
+            draggable={false}
+          />
         </motion.aside>
 
         <motion.div
