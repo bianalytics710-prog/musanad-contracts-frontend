@@ -70,6 +70,18 @@ export type MarginRecommendation = 'buy' | 'hold' | 'sell' | 'review';
 
 export type TradeDataClassification = 'demo' | 'pilot' | 'production';
 
+/**
+ * E-rev-H — Price-protection band status returned by fn_trade_position_list
+ * (mig 491). Drives the FE bandStatus pill + escalate-to-drafter flow.
+ */
+export type BandStatus =
+  | 'within_band'
+  | 'at_floor'
+  | 'at_ceiling'
+  | 'below_floor'
+  | 'above_ceiling'
+  | 'no_band';
+
 // -----------------------------------------------------------
 // 2. PriceBenchmark entity
 // -----------------------------------------------------------
@@ -206,6 +218,12 @@ export interface TradePosition {
   createdBy: number | null;
   updatedBy: number | null;
   isActive: boolean;
+  // E-rev-H — Price-protection band projection (mig 492).
+  contractedFloorUsdPerBbl?: string | null;
+  contractedCeilingUsdPerBbl?: string | null;
+  bandReviewClauseRef?: string | null;
+  latestBenchmarkUsdPerBbl?: string | null;
+  bandStatus?: BandStatus;
 }
 
 /**
@@ -232,6 +250,12 @@ export interface TradePositionListItem {
   totalMarginAed: string | null;
   recommendation: MarginRecommendation | null;
   latestComputedAt: string | null;
+  // E-rev-H — Price-protection band projection (mig 491).
+  contractedFloorUsdPerBbl?: string | null;
+  contractedCeilingUsdPerBbl?: string | null;
+  bandReviewClauseRef?: string | null;
+  latestBenchmarkUsdPerBbl?: string | null;
+  bandStatus?: BandStatus;
 }
 
 export interface TradePositionListResponse {

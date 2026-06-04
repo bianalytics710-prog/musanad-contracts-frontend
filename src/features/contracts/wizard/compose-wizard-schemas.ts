@@ -59,8 +59,11 @@ const optionalNonNegativeNumber = z.preprocess(
 export const composeStep1Schema = z.object({
   contractType: z.string().trim().min(1, "contracts.form.errors.contractTypeRequired"),
   language: z.enum(CONTRACT_LANGUAGE_VALUES as unknown as [string, ...string[]]),
-  ourPartyName: optionalString,
-  counterpartyName: optionalString,
+  // Compose-revamp v2 2026-06-03 — parties promoted from optional free-text
+  // to required. Compose-without-parties produced contracts that couldn't be
+  // routed for signature and broke downstream queries that join on party id.
+  ourPartyName: z.string().trim().min(1, "contracts.form.errors.ourPartyNameRequired"),
+  counterpartyName: z.string().trim().min(1, "contracts.form.errors.counterpartyNameRequired"),
   templateId: optionalNumberAllowEmpty,
 });
 
@@ -151,6 +154,10 @@ export const composeStep2Schema = z
     paymentSchedule: z
       .array(paymentScheduleRowSchema)
       .max(100, "contracts.paymentSchedule.errors.tooManyRows"),
+    // Compose-revamp 2026-06-03 — values for the template's placeholder
+    // catalog. Per-key required-ness is enforced at the wizard level
+    // (Step2Parties evaluates against the template's `placeholders` array).
+    placeholderValues: z.record(z.string(), z.string()).optional(),
   })
   .superRefine((val, ctx) => {
     // Mirror M1a contract-form-schema endDateBeforeStart.
@@ -167,13 +174,55 @@ export type ComposeStep2FormData = z.infer<typeof composeStep2Schema>;
 
 // ─── Step 3 — Clauses / Body ─────────────────────────────────────────────────
 
-/**
- * AC-S1-04: bodyEn / bodyAr both freeform optional. AI panel + clause
- * library are DISABLED in M1b — no validation needed.
- */
-export const composeStep3Schema = z.object({
-  bodyEn: optionalString,
-  bodyAr: optionalString,
+/** Per-clause shape held in step3.selectedClauses. */
+const selectedClauseSchema = z.object({
+  clauseId: z.number().int().positive(),
+  titleEn: z.string(),
+  titleAr: z.string().nullable(),
+  category: z.string(),
+  variant: z.enum(["standard", "alternative", "fallback"]),
+  bodyEn: z.string(),
+  bodyAr: z.string().nullable(),
+  sortOrder: z.number().int(),
+  source: z.enum(["template", "manual"]),
 });
+
+/**
+ * Compose-revamp 2026-06-03:
+ *   - Step 3 is now a structured clause list + optional intro/closing
+ *     blocks. The final bodyEn/bodyAr strings are derived at submit.
+ *   - To pass validation, EITHER selectedClauses is non-empty OR an intro
+ *     or closing block has content (so a "blank-draft" path stays viable).
+ */
+export const composeStep3Schema = z
+  .object({
+    bodyEn: optionalString,
+    bodyAr: optionalString,
+    selectedClauses: z.array(selectedClauseSchema).optional(),
+    introEn: optionalString,
+    introAr: optionalString,
+    closingEn: optionalString,
+    closingAr: optionalString,
+    bodyLanguage: z.enum(["en", "ar"]).optional(),
+  })
+  .superRefine((val, ctx) => {
+    const hasClauses = (val.selectedClauses?.length ?? 0) > 0;
+    const intro =
+      (typeof val.introEn === "string" && val.introEn.trim().length > 0) ||
+      (typeof val.introAr === "string" && val.introAr.trim().length > 0);
+    const closing =
+      (typeof val.closingEn === "string" && val.closingEn.trim().length > 0) ||
+      (typeof val.closingAr === "string" && val.closingAr.trim().length > 0);
+    const legacyBody =
+      (typeof val.bodyEn === "string" && val.bodyEn.trim().length > 0) ||
+      (typeof val.bodyAr === "string" && val.bodyAr.trim().length > 0);
+    if (!hasClauses && !intro && !closing && !legacyBody) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["selectedClauses"],
+        message: "contracts.compose.errors.bodyEmpty",
+      });
+    }
+  });
 
 export type ComposeStep3FormData = z.infer<typeof composeStep3Schema>;

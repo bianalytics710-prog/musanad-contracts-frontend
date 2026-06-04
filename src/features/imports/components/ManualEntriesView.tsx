@@ -32,6 +32,7 @@ import { motion } from "framer-motion";
 import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ImportsHeader } from "./ImportsHeader";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
@@ -74,38 +75,37 @@ export function ManualEntriesView() {
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1280px] space-y-4 p-6"
     >
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("import.manual.title")}
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            {t("import.manual.kicker")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void refetch()}
-            disabled={isFetching}
-            aria-label={t("common.retry")}
-          >
-            <RefreshCw className="h-4 w-4" />
-            {t("common.retry")}
-          </Button>
-          {canDraft && (
-            <Link
-              to="/app/contracts/new"
-              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+      <ImportsHeader
+        title={t("import.manual.title")}
+        subtitle={t("import.manual.subtitle", {
+          defaultValue:
+            "Low-confidence drafts that need a human to finish the metadata before they can be sent for approval.",
+        })}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              aria-label={t("common.retry")}
             >
-              <Plus className="h-4 w-4" />
-              {t("import.manual.newEntry")}
-            </Link>
-          )}
-        </div>
-      </header>
+              <RefreshCw className="h-4 w-4" />
+              {t("common.retry")}
+            </Button>
+            {canDraft && (
+              <Link
+                to="/app/contracts/new"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-gold px-3 text-sm font-medium text-ink hover:bg-gold-hover"
+              >
+                <Plus className="h-4 w-4" />
+                {t("import.manual.newEntry")}
+              </Link>
+            )}
+          </>
+        }
+      />
 
       <Card>
         <CardContent className="p-4">
@@ -164,7 +164,7 @@ export function ManualEntriesView() {
             {canDraft && (
               <Link
                 to="/app/contracts/new"
-                className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-md bg-gold px-3 text-sm font-medium text-ink hover:bg-gold-hover"
               >
                 <Plus className="h-4 w-4" />
                 {t("import.manual.newEntry")}
@@ -177,21 +177,21 @@ export function ManualEntriesView() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="border-b border-border bg-surface">
-                  <tr className="text-left">
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <thead className="border-b border-border bg-surface/60">
+                  <tr className="text-start">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.manual.col.contract")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.manual.col.confidence")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.manual.col.batch")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.manual.col.created")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-end font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       <span className="sr-only">
                         {t("import.manual.col.actions")}
                       </span>
@@ -227,7 +227,7 @@ export function ManualEntriesView() {
                         <Link
                           to="/app/contracts/$id"
                           params={{ id: String(c.id) }}
-                          className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                          className="inline-flex h-8 items-center rounded-md border border-border bg-card px-3 text-xs font-medium text-ink transition-colors hover:bg-surface"
                         >
                           {t("import.manual.actions.complete")}
                         </Link>

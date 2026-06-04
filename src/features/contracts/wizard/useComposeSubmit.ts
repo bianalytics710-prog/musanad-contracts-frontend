@@ -36,12 +36,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { contractsService } from "@/services/api/contracts.service";
 import { paymentScheduleService } from "@/services/api/payment-schedule.service";
+import { partiesService } from "@/services/api/m_parity.service";
 import { ApiError } from "@/lib/api-client";
 import { translateApiError } from "@/lib/translate-api-error";
 import { contractsKeys } from "@/features/contracts/hooks/useContracts";
 import { paymentScheduleKeys } from "@/features/contracts/hooks/usePaymentSchedule";
 import { clearComposeDraft } from "./useComposeDraft";
-import type { CreateContractDto, CreateContractResponse } from "@/types/entities/contract.types";
+import { GOVERNING_LAW_VALUES } from "@/types/entities/contract.types";
+import type { CreateContractDto, CreateContractResponse, GoverningLaw } from "@/types/entities/contract.types";
 import type {
   ComposeWizardState,
   PaymentScheduleCreateDto,
@@ -86,6 +88,125 @@ interface UseComposeSubmitReturn {
 }
 
 /**
+ * Resolve the typed Step 1 party names to party IDs. When the drafter
+ * picked a value from the datalist, the resolver in Step 1 has already
+ * populated `ourPartyId` / `counterpartyId`. When they typed a fresh name
+ * that doesn't match the catalog, we create a new party row now (kind=
+ * company, name_en = typed string) and capture the returned id. Any
+ * failure is swallowed — we fall back to leaving the id null so the
+ * contract still creates, just without the parties graph link.
+ */
+async function ensureParties(state: ComposeWizardState): Promise<ComposeWizardState> {
+  let { ourPartyId, counterpartyId } = state.step1;
+  const ourName = (state.step1.ourPartyName ?? "").trim();
+  const cpName = (state.step1.counterpartyName ?? "").trim();
+
+  if (ourName && (ourPartyId == null || !Number.isFinite(ourPartyId))) {
+    try {
+      const row = await partiesService.create({ partyType: "company", nameEn: ourName });
+      ourPartyId = row.id;
+    } catch {
+      ourPartyId = null;
+    }
+  }
+  if (cpName && (counterpartyId == null || !Number.isFinite(counterpartyId))) {
+    try {
+      const row = await partiesService.create({ partyType: "company", nameEn: cpName });
+      counterpartyId = row.id;
+    } catch {
+      counterpartyId = null;
+    }
+  }
+  return {
+    ...state,
+    step1: { ...state.step1, ourPartyId, counterpartyId },
+  };
+}
+
+/**
+ * Substitute `{{token}}` occurrences in a body with the matching value from
+ * the wizard's placeholderValues dict. Templates often wrap placeholders in
+ * markdown bold (e.g. `**{{discloser_name}}**`); when a value is available we
+ * also strip the surrounding `**` markers so the saved document reads as
+ * `OqoodAI FZ-LLC` instead of `**OqoodAI FZ-LLC**`. Unfilled tokens keep the
+ * surrounding formatting so the visual gap stays obvious.
+ */
+function substitutePlaceholders(
+  body: string | null | undefined,
+  values: Record<string, string> | undefined,
+): string | null {
+  if (typeof body !== "string" || body.trim() === "") return null;
+  if (!values) return body;
+
+  // Pass 1 — drop `**{{token}}**` (bold-wrapped) when value present.
+  let out = body.replace(/\*\*\{\{([a-zA-Z0-9_]+)\}\}\*\*/g, (raw, key) => {
+    const v = values[key];
+    return typeof v === "string" && v.trim() !== "" ? v : raw;
+  });
+  // Pass 2 — replace any remaining bare `{{token}}`.
+  out = out.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (raw, key) => {
+    const v = values[key];
+    return typeof v === "string" && v.trim() !== "" ? v : raw;
+  });
+  return out;
+}
+
+/**
+ * Hoist values from the template's placeholder dict into the head-field
+ * shape the BE expects. Used at submit time because Step 2 suppresses the
+ * head-field inputs when an equivalent placeholder is present — without
+ * this lift, the resulting contract row has NULL columns even though the
+ * drafter actually filled the values.
+ *
+ * Mapping (mirror of the Step 2 dedup map):
+ *   effective_date | start_date    → startDate
+ *   end_date                       → endDate
+ *   emirate | governing_emirate    → emirate
+ *   jurisdiction_court | arbitration_seat → jurisdictionCourt
+ *   governing_law                  → governingLaw (must be in enum, else dropped)
+ *
+ * We never CLOBBER a value the drafter actually typed in the Key Terms
+ * block — those win over the placeholder fallback.
+ */
+function hoistPlaceholdersIntoHead(
+  current: {
+    startDate?: string | null;
+    endDate?: string | null;
+    emirate?: string | null;
+    jurisdictionCourt?: string | null;
+    governingLaw?: unknown;
+  },
+  values: Record<string, string> | undefined,
+): {
+  startDate: string | null | undefined;
+  endDate: string | null | undefined;
+  emirate: string | null | undefined;
+  jurisdictionCourt: string | null | undefined;
+  governingLaw: unknown;
+} {
+  const pick = (k: string): string | null => {
+    const v = values?.[k];
+    return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
+  };
+  const filled = (v: string | null | undefined): v is string =>
+    typeof v === "string" && v.trim() !== "";
+
+  return {
+    startDate: filled(current.startDate)
+      ? current.startDate
+      : (pick("effective_date") ?? pick("start_date")),
+    endDate: filled(current.endDate) ? current.endDate : pick("end_date"),
+    emirate: filled(current.emirate)
+      ? current.emirate
+      : (pick("emirate") ?? pick("governing_emirate")),
+    jurisdictionCourt: filled(current.jurisdictionCourt)
+      ? current.jurisdictionCourt
+      : (pick("jurisdiction_court") ?? pick("arbitration_seat")),
+    governingLaw: current.governingLaw ?? pick("governing_law"),
+  };
+}
+
+/**
  * Build the CreateContractDto from wizard state. Strips empty strings to
  * undefined / null so the BE applies defaults (matches the same `orUndef` /
  * `orNull` pattern used by ContractCreateForm).
@@ -98,6 +219,21 @@ function buildCreateDto(state: ComposeWizardState): CreateContractDto {
   const orNull = (v: string | null | undefined): string | null | undefined =>
     typeof v === "string" && v.trim() === "" ? null : (v ?? undefined);
 
+  const placeholderValues = step2.placeholderValues ?? {};
+
+  // Hoist suppressed-but-captured fields back into the head columns so
+  // queries that join on startDate / emirate / jurisdiction still match.
+  const hoisted = hoistPlaceholdersIntoHead(
+    {
+      startDate: step2.startDate,
+      endDate: step2.endDate,
+      emirate: step2.emirate,
+      jurisdictionCourt: step2.jurisdictionCourt,
+      governingLaw: step2.governingLaw ?? null,
+    },
+    placeholderValues,
+  );
+
   return {
     titleEn: step2.titleEn,
     titleAr: orNull(step2.titleAr),
@@ -105,19 +241,31 @@ function buildCreateDto(state: ComposeWizardState): CreateContractDto {
     language: step1.language,
     valueAed: step2.valueAed === null ? undefined : step2.valueAed,
     currency: orUndef(step2.currency),
-    startDate: orNull(step2.startDate),
-    endDate: orNull(step2.endDate),
+    startDate: orNull(hoisted.startDate),
+    endDate: orNull(hoisted.endDate),
     expiryNoticeDays: step2.expiryNoticeDays,
-    emirate: orNull(step2.emirate),
-    governingLaw: step2.governingLaw ?? undefined,
-    jurisdictionCourt: orNull(step2.jurisdictionCourt),
+    emirate: orNull(hoisted.emirate),
+    // governing_law column is enum-constrained — only accept the placeholder
+    // string if it's actually a valid enum value; otherwise drop silently
+    // so the BE doesn't 400 on a free-text "UAE Federal Law" value.
+    governingLaw:
+      typeof hoisted.governingLaw === "string" &&
+      (GOVERNING_LAW_VALUES as readonly string[]).includes(hoisted.governingLaw)
+        ? (hoisted.governingLaw as GoverningLaw)
+        : undefined,
+    jurisdictionCourt: orNull(hoisted.jurisdictionCourt),
     parentContractId: step2.parentContractId ?? undefined,
     relationshipType: step2.relationshipType ?? undefined,
-    bodyEn: orNull(step3.bodyEn),
-    bodyAr: orNull(step3.bodyAr),
-    // Free-text party names from step 1 are NOT persisted as IDs (Q1).
-    // ourPartyId / counterpartyId / templateId remain null.
-    // Tags are not collected by the wizard (M1b out of scope).
+    // Substitute {{tokens}} so the saved body is the final document.
+    bodyEn: orNull(substitutePlaceholders(step3.bodyEn, placeholderValues)),
+    bodyAr: orNull(substitutePlaceholders(step3.bodyAr, placeholderValues)),
+    // Bind party IDs when the typed name resolved to an existing party row
+    // (Step 1 datalist-backed lookup against /api/v1/parties). Names that
+    // don't match any party stay unresolved — the contract is still created
+    // (the BE allows null parties) but won't surface in the parties graph.
+    ourPartyId: step1.ourPartyId ?? undefined,
+    counterpartyId: step1.counterpartyId ?? undefined,
+    // templateId remains null. Tags are not collected by the wizard (M1b).
   };
 }
 
@@ -249,9 +397,17 @@ export function useComposeSubmit(): UseComposeSubmitReturn {
         setError(null);
         setPhase("creating-contract");
 
+        // Compose-revamp v3 2026-06-03 — auto-create party rows when the
+        // drafter typed a fresh name that didn't resolve against the catalog
+        // (Step 1 datalist match). Without this, our_party_id / counterparty_id
+        // end up NULL and the Parties tab on the contract detail looks empty
+        // even though both names were supplied. Failure here is non-fatal —
+        // we fall back to NULL ids and still create the contract.
+        const resolvedState = await ensureParties(state);
+
         let created: CreateContractResponse;
         try {
-          created = await contractsService.create(buildCreateDto(state));
+          created = await contractsService.create(buildCreateDto(resolvedState));
         } catch (err) {
           const apiErr = err instanceof ApiError ? err : (err as Error);
           setPhase("idle");
@@ -271,7 +427,7 @@ export function useComposeSubmit(): UseComposeSubmitReturn {
         };
 
         try {
-          return await runStep2(created.id, created.contractNumber, state, userId);
+          return await runStep2(created.id, created.contractNumber, resolvedState, userId);
         } catch {
           // runStep2 already populated `error` and showed a toast. Return
           // null to signal partial completion to the caller; the wizard will

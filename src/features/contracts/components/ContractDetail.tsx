@@ -400,12 +400,23 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                 type="button"
                 size="sm"
                 onClick={async () => {
+                  // Open a placeholder window *synchronously* during the
+                  // user click so popup blockers don't intercept it. We
+                  // then mint the token and rewrite the popup's URL.
+                  // (window.open after an await is treated as non-gesture
+                  // and silently demoted to same-tab on many browsers.)
+                  const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
                   try {
                     const r = await signatureService.resolveSigningLinkForSelf(contract.id);
-                    // Navigate to the public /sign/{token} route. Use a
-                    // hard navigation since /sign is outside the auth shell.
-                    window.location.href = `/sign/${encodeURIComponent(r.invitationTokenPlaintext)}`;
+                    const url = `/sign/${encodeURIComponent(r.invitationTokenPlaintext)}`;
+                    if (popup && !popup.closed) {
+                      popup.location.href = url;
+                    } else {
+                      // popup blocked → fall back to same-tab nav
+                      window.location.href = url;
+                    }
                   } catch (e) {
+                    if (popup && !popup.closed) popup.close();
                     toast.error(translateApiError(e, t));
                   }
                 }}
@@ -814,6 +825,50 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               ? contract.aiSummaryAr ?? contract.aiSummaryEn ?? ""
               : contract.aiSummaryEn ?? contract.aiSummaryAr ?? ""}
           </p>
+          {/* E-rev-10 — append a deterministic risk-profile blurb so the audience
+              sees WHY the contract is high/low risk. Renders only when
+              ai_risk_score is set (avoids "n/a" noise on draft contracts). */}
+          {typeof contract.aiRiskScore === "number" && contract.aiRiskScore > 0 && (
+            <div className="mt-4 rounded-lg border border-border/60 bg-surface p-3">
+              <div className="mb-1 flex items-baseline gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-subtle">
+                  {t("contracts.detail.groundedSummary.riskProfile", { defaultValue: "Risk profile" })}
+                </span>
+                <span
+                  className={
+                    contract.aiRiskScore >= 60
+                      ? "rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive"
+                      : contract.aiRiskScore >= 30
+                      ? "rounded-full bg-amber-tint/40 px-2 py-0.5 text-[10px] font-medium text-amber-ink"
+                      : "rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                  }
+                >
+                  {contract.aiRiskScore} / 100 ·{" "}
+                  {contract.aiRiskScore >= 60
+                    ? t("risk.score.gauge.high", { defaultValue: "High risk" })
+                    : contract.aiRiskScore >= 30
+                    ? t("risk.score.gauge.medium", { defaultValue: "Medium risk" })
+                    : t("risk.score.gauge.low", { defaultValue: "Low risk" })}
+                </span>
+              </div>
+              <p className="text-xs leading-5 text-ink-muted">
+                {contract.aiRiskScore >= 60
+                  ? t("contracts.detail.groundedSummary.highRiskBlurb", {
+                      defaultValue:
+                        "This contract carries elevated risk driven by contract value, complexity of obligations, and regulatory touch points. Review the Risk tab for the five-dimension breakdown and any external correlation signals that may shift the score.",
+                    })
+                  : contract.aiRiskScore >= 30
+                  ? t("contracts.detail.groundedSummary.mediumRiskBlurb", {
+                      defaultValue:
+                        "Risk profile is moderate. Standard indemnity, payment, and termination provisions apply; routine monitoring is sufficient.",
+                    })
+                  : t("contracts.detail.groundedSummary.lowRiskBlurb", {
+                      defaultValue:
+                        "Risk profile is low. Limited value at stake and a single regulatory footprint; no immediate escalation indicated.",
+                    })}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

@@ -26,6 +26,7 @@ import {
 } from 'recharts';
 import { Clock, Zap, FileText } from 'lucide-react';
 import { formatDateTime } from '@/utils/datetime';
+import { RecommendedActionModal } from './RecommendedActionModal';
 import type {
   WhatChangedTodayRow,
   RecommendedActionRow,
@@ -156,6 +157,7 @@ function WhatChangedTodayCard({ rows }: { rows: WhatChangedTodayRow[] }) {
 
 function RecommendedActionsCard({ rows }: { rows: RecommendedActionRow[] }) {
   const { t } = useTranslation();
+  const [activeRow, setActiveRow] = useState<RecommendedActionRow | null>(null);
   return (
     <section
       aria-label={t('executive.recommendedActions.sectionAriaLabel')}
@@ -199,18 +201,23 @@ function RecommendedActionsCard({ rows }: { rows: RecommendedActionRow[] }) {
                 <p className="font-mono text-xs font-medium text-ink">
                   {formatAedCompact(row.marAed)}
                 </p>
-                <Link
-                  to="/app/contracts/$id"
-                  params={{ id: row.contractId }}
+                <button
+                  type="button"
+                  onClick={() => setActiveRow(row)}
                   className="font-mono text-[10px] text-gold hover:underline"
                 >
-                  {t('executive.recommendedActions.viewContract')}
-                </Link>
+                  {t('executive.recommendedActions.viewContract', { defaultValue: 'View' })}
+                </button>
               </div>
             </div>
           </li>
         ))}
       </ul>
+      <RecommendedActionModal
+        open={activeRow !== null}
+        row={activeRow}
+        onClose={() => setActiveRow(null)}
+      />
     </section>
   );
 }

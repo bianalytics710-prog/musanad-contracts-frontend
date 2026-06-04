@@ -16,7 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate, useRouter, Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { devLoginPersonasService } from "@/services/api/dev-login-personas.service";
 import { motion } from "framer-motion";
 import { ArrowRight, Languages, Shield, Globe2, ScrollText } from "lucide-react";
 import { toast } from "sonner";
@@ -189,11 +190,20 @@ export function LoginForm() {
     mutation.mutate(values);
   };
 
+  // Mig 538 — fetch the hidden persona list (pre-auth, public endpoint).
+  // Filter the local persona array by it so platform admin can hide
+  // personas without touching this file.
+  const hiddenPersonasQuery = useQuery({
+    queryKey: ['devLoginPersonasHidden'],
+    queryFn: () => devLoginPersonasService.getHidden(),
+    staleTime: 60_000,
+  });
+
   // Dev convenience — one-click sign-in for each seeded persona.
   // R5 audit 1.2 — match Lovable's tile shape: persona name + role + initials.
   // All seeded users share the bootstrap admin's bcrypt hash (ChangeMe@123).
   // Hidden in production builds via import.meta.env.PROD guard.
-  const personas: Array<{ key: string; name: string; role: string; initials: string; email: string }> = [
+  const allPersonas: Array<{ key: string; name: string; role: string; initials: string; email: string }> = [
     // OqoodAI rebrand 2026-06-01 — drop role-label last names; first names
     // Arab; family names Emirati. Login email + password unchanged.
     { key: "super",     name: "System Admin",      role: "Super Admin",        initials: "SA", email: "admin@musanad.local"     },
@@ -208,6 +218,9 @@ export function LoginForm() {
     { key: "compliance", name: "Khalid Al Qubaisi",  role: "Compliance & ESG",   initials: "KQ", email: "compliance@musanad.local" },
     { key: "procurement",name: "Hessa Al Hamadi",    role: "Procurement Risk",   initials: "HH", email: "procurement@musanad.local" },
   ];
+
+  const hiddenSet = new Set(hiddenPersonasQuery.data ?? []);
+  const personas = allPersonas.filter((p) => !hiddenSet.has(p.key));
 
   const signInAs = (email: string) => {
     setFormError(null);

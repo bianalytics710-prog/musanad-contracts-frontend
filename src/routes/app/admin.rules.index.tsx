@@ -182,6 +182,26 @@ function AdminRulesListView() {
               <tbody className="divide-y divide-border">
                 {items.map((rule) => {
                   const ruleName = isAr ? rule.nameAr : rule.name;
+                  // Humanize the dot-segmented ruleId into a one-line
+                  // predicate description ("rule.brent.price_review_trigger_high"
+                  // → "Brent · Price review trigger high"). Audience can read
+                  // the rule's intent without opening the edit modal — the
+                  // demo Act 10 "rules in plain language" talking point.
+                  const segments = rule.ruleId.replace(/^rule\./, '').split('.');
+                  // Industry acronyms render ALL-CAPS; everything else stays
+                  // Title-case ("Brent · Price Review Trigger High",
+                  // "EPC · Cure Notice Pattern", "ESG · ICV Downgrade").
+                  const ACRONYMS = new Set([
+                    'epc', 'esg', 'icv', 'ofac', 'eu', 'uae', 'sla', 'fm',
+                    'mar', 'avar', 'msa', 'sow', 'nda',
+                  ]);
+                  const capitalize = (w: string): string =>
+                    ACRONYMS.has(w.toLowerCase())
+                      ? w.toUpperCase()
+                      : w.charAt(0).toUpperCase() + w.slice(1);
+                  const predicateLine = segments
+                    .map((seg) => seg.split('_').map(capitalize).join(' '))
+                    .join(' · ');
                   return (
                     <motion.tr
                       key={rule.id}
@@ -192,8 +212,11 @@ function AdminRulesListView() {
                       <td className="px-4 py-3">
                         <code className="font-mono text-xs text-ink-muted">{rule.ruleId}</code>
                       </td>
-                      <td className="max-w-[200px] truncate px-4 py-3 text-ink" title={ruleName}>
-                        {ruleName}
+                      <td className="max-w-[260px] px-4 py-3 text-ink" title={ruleName}>
+                        <div className="truncate">{ruleName}</div>
+                        <div className="mt-0.5 truncate text-[11px] text-ink-subtle">
+                          {predicateLine}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         {rule.scenario ? (

@@ -1,20 +1,14 @@
 /**
- * Authenticated route — /app/contracts/new (create form).
+ * Authenticated route — /app/contracts/new.
  *
- * Renders ContractCreateForm wrapped in ErrorBoundary (T11).
+ * Legacy basic-form route. The proper drafting flow is the four-step
+ * Compose Wizard at /app/contracts/compose. We redirect here so any
+ * old bookmarks or hand-typed URLs land in the right place.
  */
-import { createFileRoute } from "@tanstack/react-router";
-import { ErrorBoundary } from "@/components/common";
-import { ContractCreateForm } from "@/features/contracts/components/ContractCreateForm";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/app/contracts/new")({
-  component: ContractsNewRoute,
+  beforeLoad: () => {
+    throw redirect({ to: "/app/contracts/compose" });
+  },
 });
-
-function ContractsNewRoute() {
-  return (
-    <ErrorBoundary>
-      <ContractCreateForm />
-    </ErrorBoundary>
-  );
-}

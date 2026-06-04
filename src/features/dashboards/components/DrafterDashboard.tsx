@@ -23,7 +23,7 @@
  *   T12 — formatDateTime for updatedAt.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -32,13 +32,8 @@ import {
   Plus,
   TrendingUp,
   PieChart as PieIcon,
-  Bell,
   Radar as RadarIcon,
   FileStack,
-  AlertTriangle,
-  AlertCircle,
-  Info,
-  CheckCircle2,
 } from "lucide-react";
 import {
   Bar,
@@ -62,14 +57,11 @@ import {
   DashboardErrorState,
   DashboardLoadingSkeleton,
   KpiTile,
-  TimeRangeSelector,
   asWindowQuery,
   formatNumber,
-  rangeFromWindowDays,
 } from "./dashboard-primitives";
 import type {
   DashboardContractRow,
-  DashboardRangeKey,
   DrafterAwaitingActionRow,
 } from "@/types/entities/dashboards.types";
 import type { ContractStatus } from "@/types/entities/contract.types";
@@ -77,11 +69,6 @@ import { formatDateTime, formatHijriDate } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
 import { impactSignalService } from "@/services/api/impact-signal.service";
-import {
-  useNotifications,
-  type AppNotification,
-  type NotificationSeverity,
-} from "@/components/notifications/NotificationProvider";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
@@ -99,13 +86,9 @@ export function DrafterDashboard() {
   const { t, i18n } = useTranslation();
   const lng = i18n.language?.startsWith("ar") ? "ar" : "en";
   const user = useAuthStore(selectUser);
-  const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
-  const [range, setRange] = useState<DashboardRangeKey>(
-    rangeFromWindowDays(DEFAULT_WINDOW_DAYS),
-  );
 
   const { data, isLoading, isError, error, refetch } = useDrafterDashboard(
-    asWindowQuery(windowDays),
+    asWindowQuery(DEFAULT_WINDOW_DAYS),
   );
 
   const greeting = user?.firstName ?? "";
@@ -169,11 +152,11 @@ export function DrafterDashboard() {
         count: data?.kpis.readyToSendCount ?? 0,
       },
       {
-        key: "approved",
+        key: "signed",
         filter: "fully_signed",
         accent: STAGE_COLORS.signed,
-        label: t("dashboards.drafter.pills.approved", {
-          defaultValue: "Approved",
+        label: t("dashboards.drafter.pills.signed", {
+          defaultValue: "Signed",
         }),
         count: data?.kpis.myRecentlyApprovedCount ?? 0,
       },
@@ -200,7 +183,7 @@ export function DrafterDashboard() {
         fill: STAGE_COLORS.approved,
       },
       {
-        key: "approved",
+        key: "signed",
         count: data?.kpis.myRecentlyApprovedCount ?? 0,
         fill: STAGE_COLORS.signed,
       },
@@ -291,25 +274,15 @@ export function DrafterDashboard() {
             {t("dashboards.drafter.subtitle")}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <TimeRangeSelector
-            range={range}
-            windowDays={windowDays}
-            onChange={({ range: r, windowDays: d }) => {
-              setRange(r);
-              setWindowDays(d);
-            }}
-          />
-          <Link
-            to="/app/contracts/compose"
-            className="inline-flex items-center gap-1.5 rounded-md bg-gold px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-gold-hover"
-          >
-            <Plus className="h-4 w-4" />
-            {t("dashboards.drafter.newContract", {
-              defaultValue: "New contract",
-            })}
-          </Link>
-        </div>
+        <Link
+          to="/app/contracts/compose"
+          className="inline-flex items-center gap-1.5 rounded-md bg-gold px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-gold-hover"
+        >
+          <Plus className="h-4 w-4" />
+          {t("dashboards.drafter.newContract", {
+            defaultValue: "New contract",
+          })}
+        </Link>
       </header>
 
       {isLoading && !data ? (
@@ -380,14 +353,8 @@ export function DrafterDashboard() {
             <div
               role="group"
               aria-label={t("dashboards.drafter.kpiGroupLabel")}
-              className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+              className="grid gap-3 grid-cols-2 md:grid-cols-4"
             >
-            <KpiTile
-              label={t("dashboards.drafter.kpis.pipeline", {
-                defaultValue: "Drafting pipeline",
-              })}
-              value={formatNumber(pipelineTotal)}
-            />
             <KpiTile
               label={t("dashboards.drafter.kpis.myDraftsCount")}
               value={formatNumber(data.kpis.myDraftsCount)}
@@ -403,7 +370,9 @@ export function DrafterDashboard() {
               variant={data.kpis.readyToSendCount > 0 ? "success" : "default"}
             />
             <KpiTile
-              label={t("dashboards.drafter.kpis.myRecentlyApprovedCount")}
+              label={t("dashboards.drafter.kpis.myRecentlySignedCount", {
+                defaultValue: "Recently signed",
+              })}
               value={formatNumber(data.kpis.myRecentlyApprovedCount)}
             />
             </div>
@@ -430,7 +399,7 @@ export function DrafterDashboard() {
                   {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
                 </Link>
               </div>
-              <ContractRowList rows={data.lists.myDrafts5} />
+              <ContractRowList rows={data.lists.myDrafts5} showHeader />
             </section>
 
             {/* Time-to-signature charts — 40% */}
@@ -663,7 +632,7 @@ export function DrafterDashboard() {
           </section>
 
           {/* Awaiting + secondary widgets */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <section className="rounded-lg border border-border bg-card p-4">
               <h3 className="mb-2 text-sm font-semibold text-ink">
                 {t("dashboards.drafter.lists.awaitingMyActionTitle")}
@@ -675,8 +644,6 @@ export function DrafterDashboard() {
             </section>
 
             <TemplateUsageWidget />
-
-            <NotificationsWidget />
           </div>
 
           {/* D12 — Impact Watch section previously rendered a single
@@ -767,7 +734,13 @@ function DrafterImpactWatchSection() {
   );
 }
 
-function ContractRowList({ rows }: { rows: DashboardContractRow[] }) {
+function ContractRowList({
+  rows,
+  showHeader = false,
+}: {
+  rows: DashboardContractRow[];
+  showHeader?: boolean;
+}) {
   const { t } = useTranslation();
   if (rows.length === 0) {
     return (
@@ -775,39 +748,65 @@ function ContractRowList({ rows }: { rows: DashboardContractRow[] }) {
     );
   }
   return (
-    <ul role="list" className="space-y-1">
-      {rows.map((row) => (
-        <li key={row.id} role="listitem" className="rounded-md hover:bg-muted/40">
-          <Link
-            to="/app/contracts/$id"
-            params={{ id: String(row.id) }}
-            className="flex items-center gap-3 px-2 py-1.5 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label={t("dashboards.common.openContractAria", {
-              number: row.contractNumber,
-              title: row.titleEn,
-            })}
-          >
-            <span className="w-24 shrink-0 truncate font-mono text-[10px] text-ink-subtle">
-              {row.contractNumber}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-xs text-ink">
-              {row.titleEn}
-            </span>
-            <span className="w-16 shrink-0 text-end font-mono text-[10px] text-ink-subtle">
-              {row.valueAed
-                ? `${(row.valueAed / 1000).toFixed(0)}k`
-                : "—"}
-            </span>
-            <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-              {t(`contractStatus.${row.status}`, { defaultValue: row.status })}
-            </span>
-            <span className="w-20 shrink-0 text-end font-mono text-[10px] text-ink-subtle">
-              {formatDateTime(row.updatedAt)}
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <div>
+      {showHeader && (
+        <div
+          role="presentation"
+          className="flex items-center gap-3 border-b border-border px-2 pb-1.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+        >
+          <span className="w-24 shrink-0">
+            {t("dashboards.drafter.recentDrafts.colNumber", { defaultValue: "Number" })}
+          </span>
+          <span className="min-w-0 flex-1">
+            {t("dashboards.drafter.recentDrafts.colTitle", { defaultValue: "Title" })}
+          </span>
+          <span className="w-16 shrink-0 text-end">
+            {t("dashboards.drafter.recentDrafts.colValue", { defaultValue: "Value" })}
+          </span>
+          <span className="w-[88px] shrink-0 text-end">
+            {t("dashboards.drafter.recentDrafts.colStatus", { defaultValue: "Status" })}
+          </span>
+          <span className="w-20 shrink-0 text-end">
+            {t("dashboards.drafter.recentDrafts.colUpdated", { defaultValue: "Updated" })}
+          </span>
+        </div>
+      )}
+      <ul role="list" className={showHeader ? "mt-1 space-y-1" : "space-y-1"}>
+        {rows.map((row) => (
+          <li key={row.id} role="listitem" className="rounded-md hover:bg-muted/40">
+            <Link
+              to="/app/contracts/$id"
+              params={{ id: String(row.id) }}
+              className="flex items-center gap-3 px-2 py-1.5 transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-label={t("dashboards.common.openContractAria", {
+                number: row.contractNumber,
+                title: row.titleEn,
+              })}
+            >
+              <span className="w-24 shrink-0 truncate font-mono text-[10px] text-ink-subtle">
+                {row.contractNumber}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-xs text-ink">
+                {row.titleEn}
+              </span>
+              <span className="w-16 shrink-0 text-end font-mono text-[10px] text-ink-subtle">
+                {row.valueAed
+                  ? `${(row.valueAed / 1000).toFixed(0)}k`
+                  : "—"}
+              </span>
+              <span className="w-[88px] shrink-0 text-end">
+                <span className="inline-block rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                  {t(`contractStatus.${row.status}`, { defaultValue: row.status })}
+                </span>
+              </span>
+              <span className="w-20 shrink-0 text-end font-mono text-[10px] text-ink-subtle">
+                {formatDateTime(row.updatedAt)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -939,115 +938,6 @@ function TemplateUsageWidget() {
       >
         {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
       </Link>
-    </section>
-  );
-}
-
-const SEVERITY_ICON: Record<NotificationSeverity, React.ComponentType<{ className?: string }>> = {
-  critical: AlertTriangle,
-  high: AlertCircle,
-  medium: Bell,
-  low: Info,
-  info: CheckCircle2,
-};
-
-const SEVERITY_TINT: Record<NotificationSeverity, string> = {
-  critical: "text-destructive",
-  high: "text-amber-500",
-  medium: "text-gold",
-  low: "text-ink-subtle",
-  info: "text-emerald-500",
-};
-
-function NotificationsWidget() {
-  const { t, i18n } = useTranslation();
-  const isAr = i18n.language?.startsWith("ar");
-  const { notifications, unreadCount, markAsRead } = useNotifications();
-
-  const recent: AppNotification[] = useMemo(
-    () =>
-      [...notifications]
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, 5),
-    [notifications],
-  );
-
-  return (
-    <section className="rounded-lg border border-border bg-card p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <Bell className="h-4 w-4 text-gold" />
-          {t("dashboards.drafter.notifications.title", {
-            defaultValue: "My notifications",
-          })}
-        </h3>
-        {unreadCount > 0 && (
-          <span className="rounded-full bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
-            {t("dashboards.drafter.notifications.unread", {
-              defaultValue: "{{count}} unread",
-              count: unreadCount,
-            })}
-          </span>
-        )}
-      </div>
-      {recent.length === 0 ? (
-        <p className="py-4 text-center text-xs text-ink-subtle">
-          {t("dashboards.drafter.notifications.empty", {
-            defaultValue: "All clear — no notifications.",
-          })}
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {recent.map((n) => {
-            const Icon = SEVERITY_ICON[n.severity] ?? Bell;
-            const title = isAr && n.titleAr ? n.titleAr : n.titleEn;
-            const body = isAr && n.bodyAr ? n.bodyAr : n.bodyEn;
-            const isUnread = n.readAt === null;
-            const inner = (
-              <div className="flex items-start gap-2">
-                <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${SEVERITY_TINT[n.severity]}`} />
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`truncate text-xs ${isUnread ? "font-medium text-ink" : "text-ink-muted"}`}
-                  >
-                    {title}
-                  </p>
-                  {body && (
-                    <p className="mt-0.5 line-clamp-2 text-[11px] text-ink-subtle">{body}</p>
-                  )}
-                </div>
-                <span className="font-mono text-[10px] text-ink-subtle whitespace-nowrap">
-                  {formatDateTime(n.createdAt)}
-                </span>
-              </div>
-            );
-            const wrapperClass = `block rounded-md border border-border px-3 py-2 transition hover:border-gold/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-              isUnread ? "bg-surface" : "bg-card"
-            }`;
-            return (
-              <li key={n.id}>
-                {n.linkUrl ? (
-                  <Link
-                    to={n.linkUrl}
-                    onClick={() => markAsRead(n.id)}
-                    className={wrapperClass}
-                  >
-                    {inner}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => markAsRead(n.id)}
-                    className={`${wrapperClass} w-full text-start`}
-                  >
-                    {inner}
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
     </section>
   );
 }

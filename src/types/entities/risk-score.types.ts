@@ -87,6 +87,11 @@ export interface RiskScoreExplanation {
 export interface ContributingCorrelation {
   correlationId: string;
   ruleId: string;
+  /** Human rule name from correlation_rule.name. Mig 528+. */
+  ruleName?: string;
+  ruleNameAr?: string | null;
+  /** Scenario bucket — sanctions, esg, hormuz, brent, etc. Mig 528+. */
+  scenario?: string | null;
   probability: number;
   impactMultiplier: number;
   marContribution: string | null;
@@ -130,6 +135,8 @@ export interface HydratedContributingCorrelation extends ContributingCorrelation
   matchReason: string | null;
   status: string;
   sourceReliability: number;
+  /** Mig 529+ — severity band from the underlying osint_signal (critical/high/medium/low/informational). */
+  severity?: string | null;
   signal: {
     id: string;
     titleEn: string | null;
@@ -144,10 +151,37 @@ export interface HydratedContributingCorrelation extends ContributingCorrelation
   } | null;
 }
 
+/** Mig 529+ — single named addend that contributed to the risk score. */
+export interface RiskScoreAddend {
+  /** A | B | C | D | E — bucket the addend belongs to. */
+  bucket: string;
+  /** Short human label, e.g. "Value tier — AED 5M to 50M". */
+  label: string;
+  /** Points contributed by this addend. */
+  points: number;
+  /** Long-form detail: the actual numbers behind the points (confidence x reliability x severity, etc.). */
+  detail: string;
+  /** Optional rule/correlation cross-ref when bucket = 'A'. */
+  correlationId?: string;
+  ruleId?: string;
+}
+
 export interface RiskScoreExplainResponse {
   riskScoreId: string;
   contractId: string;
   healthScore: number;
+  /** One-sentence plain-English summary of why the score is where it is. Mig 528+. */
+  narrative?: string;
+  /** Mig 529+ — additive formula breakdown, one row per scoring addend. */
+  addends?: RiskScoreAddend[];
+  /** Mig 529+ — per-bucket subtotals (A, B, C, D, E) → number. */
+  bucketSubtotals?: Record<string, number>;
+  /** Mig 529+ — band thresholds used to color the gauge. */
+  bands?: { lowMax: number; mediumMax: number };
+  /** Mig 529+ — "Low" | "Medium" | "High" derived from healthScore vs bands. */
+  band?: 'Low' | 'Medium' | 'High';
+  /** Mig 529+ — "v1" or "v2". v2 means the explanation carries addends[]. */
+  formulaVersion?: 'v1' | 'v2';
   dimensions: {
     legal: RiskScoreDimensionBreakdown;
     financial: RiskScoreDimensionBreakdown;

@@ -70,8 +70,13 @@ export function SpendByCategoryCard({
 }) {
   const { t } = useTranslation();
   if (rows.length === 0) return null;
+  // E-rev-1b redesign: legend column on the LEFT (sorted descending), pie on
+  // the RIGHT (no internal labels — they overlap on small slices). Each
+  // legend row has a colour swatch, label, AED value and % share so the user
+  // gets the full picture at a glance without squinting at the pie.
+  const sorted = [...rows].sort((a, b) => b.valueAed - a.valueAed);
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
+    <section className="rounded-lg border border-border bg-card p-4 xl:col-span-2">
       <header className="mb-3 flex items-baseline justify-between">
         <h3 className="text-sm font-semibold text-ink">
           {t("dashboards.executive.charts.spendByCategory.title", {
@@ -83,8 +88,34 @@ export function SpendByCategoryCard({
           <div className="font-mono text-sm text-ink">{formatAedCompact(totalValueAed)}</div>
         </div>
       </header>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="h-56">
+      <div className="grid items-center gap-6 lg:grid-cols-[1fr_auto]">
+        {/* Left: full legend (color swatch + label + AED value + % share) */}
+        <ul className="space-y-1.5">
+          {sorted.map((r) => {
+            const originalIdx = rows.findIndex((x) => x.category === r.category);
+            return (
+              <li
+                key={r.category}
+                className="grid grid-cols-[16px_minmax(0,1fr)_auto_56px] items-center gap-3 border-b border-border/40 pb-1.5 last:border-0"
+              >
+                <span
+                  className="inline-block h-3 w-3 shrink-0 rounded-sm"
+                  style={{ backgroundColor: PIE_COLORS[originalIdx % PIE_COLORS.length] }}
+                  aria-hidden
+                />
+                <span className="truncate text-sm text-ink">{humanizeLabel(r.category)}</span>
+                <span className="font-mono text-xs text-ink-muted">
+                  {formatAedCompact(r.valueAed)}
+                </span>
+                <span className="text-right font-mono text-xs text-ink-subtle">
+                  {r.pct.toFixed(1)}%
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        {/* Right: donut chart, no inline labels (legend on the left replaces them) */}
+        <div className="h-64 w-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -93,44 +124,25 @@ export function SpendByCategoryCard({
                 nameKey="category"
                 cx="50%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={80}
+                innerRadius={64}
+                outerRadius={100}
                 paddingAngle={2}
+                stroke="var(--card)"
+                strokeWidth={2}
               >
                 {rows.map((_, i) => (
                   <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(v: number) => formatAedCompact(v)}
+                formatter={(v: number, _key: string, item) => [
+                  `${formatAedCompact(v)} · ${item?.payload?.pct?.toFixed?.(1) ?? "0.0"}%`,
+                  humanizeLabel(String(item?.payload?.category ?? "")),
+                ]}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
-        <ul className="space-y-1.5 text-sm">
-          {rows.map((r, i) => (
-            <li
-              key={r.category}
-              className="flex items-center justify-between gap-2 border-b border-border/40 pb-1 last:border-0"
-            >
-              <span className="flex items-center gap-2">
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
-                />
-                {/* E16 fix: title-case + acronym preservation
-                    ("gas_spa" → "Gas SPA", "epc" → "EPC"). */}
-                <span className="text-ink">
-                  {humanizeLabel(r.category)}
-                </span>
-              </span>
-              <span className="font-mono text-xs text-ink-muted">
-                {formatAedCompact(r.valueAed)}{" "}
-                <span className="text-ink-subtle">{r.pct.toFixed(1)}%</span>
-              </span>
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   );
@@ -139,6 +151,26 @@ export function SpendByCategoryCard({
 // ─── 2. Top suppliers (with sparkline) ───────────────────────────────────────
 
 function SupplierSparkline({ points }: { points: ExecutiveSupplierSparklinePoint[] }) {
+  // Render a graceful empty state when the BE returns no points or all
+  // points are zero — an empty chart reads as a rendering bug to the
+  // audience. A horizontal rule with the "no trend data" hint is
+  // honest and visually intentional.
+  const hasMeaningfulData =
+    Array.isArray(points) &&
+    points.length > 1 &&
+    points.some((p) => Number(p?.valueAed ?? 0) > 0);
+
+  if (!hasMeaningfulData) {
+    return (
+      <div
+        className="flex h-8 w-24 items-center justify-center text-[10px] text-ink-subtle"
+        title="No 12-month trend data for this supplier"
+        aria-label="No 12-month trend"
+      >
+        ───
+      </div>
+    );
+  }
   return (
     <div className="h-8 w-24">
       <ResponsiveContainer width="100%" height="100%">
@@ -287,69 +319,101 @@ export function RevenueUnderContract12mCard({
 
 export function CycleTimeFunnelCard({ funnel }: { funnel: ExecutiveCycleTimeFunnel }) {
   const { t } = useTranslation();
-  const data = [
+  const clampDays = (v: number | null | undefined): number =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(0, v) : 0;
+  // E-rev-1c redesign: stacked stage cards filling the full card width.
+  // Each stage shows label + day count + a coloured fill bar whose width is
+  // scaled to the longest stage. Removes the cramped Recharts horizontal bar
+  // and uses the available real-estate proportionally.
+  const stages = [
     {
       stage: t("dashboards.executive.charts.cycleTime.drafting", { defaultValue: "Drafting" }),
-      days: funnel.draftingDays,
+      days: clampDays(funnel.draftingDays),
+      color: "var(--gold)",
     },
     {
       stage: t("dashboards.executive.charts.cycleTime.legalReview", { defaultValue: "Legal review" }),
-      days: funnel.legalReviewDays,
+      days: clampDays(funnel.legalReviewDays),
+      color: "var(--sage)",
     },
     {
       stage: t("dashboards.executive.charts.cycleTime.approvalChain", { defaultValue: "Approval chain" }),
-      days: funnel.approvalChainDays,
+      days: clampDays(funnel.approvalChainDays),
+      color: "var(--terracotta)",
     },
     {
       stage: t("dashboards.executive.charts.cycleTime.signature", { defaultValue: "Counterparty signature" }),
-      days: funnel.counterpartySignatureDays,
+      days: clampDays(funnel.counterpartySignatureDays),
+      color: "var(--plum)",
     },
   ];
+  const maxDays = Math.max(...stages.map((s) => s.days), 1);
+  const totalDays = stages.reduce((acc, s) => acc + s.days, 0);
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
-      <h3 className="mb-1 text-sm font-semibold text-ink">
-        {t("dashboards.executive.charts.cycleTime.title", { defaultValue: "Cycle time funnel" })}
-      </h3>
-      <p className="mb-3 text-xs text-ink-subtle">
-        {t("dashboards.executive.charts.cycleTime.subtitle", {
-          defaultValue: "Average days per stage",
+    <section className="rounded-lg border border-border bg-card p-5">
+      <header className="mb-4 flex items-baseline justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-ink">
+            {t("dashboards.executive.charts.cycleTime.title", { defaultValue: "Cycle time funnel" })}
+          </h3>
+          <p className="text-xs text-ink-subtle">
+            {t("dashboards.executive.charts.cycleTime.subtitle", {
+              defaultValue: "Average days per stage",
+            })}
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
+            {t("dashboards.executive.charts.cycleTime.totalLabel", { defaultValue: "Total cycle" })}
+          </div>
+          <div className="font-mono text-base font-semibold text-ink">
+            {totalDays}{" "}
+            <span className="text-xs text-ink-subtle">
+              {t("dashboards.executive.charts.cycleTime.daysSuffix", { defaultValue: "days" })}
+            </span>
+          </div>
+        </div>
+      </header>
+      <ul className="space-y-3">
+        {stages.map((s, idx) => {
+          const pct = Math.max(8, Math.round((s.days / maxDays) * 100));
+          return (
+            <li key={s.stage} className="flex items-center gap-3">
+              <div className="flex w-6 shrink-0 items-center justify-center">
+                <span
+                  className="grid h-6 w-6 place-content-center rounded-full bg-surface font-mono text-[10px] font-semibold text-ink-muted"
+                  aria-hidden
+                >
+                  {idx + 1}
+                </span>
+              </div>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-medium text-ink">{s.stage}</span>
+                  <span className="font-mono text-xs text-ink">
+                    {s.days}{" "}
+                    <span className="text-ink-subtle">
+                      {s.days === 1
+                        ? t("dashboards.executive.charts.cycleTime.daySuffix", { defaultValue: "day" })
+                        : t("dashboards.executive.charts.cycleTime.daysSuffix", { defaultValue: "days" })}
+                    </span>
+                  </span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={s.days}
+                    aria-valuemin={0}
+                    aria-valuemax={maxDays}
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${pct}%`, backgroundColor: s.color }}
+                  />
+                </div>
+              </div>
+            </li>
+          );
         })}
-      </p>
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ top: 8, right: 24, bottom: 8, left: 140 }}
-          >
-            <CartesianGrid strokeDasharray="2 4" opacity={0.3} />
-            {/* E8 fix: X-axis formatter rounds to whole days when value
-                >= 1d, else shows hours — no nonsensical "0.35d". */}
-            <XAxis
-              type="number"
-              fontSize={10}
-              tickFormatter={(v: number) =>
-                v >= 1 ? `${Math.round(v)} d` : `${Math.round(v * 24)} h`
-              }
-            />
-            {/* E8/E11 fix: width=140 so stage labels render with spaces
-                ("Legal review", "Counterparty signature") instead of being
-                squished into "Legalreview". interval=0 ensures every label
-                shows. */}
-            <YAxis
-              dataKey="stage"
-              type="category"
-              fontSize={11}
-              width={140}
-              interval={0}
-            />
-            <Tooltip formatter={(v: number) =>
-              v >= 1 ? `${v.toFixed(1)} days` : `${(v * 24).toFixed(0)} hours`
-            } />
-            <Bar dataKey="days" fill="#7a8b6f" radius={[0, 4, 4, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      </ul>
     </section>
   );
 }
@@ -449,12 +513,13 @@ export function ExecutiveCharts({
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
+      {/* Spend by Category spans both columns (pie + table stacked). */}
       <SpendByCategoryCard rows={charts.spendByCategory} totalValueAed={totalValueAed} />
       <TopSuppliersCard rows={charts.topSuppliers} />
-      <RevenueUnderContract12mCard rows={charts.revenueUnderContract12m} />
       <CycleTimeFunnelCard funnel={cycleTimeFunnel} />
       <ContractThroughput12mCard rows={charts.contractThroughput12m} />
       <ExpiryCliffCard rows={charts.expiryCliff} />
+      {/* Removed: RevenueUnderContract12mCard per E-rev-5 — duplicated value tile signal. */}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Search, Building2, User, Plus, BadgeCheck } from "lucide-react";
+import { Search, Building2, User, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { partiesService } from "@/services/api/m_parity.service";
@@ -43,18 +43,6 @@ function humanizeEmirate(slug: string): string {
   return slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
-// L104 — title-case party_type slug for the table chip
-function humanizePartyType(slug: string | null | undefined): string {
-  if (!slug) return "—";
-  const map: Record<string, string> = {
-    company: "Company",
-    individual: "Individual",
-    government: "Government",
-    sole_proprietorship: "Sole Proprietorship",
-  };
-  return map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-}
-
 function PartiesListView() {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
@@ -63,7 +51,6 @@ function PartiesListView() {
   // R-LC5 LC-L3 — additional filters: emirate / free zone / verification / nationality.
   const [emirate, setEmirate] = useState("");
   const [freeZone, setFreeZone] = useState("");
-  const [verified, setVerified] = useState<"all" | "yes" | "no">("all");
   const [nationality, setNationality] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const debounced = useDebounce(search, 300);
@@ -94,16 +81,13 @@ function PartiesListView() {
     const filtered = all.filter((p) => {
       if (emirate && p.emirate !== emirate) return false;
       if (freeZone && p.freeZone !== freeZone) return false;
-      if (verified === "yes" && !p.isVerified) return false;
-      if (verified === "no" && p.isVerified) return false;
       if (nationality && p.country !== nationality) return false;
       return true;
     });
-    return [...filtered].sort((a, b) => {
-      if (a.isVerified !== b.isVerified) return a.isVerified ? -1 : 1;
-      return (a.nameEn ?? "").localeCompare(b.nameEn ?? "");
-    });
-  }, [all, emirate, freeZone, verified, nationality]);
+    return [...filtered].sort((a, b) =>
+      (a.nameEn ?? "").localeCompare(b.nameEn ?? ""),
+    );
+  }, [all, emirate, freeZone, nationality]);
 
   // D41 — page the 499 parties into 25-row slices so the DOM stays small.
   // Total-row strip below the table communicates the scope.
@@ -113,7 +97,7 @@ function PartiesListView() {
   // Reset to page 1 whenever the underlying filter set changes size.
   useEffect(() => {
     setCurrentPage(1);
-  }, [filteredItems.length, debounced, tab, emirate, freeZone, verified, nationality]);
+  }, [filteredItems.length, debounced, tab, emirate, freeZone, nationality]);
   const pagedItems = useMemo(
     () => filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
     [filteredItems, currentPage],
@@ -269,16 +253,6 @@ function PartiesListView() {
           ))}
         </select>
         <select
-          value={verified}
-          onChange={(e) => setVerified(e.target.value as "all" | "yes" | "no")}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          aria-label={t("parties.filter.verified", { defaultValue: "Verification" })}
-        >
-          <option value="all">{t("parties.filter.allVerification", { defaultValue: "All" })}</option>
-          <option value="yes">{t("parties.filter.verifiedYes", { defaultValue: "Verified" })}</option>
-          <option value="no">{t("parties.filter.verifiedNo", { defaultValue: "Unverified" })}</option>
-        </select>
-        <select
           value={nationality}
           onChange={(e) => setNationality(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
@@ -309,23 +283,19 @@ function PartiesListView() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-surface text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
               <tr>
-                <th className="w-9 py-2 ps-3"></th>
-                <th className="py-2 text-start">
+                <th scope="col" className="w-9 py-2 ps-3"></th>
+                <th scope="col" className="py-2 text-start">
                   {t("parties.col.name", { defaultValue: "Name" })}
                 </th>
-                <th className="py-2 text-start" dir="rtl">
-                  {t("parties.col.nameAr", { defaultValue: "Name (AR)" })}
-                </th>
-                <th className="py-2 text-start">
-                  {t("parties.col.type", { defaultValue: "Type" })}
-                </th>
-                <th className="py-2 text-start">
+                {isAr && (
+                  <th scope="col" className="py-2 text-start" dir="rtl">
+                    {t("parties.col.nameAr", { defaultValue: "Name (AR)" })}
+                  </th>
+                )}
+                <th scope="col" className="py-2 text-start">
                   {t("parties.col.identifier", { defaultValue: "Identifier" })}
                 </th>
-                <th className="py-2 text-center">
-                  {t("parties.col.verified", { defaultValue: "Verified" })}
-                </th>
-                <th className="py-2 pe-3 text-end">
+                <th scope="col" className="py-2 pe-3 text-end">
                   {t("parties.col.contracts", { defaultValue: "Contracts" })}
                 </th>
               </tr>
@@ -363,26 +333,14 @@ function PartiesListView() {
                         {display}
                       </Link>
                     </td>
-                    <td className="py-2 text-ink-muted" dir="rtl">
-                      {p.nameAr ?? "—"}
-                    </td>
-                    <td className="py-2">
-                      {/* L104 — drop uppercase, use humanized partyType */}
-                      <span className="inline-flex items-center rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-muted">
-                        {humanizePartyType(p.partyType)}
-                      </span>
-                    </td>
+                    {isAr && (
+                      <td className="py-2 text-ink-muted" dir="rtl">
+                        {p.nameAr ?? "—"}
+                      </td>
+                    )}
                     <td className="py-2 font-mono text-[11px] text-ink-muted">
                       {p.tradeLicenseNumber ?? "—"}
                     </td>
-                    <td className="py-2 text-center">
-                      {p.isVerified ? (
-                        <BadgeCheck className="mx-auto h-4 w-4 text-sage" />
-                      ) : (
-                        <span className="text-ink-subtle">—</span>
-                      )}
-                    </td>
-                    {/* L70 — Contracts count from BE */}
                     <td className="py-2 pe-3 text-end font-mono text-xs text-ink-muted">
                       {typeof (p as { contractsCount?: number }).contractsCount === "number"
                         ? (p as { contractsCount: number }).contractsCount

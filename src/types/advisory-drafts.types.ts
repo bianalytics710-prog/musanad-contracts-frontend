@@ -35,8 +35,11 @@ export interface SourceCorrelation {
 
 export interface MatchedClause {
   id: number;
+  clauseType?: string | null;
   clauseTitle: string | null;
   snippet: string | null;
+  pageNo?: number | null;
+  summary?: string | null;
 }
 
 export interface MatchedSignal {
@@ -45,9 +48,32 @@ export interface MatchedSignal {
   title: string | null;
 }
 
+export interface RiskScoreDimension {
+  score: number | null;
+  probability?: number | null;
+  impact?: number | null;
+  reasons?: string[] | null;
+}
 export interface RiskScoreSummary {
   healthScore: number | null;
   computedAt: string | null;
+  marValue?: number | null;
+  marCurrency?: string | null;
+  dimensions?: {
+    legal?: RiskScoreDimension;
+    financial?: RiskScoreDimension;
+    operational?: RiskScoreDimension;
+    reputational?: RiskScoreDimension;
+    compliance?: RiskScoreDimension;
+  } | null;
+  weightsAtCalculation?: {
+    legal?: number;
+    financial?: number;
+    operational?: number;
+    reputational?: number;
+    compliance?: number;
+  } | null;
+  weightsVersion?: string | null;
 }
 
 export interface TemplateMeta {
@@ -64,6 +90,11 @@ export interface AdvisoryDraft {
   correlationId: number;
   templateId: number;
   contractId: number | null;
+  contractNumber?: string | null;
+  contractTitleEn?: string | null;
+  contractTitleAr?: string | null;
+  counterpartyName?: string | null;
+  counterpartyEmail?: string | null;
   templateVersion: number;
   approvalStatus: ApprovalStatus;
   generatedTextEn: string;

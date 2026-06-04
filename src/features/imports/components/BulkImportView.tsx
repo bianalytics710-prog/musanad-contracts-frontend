@@ -64,8 +64,12 @@ import {
   Pause,
   Play,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ImportsHeader } from "./ImportsHeader";
+import { contractsKeys } from "@/features/contracts/hooks/useContracts";
+import { dashboardsKeys } from "@/features/dashboards/hooks/useDashboards";
 import { useAuthStore, selectHasPermission, selectUser } from "@/store/auth.store";
 import { translateApiError } from "@/lib/translate-api-error";
 import { ApiError } from "@/lib/api-client";
@@ -132,6 +136,7 @@ type Phase = "select" | "processing" | "done";
 export function BulkImportView() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const user = useAuthStore(selectUser);
   const canRun = useAuthStore(selectHasPermission("import.run"));
 
@@ -324,6 +329,15 @@ export function BulkImportView() {
       );
 
       clearBulkImportDraft();
+
+      // When any file produced a saved or in-review contract, blow away the
+      // contracts + dashboard caches so /app/contracts and the drafter
+      // dashboard pick up the new rows without a hard refresh.
+      if (auto > 0 || review > 0) {
+        void queryClient.invalidateQueries({ queryKey: contractsKeys.all });
+        void queryClient.invalidateQueries({ queryKey: dashboardsKeys.all });
+      }
+
       setPhase("done");
     } catch (err) {
       // Batch creation failed — stay on select.
@@ -396,20 +410,13 @@ export function BulkImportView() {
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1280px] space-y-6 p-6"
     >
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("import.bulk.title")}
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">{t("import.bulk.kicker")}</p>
-        </div>
-        <Link
-          to="/app/imports/manual-entries"
-          className="text-sm text-ink-subtle underline-offset-4 hover:text-ink hover:underline"
-        >
-          {t("import.bulk.switchManual")}
-        </Link>
-      </header>
+      <ImportsHeader
+        title={t("import.bulk.title")}
+        subtitle={t("import.bulk.subtitle", {
+          defaultValue:
+            "Drag-and-drop PDF/DOCX files. AI extracts metadata and routes by confidence.",
+        })}
+      />
 
       {phase === "select" && (
         <SelectPhase
@@ -526,70 +533,91 @@ function SelectPhase(props: SelectPhaseProps) {
   return (
     <div className="space-y-6">
       {/* Drop zone — keyboard-accessible via the explicit picker button */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        className={
-          "flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors " +
-          (dragOver
-            ? "border-primary bg-accent"
-            : "border-border hover:border-border")
-        }
-      >
-        <Upload className="h-12 w-12 text-ink-muted" strokeWidth={1.25} aria-hidden="true" />
-        <div className="space-y-1">
-          <p className="text-base font-medium text-ink">
-            {t("import.bulk.dropTitle")}
-          </p>
-          <p className="text-sm text-ink-muted">
-            {t("import.bulk.dropSubtitle", { max: MAX_FILES })}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => inputRef.current?.click()}
-        >
-          {t("import.bulk.chooseFiles")}
-        </Button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED_MIME.join(",") + ",.pdf,.docx"}
-          multiple
-          className="sr-only"
-          onChange={(e) => {
-            if (e.target.files) onSelectFiles(e.target.files);
-            e.target.value = "";
-          }}
-          aria-label={t("import.bulk.chooseFiles")}
-        />
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t("import.bulk.dropZoneKicker", { defaultValue: "Step 1 — Select files" })}
+          </div>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            className={
+              "flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-8 text-center transition-colors " +
+              (dragOver
+                ? "border-gold bg-gold/5"
+                : "border-border bg-surface/40 hover:border-gold/40 hover:bg-surface/60")
+            }
+          >
+            <Upload className="h-10 w-10 text-ink-subtle" strokeWidth={1.25} aria-hidden="true" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-ink">
+                {t("import.bulk.dropTitle")}
+              </p>
+              <p className="text-xs text-ink-muted">
+                {t("import.bulk.dropSubtitle", { max: MAX_FILES })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+            >
+              {t("import.bulk.chooseFiles")}
+            </Button>
+            <input
+              ref={inputRef}
+              type="file"
+              accept={ACCEPTED_MIME.join(",") + ",.pdf,.docx"}
+              multiple
+              className="sr-only"
+              onChange={(e) => {
+                if (e.target.files) onSelectFiles(e.target.files);
+                e.target.value = "";
+              }}
+              aria-label={t("import.bulk.chooseFiles")}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {files.length > 0 && (
         <Card>
-          <CardContent className="space-y-3 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-ink">
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                {t("import.bulk.selectedKicker", { defaultValue: "Selected files" })}
+              </div>
+              <span className="font-mono text-[11px] text-ink-muted">
                 {t("import.bulk.filesSelected", {
                   count: files.length,
                   size: (totalSize / 1024 / 1024).toFixed(1),
                 })}
-              </p>
+              </span>
+            </div>
+            <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-border bg-surface/60 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+              <span>{t("import.bulk.col.file", { defaultValue: "File" })}</span>
+              <span className="text-end">{t("import.bulk.col.size", { defaultValue: "Size" })}</span>
+              <span className="sr-only">{t("import.bulk.col.actions", { defaultValue: "Actions" })}</span>
             </div>
             <ul className="divide-y divide-border">
               {files.map((f) => (
-                <li key={f.id} className="flex items-center gap-3 py-2">
-                  <FileText
-                    className="h-4 w-4 shrink-0 text-ink-muted"
-                    aria-hidden="true"
-                  />
-                  <span className="flex-1 truncate font-mono text-xs text-ink">
-                    {f.file.name}
+                <li
+                  key={f.id}
+                  className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-2.5"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <FileText
+                      className="h-4 w-4 shrink-0 text-ink-subtle"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate font-mono text-xs text-ink">
+                      {f.file.name}
+                    </span>
                   </span>
                   <span className="font-mono text-xs text-ink-muted">
                     {(f.file.size / 1024 / 1024).toFixed(2)} MB
@@ -613,9 +641,14 @@ function SelectPhase(props: SelectPhaseProps) {
       {files.length > 0 && (
         <Card>
           <CardContent className="space-y-5 p-6">
-            <h3 className="text-sm font-semibold text-ink">
-              {t("import.bulk.configTitle")}
-            </h3>
+            <div>
+              <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                {t("import.bulk.configKicker", { defaultValue: "Step 2 — Pre-flight configuration" })}
+              </div>
+              <h3 className="text-sm font-semibold text-ink">
+                {t("import.bulk.configTitle")}
+              </h3>
+            </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
@@ -925,25 +958,35 @@ function DonePhase({
       </Card>
 
       <Card>
-        <CardContent className="space-y-3 p-6">
-          <h3 className="text-sm font-semibold text-ink">
-            {t("import.bulk.perFileResults")}
-          </h3>
+        <CardContent className="p-0">
+          <div className="border-b border-border px-6 py-3">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+              {t("import.bulk.perFileKicker", { defaultValue: "Per-file results" })}
+            </div>
+          </div>
+          <div className="grid grid-cols-[20px_1fr_60px] items-center gap-3 border-b border-border bg-surface/60 px-6 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+            <span className="sr-only">{t("import.bulk.col.status", { defaultValue: "Status" })}</span>
+            <span>{t("import.bulk.col.file", { defaultValue: "File" })}</span>
+            <span className="text-end">{t("import.bulk.col.confidence", { defaultValue: "Confidence" })}</span>
+          </div>
           <ul className="divide-y divide-border">
             {processed.map((p) => (
-              <li key={p.fileName} className="flex items-center gap-3 py-2.5">
+              <li
+                key={p.fileName}
+                className="grid grid-cols-[20px_1fr_60px] items-center gap-3 px-6 py-3"
+              >
                 <OutcomeIcon outcome={p.outcome} />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <p className="truncate font-mono text-xs text-ink">
                     {p.fileName}
                   </p>
                   {p.warnings.length > 0 && (
-                    <p className="text-xs text-ink-muted">
+                    <p className="mt-0.5 text-xs text-ink-muted">
                       {p.warnings.join(" · ")}
                     </p>
                   )}
                 </div>
-                <span className="font-mono text-xs text-ink-muted">
+                <span className="text-end font-mono text-xs text-ink-muted">
                   {p.confidence}%
                 </span>
               </li>

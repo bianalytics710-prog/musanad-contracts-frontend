@@ -50,6 +50,7 @@ import {
   CartesianGrid,
   ReferenceLine,
   ResponsiveContainer,
+  Tooltip as RechartsTooltip,
 } from 'recharts';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -228,16 +229,31 @@ function BudgetBurnPortfolioView() {
   }, [sortedRows, search, overBudgetOnly, selectedSubsidiary, selectedEmirate]);
 
   // ── Chart #5 data: top 15 by pctConsumed descending ───────
+  // E-rev-F-3 / E-rev-G-2 — Each row carries actual + projected segments
+  // plus the AED amounts so the custom tooltip can show real money.
   const chartRows = useMemo(
     () =>
       [...sortedRows]
         .sort((a, b) => b.pctConsumed - a.pctConsumed)
         .slice(0, 15)
-        .map((r) => ({
-          contractNumber: r.contractNumber,
-          pctConsumed: typeof r.pctConsumed === 'number' ? r.pctConsumed : 0,
-          isOver: r.varianceFlag || r.pctConsumed >= 100,
-        })),
+        .map((r) => {
+          const actualPct = typeof r.pctConsumed === 'number' ? r.pctConsumed : 0;
+          const budget = parseFloat(r.budgetAed ?? '0');
+          const projectedOverUnder = parseFloat(r.projectedOverUnderAed ?? '0');
+          const projectedPct =
+            budget > 0 ? ((budget + projectedOverUnder) / budget) * 100 : actualPct;
+          const projectedDelta = Math.max(0, projectedPct - actualPct);
+          return {
+            contractNumber: r.contractNumber,
+            actualPct,
+            projectedDelta,
+            projectedPct,
+            actualAed: r.actualAed,
+            budgetAed: r.budgetAed,
+            projectedOverUnderAed: r.projectedOverUnderAed,
+            isOver: r.varianceFlag || actualPct >= 100,
+          };
+        }),
     [sortedRows],
   );
 
@@ -303,172 +319,20 @@ function BudgetBurnPortfolioView() {
         </div>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Over budget only */}
-        <button
-          type="button"
-          onClick={() => setOverBudgetOnly((v) => !v)}
-          aria-pressed={overBudgetOnly}
-          className={cn(
-            'rounded-full border px-3 py-1 text-xs font-medium transition',
-            overBudgetOnly
-              ? 'border-terracotta bg-terracotta/10 text-terracotta'
-              : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
-          )}
-        >
-          {t('budgetBurn.portfolio.filters.overBudgetOnly')}
-        </button>
-
-        {/* By subsidiary */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowSubsidiaryPicker((v) => !v);
-              setShowEmiratePicker(false);
-            }}
-            aria-haspopup="listbox"
-            aria-expanded={showSubsidiaryPicker}
-            className={cn(
-              'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition',
-              selectedSubsidiary
-                ? 'border-gold bg-gold/10 text-ink'
-                : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
-            )}
-          >
-            {/* E38 fix — prefix "Filter: " so chip is clearly a filter
-                dropdown, not a grouping/pivot toggle. */}
-            {selectedSubsidiary
-              ? `${t('budgetBurn.portfolio.filters.bySubsidiary', { defaultValue: 'Subsidiary' })}: ${selectedSubsidiary}`
-              : `${t('common.filter', { defaultValue: 'Filter' })}: ${t('budgetBurn.portfolio.filters.bySubsidiary', { defaultValue: 'Subsidiary' })}`}
-            {selectedSubsidiary ? (
-              <X
-                className="h-3 w-3"
-                aria-hidden="true"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedSubsidiary('');
-                }}
-              />
-            ) : (
-              <ChevronDown className="h-3 w-3" aria-hidden="true" />
-            )}
-          </button>
-
-          {showSubsidiaryPicker && (
-            <div
-              role="listbox"
-              aria-label={t('budgetBurn.portfolio.filters.bySubsidiary')}
-              className="absolute start-0 top-9 z-10 min-w-[160px] rounded-lg border border-border bg-card shadow-md"
-            >
-              <button
-                type="button"
-                role="option"
-                aria-selected={selectedSubsidiary === ''}
-                onClick={() => { setSelectedSubsidiary(''); setShowSubsidiaryPicker(false); }}
-                className="block w-full px-3 py-2 text-start text-xs text-ink-muted hover:bg-surface"
-              >
-                {t('common.all', { defaultValue: 'All' })}
-              </button>
-              {ADNOC_SUBSIDIARIES.map((sub) => (
-                <button
-                  key={sub}
-                  type="button"
-                  role="option"
-                  aria-selected={selectedSubsidiary === sub}
-                  onClick={() => { setSelectedSubsidiary(sub); setShowSubsidiaryPicker(false); }}
-                  className={cn(
-                    'block w-full px-3 py-2 text-start text-xs hover:bg-surface',
-                    selectedSubsidiary === sub ? 'font-semibold text-ink' : 'text-ink-muted',
-                  )}
-                >
-                  {sub}
-                </button>
-              ))}
-            </div>
-          )}
+      {/* E-rev-G-3 — Three top filter chips (Over budget / Subsidiary /
+          Emirate) removed; the dataset is small enough that search +
+          the at-a-glance Status pills carry the load. Filter state is
+          kept untouched in the parent for backwards-compat — values are
+          just always default (no UI for them). */}
+      {search && (
+        <div className="text-xs text-ink-muted">
+          {t('budgetBurn.portfolio.filters.showing', {
+            count: filteredRows.length,
+            total: sortedRows.length,
+            defaultValue: '{{count}} of {{total}} contracts',
+          })}
         </div>
-
-        {/* By emirate */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setShowEmiratePicker((v) => !v);
-              setShowSubsidiaryPicker(false);
-            }}
-            aria-haspopup="listbox"
-            aria-expanded={showEmiratePicker}
-            className={cn(
-              'flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition',
-              selectedEmirate
-                ? 'border-gold bg-gold/10 text-ink'
-                : 'border-border bg-card text-ink-muted hover:border-gold/60 hover:text-ink',
-            )}
-          >
-            {selectedEmirate
-              ? `${t('budgetBurn.portfolio.filters.byEmirate', { defaultValue: 'Emirate' })}: ${selectedEmirate}`
-              : `${t('common.filter', { defaultValue: 'Filter' })}: ${t('budgetBurn.portfolio.filters.byEmirate', { defaultValue: 'Emirate' })}`}
-            {selectedEmirate ? (
-              <X
-                className="h-3 w-3"
-                aria-hidden="true"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedEmirate('');
-                }}
-              />
-            ) : (
-              <ChevronDown className="h-3 w-3" aria-hidden="true" />
-            )}
-          </button>
-
-          {showEmiratePicker && (
-            <div
-              role="listbox"
-              aria-label={t('budgetBurn.portfolio.filters.byEmirate')}
-              className="absolute start-0 top-9 z-10 min-w-[160px] rounded-lg border border-border bg-card shadow-md"
-            >
-              <button
-                type="button"
-                role="option"
-                aria-selected={selectedEmirate === ''}
-                onClick={() => { setSelectedEmirate(''); setShowEmiratePicker(false); }}
-                className="block w-full px-3 py-2 text-start text-xs text-ink-muted hover:bg-surface"
-              >
-                {t('common.all', { defaultValue: 'All' })}
-              </button>
-              {emirateOptions.map((em) => (
-                <button
-                  key={em}
-                  type="button"
-                  role="option"
-                  aria-selected={selectedEmirate === em}
-                  onClick={() => { setSelectedEmirate(em); setShowEmiratePicker(false); }}
-                  className={cn(
-                    'block w-full px-3 py-2 text-start text-xs hover:bg-surface',
-                    selectedEmirate === em ? 'font-semibold text-ink' : 'text-ink-muted',
-                  )}
-                >
-                  {em}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Active filter count */}
-        {(overBudgetOnly || selectedSubsidiary || selectedEmirate || search) && (
-          <span className="text-xs text-ink-muted">
-            {t('budgetBurn.portfolio.filters.showing', {
-              count: filteredRows.length,
-              total: sortedRows.length,
-              defaultValue: '{{count}} of {{total}} contracts',
-            })}
-          </span>
-        )}
-      </div>
+      )}
 
       {/* Loading */}
       {isLoading && (
@@ -522,18 +386,40 @@ function BudgetBurnPortfolioView() {
                   label={t('financial.budgetBurn.portfolio.summary.totalActual')}
                   value={formatAed(summary.totalActualAed)}
                 />
+                {/* E-rev-F-2 — Variance signing: negative variance means we
+                    spent LESS than budget (favourable) → render sage/green
+                    via the "success" variant. Positive variance is overrun
+                    → "risk" terracotta. Caption below clarifies the sign. */}
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.totalVariance')}
+                  label={t('financial.budgetBurn.portfolio.summary.totalVariance', {
+                    defaultValue: 'Total variance',
+                  })}
                   value={formatAed(summary.totalVarianceAed)}
-                  variant={parseFloat(summary.totalVarianceAed) > 0 ? 'risk' : 'default'}
+                  variant={
+                    parseFloat(summary.totalVarianceAed) > 0
+                      ? 'risk'
+                      : parseFloat(summary.totalVarianceAed) < 0
+                        ? 'success'
+                        : 'default'
+                  }
+                  helper={t('financial.budgetBurn.portfolio.summary.totalVarianceHelper', {
+                    defaultValue: 'Negative = under budget',
+                  })}
                 />
+                {/* E-rev-F-1 — fixed 5th-tile broken i18n key. Was passing a
+                    raw JS expression as the key; now reads a proper label +
+                    the actual count value. */}
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.(summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0)')}
+                  label={t('financial.budgetBurn.portfolio.summary.overBudgetCount', {
+                    defaultValue: 'Over budget',
+                  })}
                   value={String((summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0))}
                   variant={(summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0) > 0 ? 'warning' : 'default'}
                 />
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.totalProjectedOverrun')}
+                  label={t('financial.budgetBurn.portfolio.summary.totalProjectedOverrun', {
+                    defaultValue: 'Projected overrun',
+                  })}
                   value={formatAed(summary.totalProjectedOverrunAed)}
                   variant={parseFloat(summary.totalProjectedOverrunAed) > 0 ? 'risk' : 'default'}
                 />
@@ -577,7 +463,7 @@ function BudgetBurnPortfolioView() {
                 <BarChart
                   data={chartRows}
                   layout="vertical"
-                  margin={{ top: 4, right: 24, bottom: 4, left: 4 }}
+                  margin={{ top: 4, right: 32, bottom: 4, left: 12 }}
                 >
                   <CartesianGrid strokeDasharray="2 4" horizontal={false} opacity={0.3} />
                   <XAxis
@@ -587,11 +473,83 @@ function BudgetBurnPortfolioView() {
                     domain={[0, 'auto']}
                     ticks={[0, 25, 50, 75, 100, 125, 150]}
                   />
-                  {/* P42 — 100% budget breach line */}
+                  {/* E-rev-G-1 — Widen YAxis from 100 → 140 so longer contract
+                      numbers (e.g. "CRN-296-HERO-001") stop getting truncated
+                      on the start edge. */}
+                  <YAxis
+                    dataKey="contractNumber"
+                    type="category"
+                    width={140}
+                    fontSize={10}
+                    tick={{ fill: 'var(--ink-muted)' }}
+                  />
+                  {/* E-rev-G-2 / fix — Custom tooltip showing AED amounts.
+                      Using Recharts <Tooltip> directly (not SemanticTooltip)
+                      because the wrapper's contentStyle / defaultFormatter
+                      were overriding the custom render. */}
+                  <RechartsTooltip
+                    cursor={{ fill: 'var(--surface)', opacity: 0.4 }}
+                    wrapperStyle={{ outline: 'none' }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload || payload.length === 0) return null;
+                      const row = payload[0]?.payload as typeof chartRows[number] | undefined;
+                      if (!row) return null;
+                      const overrun = parseFloat(row.projectedOverUnderAed ?? '0');
+                      return (
+                        <div className="rounded-md border border-border bg-card p-2 shadow-md">
+                          <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            {row.contractNumber}
+                          </p>
+                          <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-xs">
+                            <span className="text-ink-muted">{t('budgetBurn.charts.portfolioConsumption.tooltipActual', { defaultValue: 'Actual' })}</span>
+                            <span className="text-end font-mono text-ink">{formatAed(row.actualAed)}</span>
+                            <span className="text-ink-muted">{t('budgetBurn.charts.portfolioConsumption.tooltipBudget', { defaultValue: 'Budget' })}</span>
+                            <span className="text-end font-mono text-ink">{formatAed(row.budgetAed)}</span>
+                            <span className="text-ink-muted">{t('budgetBurn.charts.portfolioConsumption.tooltipConsumed', { defaultValue: 'Consumed' })}</span>
+                            <span className="text-end font-mono text-ink">{row.actualPct.toFixed(1)}%</span>
+                            <span className="text-ink-muted">{t('budgetBurn.charts.portfolioConsumption.tooltipProjected', { defaultValue: 'Projected year-end' })}</span>
+                            <span className="text-end font-mono text-ink">{row.projectedPct.toFixed(1)}%</span>
+                            <span className="text-ink-muted">{t('budgetBurn.charts.portfolioConsumption.tooltipOverrun', { defaultValue: 'Projected over/under' })}</span>
+                            <span
+                              className={
+                                'text-end font-mono ' +
+                                (overrun > 0 ? 'text-terracotta' : 'text-sage-ink')
+                              }
+                            >
+                              {overrun > 0 ? '+' : ''}{formatAed(row.projectedOverUnderAed)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  {/* Segment 1 — actual % consumed (solid sage/amber/terracotta) */}
+                  <Bar dataKey="actualPct" stackId="usage">
+                    {chartRows.map((entry, index) => (
+                      <Cell key={`actual-${index}`} fill={barFill(entry.actualPct)} />
+                    ))}
+                  </Bar>
+                  {/* Segment 2 — E-rev-G-2: projected addt’l now renders as an
+                      outlined dashed box (no fill) so the 100% line below is
+                      always visible cutting through it. Terra outline when the
+                      projection crosses 100%, sage otherwise. */}
+                  <Bar dataKey="projectedDelta" stackId="usage" radius={[0, 3, 3, 0]} strokeDasharray="3 3" strokeWidth={1.5}>
+                    {chartRows.map((entry, index) => (
+                      <Cell
+                        key={`proj-${index}`}
+                        fill="transparent"
+                        stroke={entry.projectedPct >= 100 ? 'var(--terracotta)' : 'var(--sage)'}
+                      />
+                    ))}
+                  </Bar>
+                  {/* E-rev-G-2 — 100% budget breach line declared AFTER the
+                      Bars so it renders on top, fully visible. Solid stroke
+                      (was dashed) so it reads as the ground-truth limit. */}
                   <ReferenceLine
                     x={100}
                     stroke="var(--terracotta)"
-                    strokeDasharray="3 3"
+                    strokeWidth={1.5}
+                    ifOverflow="extendDomain"
                     label={{
                       value: t('budgetBurn.charts.portfolioConsumption.budgetLine', {
                         defaultValue: 'Budget = 100%',
@@ -601,25 +559,6 @@ function BudgetBurnPortfolioView() {
                       fill: 'var(--terracotta)',
                     }}
                   />
-                  <YAxis
-                    dataKey="contractNumber"
-                    type="category"
-                    width={100}
-                    fontSize={10}
-                    tick={{ fill: 'var(--ink-muted)' }}
-                  />
-                  <SemanticTooltip
-                    currencyHint="pct"
-                    formatter={(value) => {
-                      const n = typeof value === 'string' ? parseFloat(value) : Number(value);
-                      return [`${n.toFixed(1)}%`, t('budgetBurn.charts.portfolioConsumption.consumed')];
-                    }}
-                  />
-                  <Bar dataKey="pctConsumed" radius={[0, 3, 3, 0]}>
-                    {chartRows.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={barFill(entry.pctConsumed)} />
-                    ))}
-                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </ChartCard>
@@ -648,28 +587,28 @@ function BudgetBurnPortfolioView() {
                 <PercentColgroup widths={BUDGET_BURN_COL_WIDTHS} />
                 <thead className="bg-surface">
                   <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    <th scope="col" className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t('financial.budgetBurn.columns.contract')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    <th scope="col" className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t('financial.budgetBurn.columns.counterparty')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
+                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
                       {t('financial.budgetBurn.columns.budget')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
+                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
                       {t('financial.budgetBurn.columns.actual')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
+                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
                       {t('financial.budgetBurn.columns.consumed')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
+                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
                       {t('financial.budgetBurn.columns.projectedOverUnder')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    <th scope="col" className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t('financial.budgetBurn.columns.status')}
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t('common.action', { defaultValue: 'Action' })}
                     </th>
                   </tr>
@@ -743,24 +682,32 @@ function SummaryTile({
   label,
   value,
   variant = 'default',
+  helper,
 }: {
   label: string;
   value: string;
-  variant?: 'default' | 'warning' | 'risk';
+  // E-rev-F-2: added 'success' (sage/green) so negative variance — which
+  // means we're under budget — reads as favourable, not as a deficit.
+  variant?: 'default' | 'warning' | 'risk' | 'success';
+  helper?: string;
 }) {
   const containerClass =
     variant === 'risk'
       ? 'border-terracotta/30 bg-terracotta/5'
       : variant === 'warning'
         ? 'border-warning/30 bg-warning/5'
-        : 'border-border bg-card';
+        : variant === 'success'
+          ? 'border-sage/30 bg-sage/5'
+          : 'border-border bg-card';
 
   const valueClass =
     variant === 'risk'
       ? 'text-terracotta'
       : variant === 'warning'
         ? 'text-warning'
-        : 'text-ink';
+        : variant === 'success'
+          ? 'text-sage-ink'
+          : 'text-ink';
 
   return (
     <div className={`rounded-lg border p-4 ${containerClass}`}>
@@ -768,6 +715,7 @@ function SummaryTile({
       <p className={`mt-1 text-xl font-semibold tabular-nums ${valueClass}`}>
         {value}
       </p>
+      {helper && <p className="mt-1 text-[10px] text-ink-subtle">{helper}</p>}
     </div>
   );
 }
@@ -821,13 +769,17 @@ function PortfolioRow({ row }: { row: PortfolioContractRow }) {
         {projectedAed > 0 ? '+' : ''}{formatAed(row.projectedOverUnderAed)}
       </td>
       <td className="px-4 py-3">
+        {/* E-rev-F-4 — Status pills now use the solid-tint + dark-ink-text
+            convention from Impact Watch SEVERITY_TONE / Risk Cases badges
+            (sage / amber / terracotta tokens). Drops the borders + translucent
+            backgrounds for a cleaner, design-system-consistent look. */}
         {isOverToday ? (
-          <span className="inline-flex items-center rounded-full border border-terracotta/30 bg-terracotta/10 px-2 py-0.5 text-[10px] font-medium text-terracotta">
+          <span className="inline-flex items-center rounded-full bg-terracotta-tint px-2 py-0.5 text-[10px] font-medium text-terracotta-ink">
             {t('financial.budgetBurn.varianceFlag.over')}
           </span>
         ) : isTrendingOver ? (
           <span
-            className="inline-flex items-center rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning"
+            className="inline-flex items-center rounded-full bg-amber-tint/60 px-2 py-0.5 text-[10px] font-medium text-amber-ink"
             title={t('financial.budgetBurn.varianceFlag.trendingOverTitle', {
               defaultValue:
                 'Within budget today but projected year-end overrun > 0 based on current run-rate.',
@@ -836,7 +788,7 @@ function PortfolioRow({ row }: { row: PortfolioContractRow }) {
             {t('financial.budgetBurn.varianceFlag.trendingOver', { defaultValue: 'Trending over' })}
           </span>
         ) : (
-          <span className="inline-flex items-center rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
+          <span className="inline-flex items-center rounded-full bg-sage-tint px-2 py-0.5 text-[10px] font-medium text-sage-ink">
             {t('financial.budgetBurn.varianceFlag.onTrack')}
           </span>
         )}

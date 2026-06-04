@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore, selectHasPermission, selectUser } from "@/store/auth.store";
 import { templatesService } from "@/services/api/m_parity.service";
+import { parseTemplateBodyBilingual } from "./template-body-parser";
 import { translateApiError } from "@/lib/translate-api-error";
 import { Step1Type } from "./steps/Step1Type";
 import { Step2Parties } from "./steps/Step2Parties";
@@ -77,8 +78,8 @@ function emptyState(composeDraftId: string): ComposeWizardState {
     step1: {
       contractType: "",
       language: "en",
-      ourPartyName: null,
-      counterpartyName: null,
+      ourPartyName: "",
+      counterpartyName: "",
       templateId: null,
     },
     step2: {
@@ -95,10 +96,13 @@ function emptyState(composeDraftId: string): ComposeWizardState {
       parentContractId: null,
       relationshipType: null,
       paymentSchedule: [],
+      placeholderValues: {},
     },
     step3: {
       bodyEn: null,
       bodyAr: null,
+      sections: [],
+      bodyLanguage: "en",
     },
     currentStep: 1,
     composeDraftId,
@@ -148,20 +152,106 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
       return;
     }
     prefillAppliedRef.current = true;
+    // Just point at the prefilled template — the activeTemplate effect below
+    // seeds Step 3 selectedClauses and resets placeholder values when it
+    // sees a new templateId.
     setState((s) => ({
       ...s,
       step1: {
         ...s.step1,
         contractType: prefillTemplate.contractType,
-        language: prefillTemplate.language,
+        language:
+          prefillTemplate.language === "bilingual"
+            ? s.step1.language
+            : (prefillTemplate.language as "en" | "ar"),
         templateId: prefillTemplate.id,
-      },
-      step3: {
-        bodyEn: s.step3.bodyEn ?? prefillTemplate.bodyEn,
-        bodyAr: s.step3.bodyAr ?? prefillTemplate.bodyAr,
       },
     }));
   }, [prefillTemplate, wantsPrefill, setState, state.step1.templateId]);
+
+  // In-wizard template selection — when the drafter picks a template (via
+  // tile grid or ?template_id= deep link), fetch the full template detail
+  // (placeholder catalog + body_en/ar) and seed Step 3 sections by parsing
+  // the template body into preamble / clause / signature blocks.
+  const activeTemplateId = state.step1.templateId ?? null;
+  const { data: activeTemplate } = useQuery({
+    queryKey: ["compose-active-template", activeTemplateId],
+    queryFn: () => templatesService.getById(activeTemplateId!),
+    enabled: activeTemplateId != null,
+    staleTime: 5 * 60_000,
+  });
+
+  // Default-clause ids associated with the active template via mig 506
+  // (contract_template_clause). Drives the "In template" badge in the
+  // Step 3 clause library so the drafter sees which library clauses are
+  // already covered by the chosen template — even though those library
+  // clauses don't get auto-inserted (the template body already includes
+  // equivalent text). Drafter can still scroll the library to find
+  // genuinely additional clauses to insert.
+  const { data: templateDefaultClauses } = useQuery({
+    queryKey: ["compose-active-template-defaults", activeTemplateId],
+    queryFn: () => templatesService.defaultClauses(activeTemplateId!),
+    enabled: activeTemplateId != null,
+    staleTime: 5 * 60_000,
+  });
+  const inTemplateClauseIds = useMemo(
+    () => new Set((templateDefaultClauses?.data ?? []).map((d) => d.clauseId)),
+    [templateDefaultClauses],
+  );
+
+  const lastSeededTemplateRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (activeTemplateId == null) {
+      // Switched back to "Start from blank" — clear any previously parsed
+      // template-sourced sections so Step 3 doesn't preserve stale content.
+      if (lastSeededTemplateRef.current !== null) {
+        lastSeededTemplateRef.current = null;
+        setState((s) => ({
+          ...s,
+          step2: { ...s.step2, placeholderValues: {} },
+          step3: {
+            ...s.step3,
+            sections: (s.step3.sections ?? []).filter((sec) => sec.source !== "template"),
+          },
+        }));
+      }
+      return;
+    }
+    if (!activeTemplate) return;
+    if (lastSeededTemplateRef.current === activeTemplateId) return;
+    lastSeededTemplateRef.current = activeTemplateId;
+    const parsedSections = parseTemplateBodyBilingual(
+      activeTemplate.bodyEn,
+      activeTemplate.bodyAr,
+    );
+    setState((s) => {
+      // Preserve any library-sourced sections (drafter-inserted) across
+      // template switches by appending them after the new template's clauses
+      // but before its signature.
+      const librarySections = (s.step3.sections ?? []).filter((sec) => sec.source === "library");
+      const sigIdx = parsedSections.findIndex((sec) => sec.kind === "signature");
+      const merged =
+        sigIdx === -1
+          ? [...parsedSections, ...librarySections]
+          : [
+              ...parsedSections.slice(0, sigIdx),
+              ...librarySections,
+              ...parsedSections.slice(sigIdx),
+            ];
+      return {
+        ...s,
+        step1: {
+          ...s.step1,
+          language:
+            activeTemplate.language === "bilingual"
+              ? s.step1.language
+              : (activeTemplate.language as "en" | "ar"),
+        },
+        step2: { ...s.step2, placeholderValues: {} },
+        step3: { ...s.step3, sections: merged },
+      };
+    });
+  }, [activeTemplateId, activeTemplate, setState]);
 
   const { submit, retryStep2, isSubmitting, phase, error: submitError } = useComposeSubmit();
 
@@ -173,17 +263,30 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
   // Per-step validity — used to disable "Next" until the current step is
   // valid. Re-evaluates on every render against the canonical schema; this
   // keeps the wizard parent independent of the step components' RHF state.
+  //
+  // Compose-revamp 2026-06-03: Step 2 additionally requires that every
+  // template placeholder marked `required` has a non-empty value typed.
+  const placeholdersOk = useMemo(() => {
+    const required = (activeTemplate?.placeholders ?? []).filter((p) => p.required);
+    if (required.length === 0) return true;
+    const vals = state.step2.placeholderValues ?? {};
+    return required.every((p) => {
+      const v = vals[p.key];
+      return typeof v === "string" && v.trim().length > 0;
+    });
+  }, [activeTemplate, state.step2.placeholderValues]);
+
   const stepValidity = useMemo(() => {
     const v1 = composeStep1Schema.safeParse(state.step1);
     const v2 = composeStep2Schema.safeParse(state.step2);
     const v3 = composeStep3Schema.safeParse(state.step3);
     return {
       1: v1.success,
-      2: v2.success,
+      2: v2.success && placeholdersOk,
       3: v3.success,
-      5: v1.success && v2.success && v3.success,
+      5: v1.success && v2.success && v3.success && placeholdersOk,
     } as Record<ComposeWizardStep, boolean>;
-  }, [state.step1, state.step2, state.step3]);
+  }, [state.step1, state.step2, state.step3, placeholdersOk]);
 
   // Step 1 / 2 / 3 onChange handlers are stable per step — they update the
   // matching slice and leave the rest untouched. We deliberately don't
@@ -383,12 +486,28 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
           <Step1Type value={state.step1} onChange={updateStep1} disabled={isSubmitting} />
         )}
         {currentStep === 2 && (
-          <Step2Parties value={state.step2} onChange={updateStep2} disabled={isSubmitting} />
+          <Step2Parties
+            value={state.step2}
+            onChange={updateStep2}
+            disabled={isSubmitting}
+            templatePlaceholders={activeTemplate?.placeholders ?? []}
+            ourPartyName={state.step1.ourPartyName ?? null}
+            counterpartyName={state.step1.counterpartyName ?? null}
+          />
         )}
         {currentStep === 3 && (
-          <Step3Terms value={state.step3} onChange={updateStep3} disabled={isSubmitting} />
+          <Step3Terms
+            value={state.step3}
+            onChange={updateStep3}
+            disabled={isSubmitting}
+            placeholderValues={state.step2.placeholderValues ?? {}}
+            contractLanguage={state.step1.language}
+            inTemplateClauseIds={inTemplateClauseIds}
+          />
         )}
-        {currentStep === 5 && <Step5Review state={state} />}
+        {currentStep === 5 && (
+          <Step5Review state={state} placeholderValues={state.step2.placeholderValues ?? {}} />
+        )}
       </div>
 
       {/* Inline error + retry (AC-S1-08) */}

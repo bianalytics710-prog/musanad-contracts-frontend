@@ -19,6 +19,14 @@ import { AlertTriangle, ArrowLeft, CheckCircle2, Send, Trash2 } from 'lucide-rea
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { advisoryDraftsService } from '@/services/api/advisory-drafts.service';
 import { AdvisoryDraftPreview } from '@/components/advisory/AdvisoryDraftPreview';
@@ -73,7 +81,14 @@ function LegalAdvisoryDraftDetailView() {
         recipients: [{ email: recipientEmail, name: recipientName }],
       }),
     onSuccess: () => {
-      toast.success(t('legal.advisoryQueue.toast.dispatched'));
+      // Single visible alert per the design feedback — just the toast with
+      // the recipient's name so the user knows what was sent and to whom.
+      toast.success(
+        t('legal.advisoryQueue.toast.dispatchedToRecipient', {
+          recipient: recipientName,
+          defaultValue: `Email sent to ${recipientName}`,
+        }),
+      );
       void qc.invalidateQueries({ queryKey: ['advisoryDrafts'] });
       setShowDispatchConfirm(false);
       setRecipientEmail('');
@@ -83,6 +98,22 @@ function LegalAdvisoryDraftDetailView() {
       toast.error(translateApiError(err, t, 'legal.advisoryQueue.errors.dispatchFailed'));
     },
   });
+
+  /** Opens the Dispatch dialog with the recipient fields pre-filled from the
+   *  draft's counterparty. Falls back to a synthetic demo address when the
+   *  party has no contact_email so the user can still send a test message. */
+  const handleOpenDispatchDialog = () => {
+    const name = draft?.counterpartyName ?? '';
+    const explicitEmail = draft?.counterpartyEmail ?? null;
+    const slug = String(name)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '')
+      .slice(0, 24) || 'counterparty';
+    const fallbackEmail = `contracts@${slug}.example.com`;
+    setRecipientName(String(name));
+    setRecipientEmail(explicitEmail ?? fallbackEmail);
+    setShowDispatchConfirm(true);
+  };
 
   if (!canReview) {
     return (
@@ -206,12 +237,12 @@ function LegalAdvisoryDraftDetailView() {
                 </Button>
               )}
 
-              {/* Dispatch — only after approved */}
+              {/* Dispatch — only after approved. Opens a pre-filled popup. */}
               {canDoDispatch && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setShowDispatchConfirm(true)}
+                  onClick={handleOpenDispatchDialog}
                 >
                   <Send className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                   {t('legal.advisoryQueue.actions.dispatch')}
@@ -220,52 +251,78 @@ function LegalAdvisoryDraftDetailView() {
             </div>
           </div>
 
-          {/* Draft preview */}
+          {/* Sectioned draft — the preview now carries Why / What / Clauses /
+              Risk / Next steps / Trail in one structured surface. No more
+              sidebar duplication. */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <AdvisoryDraftPreview draft={draft} />
           </div>
 
-          {/* Dispatch confirmation inline panel */}
-          {showDispatchConfirm && (
-            <div
-              className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4"
-              role="region"
-              aria-label={t('legal.advisoryQueue.dispatchPanel.title')}
-            >
-              <h2 className="text-base font-semibold text-ink">
-                {t('legal.advisoryQueue.dispatchPanel.title')}
-              </h2>
-              <p className="text-sm text-ink-muted">
-                {t('legal.advisoryQueue.dispatchPanel.description')}
-              </p>
+          {/* Dispatch popup — shadcn Dialog with semantic design-system tokens.
+              Recipient is auto-filled from the draft's counterparty so the
+              user typically just clicks Send. */}
+          <Dialog
+            open={showDispatchConfirm}
+            onOpenChange={(open) => {
+              if (!open && !dispatchMutation.isPending) setShowDispatchConfirm(false);
+            }}
+          >
+            <DialogContent className="sm:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Send className="h-5 w-5 text-gold" aria-hidden="true" />
+                  {t('legal.advisoryQueue.dispatchPanel.title', {
+                    defaultValue: 'Send advisory to counterparty',
+                  })}
+                </DialogTitle>
+                <DialogDescription>
+                  {t('legal.advisoryQueue.dispatchPanel.description', {
+                    defaultValue:
+                      'Recipient pre-filled from the contract counterparty. Edit if you need to and click Send.',
+                  })}
+                </DialogDescription>
+              </DialogHeader>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="dispatch-recipient-email" className="mb-1 block text-sm font-medium text-ink">
-                    {t('legal.advisoryQueue.dispatchPanel.emailLabel')}
-                  </label>
-                  <Input
-                    id="dispatch-recipient-email"
-                    type="email"
-                    value={recipientEmail}
-                    onChange={(e) => setRecipientEmail(e.target.value)}
-                    placeholder={t('legal.advisoryQueue.dispatchPanel.emailPlaceholder')}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="dispatch-recipient-name" className="mb-1 block text-sm font-medium text-ink">
-                    {t('legal.advisoryQueue.dispatchPanel.nameLabel')}
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="dispatch-recipient-name"
+                    className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+                  >
+                    {t('legal.advisoryQueue.dispatchPanel.nameLabel', {
+                      defaultValue: 'Recipient name',
+                    })}
                   </label>
                   <Input
                     id="dispatch-recipient-name"
                     type="text"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
-                    placeholder={t('legal.advisoryQueue.dispatchPanel.namePlaceholder')}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="dispatch-recipient-email"
+                    className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+                  >
+                    {t('legal.advisoryQueue.dispatchPanel.emailLabel', {
+                      defaultValue: 'Recipient email',
+                    })}
+                  </label>
+                  <Input
+                    id="dispatch-recipient-email"
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    autoComplete="off"
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+
+              <DialogFooter>
                 <Button
+                  type="button"
                   variant="ghost"
                   onClick={() => setShowDispatchConfirm(false)}
                   disabled={dispatchMutation.isPending}
@@ -273,18 +330,18 @@ function LegalAdvisoryDraftDetailView() {
                   {t('common.cancel')}
                 </Button>
                 <Button
+                  type="button"
                   onClick={() => dispatchMutation.mutate()}
-                  disabled={
-                    !recipientEmail || !recipientName || dispatchMutation.isPending
-                  }
+                  disabled={!recipientEmail || !recipientName || dispatchMutation.isPending}
                 >
+                  <Send className="h-3.5 w-3.5" />
                   {dispatchMutation.isPending
-                    ? t('common.saving')
-                    : t('legal.advisoryQueue.dispatchPanel.confirm')}
+                    ? t('common.saving', { defaultValue: 'Sending…' })
+                    : t('legal.advisoryQueue.dispatchPanel.send', { defaultValue: 'Send' })}
                 </Button>
-              </div>
-            </div>
-          )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Dialogs */}
           {showModify && (
@@ -304,8 +361,10 @@ function LegalAdvisoryDraftDetailView() {
               onSuccess={() => setShowReject(false)}
             />
           )}
+
         </>
       )}
     </motion.div>
   );
 }
+

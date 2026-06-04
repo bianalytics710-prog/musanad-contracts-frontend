@@ -19,7 +19,7 @@
  * T12 — formatDateTime for timestamps
  * T13 — contributingCorrelations never in logs or error messages
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   LineChart,
@@ -31,36 +31,49 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { ChevronDown, ChevronUp, AlertTriangle, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, TrendingUp, Sparkles, Info } from 'lucide-react';
 import { useContractRiskScore, useContractRiskScoreHistory } from '../hooks/useRiskScore';
 import { formatDateTime } from '@/utils/datetime';
 import { cn } from '@/lib/utils';
 import type {
   HydratedContributingCorrelation,
+  RiskScoreAddend,
   RiskScoreHistorySnapshot,
 } from '@/types/entities/risk-score.types';
+
+/**
+ * Picks the human-readable label for a correlation. Mig 528 added ruleName
+ * via JOIN to correlation_rule; fall back to signal title, then ruleId.
+ */
+function correlationLabel(corr: HydratedContributingCorrelation): string {
+  return corr.ruleName ?? corr.signal?.titleEn ?? corr.ruleId;
+}
 
 interface ContractRiskTabProps {
   contractId: number;
 }
 
-// ─── Health score color band ───────────────────────────────────────────────
-// W7 fix: when score is 0 with no contributing correlations, the contract is
-// effectively unscored (bootstrap baseline; no signals fired yet). Surfacing
-// "High risk" in red would mislead — show "Insufficient data" in muted neutral
-// instead. Real high-risk states still surface terracotta below score 20.
+// ─── Risk score color band ─────────────────────────────────────────────────
+// E-rev-8 fix: this metric is consumed as a RISK score everywhere else
+// (dashboard "High-risk contracts" list orders DESC by it; ContractInfoCards
+// labels >=60 as "high"). Previously this tab treated it as a HEALTH score
+// (higher = healthier → "low risk") producing a contradictory label vs the
+// dashboard. Aligned thresholds: <30 low, 30–60 medium, >=60 high.
+// When score is 0 with no contributing correlations, the contract is
+// effectively unscored (bootstrap baseline; no signals fired yet) — surface
+// "Insufficient data" in muted neutral instead of "low risk".
 
 function healthScoreColor(score: number, hasContributors = true): string {
   if (!hasContributors && score === 0) return 'var(--ink-subtle)';
-  if (score >= 80) return 'var(--sage)';
-  if (score >= 50) return 'var(--gold)';
+  if (score < 30) return 'var(--sage)';
+  if (score < 60) return 'var(--gold)';
   return 'var(--terracotta)';
 }
 
 function healthScoreLabel(score: number, t: (key: string) => string, hasContributors = true): string {
   if (!hasContributors && score === 0) return t('risk.score.gauge.insufficient');
-  if (score >= 80) return t('risk.score.gauge.low');
-  if (score >= 50) return t('risk.score.gauge.medium');
+  if (score < 30) return t('risk.score.gauge.low');
+  if (score < 60) return t('risk.score.gauge.medium');
   return t('risk.score.gauge.high');
 }
 
@@ -129,20 +142,29 @@ export function ContractRiskTab({ contractId }: ContractRiskTabProps) {
     <div className="space-y-5">
       {/* Row 1 — Gauge + 5-dim breakdown */}
       <div className="grid gap-4 lg:grid-cols-[auto_1fr]">
-        <HealthScoreGauge score={data.healthScore} hasContributors={(data.contributingCorrelations?.length ?? 0) > 0} />
-        <FiveDimBreakdownBars dimensions={data.dimensions} />
+        <HealthScoreGauge
+          score={data.healthScore}
+          hasContributors={(data.contributingCorrelations?.length ?? 0) > 0}
+          addends={data.addends ?? []}
+          bucketSubtotals={data.bucketSubtotals ?? {}}
+          band={data.band}
+        />
+        <FiveDimBreakdownBars
+          dimensions={data.dimensions}
+          addends={data.addends ?? []}
+        />
       </div>
+
+      {/* Row 1.5 — Narrative banner (mig 528). Plain-English one-liner
+          explaining why this score is where it is. Always shown when present. */}
+      {data.narrative && (
+        <NarrativeBanner narrative={data.narrative} />
+      )}
 
       {/* Row 2 — What-if panel */}
       {data.contributingCorrelations.length > 0 && (
         <WhatIfPanel correlations={data.contributingCorrelations} baseScore={data.healthScore} />
       )}
-
-      {/* Row 3 — MaR per correlation list */}
-      <MarPerCorrelationList
-        correlations={data.contributingCorrelations}
-        marValue={data.marValue}
-      />
 
       {/* Row 4 — Score history chart */}
       <section className="rounded-lg border border-border bg-card p-4">
@@ -199,10 +221,38 @@ export function ContractRiskTab({ contractId }: ContractRiskTabProps) {
   );
 }
 
+// ─── NarrativeBanner — plain-English one-liner from BE (mig 528) ───────────
+function NarrativeBanner({ narrative }: { narrative: string }) {
+  const { t } = useTranslation();
+  return (
+    <section
+      className="flex items-start gap-3 rounded-lg border border-gold/30 bg-gold/5 p-4"
+      role="region"
+      aria-label={t('risk.score.narrative.ariaLabel', { defaultValue: 'Risk score summary' })}
+    >
+      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden />
+      <p className="text-sm leading-relaxed text-ink">{narrative}</p>
+    </section>
+  );
+}
+
 // ─── HealthScoreGauge ──────────────────────────────────────────────────────
 
-function HealthScoreGauge({ score, hasContributors = true }: { score: number; hasContributors?: boolean }) {
+function HealthScoreGauge({
+  score,
+  hasContributors = true,
+  addends = [],
+  bucketSubtotals = {},
+  band,
+}: {
+  score: number;
+  hasContributors?: boolean;
+  addends?: RiskScoreAddend[];
+  bucketSubtotals?: Record<string, number>;
+  band?: string;
+}) {
   const { t } = useTranslation();
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const color = healthScoreColor(score, hasContributors);
   const riskLabel = healthScoreLabel(score, t, hasContributors);
 
@@ -230,51 +280,145 @@ function HealthScoreGauge({ score, hasContributors = true }: { score: number; ha
   const trackLargeArc = totalDeg > 180 ? 1 : 0;
 
   return (
-    <div className="flex flex-col items-center rounded-lg border border-border bg-card p-4">
-      <svg
-        width="144"
-        height="120"
-        role="img"
-        aria-label={t('risk.score.gauge.ariaLabel', { score, risk: riskLabel })}
+    <div
+      className="relative flex flex-col items-center rounded-lg border border-border bg-card p-4"
+      onPointerEnter={() => setShowBreakdown(true)}
+      onPointerLeave={() => setShowBreakdown(false)}
+    >
+      <button
+        type="button"
+        className="group flex flex-col items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-md"
+        aria-expanded={showBreakdown}
+        aria-controls="risk-score-breakdown"
+        onFocus={() => setShowBreakdown(true)}
+        onBlur={() => setShowBreakdown(false)}
       >
-        {/* Track arc */}
-        <path
-          d={`M ${trackStart.x} ${trackStart.y} A ${radius} ${radius} 0 ${trackLargeArc} 1 ${trackEnd.x} ${trackEnd.y}`}
-          fill="none"
-          stroke="var(--border)"
-          strokeWidth="10"
-          strokeLinecap="round"
-        />
-        {/* Score arc */}
-        {score > 0 && (
+        <svg
+          width="144"
+          height="120"
+          role="img"
+          aria-label={t('risk.score.gauge.ariaLabel', { score, risk: riskLabel })}
+        >
+          {/* Track arc */}
           <path
-            d={`M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`}
+            d={`M ${trackStart.x} ${trackStart.y} A ${radius} ${radius} 0 ${trackLargeArc} 1 ${trackEnd.x} ${trackEnd.y}`}
             fill="none"
-            stroke={color}
+            stroke="var(--border)"
             strokeWidth="10"
             strokeLinecap="round"
           />
-        )}
-        {/* Score number */}
-        <text
-          x={cx}
-          y={cy + 8}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize="28"
-          fontWeight="600"
-          fontFamily="monospace"
-          fill="currentColor"
-        >
-          {score}
-        </text>
-      </svg>
-      <p className="mt-1 text-xs font-semibold" style={{ color }}>
-        {riskLabel}
-      </p>
-      <p className="text-[10px] uppercase tracking-widest text-ink-subtle">
-        {t('risk.score.gauge.subtitle')}
-      </p>
+          {/* Score arc */}
+          {score > 0 && (
+            <path
+              d={`M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`}
+              fill="none"
+              stroke={color}
+              strokeWidth="10"
+              strokeLinecap="round"
+            />
+          )}
+          {/* Score number */}
+          <text
+            x={cx}
+            y={cy + 8}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="28"
+            fontWeight="600"
+            fontFamily="monospace"
+            fill="currentColor"
+          >
+            {score}
+          </text>
+        </svg>
+        <p className="mt-1 text-xs font-semibold" style={{ color }}>
+          {band ? `${band} risk` : riskLabel}
+        </p>
+        <p className="text-[10px] uppercase tracking-widest text-ink-subtle">
+          {t('risk.score.gauge.subtitle')}
+        </p>
+        <p className="mt-1 inline-flex items-center gap-1 text-[10px] text-ink-subtle">
+          <Info className="h-3 w-3" aria-hidden />
+          {t('risk.score.gauge.hoverHint', { defaultValue: 'Hover for breakdown' })}
+        </p>
+      </button>
+
+      {/* Hover/focus breakdown popover */}
+      {showBreakdown && addends.length > 0 && (
+        <ScoreBreakdownCard
+          id="risk-score-breakdown"
+          score={score}
+          addends={addends}
+          bucketSubtotals={bucketSubtotals}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── ScoreBreakdownCard — the hover popover with the actual addends ──────
+function ScoreBreakdownCard({
+  id,
+  score,
+  addends,
+  bucketSubtotals,
+}: {
+  id: string;
+  score: number;
+  addends: RiskScoreAddend[];
+  bucketSubtotals: Record<string, number>;
+}) {
+  const { t } = useTranslation();
+  const total =
+    (bucketSubtotals.A ?? 0) +
+    (bucketSubtotals.B ?? 0) +
+    (bucketSubtotals.C ?? 0) +
+    (bucketSubtotals.D ?? 0) +
+    (bucketSubtotals.E ?? 0);
+  return (
+    <div
+      id={id}
+      role="dialog"
+      aria-label={t('risk.score.gauge.breakdownAriaLabel', { defaultValue: 'Risk score calculation' })}
+      className="absolute left-full top-0 z-20 ms-3 w-[340px] rounded-lg border border-border bg-card shadow-lg p-3"
+    >
+      <header className="mb-2 flex items-center justify-between gap-2">
+        <h4 className="text-xs font-semibold text-ink">
+          {t('risk.score.gauge.breakdownTitle', { defaultValue: 'How this score is calculated' })}
+        </h4>
+        <span className="font-mono text-[11px] text-ink-subtle">
+          {t('risk.score.gauge.totalLine', { defaultValue: 'Total {{score}}/100', score })}
+        </span>
+      </header>
+      <ul className="space-y-1.5">
+        {addends.map((a, i) => (
+          <li key={i} className="flex flex-col gap-0.5 rounded-md bg-surface/60 p-2 text-[11px]">
+            <div className="flex items-start justify-between gap-2">
+              <span className="flex-1 font-medium text-ink">
+                <span className="me-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-gold/20 text-[9px] font-bold text-gold">
+                  {a.bucket}
+                </span>
+                {a.label}
+              </span>
+              <span className="shrink-0 font-mono font-semibold text-ink">+{a.points}</span>
+            </div>
+            <span className="ms-5 text-[10px] text-ink-muted">{a.detail}</span>
+          </li>
+        ))}
+      </ul>
+      <footer className="mt-2 flex items-center justify-between border-t border-border pt-2 text-[11px]">
+        <span className="font-medium text-ink-muted">
+          {t('risk.score.gauge.sumLine', { defaultValue: 'Sum of addends' })}
+        </span>
+        <span className="font-mono font-semibold text-ink">{total} → {score}/100</span>
+      </footer>
+      {total !== score && (
+        <p className="mt-1 text-[10px] text-ink-subtle">
+          {t('risk.score.gauge.clampNote', {
+            defaultValue: 'Clamped to 0..100',
+          })}
+        </p>
+      )}
     </div>
   );
 }
@@ -284,50 +428,102 @@ function HealthScoreGauge({ score, hasContributors = true }: { score: number; ha
 const DIM_KEYS = ['legal', 'financial', 'operational', 'reputational', 'compliance'] as const;
 type DimKey = typeof DIM_KEYS[number];
 
+/**
+ * Mig 529 — each dim is a rebucketing of one or more of the gauge addend
+ * buckets (A..E). When the user expands a dim, we surface the addends from
+ * the source bucket(s) so the bar is no longer an opaque number.
+ *
+ * Mapping mirrors fn_risk_score_compute's per-dim aggregation:
+ *   legal        ← bucket D (sector complexity)
+ *   financial    ← bucket B (value tier)
+ *   operational  ← buckets C (duration) + E (clauses)
+ *   reputational ← bucket A (signals, capped — dim shows half)
+ *   compliance   ← bucket A (signals, capped — dim shows full)
+ */
+const DIM_TO_BUCKETS: Record<DimKey, string[]> = {
+  legal:        ['D'],
+  financial:    ['B'],
+  operational:  ['C', 'E'],
+  reputational: ['A'],
+  compliance:   ['A'],
+};
+
 function FiveDimBreakdownBars({
   dimensions,
+  addends = [],
 }: {
   dimensions: {
-    legal?: { score: number } | null;
-    financial?: { score: number } | null;
-    operational?: { score: number } | null;
-    reputational?: { score: number } | null;
-    compliance?: { score: number } | null;
+    legal?:        { score: number; weight?: number | null; reasons?: string[] | null } | null;
+    financial?:    { score: number; weight?: number | null; reasons?: string[] | null } | null;
+    operational?:  { score: number; weight?: number | null; reasons?: string[] | null } | null;
+    reputational?: { score: number; weight?: number | null; reasons?: string[] | null } | null;
+    compliance?:   { score: number; weight?: number | null; reasons?: string[] | null } | null;
   } | null | undefined;
+  addends?: RiskScoreAddend[];
 }) {
   const { t } = useTranslation();
+  const [expandedDim, setExpandedDim] = useState<DimKey | null>(null);
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <h3 className="mb-3 text-sm font-semibold text-ink">
         {t('risk.score.dimBreakdown.title')}
       </h3>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {DIM_KEYS.map((dim) => {
           const score = dimensions?.[dim]?.score ?? 0;
+          const weight = dimensions?.[dim]?.weight ?? null;
+          const reasons = dimensions?.[dim]?.reasons ?? [];
           const barColor = healthScoreColor(score);
+          const isExpanded = expandedDim === dim;
           return (
-            <div key={dim}>
-              <div className="mb-1 flex justify-between text-xs">
-                <span className="text-ink-muted">{t(`risk.score.dim.${dim}`)}</span>
-                <span className="font-mono font-semibold text-ink">{score}</span>
-              </div>
-              <div
-                className="h-2 w-full overflow-hidden rounded-full bg-muted"
-                role="progressbar"
-                aria-valuenow={score}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={t('risk.score.dimBreakdown.barAriaLabel', {
-                  dim: t(`risk.score.dim.${dim}`),
-                  score,
-                })}
+            <div key={dim} className="rounded-md border border-transparent transition-colors hover:border-border">
+              <button
+                type="button"
+                onClick={() => setExpandedDim(isExpanded ? null : dim)}
+                className="block w-full px-2 py-1.5 text-start focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                aria-expanded={isExpanded}
+                aria-controls={`risk-dim-${dim}-detail`}
               >
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="inline-flex items-center gap-1 text-ink-muted">
+                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    {t(`risk.score.dim.${dim}`)}
+                    {typeof weight === 'number' && (
+                      <span className="ms-1 font-mono text-[10px] text-ink-subtle">
+                        · w {(weight * 100).toFixed(0)}%
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-mono font-semibold text-ink">{score}</span>
+                </div>
                 <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${score}%`, backgroundColor: barColor }}
-                />
-              </div>
+                  className="h-2 w-full overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuenow={score}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={t('risk.score.dimBreakdown.barAriaLabel', {
+                    dim: t(`risk.score.dim.${dim}`),
+                    score,
+                  })}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${score}%`, backgroundColor: barColor }}
+                  />
+                </div>
+              </button>
+              {isExpanded && (
+                <div id={`risk-dim-${dim}-detail`} className="mx-2 my-2 rounded-md border border-border bg-surface/40 p-3 text-xs">
+                  <DimensionDetail
+                    dim={dim}
+                    score={score}
+                    addends={addends}
+                    legacyReasons={reasons}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
@@ -336,16 +532,139 @@ function FiveDimBreakdownBars({
   );
 }
 
+// ─── DimensionDetail — addends that drove a particular dim ───────────────
+function DimensionDetail({
+  dim,
+  score,
+  addends,
+  legacyReasons,
+}: {
+  dim: DimKey;
+  score: number;
+  addends: RiskScoreAddend[];
+  legacyReasons: string[];
+}) {
+  const { t } = useTranslation();
+  const buckets = DIM_TO_BUCKETS[dim];
+  const matched = addends.filter((a) => buckets.includes(a.bucket));
+  const hasAddends = matched.length > 0;
+  const usesLegacy = !hasAddends && legacyReasons.length > 0;
+
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <p className="font-semibold text-ink">
+          {t('risk.score.dimBreakdown.detailTitle', { defaultValue: 'What drove this score' })}
+        </p>
+        <p className="font-mono text-[10px] text-ink-subtle">
+          {t('risk.score.dimBreakdown.derivedFrom', {
+            defaultValue: 'from bucket{{plural}} {{buckets}}',
+            buckets: buckets.join(' + '),
+            plural: buckets.length > 1 ? 's' : '',
+          })}
+        </p>
+      </div>
+
+      {hasAddends ? (
+        <>
+          <ul className="space-y-1.5">
+            {matched.map((a, i) => (
+              <li key={i} className="flex flex-col gap-0.5 rounded-md bg-card px-2 py-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="flex-1 font-medium text-ink">
+                    <span className="me-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-gold/20 text-[9px] font-bold text-gold">
+                      {a.bucket}
+                    </span>
+                    {a.label}
+                  </span>
+                  <span className="shrink-0 font-mono font-semibold text-ink">+{a.points}</span>
+                </div>
+                <span className="ms-5 text-[10px] text-ink-muted">{a.detail}</span>
+              </li>
+            ))}
+          </ul>
+          {dim === 'reputational' && (
+            <p className="mt-2 text-[10px] text-ink-subtle">
+              {t('risk.score.dimBreakdown.reputationalNote', {
+                defaultValue: 'Reputational shows half of bucket A (signal load).',
+              })}
+            </p>
+          )}
+          {dim === 'operational' && score === 0 && (
+            <p className="mt-2 text-[10px] text-ink-subtle">
+              {t('risk.score.dimBreakdown.operationalEmpty', {
+                defaultValue: 'No duration or clause-derived factors yet.',
+              })}
+            </p>
+          )}
+        </>
+      ) : usesLegacy ? (
+        <ul className="space-y-1.5">
+          {legacyReasons.map((line, i) => (
+            <li key={i} className="flex gap-2 text-ink">
+              <span aria-hidden className="text-ink-subtle">·</span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-ink-muted">
+          {t('risk.score.dimBreakdown.detailEmpty', {
+            defaultValue: 'No factors currently driving this dimension.',
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── WhatIfPanel ───────────────────────────────────────────────────────────
+
+/**
+ * Counterfactual delta — how many score points the contract would shed if
+ * this signal were resolved. The formula matches the existing client-side
+ * approximation; see "How is this calculated" tooltip for the breakdown.
+ */
+function correlationDelta(corr: HydratedContributingCorrelation): number {
+  const dims = corr.dimensionsAffected.length || 1;
+  return Math.round((corr.probability * corr.impactMultiplier) / (dims * 10));
+}
+
+interface WhatIfRow {
+  label: string;
+  members: HydratedContributingCorrelation[];
+  totalDelta: number;
+}
+
+/**
+ * Group correlations by ruleName so "Weather FM Eligible" firing 3 times
+ * collapses to one row. Each row's delta is the sum of member deltas.
+ */
+function groupCorrelations(correlations: HydratedContributingCorrelation[]): WhatIfRow[] {
+  const groups = new Map<string, WhatIfRow>();
+  for (const c of correlations) {
+    const label = correlationLabel(c);
+    const delta = correlationDelta(c);
+    const existing = groups.get(label);
+    if (existing) {
+      existing.members.push(c);
+      existing.totalDelta += delta;
+    } else {
+      groups.set(label, { label, members: [c], totalDelta: delta });
+    }
+  }
+  return Array.from(groups.values()).sort((a, b) => b.totalDelta - a.totalDelta);
+}
 
 function WhatIfPanel({
   correlations,
-  baseScore,
+  baseScore: _baseScore,
 }: {
   correlations: HydratedContributingCorrelation[];
   baseScore: number;
 }) {
   const { t } = useTranslation();
+  const rows = useMemo(() => groupCorrelations(correlations), [correlations]);
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
@@ -356,41 +675,9 @@ function WhatIfPanel({
         {t('risk.score.whatif.description')}
       </p>
       <div className="space-y-2">
-        {correlations.map((corr) => {
-          // Client-side counterfactual: estimate delta by removing this correlation's contribution
-          // approximation: reduce probability of each affected dimension proportionally
-          const affectedDimCount = corr.dimensionsAffected.length || 1;
-          const estimatedContribution = Math.round(
-            (corr.probability * corr.impactMultiplier) / (affectedDimCount * 10),
-          );
-          const deltaLabel = estimatedContribution > 0 ? `+${estimatedContribution}` : '0';
-
-          return (
-            <div
-              key={corr.correlationId}
-              className="flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-ink">{corr.ruleId}</p>
-                <p className="text-[10px] text-ink-subtle">
-                  {t('risk.score.whatif.probabilityLabel', {
-                    value: (corr.probability).toFixed(0),
-                  })}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  'shrink-0 rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold',
-                  estimatedContribution > 0
-                    ? 'bg-sage/15 text-sage'
-                    : 'bg-muted text-ink-muted',
-                )}
-              >
-                {t('risk.score.whatif.deltaLabel', { delta: deltaLabel })}
-              </span>
-            </div>
-          );
-        })}
+        {rows.map((row, i) => (
+          <WhatIfRowView key={i} row={row} />
+        ))}
       </div>
       <p className="mt-2 text-[10px] text-ink-subtle">
         {t('risk.score.whatif.disclaimer')}
@@ -399,201 +686,92 @@ function WhatIfPanel({
   );
 }
 
-// ─── MarPerCorrelationList ─────────────────────────────────────────────────
-
-function MarPerCorrelationList({
-  correlations,
-  marValue,
-}: {
-  correlations: HydratedContributingCorrelation[];
-  marValue: string | null;
-}) {
+function WhatIfRowView({ row }: { row: WhatIfRow }) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  if (correlations.length === 0) {
-    return (
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h3 className="mb-2 text-sm font-semibold text-ink">
-          {t('risk.mar.listTitle')}
-        </h3>
-        <p className="text-xs text-ink-muted">{t('risk.mar.noCorrelations')}</p>
-      </section>
-    );
-  }
-
-  const totalMarDisplay = marValue
-    ? `AED ${Number(marValue).toLocaleString('en-AE', { maximumFractionDigits: 0 })}`
-    : t('risk.mar.noContractValue');
+  const [showTooltip, setShowTooltip] = useState(false);
+  const deltaLabel = row.totalDelta > 0 ? `-${row.totalDelta}` : '0';
+  const memberCount = row.members.length;
 
   return (
-    <section className="rounded-lg border border-border bg-card p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-ink">{t('risk.mar.listTitle')}</h3>
-        <span className="font-mono text-xs text-ink-muted">
-          {t('risk.mar.totalLabel')}: <span className="font-semibold text-ink">{totalMarDisplay}</span>
+    <div className="relative flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
+      <p className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
+        {row.label}
+        {memberCount > 1 && (
+          <span className="ms-1 font-mono text-[10px] text-ink-muted">
+            ({memberCount}×)
+          </span>
+        )}
+      </p>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          onPointerEnter={() => setShowTooltip(true)}
+          onPointerLeave={() => setShowTooltip(false)}
+          onFocus={() => setShowTooltip(true)}
+          onBlur={() => setShowTooltip(false)}
+          aria-label={t('risk.score.whatif.tooltipAria', { defaultValue: 'How this delta is calculated' })}
+          className="rounded-full p-0.5 text-ink-subtle transition hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/60"
+        >
+          <Info className="h-3.5 w-3.5" aria-hidden />
+        </button>
+        <span
+          className={cn(
+            'rounded-full px-2 py-0.5 font-mono text-[11px] font-semibold',
+            row.totalDelta > 0 ? 'bg-sage/15 text-sage' : 'bg-muted text-ink-muted',
+          )}
+        >
+          {t('risk.score.whatif.deltaLabel', { delta: deltaLabel })}
         </span>
       </div>
-      <div className="space-y-2">
-        {correlations.map((corr) => {
-          const isOpen = expanded === corr.correlationId;
-          const marContrib = corr.marContribution
-            ? `AED ${Number(corr.marContribution).toLocaleString('en-AE', { maximumFractionDigits: 0 })}`
-            : t('risk.mar.noContractValue');
+      {showTooltip && <WhatIfTooltip row={row} />}
+    </div>
+  );
+}
 
-          const severityBand =
-            corr.impactMultiplier >= 1.5
-              ? 'critical'
-              : corr.impactMultiplier >= 1.3
-                ? 'high'
-                : 'medium';
-
+function WhatIfTooltip({ row }: { row: WhatIfRow }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      role="tooltip"
+      className="absolute right-0 top-full z-30 mt-1 w-[360px] rounded-lg border border-border bg-card p-3 shadow-lg"
+    >
+      <p className="mb-2 text-xs font-semibold text-ink">
+        {t('risk.score.whatif.tooltipTitle', { defaultValue: 'How this delta is calculated' })}
+      </p>
+      <p className="mb-2 text-[11px] text-ink-muted">
+        {t('risk.score.whatif.tooltipFormula', {
+          defaultValue: 'Per signal: round(probability × impact / (dims × 10)). Group total = sum across firings.',
+        })}
+      </p>
+      <ul className="space-y-1.5">
+        {row.members.map((c, i) => {
+          const dims = c.dimensionsAffected.length || 1;
+          const pts = correlationDelta(c);
           return (
-            <div
-              key={corr.correlationId}
-              className="rounded-md border border-border bg-card"
-            >
-              <button
-                type="button"
-                onClick={() => setExpanded(isOpen ? null : corr.correlationId)}
-                aria-expanded={isOpen}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <SeverityBadge severity={severityBand} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-ink">{corr.ruleId}</p>
-                    {corr.signal.titleEn && (
-                      <p className="truncate text-[10px] text-ink-muted">{corr.signal.titleEn}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="shrink-0 font-mono text-xs font-semibold text-ink">
-                    {marContrib}
-                  </span>
-                  {isOpen ? (
-                    <ChevronUp className="h-3.5 w-3.5 text-ink-muted" aria-hidden />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5 text-ink-muted" aria-hidden />
-                  )}
-                </div>
-              </button>
-
-              {isOpen && (
-                <div className="border-t border-border px-4 py-3">
-                  <ReasonCodeDetail correlation={corr} />
-                </div>
+            <li key={i} className="rounded-md bg-surface/60 p-2 text-[11px]">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-medium text-ink">
+                  {row.members.length > 1
+                    ? t('risk.score.whatif.firing', { defaultValue: 'Firing {{n}}', n: i + 1 })
+                    : t('risk.score.whatif.signal', { defaultValue: 'Signal' })}
+                </span>
+                <span className="font-mono text-ink-muted">-{pts} pts</span>
+              </div>
+              <p className="mt-0.5 text-[10px] text-ink-muted">
+                round({c.probability} × {c.impactMultiplier.toFixed(1)} / ({dims} × 10)) = {pts}
+              </p>
+              {c.severity && (
+                <p className="text-[10px] text-ink-subtle">
+                  {t('risk.score.whatif.severity', { defaultValue: 'Severity: {{sev}}', sev: c.severity })}
+                </p>
               )}
-            </div>
+            </li>
           );
         })}
-      </div>
-    </section>
-  );
-}
-
-function SeverityBadge({ severity }: { severity: 'critical' | 'high' | 'medium' }) {
-  const { t } = useTranslation();
-  const styles = {
-    critical: 'bg-terracotta/15 text-terracotta border-terracotta/30',
-    high: 'bg-gold/15 text-gold border-gold/30',
-    medium: 'bg-sage/15 text-sage border-sage/30',
-  };
-  return (
-    <span
-      className={cn(
-        'shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
-        styles[severity],
-      )}
-    >
-      {t(`risk.mar.severity.${severity}`)}
-    </span>
-  );
-}
-
-function ReasonCodeDetail({ correlation }: { correlation: HydratedContributingCorrelation }) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="space-y-2 text-xs">
-      {/* Rule trace */}
-      <div>
-        <span className="font-medium text-ink-muted">{t('risk.mar.detail.rule')}: </span>
-        <span className="text-ink">{correlation.ruleId}</span>
-        {correlation.ruleVersionHash && (
-          <span className="ms-1 font-mono text-[10px] text-ink-subtle">
-            @{correlation.ruleVersionHash.slice(0, 8)}
-          </span>
-        )}
-      </div>
-
-      {/* Match reason */}
-      {correlation.matchReason && (
-        <div>
-          <span className="font-medium text-ink-muted">{t('risk.mar.detail.matchReason')}: </span>
-          <span className="text-ink">{correlation.matchReason}</span>
-        </div>
-      )}
-
-      {/* Matched clause snippet — T13: snippet is display-safe (first 240 chars) */}
-      {correlation.matchedClause ? (
-        <div>
-          <span className="font-medium text-ink-muted">{t('risk.mar.detail.matchedClause')}: </span>
-          <span className="text-ink">
-            {correlation.matchedClause.clauseTypeV2 && (
-              <span className="me-1 font-semibold">[{correlation.matchedClause.clauseTypeV2}]</span>
-            )}
-            {correlation.matchedClause.snippet ?? t('risk.mar.detail.noSnippet')}
-          </span>
-        </div>
-      ) : (
-        <p className="text-ink-subtle">{t('risk.mar.detail.noMatchedClause')}</p>
-      )}
-
-      {/* MaR formula — W6 fix: surface all 4 factors per BRD §11.3 */}
-      <div className="rounded-md bg-muted/40 px-3 py-2">
-        <p className="mb-1 font-medium text-ink-muted">{t('risk.mar.detail.marFormula')}</p>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[10px] text-ink">
-          {correlation.contractValue != null && (
-            <>
-              <span>{t('risk.mar.detail.contractValue')}</span>
-              <span className="text-end">
-                AED {Number(correlation.contractValue).toLocaleString('en-AE', { maximumFractionDigits: 0 })}
-              </span>
-            </>
-          )}
-          {correlation.exposureFraction != null && (
-            <>
-              <span>{t('risk.mar.detail.exposureFraction')}</span>
-              <span className="text-end">×{Number(correlation.exposureFraction).toFixed(2)}</span>
-            </>
-          )}
-          <span>{t('risk.mar.detail.probability')}</span>
-          <span className="text-end">{(correlation.probability).toFixed(0)}%</span>
-          <span>{t('risk.mar.detail.impactMultiplier')}</span>
-          <span className="text-end">×{correlation.impactMultiplier.toFixed(1)}</span>
-          <span className="font-semibold">{t('risk.mar.detail.contribution')}</span>
-          <span className="text-end font-semibold">
-            {correlation.marContribution
-              ? `AED ${Number(correlation.marContribution).toLocaleString('en-AE', { maximumFractionDigits: 0 })}`
-              : '—'}
-          </span>
-        </div>
-      </div>
-
-      {/* Signal info */}
-      <div>
-        <span className="font-medium text-ink-muted">{t('risk.mar.detail.signal')}: </span>
-        <span className="text-ink">
-          {correlation.signal.titleEn ?? t('risk.mar.detail.unknownSignal')}
-        </span>
-        {correlation.signal.occurredAt && (
-          <span className="ms-1 text-ink-subtle">
-            ({formatDateTime(correlation.signal.occurredAt)})
-          </span>
-        )}
-      </div>
+      </ul>
+      <p className="mt-2 border-t border-border pt-2 text-right font-mono text-[11px] font-semibold text-ink">
+        {t('risk.score.whatif.tooltipTotal', { defaultValue: 'Total: -{{n}} pts', n: row.totalDelta })}
+      </p>
     </div>
   );
 }

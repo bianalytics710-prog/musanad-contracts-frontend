@@ -74,6 +74,8 @@ export interface ReportTemplateUserListItem {
   reportKind: ReportKind;
   parameterSchema: ReportParameterSchema;
   assignedRoles: string[];
+  /** FE Reports library groups cards under section headers. NULL = ungrouped. */
+  sectionKey: string | null;
   lastRunAt: string | null;
 }
 
@@ -155,7 +157,15 @@ export interface TriggerReportRunDto {
 
 export interface TriggerReportRunResponse {
   runId: number;
-  status: 'pending';
+  // After the sync-render refactor the response is 'complete' (or 'failed').
+  // 'pending' is kept for backward-compatibility with any legacy callers.
+  status: 'complete' | 'failed' | 'pending';
+  format?: ReportRunFormat;
+  outputSizeBytes?: number | null;
+  signedUrl?: string | null;
+  signedUrlExpiresAt?: string | null;
+  fileName?: string;
+  error?: string;
 }
 
 export interface ReportRunDetail {

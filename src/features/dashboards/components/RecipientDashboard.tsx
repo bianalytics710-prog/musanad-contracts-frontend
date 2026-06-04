@@ -25,6 +25,8 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, PenLine, Clock } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { signatureService } from "@/services/api/signature.service";
 import { useRecipientDashboard } from "../hooks/useDashboards";
 import {
   DashboardEmptyState,
@@ -129,44 +131,12 @@ export function RecipientDashboard() {
       ) : (
         <>
           {topPendingSig && (
-            <Link
-              to="/app/contracts/$id"
-              params={{ id: String(topPendingSig.contractId) }}
-              className="relative block overflow-hidden rounded-xl border border-gold bg-gold/10 p-5 transition-colors hover:bg-gold/20"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="font-mono text-xs uppercase tracking-wider text-gold">
-                    {t("dashboards.recipient.hero.kicker", {
-                      defaultValue: "Awaiting your signature",
-                    })}
-                  </div>
-                  <div className="mt-1 text-lg font-semibold leading-tight text-ink md:text-xl">
-                    {topPendingSig.contractNumber}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
-                      <Clock className="h-3 w-3" />
-                      {t("dashboards.recipient.lists.invitationSent")}:{" "}
-                      {formatDateTime(topPendingSig.sentAt)}
-                    </span>
-                    {topPendingSig.expiresAt && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-tint/30 px-2 py-0.5 font-mono text-amber-ink">
-                        {t("dashboards.recipient.lists.invitationExpires")}:{" "}
-                        {formatDateTime(topPendingSig.expiresAt)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-card">
-                    <PenLine className="h-4 w-4" />
-                    {t("dashboards.recipient.hero.signCta", {
-                      defaultValue: "Review and sign",
-                    })}
-                    <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-                  </div>
-                </div>
-              </div>
-            </Link>
+            <RecipientSignHero
+              contractId={topPendingSig.contractId}
+              contractNumber={topPendingSig.contractNumber}
+              sentAt={topPendingSig.sentAt}
+              expiresAt={topPendingSig.expiresAt}
+            />
           )}
 
           {/* R-RC3 — KPI rationalisation. Recipients are external counterparty
@@ -343,6 +313,86 @@ function PendingSignaturesList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Hero CTA for the recipient's top pending signature. Clicking mints a fresh
+ * /sign/{token} URL via fn_signature_invitation_resolve_for_self and opens it
+ * in a new tab so the audience sees the external (no-chrome) signing surface
+ * rather than the internal contract detail page.
+ */
+function RecipientSignHero({
+  contractId,
+  contractNumber,
+  sentAt,
+  expiresAt,
+}: {
+  contractId: number;
+  contractNumber: string;
+  sentAt: string;
+  expiresAt: string | null;
+}) {
+  const { t } = useTranslation();
+  const mint = useMutation({
+    mutationFn: () => signatureService.resolveSigningLinkForSelf(contractId),
+    onSuccess: (result) => {
+      const url = `/sign/${result.invitationTokenPlaintext}`;
+      window.open(url, "_blank", "noopener");
+    },
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => mint.mutate()}
+      disabled={mint.isPending}
+      className="relative block w-full overflow-hidden rounded-xl border border-gold bg-gold/10 p-5 text-start transition-colors hover:bg-gold/20 disabled:cursor-not-allowed disabled:opacity-70"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <div className="font-mono text-xs uppercase tracking-wider text-gold">
+            {t("dashboards.recipient.hero.kicker", {
+              defaultValue: "Awaiting your signature",
+            })}
+          </div>
+          <div className="mt-1 text-lg font-semibold leading-tight text-ink md:text-xl">
+            {contractNumber}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+            <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
+              <Clock className="h-3 w-3" />
+              {t("dashboards.recipient.lists.invitationSent")}:{" "}
+              {formatDateTime(sentAt)}
+            </span>
+            {expiresAt && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-tint/30 px-2 py-0.5 font-mono text-amber-ink">
+                {t("dashboards.recipient.lists.invitationExpires")}:{" "}
+                {formatDateTime(expiresAt)}
+              </span>
+            )}
+          </div>
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-card">
+            <PenLine className="h-4 w-4" />
+            {mint.isPending
+              ? t("dashboards.recipient.hero.signCtaMinting", {
+                  defaultValue: "Preparing signing link…",
+                })
+              : t("dashboards.recipient.hero.signCta", {
+                  defaultValue: "Review and sign",
+                })}
+            <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+          </div>
+          {mint.isError && (
+            <p className="mt-2 text-[11px] text-destructive">
+              {t("dashboards.recipient.hero.signCtaError", {
+                defaultValue: "Couldn't mint a signing link. Try again or open the contract directly.",
+              })}
+            </p>
+          )}
+        </div>
+      </div>
+    </button>
   );
 }
 

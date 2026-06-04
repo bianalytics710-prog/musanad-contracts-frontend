@@ -1,5 +1,15 @@
+/**
+ * /app/obligations — Obligations tracker, rebuilt to match the design system
+ * locked in for Contracts / Parties / Clauses:
+ *   - kicker + H1
+ *   - 4-KPI strip
+ *   - single filter row (search · direction · type · status chips · count)
+ *   - 3 views via tab subnav (List table / Calendar / Reports)
+ *
+ * Recipient persona still blocked at the route level.
+ */
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
@@ -9,30 +19,27 @@ import {
   Clock,
   Zap,
   AlertTriangle,
-  ArrowDownToLine,
-  ArrowUpFromLine,
   CalendarDays,
   BarChart3,
   ListChecks,
+  Plus,
+  Search,
+  Flag,
 } from "lucide-react";
 import { obligationsService, type ObligationListItem } from "@/services/api/m_parity.service";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useAuthStore, selectHasPermission, readPersistedAuthSnapshot } from "@/store/auth.store";
 import { CreateObligationDialog } from "@/features/m_parity/components/CreateEntityDialogs";
+import { FlagObligationDialog } from "@/features/obligations/components/FlagObligationDialog";
 import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 
 export const Route = createFileRoute("/app/obligations")({
   beforeLoad: () => {
-    // R-RC0 — recipients see only their own contracts; obligations is hidden
-    // from the sidebar AND blocked at the route level so a deep-link redirects
-    // to the recipient dashboard rather than briefly flash-rendering the page.
-    // Reads localStorage directly to avoid the Zustand persist-rehydration
-    // microtask race on cold page loads (see auth.store.ts for details).
-    // SSR-safe: skip when no window (TanStack Start runs beforeLoad on server too).
     if (typeof window === "undefined") return;
     const snap = readPersistedAuthSnapshot();
     if (snap?.user?.role?.name === "contract_recipient") {
@@ -54,8 +61,7 @@ const STATUS_TONE: Record<string, string> = {
   waived: "bg-muted text-ink-subtle",
 };
 
-// R-LC5 LC-K2 — Lovable parity: 5 tabs (Owe / Owed / List / Calendar / Reports).
-type ViewMode = "owe" | "owed" | "list" | "calendar" | "reports";
+type ViewMode = "list" | "calendar" | "reports";
 type Direction = "all" | "we_owe" | "owed_to_us";
 
 function isOurs(o: ObligationListItem): boolean {
@@ -64,16 +70,26 @@ function isOurs(o: ObligationListItem): boolean {
 function isTheirs(o: ObligationListItem): boolean {
   return o.responsibleParty === "counterparty" || o.responsibleParty === "both";
 }
+function isDueSoon(o: ObligationListItem): boolean {
+  if (!o.dueDate) return false;
+  if (o.status === "completed" || o.status === "waived") return false;
+  const days = (new Date(o.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+  return days >= 0 && days <= 30;
+}
 
 function ObligationsView() {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
   const [view, setView] = useState<ViewMode>("list");
   const [direction, setDirection] = useState<Direction>("all");
+  const [type, setType] = useState("");
   const [status, setStatus] = useState("");
-  const [category, setCategory] = useState("");
+  const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [flagTarget, setFlagTarget] = useState<ObligationListItem | null>(null);
   const canCreate = useAuthStore(selectHasPermission("contract.edit"));
+  const canFlag = useAuthStore(selectHasPermission("obligation.flag"));
+  const debounced = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
     queryKey: ["obligations", status],
@@ -87,41 +103,27 @@ function ObligationsView() {
 
   const items = data?.data ?? [];
 
-  const directionalSplit = useMemo(() => {
-    const we = items.filter(isOurs);
-    const them = items.filter(isTheirs);
-    return {
-      we: {
-        count: we.length,
-        overdue: we.filter((o) => o.status === "overdue").length,
-        dueSoon: we.filter((o) => isDueSoon(o)).length,
-      },
-      them: {
-        count: them.length,
-        overdue: them.filter((o) => o.status === "overdue").length,
-        dueSoon: them.filter((o) => isDueSoon(o)).length,
-      },
-    };
-  }, [items]);
-
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, { total: number; overdue: number }>();
-    for (const o of items) {
-      const c = counts.get(o.obligationType) ?? { total: 0, overdue: 0 };
-      c.total += 1;
-      if (o.status === "overdue") c.overdue += 1;
-      counts.set(o.obligationType, c);
-    }
-    return [...counts.entries()].sort(([, a], [, b]) => b.total - a.total);
-  }, [items]);
+  const typeOptions = useMemo(
+    () => Array.from(new Set(items.map((o) => o.obligationType))).sort(),
+    [items],
+  );
 
   const filteredItems = useMemo(() => {
     let out = items;
     if (direction === "we_owe") out = out.filter(isOurs);
     if (direction === "owed_to_us") out = out.filter(isTheirs);
-    if (category) out = out.filter((o) => o.obligationType === category);
+    if (type) out = out.filter((o) => o.obligationType === type);
+    if (debounced) {
+      const q = debounced.toLowerCase();
+      out = out.filter(
+        (o) =>
+          o.titleEn.toLowerCase().includes(q) ||
+          o.contractNumber.toLowerCase().includes(q) ||
+          (o.descriptionEn?.toLowerCase().includes(q) ?? false),
+      );
+    }
     return out;
-  }, [items, direction, category]);
+  }, [items, direction, type, debounced]);
 
   const stats = useMemo(() => {
     const total = items.length;
@@ -130,6 +132,19 @@ function ObligationsView() {
     const completed = items.filter((o) => o.status === "completed").length;
     return { total, overdue, dueSoon, completed };
   }, [items]);
+
+  // Client-side pagination — mirrors the parties pattern. The list endpoint
+  // returns up to 500 rows; the table only renders the current 25-row slice.
+  const PAGE_SIZE = 25;
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredItems.length, debounced, direction, type, status, view]);
+  const pagedItems = useMemo(
+    () => filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredItems, currentPage],
+  );
 
   return (
     <motion.div
@@ -141,7 +156,7 @@ function ObligationsView() {
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("obligations.title", { defaultValue: "Obligations tracker" })}
+            {t("obligations.title", { defaultValue: "Obligations" })}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             {t("obligations.subtitle", {
@@ -158,8 +173,12 @@ function ObligationsView() {
         )}
       </header>
       <CreateObligationDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <FlagObligationDialog
+        open={flagTarget !== null}
+        obligation={flagTarget}
+        onClose={() => setFlagTarget(null)}
+      />
 
-      {/* KPI strip */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={<CalendarClock className="h-4 w-4 text-gold" />}
@@ -167,7 +186,11 @@ function ObligationsView() {
           value={stats.total}
         />
         <KpiCard
-          icon={<Zap className={`h-4 w-4 ${stats.overdue > 0 ? "text-terracotta" : "text-ink-subtle"}`} />}
+          icon={
+            <Zap
+              className={`h-4 w-4 ${stats.overdue > 0 ? "text-terracotta" : "text-ink-subtle"}`}
+            />
+          }
           label={t("obligations.stats.overdue", { defaultValue: "Overdue" })}
           value={stats.overdue}
           accent={stats.overdue > 0 ? "border-l-terracotta" : undefined}
@@ -185,148 +208,155 @@ function ObligationsView() {
         />
       </section>
 
-      {/* Directional split */}
-      <section className="grid gap-3 md:grid-cols-2">
-        <DirectionCard
-          icon={<ArrowUpFromLine className="h-4 w-4 text-gold" />}
-          title={t("obligations.weOwe.title", { defaultValue: "We owe" })}
-          subtitle={t("obligations.weOwe.subtitle", {
-            defaultValue: "Commitments your team must deliver.",
-          })}
-          count={directionalSplit.we.count}
-          overdue={directionalSplit.we.overdue}
-          dueSoon={directionalSplit.we.dueSoon}
-          active={direction === "we_owe"}
-          onClick={() => setDirection((d) => (d === "we_owe" ? "all" : "we_owe"))}
-        />
-        <DirectionCard
-          icon={<ArrowDownToLine className="h-4 w-4 text-sage" />}
-          title={t("obligations.owedToUs.title", { defaultValue: "Owed to us" })}
-          subtitle={t("obligations.owedToUs.subtitle", {
-            defaultValue: "Commitments your counterparties must deliver.",
-          })}
-          count={directionalSplit.them.count}
-          overdue={directionalSplit.them.overdue}
-          dueSoon={directionalSplit.them.dueSoon}
-          active={direction === "owed_to_us"}
-          onClick={() => setDirection((d) => (d === "owed_to_us" ? "all" : "owed_to_us"))}
-        />
-      </section>
-
-      {/* By-category breakdown */}
-      {categoryCounts.length > 0 && (
-        <section className="rounded-lg border border-border bg-card p-4">
-          <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-            {t("obligations.byCategory", { defaultValue: "By category" })}
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
-            {categoryCounts.map(([cat, c]) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategory((prev) => (prev === cat ? "" : cat))}
-                className={cn(
-                  "rounded-md border bg-surface p-3 text-start transition-colors",
-                  category === cat
-                    ? "border-gold"
-                    : "border-border hover:border-gold/50",
-                )}
-              >
-                {/* D44 — category label humanized (was "payment" lowercase
-                    next to "Renewal" Title-Case neighbours); overdue line
-                    now always renders so the format is consistent across
-                    all categories ("X overdue" appears on every pill, with
-                    "0 overdue" muted when none — instead of "0 overdue"
-                    being conditionally hidden which made the pills look
-                    inconsistent. */}
-                <p className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                  {humanizeLabel(cat)}
-                </p>
-                <p className="mt-1 font-mono text-xl font-semibold text-ink">{c.total}</p>
-                <p
-                  className={cn(
-                    "mt-0.5 font-mono text-[10px]",
-                    c.overdue > 0 ? "text-terracotta" : "text-ink-subtle",
-                  )}
-                >
-                  {t("obligations.overdueN", {
-                    defaultValue: "{{count}} overdue",
-                    count: c.overdue,
-                  })}
-                </p>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* View tabs + status filter */}
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
-        <div role="tablist" className="flex flex-wrap gap-1">
-          {/* R-LC5 LC-K2 — Lovable parity: 5 tabs starting with directional splits. */}
-          <ViewTab active={view === "owe"} onClick={() => setView("owe")}>
-            <ArrowUpFromLine className="me-1 h-3.5 w-3.5" />
-            {t("obligations.views.owe", { defaultValue: "Obligations I Owe" })}
-          </ViewTab>
-          <ViewTab active={view === "owed"} onClick={() => setView("owed")}>
-            <ArrowDownToLine className="me-1 h-3.5 w-3.5" />
-            {t("obligations.views.owed", { defaultValue: "Obligations Owed to Me" })}
-          </ViewTab>
-          <ViewTab active={view === "list"} onClick={() => setView("list")}>
-            <ListChecks className="me-1 h-3.5 w-3.5" />
-            {t("obligations.views.list", { defaultValue: "List" })}
-          </ViewTab>
-          <ViewTab active={view === "calendar"} onClick={() => setView("calendar")}>
-            <CalendarDays className="me-1 h-3.5 w-3.5" />
-            {t("obligations.views.calendar", { defaultValue: "Calendar" })}
-          </ViewTab>
-          <ViewTab active={view === "reports"} onClick={() => setView("reports")}>
-            <BarChart3 className="me-1 h-3.5 w-3.5" />
-            {t("obligations.views.reports", { defaultValue: "Reports" })}
-          </ViewTab>
-        </div>
-        <div className="ms-auto flex flex-wrap items-center gap-1.5">
-          {[
-            { v: "", l: t("common.all", { defaultValue: "All" }) },
-            { v: "open", l: t("obligations.statusOpen", { defaultValue: "Open" }) },
-            { v: "in_progress", l: t("obligations.statusInProgress", { defaultValue: "In progress" }) },
-            { v: "overdue", l: t("obligations.statusOverdue", { defaultValue: "Overdue" }) },
-            { v: "completed", l: t("obligations.statusCompleted", { defaultValue: "Completed" }) },
-          ].map((c) => (
-            <button
-              key={c.v || "all"}
-              type="button"
-              onClick={() => setStatus(c.v)}
-              className={`rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors ${
-                status === c.v
-                  ? "bg-gold text-ink"
-                  : "border border-border bg-surface text-ink-muted hover:border-gold"
-              }`}
-            >
-              {c.l}
-            </button>
-          ))}
-        </div>
+      {/* View tabs */}
+      <div role="tablist" className="flex gap-1 border-b border-border">
+        <ViewTab active={view === "list"} onClick={() => setView("list")}>
+          <ListChecks className="me-1.5 h-3.5 w-3.5" />
+          {t("obligations.views.list", { defaultValue: "List" })}
+        </ViewTab>
+        <ViewTab active={view === "calendar"} onClick={() => setView("calendar")}>
+          <CalendarDays className="me-1.5 h-3.5 w-3.5" />
+          {t("obligations.views.calendar", { defaultValue: "Calendar" })}
+        </ViewTab>
+        <ViewTab active={view === "reports"} onClick={() => setView("reports")}>
+          <BarChart3 className="me-1.5 h-3.5 w-3.5" />
+          {t("obligations.views.breakdown", { defaultValue: "Breakdown" })}
+        </ViewTab>
       </div>
+
+      {/* Filter row — only shown for list + calendar views (Reports uses
+          the unfiltered universe). */}
+      {view !== "reports" && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3">
+          <div className="relative min-w-[240px] flex-1">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("obligations.searchPlaceholder", {
+                defaultValue: "Search by title or contract #…",
+              })}
+              className="ps-9"
+            />
+          </div>
+          <select
+            value={direction}
+            onChange={(e) => setDirection(e.target.value as Direction)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            aria-label={t("obligations.filter.responsibility", {
+              defaultValue: "Responsibility",
+            })}
+          >
+            <option value="all">
+              {t("obligations.filter.allResponsibility", {
+                defaultValue: "All responsibilities",
+              })}
+            </option>
+            <option value="we_owe">
+              {t("obligations.weOwe.tag", { defaultValue: "We owe" })}
+            </option>
+            <option value="owed_to_us">
+              {t("obligations.owedToUs.tag", { defaultValue: "Owed to us" })}
+            </option>
+          </select>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            aria-label={t("obligations.filter.type", { defaultValue: "Type" })}
+          >
+            <option value="">
+              {t("obligations.filter.allTypes", { defaultValue: "All types" })}
+            </option>
+            {typeOptions.map((o) => (
+              <option key={o} value={o}>
+                {humanizeLabel(o)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            aria-label={t("obligations.filter.status", { defaultValue: "Status" })}
+          >
+            <option value="">
+              {t("obligations.filter.allStatuses", { defaultValue: "All statuses" })}
+            </option>
+            <option value="open">
+              {t("obligations.statusOpen", { defaultValue: "Open" })}
+            </option>
+            <option value="in_progress">
+              {t("obligations.statusInProgress", { defaultValue: "In progress" })}
+            </option>
+            <option value="overdue">
+              {t("obligations.statusOverdue", { defaultValue: "Overdue" })}
+            </option>
+            <option value="completed">
+              {t("obligations.statusCompleted", { defaultValue: "Completed" })}
+            </option>
+          </select>
+          <span className="ms-auto font-mono text-[11px] text-ink-subtle">
+            {t("obligations.resultCount", {
+              defaultValue: "{{count}} of {{total}} shown",
+              count: filteredItems.length,
+              total: items.length,
+            })}
+          </span>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-surface" aria-hidden />
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-surface" aria-hidden />
           ))}
         </div>
-      ) : view === "owe" ? (
-        <ObligationList
-          items={filteredItems.filter(isOurs)}
-          isAr={isAr}
-        />
-      ) : view === "owed" ? (
-        <ObligationList
-          items={filteredItems.filter(isTheirs)}
-          isAr={isAr}
-        />
       ) : view === "list" ? (
-        <ObligationList items={filteredItems} isAr={isAr} />
+        <>
+          <ObligationTable
+            items={pagedItems}
+            isAr={isAr}
+            canFlag={canFlag}
+            onFlag={(o) => setFlagTarget(o)}
+          />
+          {filteredItems.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-ink-muted">
+                {t("obligations.pagination.showing", {
+                  defaultValue: "Showing {{from}}-{{to}} of {{total}}",
+                  from: (currentPage - 1) * PAGE_SIZE + 1,
+                  to: Math.min(currentPage * PAGE_SIZE, filteredItems.length),
+                  total: filteredItems.length,
+                })}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  {t("common.back", { defaultValue: "Back" })}
+                </Button>
+                <span className="font-mono text-xs text-ink-muted">
+                  {currentPage} / {pageCount}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={currentPage >= pageCount}
+                >
+                  {t("common.next", { defaultValue: "Next" })}
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       ) : view === "calendar" ? (
         <CalendarView items={filteredItems} />
       ) : (
@@ -334,13 +364,6 @@ function ObligationsView() {
       )}
     </motion.div>
   );
-}
-
-function isDueSoon(o: ObligationListItem): boolean {
-  if (!o.dueDate) return false;
-  if (o.status === "completed" || o.status === "waived") return false;
-  const days = (new Date(o.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-  return days >= 0 && days <= 30;
 }
 
 function KpiCard({
@@ -376,68 +399,6 @@ function KpiCard({
   );
 }
 
-interface DirectionCardProps {
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  count: number;
-  overdue: number;
-  dueSoon: number;
-  active: boolean;
-  onClick: () => void;
-}
-
-function DirectionCard({
-  icon,
-  title,
-  subtitle,
-  count,
-  overdue,
-  dueSoon,
-  active,
-  onClick,
-}: DirectionCardProps) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "rounded-lg border bg-card p-4 text-start transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        active ? "border-gold" : "border-border hover:border-gold/40",
-      )}
-    >
-      <div className="flex items-center gap-2">
-        {icon}
-        <h3 className="text-sm font-semibold text-ink">{title}</h3>
-      </div>
-      <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p>
-      {/* D42 — count rendered as a block-level paragraph + an sr-only
-          separator before the overdue/dueSoon row so the DOM textContent
-          reads "19 · 0 overdue · 3 due soon" instead of "190 overdue
-          3 due soon" the inline siblings used to produce. */}
-      <p className="mt-3 block font-mono text-3xl font-semibold text-ink">{count}</p>
-      <span className="sr-only"> · </span>
-      <div className="mt-2 flex flex-wrap gap-3 text-xs">
-        <span className={overdue > 0 ? "text-terracotta" : "text-ink-subtle"}>
-          {t("obligations.overdueN", {
-            defaultValue: "{{count}} overdue",
-            count: overdue,
-          })}
-        </span>
-        <span className="sr-only"> · </span>
-        <span className="text-ink-subtle">
-          {t("obligations.dueSoonN", {
-            defaultValue: "{{count}} due soon",
-            count: dueSoon,
-          })}
-        </span>
-      </div>
-    </button>
-  );
-}
-
 function ViewTab({
   active,
   onClick,
@@ -454,8 +415,10 @@ function ViewTab({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center rounded-md px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        active ? "bg-gold/10 text-ink font-medium" : "text-ink-muted hover:text-ink",
+        "inline-flex items-center border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        active
+          ? "border-gold text-ink"
+          : "border-transparent text-ink-muted hover:text-ink",
       )}
     >
       {children}
@@ -463,7 +426,60 @@ function ViewTab({
   );
 }
 
-function ObligationList({ items, isAr }: { items: ObligationListItem[]; isAr: boolean }) {
+function DirectionTag({ o }: { o: ObligationListItem }) {
+  const { t } = useTranslation();
+  const ours = isOurs(o);
+  const theirs = isTheirs(o);
+  const both = ours && theirs;
+  const label = both
+    ? t("obligations.both.tag", { defaultValue: "Both" })
+    : ours
+      ? t("obligations.weOwe.tag", { defaultValue: "We owe" })
+      : t("obligations.owedToUs.tag", { defaultValue: "Owed to us" });
+  const cls = both
+    ? "bg-surface text-ink-muted"
+    : ours
+      ? "bg-gold/10 text-gold"
+      : "bg-sage/10 text-sage";
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
+        cls,
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+function StatusChip({ status }: { status: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
+        STATUS_TONE[status] ?? "bg-surface text-ink-muted",
+      )}
+    >
+      {status === "overdue" && <Zap className="h-3 w-3" />}
+      {status === "completed" && <CheckCircle2 className="h-3 w-3" />}
+      {status === "in_progress" && <Clock className="h-3 w-3" />}
+      {humanizeLabel(status)}
+    </span>
+  );
+}
+
+function ObligationTable({
+  items,
+  isAr,
+  canFlag,
+  onFlag,
+}: {
+  items: ObligationListItem[];
+  isAr: boolean;
+  canFlag: boolean;
+  onFlag: (o: ObligationListItem) => void;
+}) {
   const { t } = useTranslation();
   if (items.length === 0) {
     return (
@@ -475,97 +491,150 @@ function ObligationList({ items, isAr }: { items: ObligationListItem[]; isAr: bo
     );
   }
   return (
-    <ul className="divide-y divide-border rounded-lg border border-border bg-card">
-      {items.map((o) => {
-        const due = o.dueDate ? new Date(o.dueDate) : null;
-        const daysUntil = due
-          ? Math.floor((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-          : null;
-        return (
-          <li key={o.id}>
-            <Link
-              to="/app/contracts/$id"
-              params={{ id: String(o.contractId) }}
-              className="flex items-start gap-3 p-3 transition hover:bg-surface"
-            >
-              {/* D45 — status / category / direction were previously rendered
-                  without explicit visual separation, producing a "payment
-                  owed to us Payment milestone — …" DOM mash. Each chip now
-                  has visible padding + an ARIA-readable separator. */}
-              <span
-                className={`mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-                  STATUS_TONE[o.status] ?? ""
-                }`}
+    <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <table className="w-full text-sm">
+        <thead className="border-b border-border bg-surface text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
+          <tr>
+            <th scope="col" className="py-2 ps-3 text-start">
+              {t("obligations.col.contract", { defaultValue: "Contract" })}
+            </th>
+            <th scope="col" className="py-2 text-start">
+              {t("obligations.col.title", { defaultValue: "Obligation" })}
+            </th>
+            <th scope="col" className="py-2 text-start">
+              {t("obligations.col.status", { defaultValue: "Status" })}
+            </th>
+            <th scope="col" className="py-2 text-start">
+              {t("obligations.col.type", { defaultValue: "Type" })}
+            </th>
+            <th scope="col" className="py-2 text-start">
+              {t("obligations.col.responsibility", { defaultValue: "Responsibility" })}
+            </th>
+            <th scope="col" className="py-2 text-end">
+              {t("obligations.col.due", { defaultValue: "Due" })}
+            </th>
+            {canFlag && (
+              <th scope="col" className="py-2 pe-3 text-end">
+                <span className="sr-only">
+                  {t("obligations.col.action", { defaultValue: "Action" })}
+                </span>
+              </th>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((o) => {
+            const due = o.dueDate ? new Date(o.dueDate) : null;
+            const daysUntil = due
+              ? Math.floor((due.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              : null;
+            return (
+              <tr
+                key={o.id}
+                className="border-b border-border/50 transition-colors hover:bg-surface/50"
               >
-                {o.status === "overdue" && <Zap className="h-3 w-3" />}
-                {o.status === "completed" && <CheckCircle2 className="h-3 w-3" />}
-                {o.status === "in_progress" && <Clock className="h-3 w-3" />}
-                {humanizeLabel(o.status)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                <td className="py-2 ps-3">
+                  <Link
+                    to="/app/contracts/$id"
+                    params={{ id: String(o.contractId) }}
+                    className="font-mono text-[11px] text-ink hover:underline"
+                  >
                     {o.contractNumber}
-                  </span>
-                  <span className="font-mono text-[10px] text-ink-subtle" aria-hidden>·</span>
-                  <span className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+                  </Link>
+                </td>
+                <td className="max-w-[340px] py-2 pe-3">
+                  <p className="line-clamp-2 font-medium text-ink">
+                    {isAr && o.titleAr ? o.titleAr : o.titleEn}
+                  </p>
+                  {o.descriptionEn && (
+                    <p className="mt-0.5 line-clamp-2 text-xs text-ink-muted">
+                      {o.descriptionEn}
+                    </p>
+                  )}
+                </td>
+                <td className="py-2">
+                  <StatusChip status={o.status} />
+                  {o.flaggedAt && (
+                    <span
+                      className="mt-1 inline-flex items-center gap-1 rounded-full bg-terracotta/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-terracotta"
+                      title={
+                        (o.flaggedByName ? "Flagged by " + o.flaggedByName + " · " : "") +
+                        (o.flaggedAt.slice(0, 10) ?? "")
+                      }
+                    >
+                      <Flag className="h-2.5 w-2.5" />
+                      {t("obligations.flaggedBadge", { defaultValue: "Flagged" })}
+                    </span>
+                  )}
+                </td>
+                <td className="py-2">
+                  <span className="inline-flex items-center rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-muted">
                     {humanizeLabel(o.obligationType)}
                   </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
-                      isOurs(o) && !isTheirs(o)
-                        ? "bg-gold/10 text-gold"
-                        : isTheirs(o) && !isOurs(o)
-                          ? "bg-sage/10 text-sage"
-                          : "bg-surface text-ink-subtle",
+                </td>
+                <td className="py-2">
+                  <DirectionTag o={o} />
+                </td>
+                <td className="py-2 text-end">
+                  <p className="font-mono text-xs text-ink">
+                    {due ? formatDate(o.dueDate!) : "—"}
+                  </p>
+                  {due && (
+                    <p className="font-mono text-[10px] text-ink-subtle">
+                      {formatHijriDate(o.dueDate!)}
+                    </p>
+                  )}
+                  {daysUntil != null && o.status !== "completed" && (
+                    <p
+                      className={cn(
+                        "mt-0.5 font-mono text-[10px]",
+                        daysUntil < 0
+                          ? "text-terracotta"
+                          : daysUntil <= 30
+                            ? "text-amber-ink"
+                            : "text-ink-subtle",
+                      )}
+                    >
+                      {daysUntil < 0
+                        ? t("obligations.daysOverdue", {
+                            defaultValue: "{{n}}d overdue",
+                            n: Math.abs(daysUntil),
+                          })
+                        : t("obligations.daysToGo", {
+                            defaultValue: "{{n}}d to go",
+                            n: daysUntil,
+                          })}
+                    </p>
+                  )}
+                </td>
+                {canFlag && (
+                  <td className="py-2 pe-3 text-end">
+                    {o.status !== "completed" && o.status !== "waived" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onFlag(o)}
+                        aria-label={t("obligations.flag.cta", {
+                          defaultValue: "Flag for action",
+                        })}
+                      >
+                        <Flag className="h-3.5 w-3.5" />
+                        <span className="ms-1 hidden text-xs lg:inline">
+                          {t("obligations.flag.cta", {
+                            defaultValue: "Flag",
+                          })}
+                        </span>
+                      </Button>
                     )}
-                  >
-                    {isOurs(o) && !isTheirs(o)
-                      ? t("obligations.weOwe.tag", { defaultValue: "We owe" })
-                      : isTheirs(o) && !isOurs(o)
-                        ? t("obligations.owedToUs.tag", { defaultValue: "Owed to us" })
-                        : t("obligations.both.tag", { defaultValue: "Both" })}
-                  </span>
-                </div>
-                <p className="text-sm text-ink">
-                  {isAr && o.titleAr ? o.titleAr : o.titleEn}
-                </p>
-                {o.descriptionEn && (
-                  <p className="mt-0.5 truncate text-xs text-ink-muted">{o.descriptionEn}</p>
+                  </td>
                 )}
-              </div>
-              <div className="shrink-0 text-end">
-                <p className="font-mono text-xs text-ink">
-                  {due ? formatDate(o.dueDate!) : "—"}
-                </p>
-                {/* L66 — show Hijri date alongside Gregorian (consistent with contracts list). */}
-                {due && (
-                  <p className="font-mono text-[10px] text-ink-subtle">
-                    {formatHijriDate(o.dueDate!)}
-                  </p>
-                )}
-                {daysUntil != null && o.status !== "completed" && (
-                  <p
-                    className={`mt-0.5 font-mono text-[10px] ${
-                      daysUntil < 0
-                        ? "text-terracotta"
-                        : daysUntil <= 30
-                          ? "text-amber-ink"
-                          : "text-ink-subtle"
-                    }`}
-                  >
-                    {daysUntil < 0
-                      ? `${Math.abs(daysUntil)}d overdue`
-                      : `${daysUntil}d to go`}
-                  </p>
-                )}
-              </div>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -577,18 +646,17 @@ function CalendarView({ items }: { items: ObligationListItem[] }) {
   });
 
   const monthLabel = useMemo(
-    () =>
-      cursor.toLocaleString(undefined, { month: "long", year: "numeric" }),
+    () => cursor.toLocaleString(undefined, { month: "long", year: "numeric" }),
     [cursor],
   );
 
-  // Group obligations by yyyy-mm-dd for the displayed month.
   const byDay = useMemo(() => {
     const map = new Map<string, ObligationListItem[]>();
     for (const o of items) {
       if (!o.dueDate) continue;
       const d = new Date(o.dueDate);
-      if (d.getFullYear() !== cursor.getFullYear() || d.getMonth() !== cursor.getMonth()) continue;
+      if (d.getFullYear() !== cursor.getFullYear() || d.getMonth() !== cursor.getMonth())
+        continue;
       const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
       const arr = map.get(key) ?? [];
       arr.push(o);
@@ -604,11 +672,11 @@ function CalendarView({ items }: { items: ObligationListItem[] }) {
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d });
   while (cells.length % 7 !== 0) cells.push({ day: null });
 
-  const todayStr = new Date();
+  const todayDate = new Date();
   const isToday = (d: number) =>
-    todayStr.getFullYear() === cursor.getFullYear() &&
-    todayStr.getMonth() === cursor.getMonth() &&
-    todayStr.getDate() === d;
+    todayDate.getFullYear() === cursor.getFullYear() &&
+    todayDate.getMonth() === cursor.getMonth() &&
+    todayDate.getDate() === d;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
@@ -626,7 +694,9 @@ function CalendarView({ items }: { items: ObligationListItem[] }) {
           </button>
           <button
             type="button"
-            onClick={() => setCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
+            onClick={() =>
+              setCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+            }
             className="rounded-md border border-border bg-surface px-2 py-1 font-mono text-xs text-ink-muted hover:border-gold"
           >
             {t("obligations.calendar.today", { defaultValue: "Today" })}
@@ -679,7 +749,9 @@ function CalendarView({ items }: { items: ObligationListItem[] }) {
                   <span
                     className={cn(
                       "rounded-full px-1.5 py-0 font-mono text-[10px]",
-                      overdue ? "bg-terracotta/15 text-terracotta" : "bg-gold/15 text-gold",
+                      overdue
+                        ? "bg-terracotta/15 text-terracotta"
+                        : "bg-gold/15 text-gold",
                     )}
                   >
                     {dayItems.length}
@@ -745,7 +817,7 @@ function ReportsView({ items }: { items: ObligationListItem[] }) {
           {byStatus.map(([s, c]) => (
             <li key={s}>
               <div className="flex items-baseline justify-between text-xs">
-                <span className="text-ink-muted">{s.replace(/_/g, " ")}</span>
+                <span className="text-ink-muted">{humanizeLabel(s)}</span>
                 <span className="font-mono text-ink">{c}</span>
               </div>
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
@@ -776,7 +848,7 @@ function ReportsView({ items }: { items: ObligationListItem[] }) {
           {byType.map(([type, c]) => (
             <li key={type}>
               <div className="flex items-baseline justify-between text-xs">
-                <span className="text-ink-muted">{type.replace(/_/g, " ")}</span>
+                <span className="text-ink-muted">{humanizeLabel(type)}</span>
                 <span className="font-mono text-ink">{c}</span>
               </div>
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
@@ -818,7 +890,15 @@ function ReportsView({ items }: { items: ObligationListItem[] }) {
   );
 }
 
-function PartyTile({ label, count, color }: { label: string; count: number; color: string }) {
+function PartyTile({
+  label,
+  count,
+  color,
+}: {
+  label: string;
+  count: number;
+  color: string;
+}) {
   return (
     <div className="rounded-md border border-border bg-surface p-3">
       <p className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">

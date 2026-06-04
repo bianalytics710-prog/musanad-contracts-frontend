@@ -18,6 +18,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -207,6 +208,30 @@ function ScenarioCardsGrid({ isAr }: { isAr: boolean }) {
     mutationFn: (scenarioId: string) => adminDemoHarnessService.triggerScenario(scenarioId),
     onMutate: (scenarioId) => {
       setInFlightId(scenarioId);
+    },
+    onSuccess: (result, scenarioId) => {
+      // Visible confirmation so the presenter (and the audience) knows
+      // the click registered. Surface the cascade outcome counts when
+      // the trigger went through the signal-injection path; for tier-2
+      // prepare-only scenarios or idempotent re-runs that dedupe, fall
+      // through to a clear "already triggered" line so the audience
+      // doesn't see a bare "in 2ms" non-event.
+      const outcome = (result as unknown as { outcome?: Record<string, unknown> })?.outcome ?? null;
+      const synth = Number(outcome?.synthesizedCorrelations ?? 0);
+      const advisories = Number(outcome?.synthesizedAdvisories ?? 0);
+      const sig = Number(outcome?.signalCount ?? 0);
+      const summary = synth > 0 || advisories > 0
+        ? `Triggered — ${sig || 1} signal · ${synth} synthesized correlation${synth === 1 ? '' : 's'}${advisories ? ` · ${advisories} advisory draft${advisories === 1 ? '' : 's'}` : ''}.`
+        : `Already triggered earlier today — cascade evidence is live on dashboards (${result.elapsedMs ?? 0}ms idempotent).`;
+      // toast.success with id de-dupes — same id within ~5s collapses
+      // a single visible toast, killing the StrictMode double-fire.
+      toast.success(summary, { id: `demo-trigger-${scenarioId}`, duration: 5000 });
+    },
+    onError: (err, scenarioId) => {
+      toast.error(
+        `Failed to trigger ${scenarioId}: ${(err as Error)?.message ?? 'unknown error'}`,
+        { duration: 6000 },
+      );
     },
     onSettled: (result, _err, scenarioId) => {
       setInFlightId(null);

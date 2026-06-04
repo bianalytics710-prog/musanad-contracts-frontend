@@ -43,7 +43,32 @@ export interface PartyDetail extends PartyListItem {
   }>;
 }
 
+export type TemplatePlaceholderKind = "party" | "date" | "currency" | "number" | "text";
+
+export interface TemplatePlaceholder {
+  key: string;
+  labelEn: string;
+  labelAr?: string | null;
+  kind: TemplatePlaceholderKind;
+  required: boolean;
+}
+
 export interface TemplateListItem {
+  id: number;
+  nameEn: string;
+  nameAr: string | null;
+  contractType: string;
+  descriptionEn: string | null;
+  descriptionAr?: string | null;
+  language: "en" | "ar" | "bilingual";
+  regulatoryTags: string[];
+  regulatoryReference: string | null;
+  usageCount: number;
+  placeholderCount: number;
+  updatedAt: string;
+}
+
+export interface TemplateDetail {
   id: number;
   nameEn: string;
   nameAr: string | null;
@@ -52,14 +77,29 @@ export interface TemplateListItem {
   descriptionAr: string | null;
   language: "en" | "ar" | "bilingual";
   regulatoryTags: string[];
-  usageCount: number;
-  createdAt: string;
-}
-
-export interface TemplateDetail extends TemplateListItem {
+  regulatoryReference: string | null;
+  placeholders: TemplatePlaceholder[];
   bodyEn: string | null;
   bodyAr: string | null;
+  usageCount: number;
+  createdAt: string;
   updatedAt: string;
+}
+
+export interface TemplateDefaultClause {
+  id: number;
+  clauseId: number;
+  sortOrder: number;
+  isDefault: boolean;
+  category: string;
+  variant: "standard" | "alternative" | "fallback";
+  titleEn: string;
+  titleAr: string | null;
+}
+
+export interface TemplateDefaultClausesResult {
+  templateId: number;
+  data: TemplateDefaultClause[];
 }
 
 export interface ClauseListItem {
@@ -96,6 +136,21 @@ export interface ObligationListItem {
   status: "open" | "in_progress" | "completed" | "overdue" | "waived";
   completedAt: string | null;
   createdAt: string;
+  // Mig 500 — last manual escalation event (null if never flagged).
+  flaggedAt?: string | null;
+  flaggedByName?: string | null;
+  flaggedNote?: string | null;
+}
+
+export interface FlagObligationInput {
+  note?: string | null;
+}
+
+export interface FlagObligationResult {
+  eventId: number;
+  roleCodes: string[];
+  notifiedUserIds: number[];
+  notificationCount: number;
 }
 
 export interface CreatePartyInput {
@@ -166,6 +221,27 @@ export interface CreateTemplateInput {
   bodyEn?: string | null;
   bodyAr?: string | null;
   regulatoryTags?: string[];
+  placeholders?: TemplatePlaceholder[];
+  regulatoryReference?: string | null;
+}
+
+export type UpdateTemplateInput = Partial<CreateTemplateInput>;
+
+export interface ExtractTemplateFromContractInput {
+  filename: string;
+  extractedText: string;
+  contractTypeHint?: string | null;
+}
+
+export interface ExtractTemplateFromContractResult {
+  nameEn: string;
+  descriptionEn: string;
+  contractType: string;
+  language: "en" | "ar" | "bilingual";
+  bodyEnRedacted: string;
+  placeholders: TemplatePlaceholder[];
+  regulatoryReference: string | null;
+  warnings: string[];
 }
 
 export const templatesService = {
@@ -187,8 +263,36 @@ export const templatesService = {
     );
     return data;
   },
+  defaultClauses: async (id: number): Promise<TemplateDefaultClausesResult> => {
+    const { data } = await apiClient.get<TemplateDefaultClausesResult>(
+      `/api/v1/templates/${id}/default-clauses`,
+    );
+    return data;
+  },
   create: async (input: CreateTemplateInput): Promise<TemplateDetail> => {
     const { data } = await apiClient.post<TemplateDetail>("/api/v1/templates", input);
+    return data;
+  },
+  update: async (id: number, input: UpdateTemplateInput): Promise<TemplateDetail> => {
+    const { data } = await apiClient.patch<TemplateDetail>(`/api/v1/templates/${id}`, input);
+    return data;
+  },
+  remove: async (id: number): Promise<{ id: number; deleted: boolean }> => {
+    const { data } = await apiClient.delete<{ id: number; deleted: boolean }>(
+      `/api/v1/templates/${id}`,
+    );
+    return data;
+  },
+  extractFromContract: async (
+    input: ExtractTemplateFromContractInput,
+  ): Promise<ExtractTemplateFromContractResult> => {
+    // OpenAI extraction on a long contract body can take 30-60s. Override the
+    // default 30s apiClient timeout so the FE waits long enough for the LLM.
+    const { data } = await apiClient.post<ExtractTemplateFromContractResult>(
+      "/api/v1/templates/extract-from-contract",
+      input,
+      { timeout: 120_000 },
+    );
     return data;
   },
 };
@@ -203,6 +307,27 @@ export interface CreateClauseInput {
   legalCommentaryEn?: string | null;
   legalCommentaryAr?: string | null;
   regulatoryRefs?: string[];
+}
+
+export interface ExtractClausesFromContractInput {
+  filename: string;
+  extractedText: string;
+}
+
+export interface ClauseCandidate {
+  category: string;
+  titleEn: string;
+  titleAr: string | null;
+  bodyEn: string;
+  bodyAr: string | null;
+  variant: "standard" | "alternative" | "fallback";
+  legalCommentaryEn: string | null;
+  regulatoryRefs: string[];
+}
+
+export interface ExtractClausesFromContractResult {
+  candidates: ClauseCandidate[];
+  warnings: string[];
 }
 
 export const clausesService = {
@@ -227,6 +352,18 @@ export const clausesService = {
   },
   create: async (input: CreateClauseInput): Promise<ClauseDetail> => {
     const { data } = await apiClient.post<ClauseDetail>("/api/v1/clauses", input);
+    return data;
+  },
+  extractFromContract: async (
+    input: ExtractClausesFromContractInput,
+  ): Promise<ExtractClausesFromContractResult> => {
+    // gpt-4o-mini extraction on a long contract body can take 30-60s; override
+    // the default 30s apiClient timeout the same way templates do.
+    const { data } = await apiClient.post<ExtractClausesFromContractResult>(
+      "/api/v1/clauses/extract-from-contract",
+      input,
+      { timeout: 120_000 },
+    );
     return data;
   },
 };
@@ -260,6 +397,16 @@ export const obligationsService = {
   },
   create: async (input: CreateObligationInput): Promise<ObligationListItem> => {
     const { data } = await apiClient.post<ObligationListItem>("/api/v1/obligations", input);
+    return data;
+  },
+  flag: async (
+    id: number,
+    input: FlagObligationInput = {},
+  ): Promise<FlagObligationResult> => {
+    const { data } = await apiClient.post<FlagObligationResult>(
+      `/api/v1/obligations/${id}/flag`,
+      input,
+    );
     return data;
   },
 };

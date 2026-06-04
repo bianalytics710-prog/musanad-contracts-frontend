@@ -31,6 +31,7 @@ import { motion } from "framer-motion";
 import { Check, RefreshCw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ImportsHeader } from "./ImportsHeader";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
@@ -128,42 +129,39 @@ export function ReviewQueueView() {
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="mx-auto w-full max-w-[1280px] space-y-4 p-6"
     >
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("import.review.title")}
-          </h1>
-          {pagination && (
-            <p className="mt-1 text-sm text-ink-muted">
-              {t("import.review.totalCount", { count: pagination.total })}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void refetch()}
-            disabled={isFetching}
-            aria-label={t("common.retry")}
-          >
-            <RefreshCw className="h-4 w-4" />
-            {t("common.retry")}
-          </Button>
-          {canApprove && items.length > 0 && (
+      <ImportsHeader
+        title={t("import.review.title")}
+        subtitle={t("import.review.subtitle", {
+          defaultValue:
+            "Medium-confidence drafts where AI extraction was uncertain — approve, edit, or reject before they move forward.",
+        })}
+        actions={
+          <>
             <Button
               type="button"
+              variant="outline"
               size="sm"
-              onClick={() => void onBulkApprove()}
-              disabled={bulkRunning}
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              aria-label={t("common.retry")}
             >
-              <Check className="h-4 w-4" />
-              {t("import.review.bulkApprove", { count: items.length })}
+              <RefreshCw className="h-4 w-4" />
+              {t("common.retry")}
             </Button>
-          )}
-        </div>
-      </header>
+            {canApprove && items.length > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void onBulkApprove()}
+                disabled={bulkRunning}
+              >
+                <Check className="h-4 w-4" />
+                {t("import.review.bulkApprove", { count: items.length })}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
@@ -244,21 +242,21 @@ export function ReviewQueueView() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="border-b border-border bg-surface">
-                  <tr className="text-left">
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                <thead className="border-b border-border bg-surface/60">
+                  <tr className="text-start">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.review.col.contract")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.review.col.type")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.review.col.confidence")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-start font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("import.review.col.warnings")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-2.5 text-end font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       <span className="sr-only">
                         {t("import.review.col.actions")}
                       </span>

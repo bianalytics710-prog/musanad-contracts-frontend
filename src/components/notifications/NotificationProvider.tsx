@@ -18,6 +18,10 @@ import {
   type ReactNode,
 } from "react";
 import { useAuthStore, selectUser } from "@/store/auth.store";
+import {
+  notificationsFeedService,
+  type NotificationFeedRow,
+} from "@/services/api/notifications-feed.service";
 
 export type NotificationSeverity = "info" | "low" | "medium" | "high" | "critical";
 
@@ -433,6 +437,48 @@ function writeToStorage(userId: number, notifications: AppNotification[]): void 
   }
 }
 
+/**
+ * Map a BE notification_dispatch_log row → the FE AppNotification shape so
+ * live items render alongside the seed ones. We prefix the id with `live-`
+ * so it never collides with seed ids (which are `${userId}-${seedKey}`).
+ */
+function mapFeedRow(row: NotificationFeedRow): AppNotification {
+  const sev: NotificationSeverity =
+    row.priority === "critical"
+      ? "critical"
+      : row.priority === "high"
+        ? "high"
+        : row.priority === "medium"
+          ? "medium"
+          : "low";
+  const ctx = row.contextPayload ?? {};
+  const obligationId =
+    typeof ctx["obligationId"] === "number" ? ctx["obligationId"] : null;
+  const contractId =
+    typeof ctx["contractId"] === "number" ? ctx["contractId"] : null;
+  const linkUrl =
+    typeof ctx["linkUrl"] === "string"
+      ? ctx["linkUrl"]
+      : obligationId
+        ? "/app/obligations"
+        : contractId
+          ? "/app/contracts/" + contractId
+          : undefined;
+  const title = row.subject ?? "(notification)";
+  const body = row.bodyRendered ?? undefined;
+  return {
+    id: "live-" + row.id,
+    severity: sev,
+    titleEn: title,
+    titleAr: title,
+    bodyEn: body,
+    bodyAr: body,
+    linkUrl,
+    createdAt: row.createdAt,
+    readAt: null,
+  };
+}
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore(selectUser);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -442,13 +488,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       setNotifications([]);
       return;
     }
-    // K45 fix — read persona-aware seed when no stored notifications;
-    // pass the actor's role.name so compliance_esg gets compliance seeds.
     const stored = readFromStorage(user.id);
     const desiredSeed = generateSeedFor(user.id, user.role?.name);
-    // If stored seed matches the OLD generic ids (n1..n6) but the user has
-    // a persona-specific seed available, replace the stored seed so the
-    // upgrade lands on the next login without requiring a localStorage clear.
     const hasPersonaSeed = !!(user.role?.name && SEED_BY_ROLE[user.role.name]);
     const storedIsGeneric = stored?.every((n) => /-n\d$/.test(n.id)) ?? false;
     if (stored && stored.length > 0 && !(hasPersonaSeed && storedIsGeneric)) {
@@ -457,6 +498,51 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       writeToStorage(user.id, desiredSeed);
       setNotifications(desiredSeed);
     }
+  }, [user]);
+
+  // Live notification feed — poll BE every 30s for the current user's real
+  // notification_dispatch_log rows (manual flags, SLA escalations, future
+  // workflows). Merge with the existing seed/local notifications while
+  // preserving any local readAt state.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    const pullFeed = async () => {
+      try {
+        const result = await notificationsFeedService.list({ limit: 50 });
+        if (cancelled) return;
+        const liveItems = result.data.map(mapFeedRow);
+        if (liveItems.length === 0) return;
+        setNotifications((prev) => {
+          const prevById = new Map(prev.map((n) => [n.id, n]));
+          const merged: AppNotification[] = [];
+          for (const live of liveItems) {
+            const existing = prevById.get(live.id);
+            // Preserve the local readAt if we've already shown this row.
+            merged.push(existing ? { ...live, readAt: existing.readAt } : live);
+            prevById.delete(live.id);
+          }
+          // Anything left in prevById is local-only (seed) — keep it as-is.
+          for (const [, n] of prevById) merged.push(n);
+          merged.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+          writeToStorage(user.id, merged);
+          return merged;
+        });
+      } catch {
+        // Silent — bell falls back to whatever we already have on screen.
+      }
+    };
+
+    void pullFeed();
+    const interval = window.setInterval(() => void pullFeed(), 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, [user]);
 
   const markAsRead = useCallback(

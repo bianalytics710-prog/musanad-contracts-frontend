@@ -28,13 +28,17 @@ import { useTranslation } from 'react-i18next';
 // E41 fix — humanize grade slug for display.
 import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
+  ArrowUpRight,
   RefreshCcw,
   ChevronRight,
   TrendingUp,
+  TrendingDown,
   ArrowUpDown,
+  Minus,
 } from 'lucide-react';
 import {
   BarChart,
@@ -52,15 +56,24 @@ import { ChartCard, SemanticTooltip } from '@/components/charts';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialTradeMarginService } from '@/services/api/financial-trade-margin.service';
 import { translateApiError } from '@/lib/translate-api-error';
-import { useDebounce } from '@/hooks/useDebounce';
+// E-rev-J — useDebounce import dropped along with the Search input.
 import type {
   TradePositionListItem,
   TradePositionListQuery,
   MarginAggregateQuery,
   MarginAggregateResult,
   TradeSide,
+  BandStatus,
   MarginRecommendation,
 } from '@/types/entities/trade-margin.types';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Chart color tokens — semantic, no raw hex (C13)
 const C1 = 'var(--chart-1)'; // gold — sell
@@ -191,32 +204,32 @@ function TradeMarginPortfolioView() {
   const canRead = useAuthStore(selectHasPermission('finance.margin.read'));
 
   const [page, setPage] = useState(1);
-  const [sideFilter, setSideFilter] = useState<TradeSide | ''>('');
-  const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'positions' | 'aggregate'>(
-    'positions',
-  );
-  const [groupBy, setGroupBy] = useState<
-    'counterparty' | 'quarter' | 'side'
-  >('side');
+  // E-rev-J — Search input dropped; band-status chips below handle filtering.
+  // Filter state for the new band-status chip row.
+  const [bandFilter, setBandFilter] = useState<
+    'all' | 'within' | 'edge' | 'outside' | 'no_band'
+  >('all');
+  // E-rev-I — Aggregate tab dropped; activeTab kept as a constant so the
+  // rest of the conditional blocks compile without churn.
+  const activeTab = 'positions' as const;
+  // E-rev-H — Bulk-escalate state lives at this level so the dialog can
+  // reach the page's row set.
+  const [escalateTarget, setEscalateTarget] = useState<TradePositionListItem | null>(null);
 
   const LIMIT = 50;
-  const debouncedSearch = useDebounce(search, 300);
 
+  // E-rev-H — Story 5a is sell-side only. Buy positions exist in the DB but
+  // are hidden from the demo view; the side filter UI is gone.
   const positionsParams = useMemo<TradePositionListQuery>(
     () => ({
       page,
       limit: LIMIT,
-      side: sideFilter !== '' ? sideFilter : undefined,
-      search: debouncedSearch || undefined,
+      side: 'sell' as TradeSide,
     }),
-    [page, sideFilter, debouncedSearch],
+    [page],
   );
 
-  const aggregateParams = useMemo<MarginAggregateQuery>(
-    () => ({ groupBy }),
-    [groupBy],
-  );
+  // E-rev-I — Aggregate query dropped along with its tab.
 
   const {
     data: positionsData,
@@ -232,19 +245,7 @@ function TradeMarginPortfolioView() {
     staleTime: 30_000,
   });
 
-  const {
-    data: aggregateData,
-    isLoading: aggregateLoading,
-    isError: aggregateError,
-    error: aggregateErr,
-    refetch: refetchAggregate,
-  } = useQuery({
-    queryKey: ['trade-margin-aggregate', aggregateParams],
-    queryFn: () =>
-      financialTradeMarginService.getAggregate(aggregateParams),
-    enabled: canRead && activeTab === 'aggregate',
-    staleTime: 30_000,
-  });
+  // E-rev-I — Aggregate query no longer fired.
 
   if (!canRead) {
     return (
@@ -259,6 +260,26 @@ function TradeMarginPortfolioView() {
   const rows = positionsData?.data ?? [];
   const pagination = positionsData?.pagination;
 
+  // E-rev-J — Apply band-status filter to the displayed rows. The KPI strip
+  // and scenario panel keep using the unfiltered rows (those describe the
+  // entire portfolio, not the current view).
+  const filteredRows = rows.filter((r) => {
+    const b: BandStatus = r.bandStatus ?? 'no_band';
+    switch (bandFilter) {
+      case 'within':
+        return b === 'within_band';
+      case 'edge':
+        return b === 'at_floor' || b === 'at_ceiling';
+      case 'outside':
+        return b === 'below_floor' || b === 'above_ceiling';
+      case 'no_band':
+        return b === 'no_band';
+      case 'all':
+      default:
+        return true;
+    }
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -268,94 +289,98 @@ function TradeMarginPortfolioView() {
     >
       {/* Header */}
       <div>
+        {/* E-rev-I — Match contracts-page kicker pattern + drop "Positions"
+            qualifier; only positions are shown anyway. */}
+        <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+          {t('financial.tradeMargin.portfolio.kicker', {
+            defaultValue: 'Sell-side oil-trade desk',
+          })}
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">
-          {t('financial.tradeMargin.portfolio.title')}
+          {t('financial.tradeMargin.portfolio.title', {
+            defaultValue: 'Trade Margin',
+          })}
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
-          {t('financial.tradeMargin.portfolio.subtitle')}
+          {t('financial.tradeMargin.portfolio.subtitle', {
+            defaultValue:
+              'Murban OSP × open sell positions — band-protection status and margin impact.',
+          })}
         </p>
       </div>
 
-      {/* Tab bar */}
-      <div
-        className="flex gap-1 rounded-lg border border-border bg-surface p-1"
-        role="tablist"
-        aria-label={t('financial.tradeMargin.portfolio.tabsLabel')}
-      >
-        {(['positions', 'aggregate'] as const).map((tab) => (
-          <button
-            key={tab}
-            role="tab"
-            aria-selected={activeTab === tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 rounded-md px-4 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
-              activeTab === tab
-                ? 'bg-card text-ink shadow-sm'
-                : 'text-ink-muted hover:text-ink'
-            }`}
-          >
-            {t(`financial.tradeMargin.portfolio.tab.${tab}`)}
-          </button>
-        ))}
-      </div>
+      {/* E-rev-I — Aggregate tab dropped. Page is positions-only. */}
 
       {/* ── Positions tab ── */}
       {activeTab === 'positions' && (
         <>
-          {/* Filters */}
-          <div className="flex flex-wrap items-end gap-3">
-            {/* Search */}
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="tm-search"
-                className="text-xs font-medium text-ink-muted"
-              >
-                {t('financial.tradeMargin.filters.searchLabel')}
-              </label>
-              <input
-                id="tm-search"
-                type="search"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder={t(
-                  'financial.tradeMargin.filters.searchPlaceholder',
-                )}
-                className="h-9 rounded-md border border-border bg-card px-3 text-sm text-ink placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+          {/* E-rev-J — Search + side filter both dropped. Dataset small
+              enough that band-status pill chips below the KPI strip handle
+              filtering. */}
 
-            {/* Side filter */}
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="tm-side"
-                className="text-xs font-medium text-ink-muted"
-              >
-                {t('financial.tradeMargin.filters.sideLabel')}
-              </label>
-              <select
-                id="tm-side"
-                value={sideFilter}
-                onChange={(e) => {
-                  setSideFilter(e.target.value as TradeSide | '');
-                  setPage(1);
-                }}
-                className="h-9 rounded-md border border-border bg-card px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">
-                  {t('financial.tradeMargin.filters.sideAll')}
-                </option>
-                <option value="sell">
-                  {t('financial.tradeMargin.side.sell')}
-                </option>
-                <option value="buy">
-                  {t('financial.tradeMargin.side.buy')}
-                </option>
-              </select>
+          {/* E-rev-H — Sell-side KPI strip + Murban-OSP context, sourced
+              entirely from the rows already in memory. Lights up the
+              demo story before the table. */}
+          {!positionsLoading && rows.length > 0 && <SellSideKpiStrip rows={rows} />}
+          {/* E-rev-L — What-If OSP analysis. Replaces the fixed Today + "If $1
+              more" boxes. Slider/input lets the user simulate any Murban OSP
+              level and the panel recomputes affected positions, AED margin
+              compression, and which of those positions need a band-amendment
+              vs. just a band-renegotiation. */}
+          {!positionsLoading && rows.length > 0 && (
+            <WhatIfOspPanel
+              rows={rows}
+              onEscalate={(row) => setEscalateTarget(row)}
+            />
+          )}
+
+          {/* E-rev-J — Filter row above the table. Matches the
+              ContractListView FilterSelect idiom (font-mono [10px] label +
+              h-8 select). Single filter is enough for the 7-row dataset. */}
+          {!positionsLoading && rows.length > 0 && (
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="tm-band-filter"
+                  className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+                >
+                  {t('financial.tradeMargin.filters.bandStatus', {
+                    defaultValue: 'Band status',
+                  })}
+                </label>
+                <select
+                  id="tm-band-filter"
+                  value={bandFilter}
+                  onChange={(e) => setBandFilter(e.target.value as typeof bandFilter)}
+                  className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="all">
+                    {t('common.all', { defaultValue: 'All' })}
+                  </option>
+                  <option value="within">
+                    {t('financial.tradeMargin.bandStatus.within', {
+                      defaultValue: 'Within band',
+                    })}
+                  </option>
+                  <option value="edge">
+                    {t('financial.tradeMargin.filters.bandStatusEdge', {
+                      defaultValue: 'At floor or ceiling',
+                    })}
+                  </option>
+                  <option value="outside">
+                    {t('financial.tradeMargin.filters.bandStatusOutside', {
+                      defaultValue: 'Outside band — escalate',
+                    })}
+                  </option>
+                  <option value="no_band">
+                    {t('financial.tradeMargin.bandStatus.noBand', {
+                      defaultValue: 'No price-protection clause',
+                    })}
+                  </option>
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Loading */}
           {positionsLoading && (
@@ -416,81 +441,70 @@ function TradeMarginPortfolioView() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-surface">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                        >
-                          {t('financial.tradeMargin.columns.side')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                        >
-                          {t('financial.tradeMargin.columns.position')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                        >
-                          {t('financial.tradeMargin.columns.grade')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                        >
-                          {t('financial.tradeMargin.columns.counterparty')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                        >
-                          {t('financial.tradeMargin.columns.volume')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                        >
-                          {t('financial.tradeMargin.columns.pricingBasis')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                        >
-                          {t('financial.tradeMargin.columns.marginPerBbl')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                        >
-                          {t('financial.tradeMargin.columns.totalMarginAed')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                        >
-                          {t('financial.tradeMargin.columns.status')}
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                        >
-                          <span className="sr-only">
-                            {t('common.actions')}
-                          </span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border bg-card">
-                      {rows.map((row) => (
-                        <PositionRow key={row.id} row={row} />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Card>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b border-border bg-surface">
+                          <tr className="text-left">
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.position', { defaultValue: 'Position' })}
+                            </th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.counterparty', { defaultValue: 'Counterparty' })}
+                            </th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.volume', { defaultValue: 'Volume' })}
+                            </th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.contractedBandShort', { defaultValue: 'Band' })}
+                            </th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.ospTodayShort', { defaultValue: 'OSP' })}
+                            </th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.marginPerBblShort', { defaultValue: 'Margin' })}
+                            </th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.totalMarginAedShort', { defaultValue: 'Total (AED)' })}
+                            </th>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t('financial.tradeMargin.columns.bandStatus', { defaultValue: 'Band status' })}
+                            </th>
+                            {/* E-rev-N — Actions header gets explicit width so View/Escalate
+                                buttons render fully inside the cell. */}
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle min-w-[100px]">
+                              <span className="sr-only">{t('common.actions')}</span>
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRows.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={9}
+                                className="px-4 py-8 text-center text-xs text-ink-muted"
+                              >
+                                {t('financial.tradeMargin.filters.noMatch', {
+                                  defaultValue:
+                                    'No positions match the current band-status filter.',
+                                })}
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredRows.map((row) => (
+                              <PositionRow
+                                key={row.id}
+                                row={row}
+                                onEscalate={() => setEscalateTarget(row)}
+                              />
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               {/* Pagination */}
@@ -532,173 +546,713 @@ function TradeMarginPortfolioView() {
         </>
       )}
 
-      {/* ── Aggregate tab ── */}
-      {activeTab === 'aggregate' && (
-        <>
-          {/* Group-by selector */}
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="tm-groupby"
-              className="text-xs font-medium text-ink-muted"
-            >
-              {t('financial.tradeMargin.aggregate.groupByLabel')}
-            </label>
-            <select
-              id="tm-groupby"
-              value={groupBy}
-              onChange={(e) =>
-                setGroupBy(
-                  e.target.value as 'counterparty' | 'quarter' | 'side',
-                )
-              }
-              className="h-9 w-48 rounded-md border border-border bg-card px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="side">
-                {t('financial.tradeMargin.aggregate.groupBy.side')}
-              </option>
-              <option value="counterparty">
-                {t(
-                  'financial.tradeMargin.aggregate.groupBy.counterparty',
-                )}
-              </option>
-              <option value="quarter">
-                {t('financial.tradeMargin.aggregate.groupBy.quarter')}
-              </option>
-            </select>
-          </div>
+      {/* E-rev-I — Aggregate tab block removed entirely. */}
 
-          {/* Loading */}
-          {aggregateLoading && (
-            <div className="space-y-3" aria-busy="true">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-16 animate-pulse rounded-lg bg-surface"
-                  aria-hidden="true"
-                />
-              ))}
-              <span className="sr-only">{t('common.loading')}</span>
-            </div>
-          )}
+      {/* E-rev-H — Escalate dialog (renders only when target set) */}
+      <EscalateBandDialog
+        target={escalateTarget}
+        onClose={() => setEscalateTarget(null)}
+      />
+    </motion.div>
+  );
+}
 
-          {/* Error */}
-          {aggregateError && (
-            <div
-              className="flex items-center gap-3 rounded-lg border border-error/30 bg-error/5 p-4"
-              role="alert"
-            >
-              <AlertTriangle
-                className="h-5 w-5 shrink-0 text-error"
-                aria-hidden="true"
-              />
-              <p className="text-sm text-error">
-                {translateApiError(
-                  aggregateErr,
-                  t,
-                  'financial.tradeMargin.errors.fetchFailed',
-                )}
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void refetchAggregate()}
+// ─────────────────────────────────────────────────────────────
+// E-rev-H — SellSideKpiStrip
+// 4 KPI tiles for the sell-side story 5a:
+//   - Open sell positions
+//   - Total sell margin (AED)
+//   - Latest Murban OSP (from the rows' latestBenchmarkUsdPerBbl)
+//   - Positions outside band OR with no band (escalate candidates)
+// ─────────────────────────────────────────────────────────────
+function SellSideKpiStrip({ rows }: { rows: TradePositionListItem[] }) {
+  const { t } = useTranslation();
+  const totalMarginAed = rows.reduce(
+    (sum, r) => sum + (r.totalMarginAed ? parseFloat(r.totalMarginAed) : 0),
+    0,
+  );
+  // Murban-pricing rows carry the latest OSP via latestBenchmarkUsdPerBbl;
+  // grab the first non-null value (all Murban rows share the same number).
+  const murbanRow = rows.find(
+    (r) => r.pricingBasis === 'murban_osp' && r.latestBenchmarkUsdPerBbl != null,
+  );
+  const ospToday = murbanRow?.latestBenchmarkUsdPerBbl;
+  const exposed = rows.filter(
+    (r) =>
+      r.bandStatus === 'no_band' ||
+      r.bandStatus === 'below_floor' ||
+      r.bandStatus === 'above_ceiling',
+  );
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="rounded-lg border border-border bg-card p-4">
+        {/* E-rev-J — Re-labeled. Buy-side is hidden, so "sell" qualifier is
+            redundant. "Active term cargoes" is the trader-natural term for
+            open sell positions delivering in the demo horizon. */}
+        <p className="text-xs text-ink-muted">
+          {t('financial.tradeMargin.kpi.activeCargoes', {
+            defaultValue: 'Active term cargoes',
+          })}
+        </p>
+        <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
+          {rows.length}
+        </p>
+        <p className="mt-0.5 text-[10px] text-ink-subtle">
+          {t('financial.tradeMargin.kpi.activeCargoesHelper', {
+            defaultValue: 'Open Murban sell positions',
+          })}
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-4">
+        <p className="text-xs text-ink-muted">
+          {t('financial.tradeMargin.kpi.totalSellMargin', {
+            defaultValue: 'Total sell margin (AED)',
+          })}
+        </p>
+        <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
+          {formatAedCompact(String(totalMarginAed))}
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-card p-4">
+        <p className="text-xs text-ink-muted">
+          {t('financial.tradeMargin.kpi.murbanOspToday', {
+            defaultValue: 'Murban OSP today',
+          })}
+        </p>
+        <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
+          {ospToday != null ? `$${parseFloat(ospToday).toFixed(2)}` : '—'}
+        </p>
+        <p className="mt-0.5 text-[10px] text-ink-subtle">
+          {t('financial.tradeMargin.kpi.ospUnit', { defaultValue: 'per bbl' })}
+        </p>
+      </div>
+      <div
+        className={
+          'rounded-lg border p-4 ' +
+          (exposed.length > 0
+            ? 'border-terracotta/30 bg-terracotta/5'
+            : 'border-sage/30 bg-sage/5')
+        }
+      >
+        <p className="text-xs text-ink-muted">
+          {t('financial.tradeMargin.kpi.exposedPositions', {
+            defaultValue: 'Outside band or unprotected',
+          })}
+        </p>
+        <p
+          className={
+            'mt-1 text-xl font-semibold tabular-nums ' +
+            (exposed.length > 0 ? 'text-terracotta' : 'text-sage-ink')
+          }
+        >
+          {exposed.length}
+        </p>
+        <p className="mt-0.5 text-[10px] text-ink-subtle">
+          {exposed.length > 0
+            ? t('financial.tradeMargin.kpi.exposedHelper', {
+                defaultValue: 'Escalate to drafter',
+              })
+            : t('financial.tradeMargin.kpi.allProtectedHelper', {
+                defaultValue: 'All positions inside band',
+              })}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-L — WhatIfOspPanel
+// Replaces the static "Today vs +$1" panel with a live what-if simulator.
+// User picks any Murban OSP via slider/input; the panel recomputes:
+//   - How many positions go outside band at that OSP
+//   - Total AED margin compression at that level
+//   - Which affected positions LACK a price-protection clause (escalate as
+//     amendment) vs WITH a clause (escalate as band-renegotiation)
+// Each affected position has an inline Escalate button that opens the same
+// dialog the list rows use.
+// ─────────────────────────────────────────────────────────────
+function WhatIfOspPanel({
+  rows,
+  onEscalate,
+}: {
+  rows: TradePositionListItem[];
+  onEscalate: (row: TradePositionListItem) => void;
+}) {
+  const { t } = useTranslation();
+  // Anchor the slider to today's published OSP.
+  const todaysOsp = (() => {
+    const r = rows.find(
+      (x) => x.pricingBasis === 'murban_osp' && x.latestBenchmarkUsdPerBbl != null,
+    );
+    return r ? parseFloat(r.latestBenchmarkUsdPerBbl ?? '0') : 103;
+  })();
+  const [whatIfOsp, setWhatIfOsp] = useState<number>(todaysOsp);
+
+  const usdAed = 3.67;
+  // For each position, compute hypothetical band status + AED compression
+  // at the chosen what-if OSP.
+  const evaluated = rows.map((r) => {
+    const floor = r.contractedFloorUsdPerBbl
+      ? parseFloat(r.contractedFloorUsdPerBbl)
+      : null;
+    const ceiling = r.contractedCeilingUsdPerBbl
+      ? parseFloat(r.contractedCeilingUsdPerBbl)
+      : null;
+    const vol = parseFloat(r.volumeBbl ?? '0');
+    const hasClause = !!r.bandReviewClauseRef && (floor != null || ceiling != null);
+    let status: 'within' | 'above_ceiling' | 'below_floor' | 'no_band';
+    let compressionAed = 0;
+    if (floor == null && ceiling == null) {
+      // No band — full OSP exposure.
+      status = 'no_band';
+      const baselineMargin = r.totalMarginAed ? parseFloat(r.totalMarginAed) : 0;
+      // Margin shifts $1/bbl per $1 OSP move (roughly). Drop = OSP today - whatIf.
+      compressionAed = Math.max(0, todaysOsp - whatIfOsp) * vol * usdAed;
+      // (Margin compression is real only when OSP drops; on a rise margin
+      // expands for an integrated trader. Keep symmetric for above too.)
+      compressionAed = Math.abs(todaysOsp - whatIfOsp) * vol * usdAed;
+      void baselineMargin;
+    } else if (ceiling != null && whatIfOsp > ceiling) {
+      status = 'above_ceiling';
+      compressionAed = (whatIfOsp - ceiling) * vol * usdAed;
+    } else if (floor != null && whatIfOsp < floor) {
+      status = 'below_floor';
+      compressionAed = (floor - whatIfOsp) * vol * usdAed;
+    } else {
+      status = 'within';
+    }
+    return { row: r, status, compressionAed, hasClause };
+  });
+
+  const affected = evaluated.filter((e) => e.status !== 'within');
+  const totalCompression = affected.reduce((s, e) => s + e.compressionAed, 0);
+  const withClause = affected.filter((e) => e.hasClause);
+  const withoutClause = affected.filter((e) => !e.hasClause);
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">
+            {t('financial.tradeMargin.whatIf.title', {
+              defaultValue: 'What-if analysis — Murban OSP',
+            })}
+          </p>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            {t('financial.tradeMargin.whatIf.intro', {
+              defaultValue:
+                'Slide to a hypothetical Murban OSP. The panel recomputes which positions breach band, by how much in AED, and which need a contract amendment vs. a band re-negotiation.',
+            })}
+          </p>
+        </div>
+        <div className="text-end">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t('financial.tradeMargin.whatIf.ospToday', {
+              defaultValue: 'OSP today',
+            })}
+          </p>
+          <p className="font-mono text-sm text-ink">${todaysOsp.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Slider + numeric input */}
+      <div className="mb-4 grid items-center gap-3 sm:grid-cols-[1fr_auto]">
+        <input
+          type="range"
+          min={80}
+          max={130}
+          step={0.5}
+          value={whatIfOsp}
+          onChange={(e) => setWhatIfOsp(parseFloat(e.target.value))}
+          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-muted accent-gold"
+          aria-label={t('financial.tradeMargin.whatIf.sliderLabel', {
+            defaultValue: 'Hypothetical Murban OSP',
+          })}
+        />
+        <div className="flex items-center gap-2">
+          <label htmlFor="tm-whatif-input" className="text-xs text-ink-muted">
+            $
+          </label>
+          <input
+            id="tm-whatif-input"
+            type="number"
+            min={80}
+            max={130}
+            step={0.25}
+            value={whatIfOsp.toFixed(2)}
+            onChange={(e) => setWhatIfOsp(parseFloat(e.target.value) || todaysOsp)}
+            className="h-8 w-20 rounded-md border border-border bg-surface px-2 font-mono text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <button
+            type="button"
+            className="rounded-md border border-border px-2 py-1 text-[10px] font-medium text-ink-muted hover:bg-surface"
+            onClick={() => setWhatIfOsp(todaysOsp)}
+          >
+            {t('financial.tradeMargin.whatIf.reset', { defaultValue: 'Reset' })}
+          </button>
+        </div>
+      </div>
+
+      {/* Top-line numbers */}
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-md border border-border bg-surface p-3">
+          <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t('financial.tradeMargin.whatIf.affectedLabel', {
+              defaultValue: 'Positions outside band',
+            })}
+          </p>
+          <p className={`mt-0.5 font-mono text-xl tabular-nums ${affected.length > 0 ? 'text-terracotta' : 'text-sage-ink'}`}>
+            {affected.length}
+          </p>
+        </div>
+        <div className="rounded-md border border-border bg-surface p-3">
+          <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t('financial.tradeMargin.whatIf.compressionLabel', {
+              defaultValue: 'Total margin impact',
+            })}
+          </p>
+          <p className={`mt-0.5 font-mono text-xl tabular-nums ${affected.length > 0 ? 'text-terracotta' : 'text-sage-ink'}`}>
+            {affected.length > 0 ? formatAedCompact(String(Math.round(totalCompression))) : 'AED 0'}
+          </p>
+        </div>
+        <div className="rounded-md border border-amber-tint bg-amber-tint/30 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t('financial.tradeMargin.whatIf.amendmentLabel', {
+              defaultValue: 'Need amendment (no clause)',
+            })}
+          </p>
+          <p className="mt-0.5 font-mono text-xl tabular-nums text-amber-ink">
+            {withoutClause.length}
+          </p>
+        </div>
+      </div>
+
+      {/* Affected rows with inline escalate */}
+      {affected.length > 0 ? (
+        <div>
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t('financial.tradeMargin.whatIf.affectedRows', {
+              defaultValue: 'Affected positions at this OSP',
+            })}
+          </p>
+          <ul className="space-y-2">
+            {affected.map((e) => (
+              <li
+                key={e.row.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface p-2 text-xs"
               >
-                <RefreshCcw className="me-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                {t('common.retry')}
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-ink">{e.row.positionRef}</p>
+                  <p className="text-[11px] text-ink-muted">
+                    {e.row.counterparty?.nameEn} ·{' '}
+                    {humanizeLabel(e.status)} ·{' '}
+                    {e.hasClause
+                      ? t('financial.tradeMargin.whatIf.clausePresent', {
+                          defaultValue: 'Has price-protection clause',
+                        })
+                      : t('financial.tradeMargin.whatIf.clauseMissing', {
+                          defaultValue: 'No price-protection clause',
+                        })}
+                  </p>
+                </div>
+                <p className="font-mono text-terracotta">
+                  {formatAedCompact(String(Math.round(e.compressionAed)))}
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onEscalate(e.row)}
+                  className="h-8"
+                >
+                  <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
+                  {t('financial.tradeMargin.actions.escalate', {
+                    defaultValue: 'Escalate',
+                  })}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="text-xs text-ink-muted">
+          {t('financial.tradeMargin.whatIf.allWithin', {
+            defaultValue:
+              'At this OSP, no positions breach their contracted band. Adjust the slider to test other scenarios.',
+          })}
+        </p>
+      )}
+
+      <p className="mt-3 text-[11px] italic text-ink-subtle">
+        {t('financial.tradeMargin.whatIf.footnote', {
+          defaultValue:
+            'Impact estimate assumes a 1:1 $/bbl pass-through from the contracted band edge to AGT trading margin at the chosen OSP. Positions without a clause are listed for amendment because every dollar of OSP movement flows straight through to margin.',
+        })}
+      </p>
+
+      {/* Hidden helper to keep imports referenced. */}
+      <span className="sr-only">{withClause.length}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-H — BandStatusBadge
+// ─────────────────────────────────────────────────────────────
+function BandStatusBadge({ status }: { status: BandStatus }) {
+  const { t } = useTranslation();
+  const map: Record<BandStatus, { cls: string; label: string; defaultLabel: string; icon: 'down' | 'up' | 'minus' | 'alert' | null }> = {
+    within_band: {
+      cls: 'bg-sage-tint text-sage-ink',
+      label: 'financial.tradeMargin.bandStatus.within',
+      defaultLabel: 'In band',
+      icon: 'minus',
+    },
+    at_floor: {
+      cls: 'bg-amber-tint/60 text-amber-ink',
+      label: 'financial.tradeMargin.bandStatus.atFloor',
+      defaultLabel: 'At floor',
+      icon: 'down',
+    },
+    at_ceiling: {
+      cls: 'bg-amber-tint/60 text-amber-ink',
+      label: 'financial.tradeMargin.bandStatus.atCeiling',
+      defaultLabel: 'At ceiling',
+      icon: 'up',
+    },
+    below_floor: {
+      cls: 'bg-terracotta-tint text-terracotta-ink',
+      label: 'financial.tradeMargin.bandStatus.belowFloor',
+      defaultLabel: 'Below floor',
+      icon: 'down',
+    },
+    above_ceiling: {
+      cls: 'bg-terracotta-tint text-terracotta-ink',
+      label: 'financial.tradeMargin.bandStatus.aboveCeiling',
+      defaultLabel: 'Above ceiling',
+      icon: 'up',
+    },
+    no_band: {
+      cls: 'bg-muted text-ink-muted',
+      label: 'financial.tradeMargin.bandStatus.noBand',
+      defaultLabel: 'No clause',
+      icon: 'alert',
+    },
+  };
+  const m = map[status];
+  const Icon =
+    m.icon === 'down'
+      ? TrendingDown
+      : m.icon === 'up'
+        ? TrendingUp
+        : m.icon === 'alert'
+          ? AlertTriangle
+          : Minus;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${m.cls}`}>
+      <Icon className="h-3 w-3" aria-hidden="true" />
+      {t(m.label, { defaultValue: m.defaultLabel })}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-H — EscalateBandDialog
+// Opens a risk_case assigned to the linked contract's drafter (falls back
+// to legal_counsel role when drafter unknown) with the band-breach context
+// in the body. Same pattern as Budget Burn's "Escalate to drafter".
+// ─────────────────────────────────────────────────────────────
+function EscalateBandDialog({
+  target,
+  onClose,
+}: {
+  target: TradePositionListItem | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [reason, setReason] = useState('');
+
+  // E-rev-L — Clause-aware title + body. Two paths:
+  //   - Has band/clause → "renegotiate band + revise pricing"
+  //   - No band/clause   → "draft amendment to add price-protection clause"
+  const noBand = target?.bandStatus === 'no_band';
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!target) throw new Error('No target');
+      const { riskCaseService } = await import('@/services/api/risk-case.service');
+      const counterpartyName = target.counterparty?.nameEn ?? '';
+      const grade = humanizeLabel(target.grade);
+      const osp = target.latestBenchmarkUsdPerBbl
+        ? `$${parseFloat(target.latestBenchmarkUsdPerBbl).toFixed(2)}`
+        : '—';
+      const floor =
+        target.contractedFloorUsdPerBbl != null
+          ? `$${parseFloat(target.contractedFloorUsdPerBbl).toFixed(2)}`
+          : 'no floor';
+      const ceiling =
+        target.contractedCeilingUsdPerBbl != null
+          ? `$${parseFloat(target.contractedCeilingUsdPerBbl).toFixed(2)}`
+          : 'no ceiling';
+      const title = noBand
+        ? `Trade position ${target.positionRef} — draft amendment to add price-protection clause`
+        : `Trade position ${target.positionRef} — renegotiate band + revise pricing`;
+      const body = [
+        `Trade position ${target.positionRef} (${grade} sell to ${counterpartyName}, delivery ${target.deliveryMonth?.slice(0, 7)})`,
+        '',
+        `Pricing basis: ${target.pricingBasis}`,
+        `Latest benchmark (OSP today): ${osp}`,
+        noBand
+          ? `Contracted band: NONE — no floor / no ceiling negotiated`
+          : `Contracted band: floor ${floor} → ceiling ${ceiling}`,
+        noBand ? '' : `Clause reference: ${target.bandReviewClauseRef ?? 'Price Review Window'}`,
+        '',
+        noBand
+          ? 'Action requested: draft an amendment that adds a price-protection clause (floor + ceiling band + price-review window) so future OSP movement is bounded. Coordinate with legal for clause language; share draft with counterparty before next delivery cycle.'
+          : 'Action requested: open negotiations with the counterparty to revise the contracted band and the buyer-premium structure. The current band has been breached by the latest OSP; recommend revisiting the band edges + freight pass-through to restore margin neutrality.',
+        reason.trim() ? '' : '',
+        reason.trim() ? `Executive note: ${reason.trim()}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+      return riskCaseService.create({
+        contractId: null,
+        priority: noBand ? 'high' : 'critical',
+        title,
+        body,
+        assignedRole: 'contract_drafter',
+        slaHours: 48,
+        metadata: {
+          source: 'trade-margin-band-breach',
+          tradePositionId: target.id,
+          positionRef: target.positionRef,
+          bandStatus: target.bandStatus,
+          action: noBand ? 'add_price_protection_clause' : 'renegotiate_band_and_pricing',
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success(
+        t('financial.tradeMargin.actions.escalateSuccess', {
+          defaultValue: 'Risk case opened — drafter will be notified.',
+        }),
+      );
+      void qc.invalidateQueries({ queryKey: ['riskCases'] });
+      setReason('');
+      onClose();
+    },
+    onError: (e) => toast.error(translateApiError(e, t)),
+  });
+
+  return (
+    <Dialog open={target !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>
+            {noBand
+              ? t('financial.tradeMargin.actions.escalateTitleNoClause', {
+                  defaultValue: 'Draft amendment — add price-protection clause',
+                })
+              : t('financial.tradeMargin.actions.escalateTitleClause', {
+                  defaultValue: 'Renegotiate band + revise pricing',
+                })}
+          </DialogTitle>
+          <DialogDescription>
+            {noBand
+              ? t('financial.tradeMargin.actions.escalateDescriptionNoClause', {
+                  defaultValue:
+                    'Opens a high-priority risk case assigned to the contract drafter to draft an amendment that introduces a price-protection clause (floor / ceiling + price-review window).',
+                })
+              : t('financial.tradeMargin.actions.escalateDescriptionClause', {
+                  defaultValue:
+                    'Opens a critical risk case assigned to the contract drafter to renegotiate the existing price-protection band and revise the pricing structure with the counterparty.',
+                })}
+          </DialogDescription>
+        </DialogHeader>
+        {target && (
+          <div className="space-y-3">
+            <div className="rounded-md border border-border bg-surface p-3 text-xs">
+              <p className="font-mono text-ink">{target.positionRef}</p>
+              <p className="mt-1 text-ink-muted">
+                {target.counterparty?.nameEn} ·{' '}
+                {target.deliveryMonth?.slice(0, 7)} ·{' '}
+                {humanizeLabel(target.grade)}
+              </p>
+              <p className="mt-1 text-ink-muted">
+                {target.bandStatus === 'no_band'
+                  ? t('financial.tradeMargin.actions.escalateContextNoBand', {
+                      defaultValue: 'No band negotiated — fully exposed to OSP movement.',
+                    })
+                  : target.bandStatus === 'below_floor'
+                    ? t('financial.tradeMargin.actions.escalateContextBelow', {
+                        defaultValue: 'OSP is below the contracted floor.',
+                      })
+                    : t('financial.tradeMargin.actions.escalateContextAbove', {
+                        defaultValue: 'OSP is above the contracted ceiling.',
+                      })}
+              </p>
+              <p className="mt-2 text-[11px] text-ink">
+                <span className="font-semibold">
+                  {t('financial.tradeMargin.actions.escalateAssigneeLabel', {
+                    defaultValue: 'Assign to:',
+                  })}
+                </span>{' '}
+                {t('financial.tradeMargin.actions.escalateAssigneeDrafter', {
+                  defaultValue: 'Contract drafter (role)',
+                })}
+              </p>
+            </div>
+            <div>
+              <label
+                htmlFor="tm-escalate-reason"
+                className="mb-1 block text-sm font-medium text-ink"
+              >
+                {t('financial.tradeMargin.actions.escalateReason', {
+                  defaultValue: 'Executive note (optional)',
+                })}
+              </label>
+              <textarea
+                id="tm-escalate-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={3}
+                maxLength={5000}
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder={t('financial.tradeMargin.actions.escalateReasonHint', {
+                  defaultValue: 'Why are you escalating this?',
+                })}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => mutation.mutate()}
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending
+                  ? t('common.submitting', { defaultValue: 'Opening case…' })
+                  : t('financial.tradeMargin.actions.escalateConfirm', {
+                      defaultValue: 'Open risk case',
+                    })}
               </Button>
             </div>
-          )}
-
-          {/* Aggregate content */}
-          {!aggregateLoading && !aggregateError && aggregateData && (
-            <AggregateView data={aggregateData} />
-          )}
-        </>
-      )}
-    </motion.div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
 // PositionRow
 // ─────────────────────────────────────────────────────────────
-function PositionRow({ row }: { row: TradePositionListItem }) {
+function PositionRow({
+  row,
+  onEscalate,
+}: {
+  row: TradePositionListItem;
+  onEscalate: () => void;
+}) {
   const { t } = useTranslation();
   const marginN = row.marginPerBbl ? parseFloat(row.marginPerBbl) : null;
   const marginClass =
     marginN === null
       ? 'text-ink-muted'
       : marginN >= 0
-        ? 'text-success'
+        ? 'text-sage-ink'
         : 'text-terracotta';
+  const bandStatus: BandStatus = row.bandStatus ?? 'no_band';
+  const needsEscalate =
+    bandStatus === 'no_band' ||
+    bandStatus === 'below_floor' ||
+    bandStatus === 'above_ceiling';
 
   return (
-    <tr className="transition-colors hover:bg-surface/50">
-      <td className="px-4 py-3">
-        <SideBadge side={row.side} />
-      </td>
-      <td className="px-4 py-3">
+    <tr className="border-b border-border/60 transition-colors hover:bg-surface/50">
+      {/* E-rev-O — Position cell allowed to wrap to two lines. The ref
+          itself is preserved (font-medium ink) and the meta row sits below. */}
+      <td className="px-3 py-3 align-top">
         <p className="font-medium text-ink">{row.positionRef}</p>
         <p className="text-xs text-ink-muted">
-          {row.deliveryMonth} ·{' '}
+          {row.deliveryMonth?.slice(0, 7)} ·{' '}
           {t(`financial.tradeMargin.termOrSpot.${row.termOrSpot}`, {
             defaultValue: row.termOrSpot,
           })}
         </p>
       </td>
-      <td className="px-4 py-3 text-sm text-ink-muted">
-        {/* E41 fix — humanize grade slug ("west_african_x" → "West African (WAF)",
-            "murban" → "Murban"). */}
-        {t(`financial.tradeMargin.grade.${row.grade}`, {
-          defaultValue: humanizeLabel(row.grade),
-        })}
-      </td>
-      <td className="px-4 py-3 text-sm text-ink-muted">
+      {/* E-rev-O — Counterparty allowed to wrap; full names like
+          "Singapore Jurong Aromatics Refinery" display end-to-end. */}
+      <td className="px-3 py-3 align-top text-sm text-ink-muted">
         {row.counterparty.nameEn}
       </td>
-      <td className="px-4 py-3 text-right font-mono tabular-nums text-sm text-ink">
+      {/* Volume — single line */}
+      <td className="whitespace-nowrap px-3 py-3 text-right align-top font-mono tabular-nums text-sm text-ink">
         {formatVolume(row.volumeBbl)}
       </td>
-      <td className="px-4 py-3 text-sm text-ink-muted">
-        {t(`financial.tradeMargin.pricingBasis.${row.pricingBasis}`, {
-          defaultValue: row.pricingBasis,
-        })}
+      {/* Band — compact "$95–$115" (no decimals, narrow dash) */}
+      <td className="whitespace-nowrap px-3 py-3 align-top text-sm">
+        {row.contractedFloorUsdPerBbl != null && row.contractedCeilingUsdPerBbl != null ? (
+          <span className="font-mono text-xs text-ink">
+            ${parseFloat(row.contractedFloorUsdPerBbl).toFixed(0)}–$
+            {parseFloat(row.contractedCeilingUsdPerBbl).toFixed(0)}
+          </span>
+        ) : (
+          <span className="font-mono text-xs italic text-ink-subtle">
+            {t('financial.tradeMargin.bandStatus.noBandShort', { defaultValue: 'no band' })}
+          </span>
+        )}
       </td>
-      <td
-        className={`px-4 py-3 text-right font-mono tabular-nums text-sm ${marginClass}`}
-      >
+      {/* OSP today */}
+      <td className="whitespace-nowrap px-3 py-3 text-right align-top font-mono tabular-nums text-sm text-ink">
+        {row.latestBenchmarkUsdPerBbl != null
+          ? `$${parseFloat(row.latestBenchmarkUsdPerBbl).toFixed(2)}`
+          : '—'}
+      </td>
+      <td className={`whitespace-nowrap px-3 py-3 text-right align-top font-mono tabular-nums text-sm ${marginClass}`}>
         {formatUsdPerBbl(row.marginPerBbl)}
       </td>
-      <td className="px-4 py-3 text-right font-mono tabular-nums text-sm text-ink">
+      <td className="whitespace-nowrap px-3 py-3 text-right align-top font-mono tabular-nums text-sm text-ink">
         {formatAedCompact(row.totalMarginAed)}
-        {row.totalMarginUsd && (
-          <p className="text-[10px] text-ink-muted">
-            ${parseFloat(row.totalMarginUsd).toLocaleString('en-US', {
-              maximumFractionDigits: 0,
+      </td>
+      {/* Band-status pill — keep on a single line */}
+      <td className="whitespace-nowrap px-3 py-3 align-top">
+        <BandStatusBadge status={bandStatus} />
+      </td>
+      {/* E-rev-O — Actions buttons centered (vertically + horizontally)
+          inside the cell. Stack View on top of Escalate; both buttons share
+          the same min-width so they read as a tight column. */}
+      <td className="px-3 py-3 align-middle">
+        <div className="flex flex-col items-center justify-center gap-1">
+          <Link
+            to="/app/financial/trade-margin/$positionId"
+            params={{ positionId: String(row.id) }}
+            className="inline-flex h-7 w-[88px] items-center justify-center rounded-md px-2 text-xs font-medium text-ink-muted hover:bg-accent hover:text-accent-foreground"
+            aria-label={t('financial.tradeMargin.portfolio.viewDetail', {
+              ref: row.positionRef,
             })}
-          </p>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <StatusBadge status={row.status} />
-        {row.recommendation && (
-          <div className="mt-1">
-            <RecommendationBadge rec={row.recommendation} />
-          </div>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <Link
-          to="/app/financial/trade-margin/$positionId"
-          params={{ positionId: String(row.id) }}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-ink hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
-          aria-label={t('financial.tradeMargin.portfolio.viewDetail', {
-            ref: row.positionRef,
-          })}
-        >
-          {t('financial.tradeMargin.portfolio.viewDetails')}
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
+          >
+            {t('common.view', { defaultValue: 'View' })}
+          </Link>
+          {needsEscalate && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onEscalate}
+              className="h-7 w-[88px] justify-center px-2"
+            >
+              <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
+              {t('financial.tradeMargin.actions.escalate', {
+                defaultValue: 'Escalate',
+              })}
+            </Button>
+          )}
+        </div>
       </td>
     </tr>
   );

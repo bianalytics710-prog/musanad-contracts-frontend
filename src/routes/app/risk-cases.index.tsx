@@ -12,17 +12,28 @@
  * D7: scope="col" on every <th>.
  * D6: htmlFor + id on every filter input.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, ChevronLeft, ChevronRight, Eye, Plus, Search } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { AlertTriangle, ArrowUpRight, Eye, Plus, Search } from 'lucide-react';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useAuthStore, selectHasPermission, selectUser } from '@/store/auth.store';
 import { riskCaseService } from '@/services/api/risk-case.service';
+import { translateApiError } from '@/lib/translate-api-error';
+import type { RiskCaseListItem } from '@/types/risk-case.types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateTime } from '@/utils/datetime';
 import {
@@ -51,6 +62,12 @@ export const Route = createFileRoute('/app/risk-cases/')({
 function RiskCaseListView() {
   const { t } = useTranslation();
   const canCreate = useAuthStore(selectHasPermission('risk.case.create'));
+  const canEscalate = useAuthStore(selectHasPermission('risk.case.escalate'));
+  // E-rev-E (Risk Cases): executive is a monitor, not a caseworker. Hide
+  // per-row View pill, hide "Assigned to me" filter, surface a single
+  // top-bar Escalate button that fires only when at-risk SLAs exist.
+  const userRole = useAuthStore((s) => s.user?.role.name ?? null);
+  const isExecutive = userRole === 'executive';
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -90,9 +107,24 @@ function RiskCaseListView() {
   });
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showBulkEscalate, setShowBulkEscalate] = useState(false);
 
   const items = data?.data ?? [];
   const pagination = data?.pagination;
+
+  // Cases that are overdue OR due within 24h, excluding terminal states.
+  // E-rev-E — drives the top-bar Escalate button (visible only when > 0
+  // and the actor has the escalate permission).
+  const atRiskCases = useMemo(
+    () =>
+      items.filter((c) => {
+        if (!c.dueAt) return false;
+        if (['closed', 'rejected', 'approved', 'accept_risk'].includes(c.status)) return false;
+        const hours = (new Date(c.dueAt).getTime() - Date.now()) / (1000 * 60 * 60);
+        return hours <= 24;
+      }),
+    [items],
+  );
 
   return (
     <motion.div
@@ -116,12 +148,37 @@ function RiskCaseListView() {
               critical-priority cases are easy to miss in a long table. */}
           <ImminentSlaBanner items={items} />
         </div>
-        {canCreate && (
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="me-1 h-4 w-4" aria-hidden="true" />
-            {t('riskCases.actions.createManual')}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* E-rev-E — single top-bar Escalate button for executive (and any
+              other role with risk.case.escalate). Disabled when no cases are
+              at-risk; the count badge surfaces urgency. */}
+          {canEscalate && (
+            <Button
+              type="button"
+              variant={atRiskCases.length > 0 ? 'default' : 'outline'}
+              size="sm"
+              disabled={atRiskCases.length === 0}
+              onClick={() => setShowBulkEscalate(true)}
+            >
+              <ArrowUpRight className="me-1 h-4 w-4" aria-hidden="true" />
+              {t('riskCases.actions.escalateAtRisk', {
+                count: atRiskCases.length,
+                defaultValue:
+                  atRiskCases.length === 0
+                    ? 'No overdue cases'
+                    : atRiskCases.length === 1
+                      ? 'Escalate 1 overdue case'
+                      : `Escalate ${atRiskCases.length} overdue cases`,
+              })}
+            </Button>
+          )}
+          {canCreate && (
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="me-1 h-4 w-4" aria-hidden="true" />
+              {t('riskCases.actions.createManual')}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -235,19 +292,23 @@ function RiskCaseListView() {
           </select>
         </div>
 
-        <label htmlFor="rc-list-mine" className="flex cursor-pointer items-center gap-2 text-sm text-ink">
-          <input
-            id="rc-list-mine"
-            type="checkbox"
-            checked={assignedToMe}
-            onChange={(e) => {
-              setAssignedToMe(e.target.checked);
-              setPage(1);
-            }}
-            className="h-4 w-4 rounded border-border accent-primary"
-          />
-          {t('riskCases.filters.assignedToMe')}
-        </label>
+        {/* E-rev-E — Executive doesn't act on individual cases, so the
+            "Assigned to me" toggle is hidden for that role. */}
+        {!isExecutive && (
+          <label htmlFor="rc-list-mine" className="flex cursor-pointer items-center gap-2 text-sm text-ink">
+            <input
+              id="rc-list-mine"
+              type="checkbox"
+              checked={assignedToMe}
+              onChange={(e) => {
+                setAssignedToMe(e.target.checked);
+                setPage(1);
+              }}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            {t('riskCases.filters.assignedToMe')}
+          </label>
+        )}
       </div>
 
       {/* Loading */}
@@ -292,36 +353,43 @@ function RiskCaseListView() {
               <p className="text-sm text-ink-muted">{t('riskCases.list.empty')}</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border shadow-sm">
-              <table className="min-w-full text-sm">
-                <thead className="bg-surface">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('riskCases.columns.title')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('riskCases.columns.priority')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('riskCases.columns.status')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('riskCases.columns.caseType')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('riskCases.columns.assignedTo')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('riskCases.columns.sla')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('riskCases.columns.dueAt')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-start text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                      {t('common.actions')}
-                    </th>
-                  </tr>
-                </thead>
+            // E-rev-E — Card + font-mono [10px] uppercase th matches the
+            // ContractListView idiom across the rest of the app.
+            <Card>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-border bg-surface">
+                      <tr className="text-left">
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.title')}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.priority')}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.status')}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.caseType')}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.assignedTo')}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.sla')}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.dueAt')}
+                        </th>
+                        {/* E-rev-E — Actions column hidden for executive */}
+                        {!isExecutive && (
+                          <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            {t('common.actions')}
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
                 <tbody className="divide-y divide-border bg-card">
                   {items.map((item) => (
                     <tr key={item.id} className="hover:bg-surface/50 transition-colors">
@@ -384,55 +452,62 @@ function RiskCaseListView() {
                       <td className="px-4 py-3 text-xs text-ink-muted">
                         {item.dueAt ? formatDateTime(item.dueAt, { showTime: true }) : '—'}
                       </td>
-                      <td className="px-4 py-3">
-                        <Link
-                          to="/app/risk-cases/$caseId"
-                          params={{ caseId: String(item.id) }}
-                          aria-label={t('riskCases.actions.view')}
-                          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-ink hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
-                        >
-                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                          {t('riskCases.actions.view')}
-                        </Link>
-                      </td>
+                      {/* E-rev-E — Actions cell hidden for executive */}
+                      {!isExecutive && (
+                        <td className="px-4 py-3">
+                          <Link
+                            to="/app/risk-cases/$caseId"
+                            params={{ caseId: String(item.id) }}
+                            aria-label={t('riskCases.actions.view')}
+                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-ink hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                            {t('riskCases.actions.view')}
+                          </Link>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Pagination */}
+          {/* Pagination — E-rev-E matches the ContractListView idiom:
+              "Showing X-Y of N" + Back/Next outline buttons + page-of-N. */}
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between gap-2">
               <p className="text-xs text-ink-muted">
-                {t('common.pagination.showing', {
-                  count: items.length,
+                {t('contracts.showingRange', {
+                  from: (pagination.page - 1) * pagination.limit + 1,
+                  to: Math.min(pagination.page * pagination.limit, pagination.total),
                   total: pagination.total,
-                  defaultValue: '{{count}} of {{total}}',
+                  defaultValue: 'Showing {{from}}-{{to}} of {{total}}',
                 })}
               </p>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="ghost"
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  aria-label={t('common.pagination.prev', { defaultValue: 'Prev' })}
                 >
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  {t('common.back', { defaultValue: 'Back' })}
                 </Button>
-                <span className="text-sm text-ink">
+                <span className="font-mono text-xs text-ink-muted">
                   {page} / {pagination.totalPages}
                 </span>
                 <Button
-                  variant="ghost"
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={page >= pagination.totalPages}
-                  aria-label={t('common.pagination.next', { defaultValue: 'Next' })}
                 >
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  {t('common.next', { defaultValue: 'Next' })}
                 </Button>
               </div>
             </div>
@@ -441,6 +516,11 @@ function RiskCaseListView() {
       )}
 
       <CreateRiskCaseDialog open={showCreate} onClose={() => setShowCreate(false)} />
+      <BulkEscalateDialog
+        open={showBulkEscalate}
+        onClose={() => setShowBulkEscalate(false)}
+        cases={atRiskCases}
+      />
     </motion.div>
   );
 }
@@ -497,5 +577,168 @@ function ImminentSlaBanner({ items }: { items: Array<{ dueAt: string | null; sta
         })}
       </p>
     </div>
+  );
+}
+
+/**
+ * E-rev-E — BulkEscalateDialog. Executive picks any subset of the at-risk
+ * cases and escalates them in one click. Loops over the existing single-
+ * case escalate endpoint so we don't need a new BE route; success/failure
+ * is surfaced as a single toast.
+ */
+function BulkEscalateDialog({
+  open,
+  onClose,
+  cases,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cases: RiskCaseListItem[];
+}) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [reason, setReason] = useState('');
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  // Reset selection to "all selected" each time the dialog opens.
+  useMemo(() => {
+    if (open) setSelected(new Set(cases.map((c) => c.id)));
+  }, [open, cases]);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selected);
+      const results = await Promise.allSettled(
+        ids.map((id) => riskCaseService.escalate(id, { reason: reason.trim() || null })),
+      );
+      return {
+        ok: results.filter((r) => r.status === 'fulfilled').length,
+        fail: results.filter((r) => r.status === 'rejected').length,
+      };
+    },
+    onSuccess: ({ ok, fail }) => {
+      if (ok > 0) {
+        toast.success(
+          t('riskCases.toasts.bulkEscalated', {
+            count: ok,
+            defaultValue:
+              ok === 1
+                ? '1 case escalated to next role per escalation matrix'
+                : `${ok} cases escalated to next role per escalation matrix`,
+          }),
+        );
+      }
+      if (fail > 0) {
+        toast.error(
+          t('riskCases.toasts.bulkEscalatedSomeFailed', {
+            count: fail,
+            defaultValue: `${fail} case(s) failed to escalate — check permissions`,
+          }),
+        );
+      }
+      void qc.invalidateQueries({ queryKey: ['riskCases'] });
+      setReason('');
+      setSelected(new Set());
+      onClose();
+    },
+    onError: (e) => toast.error(translateApiError(e, t)),
+  });
+
+  const toggle = (id: number) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-[640px]">
+        <DialogHeader>
+          <DialogTitle>
+            {t('riskCases.bulkEscalate.title', { defaultValue: 'Escalate overdue cases' })}
+          </DialogTitle>
+          <DialogDescription>
+            {t('riskCases.bulkEscalate.description', {
+              defaultValue:
+                'Selected cases will be reassigned to the next role per the escalation matrix. Add an optional reason that will be recorded against each case.',
+            })}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <ul className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-border bg-surface p-2">
+            {cases.length === 0 ? (
+              <li className="py-4 text-center text-xs text-ink-muted">
+                {t('riskCases.bulkEscalate.empty', {
+                  defaultValue: 'Nothing overdue right now.',
+                })}
+              </li>
+            ) : (
+              cases.map((c) => (
+                <li key={c.id}>
+                  <label className="flex cursor-pointer items-start gap-2 rounded p-2 hover:bg-card">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(c.id)}
+                      onChange={() => toggle(c.id)}
+                      className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-ink" title={c.title}>
+                        {c.title}
+                      </p>
+                      <p className="text-[11px] text-ink-muted">
+                        {c.priority} · {c.status} · due{' '}
+                        {c.dueAt ? new Date(c.dueAt).toLocaleString() : '—'}
+                      </p>
+                    </div>
+                  </label>
+                </li>
+              ))
+            )}
+          </ul>
+
+          <div>
+            <label htmlFor="rc-bulk-esc-reason" className="mb-1 block text-sm font-medium text-ink">
+              {t('riskCases.fields.escalationReason', { defaultValue: 'Reason (optional)' })}
+            </label>
+            <textarea
+              id="rc-bulk-esc-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={5000}
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder={t('riskCases.fields.escalationReasonHint', {
+                defaultValue: 'Why are you escalating these now?',
+              })}
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+              {t('common.cancel', { defaultValue: 'Cancel' })}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending || selected.size === 0}
+            >
+              {mutation.isPending
+                ? t('common.submitting', { defaultValue: 'Escalating…' })
+                : t('riskCases.bulkEscalate.confirm', {
+                    count: selected.size,
+                    defaultValue:
+                      selected.size === 1
+                        ? 'Escalate 1 case'
+                        : `Escalate ${selected.size} cases`,
+                  })}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -212,7 +212,7 @@ export function AvarDashboardSection({ windowDays = 90 }: AvarDashboardSectionPr
             <p className="text-xs text-ink-muted">{t('risk.avar.breakdown.noData')}</p>
           </div>
         ) : (
-          <AvarBreakdownChart buckets={data.breakdown.slice(0, 5)} />
+          <AvarBreakdownChart buckets={data.breakdown.slice(0, 5)} groupBy={activeGroup} />
         )}
 
         {data.noValueCount > 0 && (
@@ -229,77 +229,133 @@ export function AvarDashboardSection({ windowDays = 90 }: AvarDashboardSectionPr
 
 function AvarBreakdownChart({
   buckets,
+  groupBy,
 }: {
   buckets: Array<{ key: string; label: string; avar: string | null; contractCount: number }>;
+  groupBy: string;
 }) {
   const { t } = useTranslation();
+  const [selected, setSelected] = useState<{ name: string; avar: number; contracts: number; key: string } | null>(null);
 
-  // E5/E15/E16/E20 fix: humanize slug labels for chart Y-axis.
-  // ("services" → "Services", "abu_dhabi" → "Abu Dhabi",
-  // "sanctions" → "Sanctions"). Counterparty names (already title-cased
-  // by mig 353 fn_avar_aggregate.party.name_en JOIN) pass through.
   const chartData = buckets.map((b) => ({
     name: humanizeLabel(b.label),
     avar: b.avar !== null ? Number(b.avar) : 0,
     contracts: b.contractCount,
+    key: b.key,
   }));
-
-  // Color cells with terracotta gradient (highest risk = most intense)
   const maxAvar = Math.max(...chartData.map((d) => d.avar), 1);
 
+  // E-rev-1: click on a bar opens an explanation panel below the chart
+  // describing what this exposure means and why it counts toward AVaR.
+  const explanationFor = (name: string): string => {
+    const explanationByGroup: Record<string, string> = {
+      business_unit:
+        `Aggregate Asset Value at Risk attributable to contracts owned by ${name}. Indicates how much capital this business unit has on the line if active correlations crystallise.`,
+      contract_type:
+        `${name} contracts contribute this much to total AVaR. Driven by characteristic risk surface: clause density, regulatory touch points, and value concentration typical for the type.`,
+      counterparty_id:
+        `Concentration risk from ${name}. Higher AVaR means more of the portfolio depends on this single counterparty's performance.`,
+      counterparty_chain:
+        `Aggregate AVaR concentrated within ${name}'s wider corporate group / chain. Useful for cross-entity exposure caps.`,
+      geography:
+        `AVaR concentrated in ${name}. Indicates geopolitical, regulatory, and FX risk dependence on a single jurisdiction.`,
+      risk_kind:
+        `AVaR contributed by contracts where the dominant correlation reason is "${name}". Surfaces which risk family is driving the portfolio's worst-case exposure.`,
+    };
+    return t(`risk.avar.breakdown.explain.${groupBy}`, {
+      defaultValue:
+        explanationByGroup[groupBy] ??
+        `AVaR contributed by "${name}". This is the modelled loss if correlations active on these contracts crystallise.`,
+      name,
+    });
+  };
+
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart
-        data={chartData}
-        margin={{ top: 4, right: 8, left: 8, bottom: 4 }}
-        layout="vertical"
-      >
-        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-        <XAxis
-          type="number"
-          tick={{ fontSize: 10, fill: 'var(--ink-subtle)' }}
-          tickFormatter={(v: number) => {
-            if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-            if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
-            return String(v);
-          }}
-        />
-        {/* E5/E11 fix: width=160 + interval=0 so counterparty names like
-            "Mubadala Investment Company" render with their spaces preserved
-            instead of being collapsed-and-clipped to "MubadalaInvest..." */}
-        <YAxis
-          type="category"
-          dataKey="name"
-          width={160}
-          interval={0}
-          tick={{ fontSize: 10, fill: 'var(--ink-subtle)' }}
-        />
-        <Tooltip
-          contentStyle={{
-            fontSize: 11,
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-          }}
-          formatter={(value: number) => [
-            `AED ${value.toLocaleString('en-AE', { maximumFractionDigits: 0 })}`,
-            t('risk.avar.breakdown.chartLabel'),
-          ]}
-        />
-        <Bar dataKey="avar" radius={[0, 4, 4, 0]}>
-          {chartData.map((entry, index) => {
-            const intensity = maxAvar > 0 ? entry.avar / maxAvar : 0;
-            const opacity = 0.4 + intensity * 0.6;
-            return (
-              <Cell
-                key={`cell-${index}`}
-                fill="var(--terracotta)"
-                fillOpacity={opacity}
-              />
-            );
-          })}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="space-y-3">
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 4, right: 8, left: 8, bottom: 4 }}
+          layout="vertical"
+        >
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+          <XAxis
+            type="number"
+            tick={{ fontSize: 10, fill: 'var(--ink-subtle)' }}
+            tickFormatter={(v: number) => {
+              if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+              if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+              return String(v);
+            }}
+          />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={160}
+            interval={0}
+            tick={{ fontSize: 10, fill: 'var(--ink-subtle)' }}
+          />
+          <Tooltip
+            contentStyle={{
+              fontSize: 11,
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+            }}
+            formatter={(value: number) => [
+              `AED ${value.toLocaleString('en-AE', { maximumFractionDigits: 0 })}`,
+              t('risk.avar.breakdown.chartLabel'),
+            ]}
+          />
+          <Bar
+            dataKey="avar"
+            radius={[0, 4, 4, 0]}
+            cursor="pointer"
+            onClick={(d) => {
+              const c = d as unknown as { name: string; avar: number; contracts: number; key: string };
+              setSelected({ name: c.name, avar: c.avar, contracts: c.contracts, key: c.key });
+            }}
+          >
+            {chartData.map((entry, index) => {
+              const intensity = maxAvar > 0 ? entry.avar / maxAvar : 0;
+              const opacity = 0.4 + intensity * 0.6;
+              const isSelected = selected?.name === entry.name;
+              return (
+                <Cell
+                  key={`cell-${index}`}
+                  fill="var(--terracotta)"
+                  fillOpacity={isSelected ? 1 : opacity}
+                  stroke={isSelected ? 'var(--terracotta)' : 'none'}
+                  strokeWidth={isSelected ? 2 : 0}
+                />
+              );
+            })}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      {selected && (
+        <div className="rounded-md border border-terracotta/30 bg-terracotta/5 p-3">
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <span className="text-xs font-semibold text-ink">
+              {selected.name}
+              <span className="ml-2 font-mono text-[11px] text-ink-muted">
+                · {selected.contracts} {t('risk.avar.breakdown.contracts', { defaultValue: 'contracts' })}
+              </span>
+            </span>
+            <span className="font-mono text-xs text-ink">
+              AED {selected.avar.toLocaleString('en-AE', { maximumFractionDigits: 0 })}
+            </span>
+          </div>
+          <p className="text-xs leading-5 text-ink-muted">{explanationFor(selected.name)}</p>
+          <button
+            type="button"
+            className="mt-1 text-[10px] text-ink-subtle underline hover:text-ink"
+            onClick={() => setSelected(null)}
+          >
+            {t('common.close', { defaultValue: 'Close' })}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

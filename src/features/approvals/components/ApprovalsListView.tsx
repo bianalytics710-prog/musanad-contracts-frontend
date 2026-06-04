@@ -23,32 +23,39 @@
  *   T11   — wrapped in route ErrorBoundary.
  *   T12   — formatDateTime for hoursPending → "x days ago" via t().
  */
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { RefreshCw, AlertCircle, Zap, Clock, CheckCircle2, XCircle, MessageCircleQuestion, UserPlus } from "lucide-react";
+import {
+  RefreshCw,
+  AlertCircle,
+  Zap,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  MessageCircleQuestion,
+  Search,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { StatCard } from "@/components/patterns";
+import { useDebounce } from "@/hooks/useDebounce";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useMyPendingApprovals, useDecideApproval } from "@/features/approvals/hooks/useApprovals";
 import { useQuery } from "@tanstack/react-query";
 import { approvalService } from "@/services/api/approval.service";
 import type { ApiError } from "@/lib/api-client";
-import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
-import { RequestInfoDialog } from "@/features/approvals/components/RequestInfoDialog";
-import { MessageSquare } from "lucide-react";
-import { useAuthStore } from "@/store/auth.store";
 import {
   APPROVAL_PENDING_SORT_VALUES,
-  type ApprovalChainStepRef,
   type ApprovalPendingSort,
   type MyPendingApprovalListItem,
   type MyPendingApprovalListQuery,
   type MyPendingApprovalListResponse,
 } from "@/types/entities/approval.types";
-import type { ApprovalActionKind } from "@/features/approvals/components/ApprovalDecisionDialog";
 
 const PAGE_SIZE = 20;
 
@@ -56,21 +63,17 @@ type TabKey = "all" | "pending" | "approved" | "rejected" | "watching";
 
 export function ApprovalsListView() {
   const { t } = useTranslation();
-  const user = useAuthStore((s) => s.user);
-  const currentUserId = user?.id ?? null;
 
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<ApprovalPendingSort>("oldest");
-  const [activeStep, setActiveStep] = useState<MyPendingApprovalListItem | null>(
-    null,
-  );
-  // R1 audit 6.4.6: per-row inline buttons preset the action so the dialog
-  // opens directly to Approve / Reject / Request-info, matching Lovable's
-  // 1-click decision flow (was previously a 2-step Act → choose-action).
-  const [presetAction, setPresetAction] = useState<ApprovalActionKind | null>(null);
-  // R-LC4 LC-F7 — separate Request-info dialog (soft action; distinct from
-  // request_resubmission's hard bounce).
-  const [requestInfoStepId, setRequestInfoStepId] = useState<number | null>(null);
+  // Design-system parity with Contracts list: search input + priority + type
+  // filters in the same toolbar shape. Client-side filtering against `items`
+  // is acceptable since fn_approval_my_pending caps the page size; if the
+  // approver scope grows we can push these to the BE alongside `sort`.
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebounce(searchInput, 300);
+  const [priorityFilter, setPriorityFilter] = useState<"" | "highValue" | "urgent" | "none">("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
   // R1 audit 6.2.1: 5-tab inbox matches Lovable. "Pending mine" is the
   // default + only tab with real data in R1; the other 4 surface a
   // "coming soon" placeholder until the BE endpoints land in R3.
@@ -141,8 +144,61 @@ export function ApprovalsListView() {
   const activeIsFetching =
     activeTab === "pending" ? isFetching : activeTab === "watching" ? watchingQuery.isFetching : decisionsQuery.isFetching;
 
-  const items = activeData?.data ?? [];
+  const rawItems = activeData?.data ?? [];
   const pagination = activeData?.pagination;
+
+  // Client-side filter pass — search hits contract number / title / requester
+  // name; priority + type filters use the same derivation as the row badge.
+  const items = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    return rawItems.filter((row) => {
+      if (q) {
+        const requester = row.requesterUserRef
+          ? `${row.requesterUserRef.firstName ?? ""} ${row.requesterUserRef.lastName ?? ""}`.toLowerCase()
+          : "";
+        const hay = `${row.contractNumber} ${row.contractTitleEn ?? ""} ${row.contractTitleAr ?? ""} ${requester}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (priorityFilter) {
+        const p = priorityForRow(row.valueAed, row.hoursPending ?? 0);
+        const want = priorityFilter === "none" ? null : priorityFilter;
+        if (p !== want) return false;
+      }
+      if (typeFilter && row.contractType !== typeFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [rawItems, debouncedSearch, priorityFilter, typeFilter]);
+
+  const typeOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Array<{ value: string; label: string }> = [];
+    for (const row of rawItems) {
+      if (!row.contractType || seen.has(row.contractType)) continue;
+      seen.add(row.contractType);
+      out.push({ value: row.contractType, label: humanizeContractType(row.contractType) });
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label));
+  }, [rawItems]);
+
+  const hasFilters =
+    !!debouncedSearch.trim() ||
+    !!priorityFilter ||
+    !!typeFilter ||
+    sort !== "oldest";
+
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
+    setPage(1);
+  };
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setPriorityFilter("");
+    setTypeFilter("");
+    setSort("oldest");
+    setPage(1);
+  };
 
   // A5 (Aisha audit) — KPI tiles read "Pending decisions / SLA breaches /
   // Avg waiting / Pending value". Locked to the pending dataset so they keep
@@ -154,11 +210,15 @@ export function ApprovalsListView() {
     () => pendingItems.filter((i) => i.hoursPending > 24).length,
     [pendingItems],
   );
-  const avgWaitHours = useMemo(() => {
+  // Avg waiting time — expressed in days. Approvals routinely sit for days at
+  // a time, so "hours" overstates urgency and bloats the number. We compute the
+  // average hours then divide; show 1 decimal so a 16h wait reads as "0.7d"
+  // rather than rounding to "0d".
+  const avgWaitDays = useMemo(() => {
     if (pendingItems.length === 0) return 0;
-    return Math.round(
-      pendingItems.reduce((s, i) => s + i.hoursPending, 0) / pendingItems.length,
-    );
+    const avgHours =
+      pendingItems.reduce((s, i) => s + i.hoursPending, 0) / pendingItems.length;
+    return Math.round((avgHours / 24) * 10) / 10;
   }, [pendingItems]);
   const totalValue = useMemo(
     () =>
@@ -227,20 +287,22 @@ export function ApprovalsListView() {
     >
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs text-ink-subtle">
-            {/* A6 (Aisha audit) — "urgent" overloaded both "Urgent priority"
-                badge and "SLA breach"; rename to SLA-breach count which is
-                what the value actually measures. A5 — always show
-                Pending-tab counts here so the kicker matches the KPI strip. */}
+          <div className="mb-2 font-mono text-xs uppercase tracking-wider text-ink-subtle">
+            {t("approval.list.kicker", { defaultValue: "Approval queue" })}
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            {t("approval.list.title")}
+          </h1>
+          <p className="mt-1 text-xs text-ink-subtle">
+            {/* A6/A5 — "urgent" overloaded "Urgent priority" badge + "SLA breach";
+                rename to SLA-breach count. Always shows pending-tab counts so
+                the eyebrow matches the KPI strip. */}
             {t("approval.list.eyebrow", {
               count: pendingTotal,
               urgent: slaBreaches,
               defaultValue: "{{count}} pending · {{urgent}} SLA breaches",
             })}
           </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("approval.list.title")}
-          </h1>
         </div>
         <Button
           type="button"
@@ -250,69 +312,44 @@ export function ApprovalsListView() {
           disabled={activeIsFetching}
           aria-label={t("common.refresh", { defaultValue: "Refresh" })}
         >
-          {/* A12 (Aisha audit) — "Retry" wrongly implied an error state on a
-              healthy page; "Refresh" matches industry norm for pull-to-update. */}
           <RefreshCw className={activeIsFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           {t("common.refresh", { defaultValue: "Refresh" })}
         </Button>
       </header>
 
-      {/* Stat strip */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-gold" />
-            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
-              {t("approval.list.stats.pending", { defaultValue: "Pending decisions" })}
-            </p>
-          </div>
-          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
-            {/* A5 (Aisha audit fix) — Lock the tile to pendingTotal (the
-                pending query result count). Switching tabs no longer flips
-                this from "3 pending" to "4 approved" — the label says
-                Pending decisions so it always means pending. */}
-            {pendingTotal}
-          </p>
-        </div>
-        <div className={`rounded-lg border border-border bg-card p-4 ${slaBreaches > 0 ? "border-l-2 border-l-terracotta" : ""}`}>
-          <div className="flex items-center gap-2">
-            <Zap className={`h-4 w-4 ${slaBreaches > 0 ? "text-terracotta" : "text-ink-subtle"}`} />
-            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
-              {t("approval.list.stats.slaBreaches", { defaultValue: "SLA breaches (>24h)" })}
-            </p>
-          </div>
-          <p className={`mt-1.5 font-mono text-2xl font-semibold ${slaBreaches > 0 ? "text-terracotta" : "text-ink"}`}>
-            {slaBreaches}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-ink-subtle" />
-            <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
-              {t("approval.list.stats.avgWait", { defaultValue: "Avg waiting" })}
-            </p>
-          </div>
-          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
-            {avgWaitHours}h
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-ink-subtle">
-            {t("approval.list.stats.totalValue", { defaultValue: "Pending value" })}
-          </p>
-          <p className="mt-1.5 font-mono text-2xl font-semibold text-ink">
-            {totalValue >= 1_000_000
-              ? `${(totalValue / 1_000_000).toFixed(1)}M`
-              : totalValue >= 1_000
-                ? `${Math.round(totalValue / 1_000)}k`
-                : totalValue.toLocaleString()}{" "}
-            <span className="font-mono text-xs text-ink-subtle">AED</span>
-          </p>
-        </div>
-      </section>
+      {/* KPI strip — StatCard pattern matches Contracts list (design system). */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label={t("approval.list.stats.pending", { defaultValue: "Pending decisions" })}
+          value={pendingTotal.toLocaleString()}
+        />
+        <StatCard
+          label={t("approval.list.stats.slaBreaches", { defaultValue: "SLA breaches (>24h)" })}
+          value={slaBreaches.toLocaleString()}
+          variant={slaBreaches > 0 ? "risk" : "default"}
+        />
+        <StatCard
+          label={t("approval.list.stats.avgWait", { defaultValue: "Avg waiting" })}
+          value={`${avgWaitDays}d`}
+          variant={avgWaitDays > 1 ? "warning" : "default"}
+        />
+        <StatCard
+          label={t("approval.list.stats.totalValue", { defaultValue: "Pending value" })}
+          value={
+            <>
+              {totalValue >= 1_000_000
+                ? `${(totalValue / 1_000_000).toFixed(1)}M`
+                : totalValue >= 1_000
+                  ? `${Math.round(totalValue / 1_000)}k`
+                  : totalValue.toLocaleString()}{" "}
+              <span className="font-mono text-xs text-ink-subtle">AED</span>
+            </>
+          }
+        />
+      </div>
 
-      {/* R1 audit 6.2.1: 5-tab inbox parity with Lovable. */}
-      <div role="tablist" className="flex flex-wrap gap-1 border-b border-border">
+      {/* Tabs — pill-style for design-system parity with the rest of the app. */}
+      <div role="tablist" className="flex flex-wrap gap-1.5">
         {(
           [
             { key: "all", label: t("approval.list.tabs.all", { defaultValue: "All" }) },
@@ -321,9 +358,6 @@ export function ApprovalsListView() {
               label: t("approval.list.tabs.pending", {
                 defaultValue: "Pending my approval",
               }),
-              /* A5 (Aisha audit fix) — badge stays at pending count even when
-                 a non-pending tab is active so the user can always see "you
-                 have N waiting" from any tab. */
               badge: pendingTotal,
             },
             {
@@ -350,15 +384,17 @@ export function ApprovalsListView() {
               setPage(1);
               setSelectedStepIds(new Set());
             }}
-            className={`inline-flex items-center gap-1.5 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
               activeTab === tab.key
-                ? "border-gold text-ink"
-                : "border-transparent text-ink-muted hover:text-ink"
+                ? "bg-gold text-ink"
+                : "border border-border bg-surface text-ink-muted hover:border-gold"
             }`}
           >
             {tab.label}
             {typeof tab.badge === "number" && tab.badge > 0 && (
-              <span className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-muted">
+              <span className={`rounded-full px-1.5 py-0.5 font-mono text-[10px] ${
+                activeTab === tab.key ? "bg-ink/10 text-ink" : "bg-card text-ink-muted"
+              }`}>
                 {tab.badge}
               </span>
             )}
@@ -366,11 +402,99 @@ export function ApprovalsListView() {
         ))}
       </div>
 
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <div className="flex items-center gap-2">
-            <label htmlFor="approvals-sort" className="text-xs text-ink-muted">
-              {t("approval.list.sort")}
+      {/* Filter toolbar — search + priority + type + sort, mirrors the
+          Contracts list pattern. Search runs client-side over the current
+          tab's data; priority/type derive from the row badge logic. */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] flex-1">
+            <label htmlFor="approvals-search" className="sr-only">
+              {t("approval.list.searchPlaceholder", {
+                defaultValue: "Search contract, requester…",
+              })}
+            </label>
+            <Search
+              className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle"
+              aria-hidden="true"
+            />
+            <Input
+              id="approvals-search"
+              type="search"
+              value={searchInput}
+              onChange={handleSearchChange}
+              placeholder={t("approval.list.searchPlaceholder", {
+                defaultValue: "Search contract, requester…",
+              })}
+              className="ps-9"
+              autoComplete="off"
+            />
+          </div>
+          {hasFilters && (
+            <Button type="button" variant="ghost" size="sm" onClick={handleClearFilters}>
+              <X className="h-3.5 w-3.5" />
+              {t("approval.list.clearFilters", { defaultValue: "Clear" })}
+            </Button>
+          )}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="approvals-priority"
+              className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+            >
+              {t("approval.list.filters.priority", { defaultValue: "Priority" })}
+            </label>
+            <select
+              id="approvals-priority"
+              value={priorityFilter}
+              onChange={(e) => {
+                setPriorityFilter(e.target.value as typeof priorityFilter);
+                setPage(1);
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">{t("common.all", { defaultValue: "All" })}</option>
+              <option value="urgent">
+                {t("approval.list.priority.urgent", { defaultValue: "Urgent" })}
+              </option>
+              <option value="highValue">
+                {t("approval.list.priority.highValue", { defaultValue: "High value" })}
+              </option>
+              <option value="none">
+                {t("approval.list.priority.standard", { defaultValue: "Standard" })}
+              </option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="approvals-type"
+              className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+            >
+              {t("approval.list.filters.type", { defaultValue: "Contract type" })}
+            </label>
+            <select
+              id="approvals-type"
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setPage(1);
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">{t("common.all", { defaultValue: "All" })}</option>
+              {typeOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {t(`contractType.${o.value}`, { defaultValue: o.label })}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="approvals-sort"
+              className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+            >
+              {t("approval.list.sort", { defaultValue: "Sort by" })}
             </label>
             <select
               id="approvals-sort"
@@ -379,7 +503,7 @@ export function ApprovalsListView() {
                 setSort(e.target.value as ApprovalPendingSort);
                 setPage(1);
               }}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               {APPROVAL_PENDING_SORT_VALUES.map((s) => (
                 <option key={s} value={s}>
@@ -388,8 +512,8 @@ export function ApprovalsListView() {
               ))}
             </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {activeIsLoading ? (
         <Card>
@@ -419,11 +543,32 @@ export function ApprovalsListView() {
         <Card>
           <CardContent className="flex flex-col items-center gap-2 p-12 text-center">
             <h2 className="text-base font-semibold text-ink">
-              {t("approval.list.emptyTitle")}
+              {hasFilters
+                ? t("approval.list.noResultsTitle", {
+                    defaultValue: "No approvals match these filters",
+                  })
+                : t("approval.list.emptyTitle")}
             </h2>
             <p className="max-w-md text-sm text-ink-muted">
-              {t("approval.list.emptyDescription")}
+              {hasFilters
+                ? t("approval.list.noResultsDescription", {
+                    defaultValue:
+                      "Try clearing the search or filters to see more.",
+                  })
+                : t("approval.list.emptyDescription")}
             </p>
+            {hasFilters && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={handleClearFilters}
+              >
+                <X className="h-3.5 w-3.5" />
+                {t("approval.list.clearFilters", { defaultValue: "Clear filters" })}
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -452,30 +597,30 @@ export function ApprovalsListView() {
                         className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-gold"
                       />
                     </th>
-                    {/* R2 audit — Lovable column set: Priority / Contract /
-                        Type / Value / Stage / Submitted / Drafter / Actions */}
-                    <th scope="col" className="px-2 py-3 font-medium text-ink-muted">
-                      {t("approval.list.col.priority", { defaultValue: "Priority" })}
-                    </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    {/* Slimmed column set: Contract / Type / Value / Stage /
+                        Waiting / Drafter / Actions. Priority moved inline into
+                        the Contract cell as a small badge. <th> style follows
+                        the Contracts list canonical pattern: mono / 10px /
+                        uppercase / tracking-wider / text-ink-subtle. */}
+                    <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("approval.list.col.contract")}
                     </th>
-                    <th scope="col" className="px-2 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-2 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("approval.list.col.type", { defaultValue: "Type" })}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("approval.list.col.value")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                      {t("approval.list.col.step")}
+                    <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                      {t("approval.list.col.stage", { defaultValue: "Stage" })}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
-                      {t("approval.list.col.pending")}
+                    <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                      {t("approval.list.col.waiting", { defaultValue: "Waiting" })}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("approval.list.col.requester")}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-medium text-ink-muted">
+                    <th scope="col" className="px-4 py-3 text-end font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       <span className="sr-only">{t("approval.list.col.actions")}</span>
                     </th>
                   </tr>
@@ -487,16 +632,6 @@ export function ApprovalsListView() {
                       row={row}
                       selected={selectedStepIds.has(row.stepId)}
                       onToggleSelect={() => toggleRowSelected(row.stepId)}
-                      onAct={(it, action) => {
-                        // R-LC4 — request_info short-circuits to the soft-
-                        // action dialog (separate codepath from request_resubmission).
-                        if (action === "request_info") {
-                          setRequestInfoStepId(it.stepId);
-                          return;
-                        }
-                        setActiveStep(it);
-                        setPresetAction((action as ApprovalActionKind | undefined) ?? null);
-                      }}
                     />
                   ))}
                 </tbody>
@@ -541,26 +676,9 @@ export function ApprovalsListView() {
         </div>
       )}
 
-      {activeStep && (
-        <ApprovalDecisionDialog
-          stepId={activeStep.stepId}
-          initialKind={presetAction ?? undefined}
-          currentUserId={currentUserId}
-          open={true}
-          onClose={() => {
-            setActiveStep(null);
-            setPresetAction(null);
-          }}
-        />
-      )}
-
-      {/* R-LC4 LC-F7 — soft Request-info dialog (separate from the
-          decision dialog used for approve/reject/request_resubmission). */}
-      <RequestInfoDialog
-        stepId={requestInfoStepId}
-        open={requestInfoStepId != null}
-        onClose={() => setRequestInfoStepId(null)}
-      />
+      {/* Row-level decision dialogs removed — View now navigates to the
+          contract detail page where approve/reject/request-info/delegate
+          live in context. Bulk-approve still uses the inline mutation. */}
 
       {/* R3 audit 6.3.1 — floating bulk-action toolbar appears when ≥1 row
           selected. Only "Approve all selected" is offered (matches Lovable's
@@ -607,15 +725,10 @@ export function ApprovalsListView() {
   );
 }
 
-// R-LC4 — extend the action kind union to include request_info (handled
-// by a separate soft-action dialog, not ApprovalDecisionDialog).
-type ListRowActionKind = ApprovalActionKind | "request_info";
-
 interface ApprovalListRowProps {
   row: MyPendingApprovalListItem;
   selected: boolean;
   onToggleSelect: () => void;
-  onAct: (item: MyPendingApprovalListItem, presetAction?: ListRowActionKind) => void;
 }
 
 /** R2 audit 6.4.1 — derive Priority hint from value + hours-pending. */
@@ -645,10 +758,9 @@ function humanizeContractType(slug: string): string {
   return slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
-function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListRowProps) {
+function ApprovalListRow({ row, selected, onToggleSelect }: ApprovalListRowProps) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
-  const navigate = useNavigate();
   // R5 — past-decision rows from fn_approval_my_decisions don't carry
   // hoursPending; derive a "decided X ago" label from decidedAt instead.
   const isPast = typeof row.decision === "string";
@@ -671,28 +783,32 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
     ? `${(row.requesterUserRef.firstName?.[0] ?? "").toUpperCase()}${(row.requesterUserRef.lastName?.[0] ?? "").toUpperCase()}`
     : "??";
 
-  // R0 audit bug 6.6.1: row clickable to navigate to contract detail.
-  // The Act button stops propagation so it doesn't double-fire.
-  const goToContract = () =>
-    void navigate({ to: "/app/contracts/$id", params: { id: String(row.contractId) } });
-
-  // R2 audit 6.4.4 — current step descriptor for "Step X of Y: <role>".
+  // Stage label data — the contract number + title remain Link elements so
+  // users can still jump to the contract; the primary action stays on the
+  // explicit View button to keep affordances unambiguous.
   const totalSteps = row.totalSteps ?? row.chainSteps?.length ?? 1;
-  const currentStepRole =
-    row.chainSteps?.find((s) => s.order === row.stepOrder)?.role ?? null;
+  // Workflow-style stage name (not role name). The user's review made clear
+  // that role labels like "Platform Admin" read as people, not stages, in
+  // this column. Map position-in-chain → workflow vocabulary instead.
+  const stageLabel = (() => {
+    if (totalSteps === 1) {
+      return t("approval.list.stage.review", { defaultValue: "Review" });
+    }
+    if (row.stepOrder === 1) {
+      return t("approval.list.stage.initial", { defaultValue: "Initial review" });
+    }
+    if (row.stepOrder === totalSteps) {
+      return t("approval.list.stage.final", { defaultValue: "Final approval" });
+    }
+    return t("approval.list.stage.intermediate", {
+      order: row.stepOrder,
+      defaultValue: `Review · stage ${row.stepOrder}`,
+    });
+  })();
 
   return (
     <tr
-      role="link"
-      tabIndex={0}
-      onClick={goToContract}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          goToContract();
-        }
-      }}
-      className={`cursor-pointer border-b border-border/60 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${selected ? "bg-gold/5" : "hover:bg-surface/50 focus-visible:bg-surface/50"}`}
+      className={`group border-b border-border/60 transition-colors ${selected ? "bg-gold/5" : "hover:bg-surface/50"}`}
     >
       {/* R3 audit 6.3.1 — bulk-select row checkbox (pending tab only). */}
       <td className="w-8 px-2 py-3" onClick={(e) => e.stopPropagation()}>
@@ -706,35 +822,40 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
           />
         )}
       </td>
-      {/* Priority */}
-      <td className="px-2 py-3">
-        {priority === "highValue" ? (
-          <span className="inline-flex items-center rounded-full bg-amber-tint/40 px-2 py-0.5 text-[10px] font-medium text-amber-ink">
-            {t("approval.list.priority.highValue", { defaultValue: "High value" })}
-          </span>
-        ) : priority === "urgent" ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-terracotta/10 px-2 py-0.5 text-[10px] font-medium text-terracotta">
-            <Zap className="h-2.5 w-2.5" />
-            {t("approval.list.priority.urgent", { defaultValue: "Urgent" })}
-          </span>
-        ) : (
-          <span className="text-[10px] text-ink-subtle">—</span>
-        )}
-      </td>
-      {/* Contract — number + title + chain breadcrumb (R2 audit 6.4.3)
-          L86 — render single title based on actor language (no EN+AR stacked). */}
-      <td className="px-4 py-3">
-        <div className="flex flex-col gap-1">
-          <span className="font-mono text-xs text-ink-muted">{row.contractNumber}</span>
-          <span
-            className="text-sm font-medium text-ink"
+      {/* Contract — number + title; priority badge inlines next to number.
+          Chain breadcrumb removed — the Stage column now carries the
+          workflow position formally. L86 — single title in actor language. */}
+      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-2">
+            <Link
+              to="/app/contracts/$id"
+              params={{ id: String(row.contractId) }}
+              className="font-mono text-xs text-ink-muted hover:text-gold hover:underline"
+              aria-label={`Open contract ${row.contractNumber}`}
+            >
+              {row.contractNumber}
+            </Link>
+            {!isPast && priority === "urgent" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-terracotta/10 px-1.5 py-0 font-mono text-[9px] uppercase tracking-wider text-terracotta">
+                <Zap className="h-2.5 w-2.5" />
+                {t("approval.list.priority.urgent", { defaultValue: "Urgent" })}
+              </span>
+            )}
+            {!isPast && priority === "highValue" && (
+              <span className="inline-flex items-center rounded-full bg-amber-tint/40 px-1.5 py-0 font-mono text-[9px] uppercase tracking-wider text-amber-ink">
+                {t("approval.list.priority.highValue", { defaultValue: "High value" })}
+              </span>
+            )}
+          </div>
+          <Link
+            to="/app/contracts/$id"
+            params={{ id: String(row.contractId) }}
+            className="text-sm font-medium text-ink hover:text-gold"
             dir={isAr && row.contractTitleAr ? "rtl" : "ltr"}
           >
             {isAr && row.contractTitleAr ? row.contractTitleAr : row.contractTitleEn}
-          </span>
-          {row.chainSteps && row.chainSteps.length > 0 && (
-            <ChainBreadcrumb steps={row.chainSteps} />
-          )}
+          </Link>
         </div>
       </td>
       {/* Type — contract type pill — L85 humanized (drop uppercase) */}
@@ -755,33 +876,51 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
           ? "—"
           : t("approval.list.valueAed", { value: row.valueAed.toLocaleString() })}
       </td>
-      {/* Stage — "Step X of Y: <role>" — R-LC0 format role slug via i18n */}
+      {/* Stage — formal workflow label (Initial review / Review / Final
+          approval) plus position dots beneath so users see where they are
+          without reading numbers. */}
       <td className="px-4 py-3">
-        {(() => {
-          const roleLabel = currentStepRole
-            ? t(`roles.${currentStepRole}`, { defaultValue: currentStepRole })
-            : "";
-          return (
-            <span className="inline-flex items-center rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-ink-muted">
-              {t("approval.list.stageLabel", {
+        <div className="flex flex-col gap-1">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-md bg-gold/10 px-2 py-0.5 text-[11px] font-medium text-ink">
+            {stageLabel}
+          </span>
+          {totalSteps > 1 && (
+            <span
+              className="inline-flex items-center gap-0.5"
+              aria-label={t("approval.list.stage.positionAria", {
                 order: row.stepOrder,
                 total: totalSteps,
-                role: roleLabel,
-                defaultValue:
-                  roleLabel && totalSteps > 1
-                    ? `Step ${row.stepOrder} of ${totalSteps}: ${roleLabel}`
-                    : `Step ${row.stepOrder} of ${totalSteps}`,
+                defaultValue: `Stage ${row.stepOrder} of ${totalSteps}`,
               })}
+              title={t("approval.list.stage.positionAria", {
+                order: row.stepOrder,
+                total: totalSteps,
+                defaultValue: `Stage ${row.stepOrder} of ${totalSteps}`,
+              })}
+            >
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`inline-block h-1.5 w-1.5 rounded-full ${
+                    i + 1 < row.stepOrder
+                      ? "bg-primary"
+                      : i + 1 === row.stepOrder
+                        ? "bg-gold"
+                        : "bg-border"
+                  }`}
+                  aria-hidden
+                />
+              ))}
             </span>
-          );
-        })()}
-        {!row.isRequired && (
-          <span className="ms-1 inline-flex items-center rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-ink-muted">
-            {t("approval.chain.optional")}
-          </span>
-        )}
+          )}
+          {!row.isRequired && (
+            <span className="inline-flex w-fit items-center rounded-full border border-border bg-background px-1.5 py-0 text-[9px] font-medium text-ink-muted">
+              {t("approval.chain.optional")}
+            </span>
+          )}
+        </div>
       </td>
-      {/* Pending */}
+      {/* Waiting */}
       <td className="px-4 py-3">
         <span
           className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${
@@ -805,9 +944,9 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
           <span className="text-xs">{requesterName}</span>
         </div>
       </td>
-      <td className="px-4 py-3 text-end">
+      <td className="px-4 py-3 text-end" onClick={(e) => e.stopPropagation()}>
         {isPast ? (
-          // R5 — show decision badge instead of action buttons for past rows.
+          // Past decisions — show the decision badge, no actions.
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
               row.decision === "approve"
@@ -836,139 +975,20 @@ function ApprovalListRow({ row, selected, onToggleSelect, onAct }: ApprovalListR
             })}
           </span>
         ) : (
-          // R1 audit 6.4.6: 3 inline icon buttons.
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("approval.decide.approve", { defaultValue: "Approve" })}
-              title={t("approval.decide.approve", { defaultValue: "Approve" })}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAct(row, "approve");
-              }}
-              className="text-primary hover:bg-primary/10"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("approval.decide.reject", { defaultValue: "Reject" })}
-              title={t("approval.decide.reject", { defaultValue: "Reject" })}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAct(row, "reject");
-              }}
-              className="text-destructive hover:bg-destructive/10"
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
-            {/* R-LC4 LC-F7 — separate Request info (soft) + Request resubmission (hard) buttons. */}
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("approval.decide.requestInfo", { defaultValue: "Request info" })}
-              title={t("approval.decide.requestInfo", { defaultValue: "Request info" })}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAct(row, "request_info");
-              }}
-              className="text-ink-muted hover:bg-surface"
-            >
-              <MessageSquare className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("approval.decide.requestResubmission", { defaultValue: "Request resubmission" })}
-              title={t("approval.decide.requestResubmission", { defaultValue: "Request resubmission" })}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAct(row, "request_resubmission");
-              }}
-              className="text-amber-ink hover:bg-amber-tint/40"
-            >
-              <MessageCircleQuestion className="h-4 w-4" />
-            </Button>
-            {/* A11 (Aisha audit fix 2026-06-01) — row Delegate icon mirrors
-                the modal so the segmented modal control + row vocabulary
-                stay aligned. Click opens the same shared decision dialog
-                preset to the Delegate flow. */}
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("approval.decide.delegate", { defaultValue: "Delegate" })}
-              title={t("approval.decide.delegate", { defaultValue: "Delegate" })}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAct(row, "delegate");
-              }}
-              className="text-ink-muted hover:bg-surface"
-            >
-              <UserPlus className="h-4 w-4" />
-            </Button>
-          </div>
+          // Single primary action — "View" navigates to the contract page.
+          // Approve / Reject / Request info / Delegate live on the contract
+          // detail surface (Approvals tab), giving the user full context
+          // before deciding instead of acting from a list-row popup.
+          <Link
+            to="/app/contracts/$id"
+            params={{ id: String(row.contractId) }}
+            className="inline-flex h-8 items-center gap-1 rounded-md border border-border bg-card px-3 text-xs font-medium text-ink hover:bg-surface"
+          >
+            {t("approval.list.actions.view", { defaultValue: "View" })}
+          </Link>
         )}
       </td>
     </tr>
-  );
-}
-
-/**
- * R2 audit 6.4.3 — chain breadcrumb shown beneath the contract title.
- * Renders each step as a small avatar + role chip with a connecting arrow,
- * mirroring Lovable's "Legal Counsel → Contract Approver → Contract
- * Approver (Stage 2)" trail. Pending steps stay neutral; approved steps
- * tint primary; rejected/skipped tint terracotta/muted.
- */
-function ChainBreadcrumb({ steps }: { steps: ApprovalChainStepRef[] }) {
-  const { t } = useTranslation();
-  // L87 — Disambiguate peer-step duplicates: when multiple steps share the
-  // same `order` (parallel/peer approvers), label them "2a / 2b / 2c…" so the
-  // breadcrumb doesn't read as "2 Legal Counsel → 2 Platform Admin" twice.
-  const orderCounts = new Map<number, number>();
-  const orderIndex = new Map<number, number>();
-  for (const s of steps) {
-    orderCounts.set(s.order, (orderCounts.get(s.order) ?? 0) + 1);
-  }
-  return (
-    <ol className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-1 text-[10px] text-ink-subtle">
-      {steps.map((step, idx) => {
-        const tint =
-          step.status === "approved"
-            ? "border-primary/40 bg-primary/10 text-primary"
-            : step.status === "rejected"
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : step.status === "skipped"
-                ? "border-border bg-card text-ink-subtle line-through"
-                : "border-border bg-card text-ink-muted";
-        const roleLabel = step.role
-          ? t(`roles.${step.role}`, { defaultValue: step.role })
-          : "—";
-        const peerCount = orderCounts.get(step.order) ?? 1;
-        let peerSuffix = "";
-        if (peerCount > 1) {
-          const seq = (orderIndex.get(step.order) ?? 0);
-          orderIndex.set(step.order, seq + 1);
-          peerSuffix = String.fromCharCode(97 + seq); // a, b, c…
-        }
-        return (
-          <li key={`${step.order}-${idx}-${step.role ?? "u"}`} className="inline-flex items-center gap-1">
-            <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${tint}`}>
-              <span className="font-mono">{step.order}{peerSuffix}</span>
-              <span>{roleLabel}</span>
-            </span>
-            {idx < steps.length - 1 && <span aria-hidden>→</span>}
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 

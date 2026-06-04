@@ -22,6 +22,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { formatDateTime } from '@/utils/datetime';
+import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
 import type { RiskCaseEvent, RiskCaseEventType } from '@/types/risk-case.types';
 
 const EVENT_ICONS: Record<RiskCaseEventType, React.ComponentType<{ className?: string }>> = {
@@ -43,10 +44,18 @@ function eventSummary(event: RiskCaseEvent, t: TFunction): string {
     case 'created':
       return t('riskCases.timeline.events.created');
     case 'assigned': {
-      const to = (payload as { to?: { role?: string | null; userId?: number | null } }).to;
+      // E-rev-E-6 — surface a humanised role label + the assignee's display
+      // name when present (BE seeded payload.to.userName), falling back to
+      // user-id only when neither name nor role is available.
+      const to = (payload as {
+        to?: { role?: string | null; userId?: number | null; userName?: string | null };
+      }).to;
+      const roleLabel = to?.role ? humanizeLabel(to.role) : '—';
+      const assignee = to?.userName ?? (to?.userId ? `#${to.userId}` : '—');
       return t('riskCases.timeline.events.assigned', {
-        role: to?.role ?? '—',
-        userId: to?.userId ?? '—',
+        role: roleLabel,
+        userId: assignee,
+        defaultValue: `Assigned to ${roleLabel} (${assignee})`,
       });
     }
     case 'status_changed': {

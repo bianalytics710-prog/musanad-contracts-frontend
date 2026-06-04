@@ -514,7 +514,18 @@ export interface ContractActivityListQuery {
 // 9. Response payload types
 // ------------------------------------------------------------
 
-export type ContractListResponse = Paginated<ContractListItem>;
+/** Per-status scope counts returned alongside the paginated list (mig 485).
+ *  Respects all filters EXCEPT p_status — i.e. each tile reads "how many
+ *  contracts in the current filtered scope have status X?". */
+export interface ContractListStatusCounts {
+  active: number;
+  inApproval: number;
+  expiringSoon: number;
+}
+
+export type ContractListResponse = Paginated<ContractListItem> & {
+  statusCounts?: ContractListStatusCounts;
+};
 export type ContractResponse = Contract;
 export type CreateContractResponse = Contract;
 export type UpdateContractResponse = Contract;

@@ -35,8 +35,6 @@ import {
   TrendingUp,
   BarChart3,
   Zap,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -55,6 +53,13 @@ import {
 } from 'recharts';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { ChartCard, SemanticTooltip } from '@/components/charts';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialTradeMarginService } from '@/services/api/financial-trade-margin.service';
@@ -212,6 +217,10 @@ function TradeMarginDetailView() {
 
   const canRead = useAuthStore(selectHasPermission('finance.margin.read'));
   const canManage = useAuthStore(selectHasPermission('finance.trade.manage'));
+  // E-rev-I — Executive doesn't recompute margins (operator action).
+  // Hide the Recompute tab for that role.
+  const userRole = useAuthStore((s) => s.user?.role.name ?? null);
+  const isExecutive = userRole === 'executive';
 
   const queryClient = useQueryClient();
 
@@ -298,9 +307,14 @@ function TradeMarginDetailView() {
         hiddenWhen: position?.side !== 'buy',
       },
       { id: 'historyTrends', labelKey: 'financial.tradeMargin.detail.tabs.historyTrends' },
-      { id: 'recompute', labelKey: 'financial.tradeMargin.detail.tabs.recompute' },
+      {
+        id: 'recompute',
+        labelKey: 'financial.tradeMargin.detail.tabs.recompute',
+        // E-rev-I — Operator-only tab. Hidden for executive.
+        hiddenWhen: isExecutive,
+      },
     ],
-    [position?.side, position?.pricingBasis],
+    [position?.side, position?.pricingBasis, isExecutive],
   );
 
   const visibleTabs = TABS.filter((tab) => !tab.hiddenWhen);
@@ -442,6 +456,8 @@ function TradeMarginDetailView() {
               </p>
             </div>
           )}
+          {/* E-rev-H — Price-protection card */}
+          <PriceProtectionCard position={position} />
           <PositionMetaGrid position={position} />
         </div>
       )}
@@ -578,19 +594,7 @@ function PositionHeader({ position }: { position: TradePosition }) {
             <h1 className="text-2xl font-semibold tracking-tight text-ink">
               {position.positionRef}
             </h1>
-            {/* F46 / F57 — drop `uppercase` class on side badge; t() value
-                renders title-case ("Sell" / "Buy") via existing i18n keys. */}
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wider ${
-                isSell
-                  ? 'border border-gold/30 bg-gold/10 text-gold'
-                  : 'border border-sage/30 bg-sage/10 text-sage'
-              }`}
-            >
-              {isSell
-                ? t('financial.tradeMargin.side.sell')
-                : t('financial.tradeMargin.side.buy')}
-            </span>
+            {/* E-rev-L — Sell pill removed; module is sell-only. */}
             <StatusBadge status={position.status} />
           </div>
           <p className="mt-1 text-sm text-ink-muted">
@@ -622,6 +626,259 @@ function PositionHeader({ position }: { position: TradePosition }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-H — PriceProtectionCard
+// Visualises the contracted floor/ceiling band against today's benchmark.
+// Drives the Escalate-to-drafter CTA when band is breached or absent.
+// ─────────────────────────────────────────────────────────────
+function PriceProtectionCard({ position }: { position: TradePosition }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [reason, setReason] = useState('');
+  const [showDialog, setShowDialog] = useState(false);
+
+  const floor = position.contractedFloorUsdPerBbl
+    ? parseFloat(position.contractedFloorUsdPerBbl)
+    : null;
+  const ceiling = position.contractedCeilingUsdPerBbl
+    ? parseFloat(position.contractedCeilingUsdPerBbl)
+    : null;
+  const osp = position.latestBenchmarkUsdPerBbl
+    ? parseFloat(position.latestBenchmarkUsdPerBbl)
+    : null;
+  const bandStatus = position.bandStatus ?? 'no_band';
+  const noBand = floor == null && ceiling == null;
+  const needsEscalate =
+    bandStatus === 'no_band' ||
+    bandStatus === 'below_floor' ||
+    bandStatus === 'above_ceiling';
+
+  // Scale: pick a slightly wider view than the band to put OSP in context.
+  const lo = floor != null ? floor - 8 : osp != null ? osp - 12 : 90;
+  const hi = ceiling != null ? ceiling + 8 : osp != null ? osp + 12 : 120;
+  const span = hi - lo || 1;
+  const pct = (v: number) => Math.max(0, Math.min(100, ((v - lo) / span) * 100));
+
+  const escalateMutation = useMutation({
+    mutationFn: async () => {
+      const { riskCaseService } = await import('@/services/api/risk-case.service');
+      const counterpartyName = position.counterparty?.nameEn ?? '';
+      const grade = position.grade;
+      const body = [
+        `Trade position ${position.positionRef} (${grade} sell to ${counterpartyName}) — band review`,
+        '',
+        `Pricing basis: ${position.pricingBasis}`,
+        `Latest benchmark (OSP today): ${osp != null ? '$' + osp.toFixed(2) : '—'}`,
+        noBand
+          ? `Contracted band: NONE — no floor / no ceiling negotiated`
+          : `Contracted band: floor ${floor != null ? '$' + floor.toFixed(2) : '—'} → ceiling ${ceiling != null ? '$' + ceiling.toFixed(2) : '—'}`,
+        '',
+        noBand
+          ? 'Action requested: amend the contract to add a price-review window with a floor + ceiling band.'
+          : `Action requested: review whether to invoke ${position.bandReviewClauseRef ?? 'price-review clause'} or amend the band.`,
+        reason.trim() ? `\nExecutive note: ${reason.trim()}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+      return riskCaseService.create({
+        contractId: position.linkedContract?.id ?? null,
+        priority: noBand ? 'high' : 'critical',
+        title: `Trade band review — ${position.positionRef}`,
+        body,
+        assignedRole: 'contract_drafter',
+        slaHours: 48,
+        metadata: {
+          source: 'trade-margin-band-breach-detail',
+          tradePositionId: position.id,
+          positionRef: position.positionRef,
+          bandStatus,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast.success(
+        t('financial.tradeMargin.actions.escalateSuccess', {
+          defaultValue: 'Risk case opened — drafter will be notified.',
+        }),
+      );
+      void qc.invalidateQueries({ queryKey: ['riskCases'] });
+      setReason('');
+      setShowDialog(false);
+    },
+    onError: (e) => toast.error(translateApiError(e, t)),
+  });
+
+  // Container tone reflects band status.
+  const toneCls =
+    bandStatus === 'within_band'
+      ? 'border-sage/30 bg-sage/5'
+      : bandStatus === 'at_floor' || bandStatus === 'at_ceiling'
+        ? 'border-amber-tint bg-amber-tint/20'
+        : bandStatus === 'no_band'
+          ? 'border-amber-tint bg-amber-tint/30'
+          : 'border-terracotta/30 bg-terracotta/5';
+
+  return (
+    <section className={`rounded-lg border p-4 ${toneCls}`}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-ink">
+          {t('financial.tradeMargin.detail.priceProtection.title', {
+            defaultValue: 'Price-protection band',
+          })}
+        </h2>
+        {position.bandReviewClauseRef && (
+          <span className="font-mono text-[10px] text-ink-muted">
+            {position.bandReviewClauseRef}
+          </span>
+        )}
+      </div>
+
+      {noBand ? (
+        <p className="text-xs text-ink">
+          {t('financial.tradeMargin.detail.priceProtection.noBandBody', {
+            defaultValue:
+              'No floor or ceiling negotiated on this position. ADNOC margin is fully exposed in both directions when the pricing basis moves. Recommend amending the contract to add a price-review window before the next delivery cycle.',
+          })}
+        </p>
+      ) : (
+        <>
+          {/* E-rev-L — Dropped the 3-tile FLOOR / OSP / CEILING header.
+              Same numbers appeared twice (once as KPI, once as axis tick).
+              The bar itself is the single source of truth now. */}
+          <div className="relative mt-2 h-6 w-full rounded-md bg-muted">
+            {/* Acceptable band (green) */}
+            {floor != null && ceiling != null && (
+              <div
+                className="absolute inset-y-0 rounded-md bg-sage/30"
+                style={{ left: `${pct(floor)}%`, width: `${pct(ceiling) - pct(floor)}%` }}
+                aria-hidden="true"
+              />
+            )}
+            {/* OSP marker — stand-out vertical bar above the band */}
+            {osp != null && (
+              <div
+                className="absolute -top-1 h-8 w-1 rounded-full bg-ink shadow"
+                style={{ left: `calc(${pct(osp)}% - 2px)` }}
+                aria-hidden="true"
+              />
+            )}
+            {/* Floor — single label below the bar */}
+            {floor != null && (
+              <div
+                className="absolute -bottom-5 -translate-x-1/2 font-mono text-[10px] text-ink-muted"
+                style={{ left: `${pct(floor)}%` }}
+              >
+                <span className="font-semibold text-ink-subtle">FLOOR</span> ${floor.toFixed(2)}
+              </div>
+            )}
+            {/* Ceiling — single label below the bar */}
+            {ceiling != null && (
+              <div
+                className="absolute -bottom-5 -translate-x-1/2 font-mono text-[10px] text-ink-muted"
+                style={{ left: `${pct(ceiling)}%` }}
+              >
+                <span className="font-semibold text-ink-subtle">CEILING</span> ${ceiling.toFixed(2)}
+              </div>
+            )}
+            {/* OSP today — single label above the marker */}
+            {osp != null && (
+              <div
+                className="absolute -top-5 -translate-x-1/2 font-mono text-[10px] font-semibold text-ink"
+                style={{ left: `${pct(osp)}%` }}
+              >
+                OSP ${osp.toFixed(2)}
+              </div>
+            )}
+          </div>
+          <p className="mt-7 text-[11px] text-ink-muted">
+            {bandStatus === 'within_band'
+              ? t('financial.tradeMargin.detail.priceProtection.guideWithin', {
+                  defaultValue:
+                    'OSP is comfortably inside the negotiated band — no contractual action needed.',
+                })
+              : bandStatus === 'at_floor'
+                ? t('financial.tradeMargin.detail.priceProtection.guideAtFloor', {
+                    defaultValue:
+                      'OSP is at or near the contracted floor — the floor caps how low pricing can go, so ADNOC margin is protected. Watch in case the trend continues.',
+                  })
+                : bandStatus === 'at_ceiling'
+                  ? t('financial.tradeMargin.detail.priceProtection.guideAtCeiling', {
+                      defaultValue:
+                        'OSP is at or near the contracted ceiling — buyer can invoke a price-review window if the trend continues.',
+                    })
+                  : bandStatus === 'below_floor'
+                    ? t('financial.tradeMargin.detail.priceProtection.guideBelowFloor', {
+                        defaultValue:
+                          'OSP is BELOW the contracted floor. Contract still trades at the floor, but the spread suggests this band may need re-negotiating.',
+                      })
+                    : t('financial.tradeMargin.detail.priceProtection.guideAboveCeiling', {
+                        defaultValue:
+                          'OSP is ABOVE the contracted ceiling. The buyer may invoke their price-review window. Escalate to legal/drafter to prepare a response.',
+                      })}
+          </p>
+        </>
+      )}
+
+      {needsEscalate && (
+        <div className="mt-4">
+          <Button type="button" size="sm" onClick={() => setShowDialog(true)}>
+            {t('financial.tradeMargin.actions.escalate', {
+              defaultValue: 'Escalate to drafter',
+            })}
+          </Button>
+        </div>
+      )}
+
+      <Dialog open={showDialog} onOpenChange={(o) => !o && setShowDialog(false)}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>
+              {t('financial.tradeMargin.actions.escalateTitle', {
+                defaultValue: 'Escalate to drafter',
+              })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('financial.tradeMargin.actions.escalateDescriptionDetail', {
+                defaultValue:
+                  'Open a risk case assigned to the contract drafter to amend the price-protection band on this position.',
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label htmlFor="tm-detail-reason" className="block text-sm font-medium text-ink">
+              {t('financial.tradeMargin.actions.escalateReason', {
+                defaultValue: 'Executive note (optional)',
+              })}
+            </label>
+            <textarea
+              id="tm-detail-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={5000}
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setShowDialog(false)} disabled={escalateMutation.isPending}>
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => escalateMutation.mutate()}
+                disabled={escalateMutation.isPending}
+              >
+                {escalateMutation.isPending
+                  ? t('common.submitting', { defaultValue: 'Opening case…' })
+                  : t('financial.tradeMargin.actions.escalateConfirm', { defaultValue: 'Open risk case' })}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }
 
@@ -660,14 +917,8 @@ function LatestMarginKpis({ position }: { position: TradePosition }) {
           })}
         </p>
       </div>
-      <div className="rounded-lg border border-border bg-card p-4">
-        <p className="text-xs text-ink-muted">
-          {t('financial.tradeMargin.detail.kpis.recommendation')}
-        </p>
-        <div className="mt-2">
-          <RecommendationBadge rec={m.recommendation} />
-        </div>
-      </div>
+      {/* E-rev-I — Recommendation KPI tile removed. The product shouldn't be
+          handing executives buy/hold/sell signals on a single position. */}
       <div className="rounded-lg border border-border bg-card p-4">
         <p className="text-xs text-ink-muted">
           {t('financial.tradeMargin.detail.kpis.lastComputed')}
@@ -1153,7 +1404,6 @@ function buildWaterfallData(
 
 function MarginBreakdownTab({ position }: { position: TradePosition }) {
   const { t } = useTranslation();
-  const [showTable, setShowTable] = useState(false);
 
   const components = position.costComponents;
   const waterfallData = useMemo(
@@ -1166,8 +1416,6 @@ function MarginBreakdownTab({ position }: { position: TradePosition }) {
   );
 
   const isEmpty = waterfallData.length === 0;
-  const revenues = components.filter((c) => c.isRevenue);
-  const costs = components.filter((c) => !c.isRevenue);
 
   return (
     <>
@@ -1228,135 +1476,226 @@ function MarginBreakdownTab({ position }: { position: TradePosition }) {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Collapsible table toggle */}
-      <div className="rounded-lg border border-border bg-card">
-        <button
-          type="button"
-          onClick={() => setShowTable((v) => !v)}
-          className="flex w-full items-center justify-between px-5 py-3 text-sm font-medium text-ink hover:bg-surface/50 focus:outline-none focus:ring-2 focus:ring-primary rounded-lg"
-          aria-expanded={showTable}
-        >
-          <span>
-            {showTable
-              ? t('financial.tradeMargin.charts.marginWaterfall.hideTable')
-              : t('financial.tradeMargin.charts.marginWaterfall.showTable')}
-          </span>
-          {showTable ? (
-            <ChevronUp className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          )}
-        </button>
-        {showTable && (
-          <div className="overflow-x-auto border-t border-border">
-            <table className="min-w-full text-sm">
-              <thead className="bg-surface">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                  >
-                    {t('financial.tradeMargin.detail.breakdown.columns.component')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted"
-                  >
-                    {t('financial.tradeMargin.detail.breakdown.columns.type')}
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-ink-muted tabular-nums"
-                  >
-                    {t('financial.tradeMargin.detail.breakdown.columns.usdPerBbl')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border bg-card">
-                {revenues.map((c) => (
-                  <ComponentRow key={c.id} component={c} isRevenue={true} />
-                ))}
-                {costs.map((c) => (
-                  <ComponentRow key={c.id} component={c} isRevenue={false} />
-                ))}
-                {costs.length > 0 && (
-                  <tr className="bg-surface">
-                    <td
-                      colSpan={2}
-                      className="px-4 py-2.5 text-xs font-semibold uppercase text-ink-muted"
-                    >
-                      {t('financial.tradeMargin.detail.breakdown.totalCost')}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-mono tabular-nums text-sm font-semibold text-terracotta">
-                      -$
-                      {costs
-                        .reduce((s, c) => s + parseFloat(c.amountUsdPerBbl), 0)
-                        .toFixed(2)}
-                      /bbl
-                    </td>
-                  </tr>
-                )}
-                {position.latestMargin && (
-                  <tr className="border-t-2 border-border bg-surface/80">
-                    <td
-                      colSpan={2}
-                      className="px-4 py-3 text-sm font-semibold text-ink"
-                    >
-                      {t('financial.tradeMargin.detail.breakdown.netMargin')}
-                    </td>
-                    <td
-                      className={`px-4 py-3 text-right font-mono tabular-nums text-sm font-bold ${
-                        parseFloat(position.latestMargin.marginPerBbl) >= 0
-                          ? 'text-success'
-                          : 'text-terracotta'
-                      }`}
-                    >
-                      {formatUsdPerBblStr(position.latestMargin.marginPerBbl)}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* E-rev-K — Full calculation walk-through. Sits between the chart
+          and the collapsible component table so an executive can read the
+          line-by-line math without expanding anything. */}
+      {position.latestMargin && (
+        <MarginCalculationWalkthrough position={position} />
+      )}
+
+      {/* E-rev-K — Old collapsible component table dropped; the
+          MarginCalculationWalkthrough above covers the same line items in
+          a clearer step-by-step layout. */}
     </>
   );
 }
 
-function ComponentRow({
-  component,
-  isRevenue,
-}: {
-  component: CostComponentItem;
-  isRevenue: boolean;
-}) {
+// E-rev-K — `ComponentRow` helper dropped along with the collapsible table.
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-K — MarginCalculationWalkthrough
+// Always-visible step-by-step derivation of the margin number, with both
+// per-bbl and AED totals so an executive can see the math end-to-end.
+// ─────────────────────────────────────────────────────────────
+function MarginCalculationWalkthrough({ position }: { position: TradePosition }) {
   const { t } = useTranslation();
-  const n = parseFloat(component.amountUsdPerBbl);
+  const lm = position.latestMargin!;
+  const components = position.costComponents;
+  const revenues = components.filter((c) => c.isRevenue);
+  const costs = components.filter((c) => !c.isRevenue);
+  const buyerPremium = revenues.reduce(
+    (s, c) => s + parseFloat(c.amountUsdPerBbl),
+    0,
+  );
+  const osp = parseFloat(
+    (position as { latestBenchmarkUsdPerBbl?: string | null }).latestBenchmarkUsdPerBbl ?? '0',
+  );
+  const realizedSale = osp + buyerPremium;
+  const transferIn = osp;
+  const costTotal = costs.reduce((s, c) => s + parseFloat(c.amountUsdPerBbl), 0);
+  const allInCost = transferIn + costTotal;
+  const marginPerBbl = parseFloat(lm.marginPerBbl);
+  const volume = parseFloat(position.volumeBbl);
+  const totalUsd = parseFloat(lm.totalMarginUsd);
+  const totalAed = parseFloat(lm.totalMarginAed);
+  const fxRate = totalUsd !== 0 ? totalAed / totalUsd : 3.67;
+
+  const fmt$ = (n: number) =>
+    `${n < 0 ? '-' : ''}$${Math.abs(n).toFixed(2)}`;
+  const fmtVol = (n: number) =>
+    new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n);
+  const fmtUsd = (n: number) =>
+    `${n < 0 ? '-' : ''}$${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.abs(n))}`;
+  const fmtAed = (n: number) => {
+    const sign = n < 0 ? '-' : '';
+    const v = Math.abs(n);
+    if (v >= 1_000_000_000) return `${sign}AED ${(v / 1_000_000_000).toFixed(2)}B`;
+    if (v >= 1_000_000) return `${sign}AED ${(v / 1_000_000).toFixed(1)}M`;
+    return `${sign}AED ${v.toFixed(0)}`;
+  };
+
   return (
-    <tr className="transition-colors hover:bg-surface/50">
-      <td className="px-4 py-2.5 text-sm text-ink">
-        {t(`financial.tradeMargin.componentType.${component.componentType}`, {
-          defaultValue: component.componentType,
+    <div className="rounded-lg border border-border bg-card p-4">
+      <h2 className="mb-3 text-sm font-semibold text-ink">
+        {t('financial.tradeMargin.detail.walkthrough.title', {
+          defaultValue: 'How this margin is calculated',
         })}
-      </td>
-      <td className="px-4 py-2.5">
-        {isRevenue ? (
-          <span className="inline-flex items-center rounded-full border border-success/30 bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success">
-            {t('financial.tradeMargin.detail.breakdown.revenueLabel')}
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full border border-terracotta/30 bg-terracotta/10 px-1.5 py-0.5 text-[10px] font-medium text-terracotta">
-            {t('financial.tradeMargin.detail.breakdown.costLabel')}
-          </span>
-        )}
-      </td>
-      <td
-        className={`px-4 py-2.5 text-right font-mono tabular-nums text-sm ${
-          isRevenue ? 'text-success' : 'text-terracotta'
-        }`}
-      >
-        {isRevenue ? '+' : '-'}${Math.abs(n).toFixed(2)}/bbl
+      </h2>
+      <p className="mb-3 text-xs text-ink-muted">
+        {t('financial.tradeMargin.detail.walkthrough.intro', {
+          defaultValue:
+            'Trading-desk margin = realized sale price − all-in landed cost. Transfer-in from upstream is booked at Murban OSP so the upstream business retains the producer margin and the trading desk earns the premium net of delivery costs.',
+        })}
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <tbody className="divide-y divide-border/60">
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.osp', {
+                defaultValue: 'Murban OSP (benchmark)',
+              })}
+              op="+"
+              value={fmt$(osp)}
+              suffix="/bbl"
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.premium', {
+                defaultValue: 'Buyer premium (term contract)',
+              })}
+              op="+"
+              value={fmt$(buyerPremium)}
+              suffix="/bbl"
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.realized', {
+                defaultValue: 'Realized sale price',
+              })}
+              op="="
+              value={fmt$(realizedSale)}
+              suffix="/bbl"
+              emphasis="subtotal"
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.transferIn', {
+                defaultValue: 'Crude transfer-in from upstream (at OSP)',
+              })}
+              op="−"
+              value={fmt$(transferIn)}
+              suffix="/bbl"
+            />
+            {costs.map((c) => (
+              <CalcRow
+                key={c.id}
+                label={
+                  t(`financial.tradeMargin.componentType.${c.componentType}`, {
+                    defaultValue: c.componentType,
+                  }) + (c.notes ? ` · ${c.notes}` : '')
+                }
+                op="−"
+                value={fmt$(parseFloat(c.amountUsdPerBbl))}
+                suffix="/bbl"
+              />
+            ))}
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.allInCost', {
+                defaultValue: 'All-in cost',
+              })}
+              op="="
+              value={fmt$(allInCost)}
+              suffix="/bbl"
+              emphasis="subtotal"
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.netMarginBbl', {
+                defaultValue: 'Net margin per bbl',
+              })}
+              op="="
+              value={fmt$(marginPerBbl)}
+              suffix="/bbl"
+              emphasis="total"
+              positive={marginPerBbl >= 0}
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.volume', {
+                defaultValue: 'Volume',
+              })}
+              op="×"
+              value={fmtVol(volume)}
+              suffix="bbl"
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.totalUsd', {
+                defaultValue: 'Total margin (USD)',
+              })}
+              op="="
+              value={fmtUsd(totalUsd)}
+              suffix=""
+              emphasis="subtotal"
+              positive={totalUsd >= 0}
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.fx', {
+                defaultValue: 'FX rate (USD → AED)',
+              })}
+              op="×"
+              value={fxRate.toFixed(4)}
+              suffix=""
+            />
+            <CalcRow
+              label={t('financial.tradeMargin.detail.walkthrough.totalAed', {
+                defaultValue: 'Total margin (AED)',
+              })}
+              op="="
+              value={fmtAed(totalAed)}
+              suffix=""
+              emphasis="total"
+              positive={totalAed >= 0}
+            />
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CalcRow({
+  label,
+  op,
+  value,
+  suffix,
+  emphasis,
+  positive,
+}: {
+  label: string;
+  op: '+' | '−' | '×' | '=';
+  value: string;
+  suffix: string;
+  emphasis?: 'subtotal' | 'total';
+  positive?: boolean;
+}) {
+  const valueCls =
+    emphasis === 'total'
+      ? positive === false
+        ? 'font-mono text-base font-bold tabular-nums text-terracotta'
+        : 'font-mono text-base font-bold tabular-nums text-sage-ink'
+      : emphasis === 'subtotal'
+        ? 'font-mono text-sm font-semibold tabular-nums text-ink'
+        : 'font-mono text-sm tabular-nums text-ink';
+  const rowCls =
+    emphasis === 'total'
+      ? 'bg-sage/5'
+      : emphasis === 'subtotal'
+        ? 'bg-surface/60'
+        : '';
+  return (
+    <tr className={rowCls}>
+      <td className="px-3 py-2 text-xs text-ink-muted">{label}</td>
+      <td className="px-2 py-2 text-center font-mono text-xs text-ink-muted" aria-hidden="true">{op}</td>
+      <td className={`px-3 py-2 text-right ${valueCls}`}>
+        {value}
+        <span className="ms-1 text-[10px] font-normal text-ink-subtle">
+          {suffix}
+        </span>
       </td>
     </tr>
   );
@@ -1524,14 +1863,7 @@ function BuyAndRefineTab({ position }: { position: TradePosition }) {
               {lm ? formatUsdPerBblStr(lm.marginPerBbl) : '—'}
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-card p-3">
-            <p className="text-xs text-ink-muted">
-              {t('financial.tradeMargin.detail.buyAndRefine.action')}
-            </p>
-            <div className="mt-1.5">
-              <RecommendationBadge rec={lm?.recommendation} />
-            </div>
-          </div>
+          {/* E-rev-I — Recommendation badge dropped. */}
         </div>
       </section>
     </>

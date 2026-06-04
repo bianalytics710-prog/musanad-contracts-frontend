@@ -58,15 +58,39 @@ interface RuleGroup {
   rules: ApprovalMatrix[];
 }
 
+/**
+ * BE returns `minValueAed` / `maxValueAed` (and historically `valueMin` /
+ * `valueMax` on some code paths). Coerce both to a plain number so the
+ * row-grouping + range labels render consistently. Numeric DB types can
+ * come over the wire as strings, hence the explicit Number() pass.
+ */
+function readMin(r: ApprovalMatrix): number {
+  const v = (r as unknown as { minValueAed?: number | string; valueMin?: number | string }).minValueAed
+         ?? (r as unknown as { valueMin?: number | string }).valueMin
+         ?? 0;
+  return Number(v ?? 0) || 0;
+}
+
+function readMax(r: ApprovalMatrix): number | null {
+  const raw = (r as unknown as { maxValueAed?: number | string | null; valueMax?: number | string | null }).maxValueAed
+           ?? (r as unknown as { valueMax?: number | string | null }).valueMax
+           ?? null;
+  if (raw == null) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
 function groupRules(rows: readonly ApprovalMatrix[]): RuleGroup[] {
   const map = new Map<string, RuleGroup>();
   for (const r of rows) {
-    const key = `${r.contractType}__${r.valueMin}__${r.valueMax ?? "inf"}`;
+    const min = readMin(r);
+    const max = readMax(r);
+    const key = `${r.contractType}__${min}__${max ?? "inf"}`;
     if (!map.has(key)) {
       map.set(key, {
         contractType: r.contractType,
-        valueMin: r.valueMin,
-        valueMax: r.valueMax,
+        valueMin: min,
+        valueMax: max,
         rules: [],
       });
     }

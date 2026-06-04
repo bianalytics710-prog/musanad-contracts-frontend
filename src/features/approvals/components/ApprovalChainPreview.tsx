@@ -110,7 +110,14 @@ export function ApprovalChainPreview(props: Props) {
   }
 
   // read-only mode
-  const { chain, steps } = props.data;
+  const { chain, steps: rawSteps } = props.data;
+  // Mig 527 removed platform_admin from the approval matrix; mig 531
+  // skipped any leftover pending platform_admin steps on in-flight chains.
+  // Hide those rows so they don't surface in the UI — they have no business
+  // appearing in an approval audit trail going forward.
+  const steps = rawSteps.filter(
+    (s) => !(s.approverRole === "platform_admin" && s.status === "skipped"),
+  );
   return (
     <div className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-3 text-xs text-ink-muted">

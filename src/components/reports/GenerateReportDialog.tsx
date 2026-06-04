@@ -55,11 +55,52 @@ export function GenerateReportDialog({ open, onClose, template }: Props) {
         parameters,
       });
     },
-    onSuccess: (res) => {
-      toast.success(t('reports.toasts.runQueued'));
-      void qc.invalidateQueries({ queryKey: ['reportTemplates'] });
-      onClose();
-      void navigate({ to: '/app/reports/runs/$runId', params: { runId: String(res.runId) } });
+    onSuccess: async (res) => {
+      // Inline-render path: BE returns status='complete' + signedUrl ready to
+      // fetch. We download the bytes as a Blob (auth-header neutral; the URL
+      // is short-lived) and trigger a browser download.
+      if (res.status === 'failed' || !res.signedUrl) {
+        toast.error(
+          res.error
+            ? `${t('reports.errors.triggerFailed', { defaultValue: 'Report generation failed' })}: ${res.error}`
+            : t('reports.errors.triggerFailed', { defaultValue: 'Report generation failed' }),
+        );
+        return;
+      }
+      try {
+        const fetchRes = await fetch(res.signedUrl);
+        if (!fetchRes.ok) throw new Error(`Download failed (HTTP ${fetchRes.status})`);
+        const blob = await fetchRes.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const ext = res.format === 'excel' ? 'xlsx' : 'pdf';
+        const displayName = template.displayNameEn ?? `report-${res.runId}`;
+        a.download =
+          res.fileName ??
+          `${displayName.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 80)}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast.success(
+          t('reports.toasts.runComplete', { defaultValue: 'Report downloaded' }),
+        );
+        void qc.invalidateQueries({ queryKey: ['reportTemplates'] });
+        onClose();
+      } catch (downloadErr) {
+        // Fall back: surface the run detail page so the user can retry the
+        // signed-URL fetch from there.
+        toast.error(
+          (downloadErr as Error).message ??
+            t('reports.errors.downloadFailed', { defaultValue: 'Download failed' }),
+        );
+        onClose();
+        void navigate({
+          to: '/app/reports/runs/$runId',
+          params: { runId: String(res.runId) },
+        });
+      }
     },
     onError: (e: unknown) =>
       toast.error(translateApiError(e, t, 'reports.errors.triggerFailed')),
@@ -162,7 +203,9 @@ export function GenerateReportDialog({ open, onClose, template }: Props) {
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? t('common.queueing') : t('reports.actions.generate')}
+              {mutation.isPending
+                ? t('reports.actions.generating', { defaultValue: 'Generating…' })
+                : t('reports.actions.generate')}
             </Button>
           </div>
         </form>

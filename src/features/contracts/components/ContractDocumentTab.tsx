@@ -11,7 +11,7 @@
  *
  * Body text is SENSITIVE — no console logs.
  */
-import { useMemo, useState, useId } from "react";
+import React, { useMemo, useState, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, Hash } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -77,35 +77,85 @@ function parseClauses(body: string | null): ClauseSegment[] {
   return segments;
 }
 
+/**
+ * Render inline-markdown-bearing text with optional search highlighting.
+ * Handles **bold**, *italic*, and `code` markers that ship in contract bodies
+ * authored as Markdown. Falls back to plain text rendering when no markers
+ * are present, so previously-clean bodies are unaffected.
+ */
 function HighlightedText({ text, query }: { text: string; query: string }) {
-  if (!query.trim() || !text) return <>{text}</>;
-  const parts: Array<{ kind: "text" | "hit"; value: string }> = [];
-  const lowerText = text.toLowerCase();
-  const lowerQ = query.toLowerCase();
-  let cursor = 0;
-  while (cursor < text.length) {
-    const idx = lowerText.indexOf(lowerQ, cursor);
-    if (idx === -1) {
-      parts.push({ kind: "text", value: text.slice(cursor) });
-      break;
-    }
-    if (idx > cursor) parts.push({ kind: "text", value: text.slice(cursor, idx) });
-    parts.push({ kind: "hit", value: text.slice(idx, idx + query.length) });
-    cursor = idx + query.length;
+  if (!text) return null;
+
+  const inlineNodes = renderInlineMarkdown(text);
+
+  if (!query.trim()) {
+    return <>{inlineNodes}</>;
   }
-  return (
-    <>
-      {parts.map((p, i) =>
-        p.kind === "hit" ? (
-          <mark key={i} className="rounded bg-gold/40 px-0.5 text-ink">
-            {p.value}
-          </mark>
-        ) : (
-          <span key={i}>{p.value}</span>
-        ),
-      )}
-    </>
-  );
+
+  // Re-walk over the rendered tree applying the highlight to text fragments only.
+  return <>{highlightNodes(inlineNodes, query)}</>;
+}
+
+/**
+ * Minimal inline-markdown renderer covering the markers that actually
+ * appear in our contract bodies. Order matters: bold first (uses **), then
+ * italic (single *), then `code`. We deliberately do NOT touch block-level
+ * markdown (headings, lists, blockquotes) because the body is already wrapped
+ * in `whitespace-pre-wrap` and the clause parser handles section structure.
+ */
+function renderInlineMarkdown(text: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  // Regex: bold, italic, code. Each capture group is matched non-greedily.
+  const pattern = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(`([^`]+)`)/g;
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  let keyCounter = 0;
+  while ((m = pattern.exec(text)) !== null) {
+    if (m.index > cursor) {
+      out.push(text.slice(cursor, m.index));
+    }
+    if (m[2] != null) {
+      out.push(<strong key={`md-b-${keyCounter++}`}>{m[2]}</strong>);
+    } else if (m[4] != null) {
+      out.push(<em key={`md-i-${keyCounter++}`}>{m[4]}</em>);
+    } else if (m[6] != null) {
+      out.push(
+        <code key={`md-c-${keyCounter++}`} className="rounded bg-surface px-1 font-mono text-[0.85em]">
+          {m[6]}
+        </code>,
+      );
+    }
+    cursor = m.index + m[0].length;
+  }
+  if (cursor < text.length) {
+    out.push(text.slice(cursor));
+  }
+  return out;
+}
+
+function highlightNodes(nodes: React.ReactNode[], query: string): React.ReactNode[] {
+  const lowerQ = query.toLowerCase();
+  return nodes.map((node, i) => {
+    if (typeof node !== "string") return <span key={`mh-${i}`}>{node}</span>;
+    const out: React.ReactNode[] = [];
+    const lowerText = node.toLowerCase();
+    let cursor = 0;
+    while (cursor < node.length) {
+      const idx = lowerText.indexOf(lowerQ, cursor);
+      if (idx === -1) {
+        out.push(node.slice(cursor));
+        break;
+      }
+      if (idx > cursor) out.push(node.slice(cursor, idx));
+      out.push(
+        <mark key={`mh-${i}-${idx}`} className="rounded bg-gold/40 px-0.5 text-ink">
+          {node.slice(idx, idx + query.length)}
+        </mark>,
+      );
+      cursor = idx + query.length;
+    }
+    return <span key={`mh-${i}`}>{out}</span>;
+  });
 }
 
 export function ContractDocumentTab({ contract }: ContractDocumentTabProps) {

@@ -68,6 +68,12 @@ function RiskCaseDetailView() {
   const { caseId } = Route.useParams();
   const id = Number(caseId);
 
+  // E-rev-E — Executive monitors, doesn't act. Hide the entire action
+  // sidebar (Assign / Update status / Escalate / Accept risk / Snooze / Close)
+  // for that role; other roles keep the panel.
+  const userRole = useAuthStore((s) => s.user?.role.name ?? null);
+  const isExecutive = userRole === 'executive';
+
   const canEscalate = useAuthStore(selectHasPermission('risk.case.escalate'));
   // L78 — Draft Advisory action requires advisory.draft.review (legal_counsel + platform_admin).
   const canDraftAdvisory = useAuthStore(selectHasPermission('advisory.draft.review'));
@@ -201,8 +207,9 @@ function RiskCaseDetailView() {
         )}
       </header>
 
-      {/* Two-column layout */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      {/* Two-column layout (collapses to single column for executive who has
+          no actions panel). */}
+      <div className={`grid gap-4 ${isExecutive ? '' : 'lg:grid-cols-[1fr_320px]'}`}>
         <div className="space-y-4">
           {/* Tabs */}
           <div role="tablist" aria-label={t('riskCases.detail.tabsAria')} className="flex gap-2 border-b border-border">
@@ -372,7 +379,8 @@ function RiskCaseDetailView() {
           )}
         </div>
 
-        {/* Action panel */}
+        {/* Action panel — E-rev-E hidden for executive. */}
+        {!isExecutive && (
         <aside className="space-y-2 rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold text-ink">{t('riskCases.detail.actionsTitle')}</h2>
 
@@ -481,6 +489,7 @@ function RiskCaseDetailView() {
             <p className="text-xs text-ink-muted">{t('riskCases.detail.terminal')}</p>
           )}
         </aside>
+        )}
       </div>
 
       {/* Dialogs */}

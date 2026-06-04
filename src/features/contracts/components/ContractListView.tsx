@@ -29,7 +29,7 @@ import { useMemo, useState, type ChangeEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Plus, Search, RefreshCw, X } from "lucide-react";
+import { Plus, Search, RefreshCw, X, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -238,16 +238,26 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
     !!startToFilter ||
     sortField !== "updated_at";
 
-  // Lightweight KPI strip derived from the current page rows. Faithful to
-  // the visible page; for whole-set numbers we use pagination.total.
+  // E-rev-E-1: KPI strip reads scope-wide counts from the BE response
+  // (mig 485 added `statusCounts`). If the BE response predates the
+  // migration the fields are missing — fall back to per-page counts so
+  // we degrade gracefully. The qualifier "(on this page)" goes away
+  // permanently because the numbers are now whole-scope.
   const kpis = useMemo(() => {
     const totalAll = pagination?.total ?? items.length;
-    const active = items.filter((c) => c.status === "active" || c.status === "fully_signed").length;
-    const inApproval = items.filter((c) => c.status === "in_approval").length;
-    const expiring = items.filter((c) => c.status === "expiring_soon").length;
+    const counts = data?.statusCounts;
+    const active =
+      counts?.active ??
+      items.filter((c) => c.status === "active" || c.status === "fully_signed").length;
+    const inApproval =
+      counts?.inApproval ??
+      items.filter((c) => c.status === "in_approval").length;
+    const expiring =
+      counts?.expiringSoon ??
+      items.filter((c) => c.status === "expiring_soon").length;
     const totalAed = items.reduce((sum, c) => sum + (c.valueAed ?? 0), 0);
     return { totalAll, active, inApproval, expiring, totalAed };
-  }, [items, pagination?.total]);
+  }, [items, pagination?.total, data?.statusCounts]);
 
   return (
     <motion.div
@@ -286,6 +296,20 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
           {canCreate && (
             <Button
               type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void navigate({ to: "/app/imports/bulk" })}
+              aria-label={t("contracts.importCta.ariaLabel", {
+                defaultValue: "Import one or more contracts",
+              })}
+            >
+              <Upload className="h-4 w-4" />
+              {t("contracts.importCta.label", { defaultValue: "Import" })}
+            </Button>
+          )}
+          {canCreate && (
+            <Button
+              type="button"
               size="sm"
               onClick={() => void navigate({ to: "/app/contracts/compose" })}
             >
@@ -296,79 +320,28 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
         </div>
       </header>
 
-      {/* D16 — KPI strip used to read "Active or signed: 13 in current
-          view" with the small "in current view" qualifier underneath the
-          big number, so the audience misread 13 as the portfolio scope.
-          The cards now lead with "On this page" + the count and put the
-          scope qualifier in the label, making the page-slice vs scope
-          distinction unambiguous.
-          R11+R14 (Rashid audit 2026-06-01) — when there's no pagination
-          (totalAll <= pageSize) the "(on this page)" qualifier and the
-          duplicated "on this page of N in scope" caption are dead weight,
-          and the H1 already shows the same count. Drop both qualifiers in
-          that case. */}
+      {/* E-rev-E-1 — KPI tiles now show whole-scope counts (mig 485 added
+          per-status aggregates to fn_contract_list). No more "(on this
+          page)" qualifier, no more "0 / 367" caption. If 100 of 367
+          contracts in scope are signed, the Signed tile reads 100. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           label={t("contracts.kpis.totalScope", { defaultValue: "Total in scope" })}
           value={kpis.totalAll.toLocaleString()}
         />
         <StatCard
-          label={
-            kpis.totalAll <= items.length
-              ? t("contracts.kpis.active", {
-                  defaultValue: "Active or signed",
-                })
-              : t("contracts.kpis.activeOnPage", {
-                  defaultValue: "Active or signed (on this page)",
-                })
-          }
+          label={t("contracts.kpis.active", { defaultValue: "Active or signed" })}
           value={kpis.active.toLocaleString()}
-          delta={
-            kpis.totalAll <= items.length
-              ? undefined
-              : t("contracts.kpis.onPageOfN", {
-                  defaultValue: "on this page of {{n}} in scope",
-                  n: kpis.totalAll,
-                })
-          }
         />
         <StatCard
-          label={
-            kpis.totalAll <= items.length
-              ? t("contracts.kpis.inApproval", { defaultValue: "In approval" })
-              : t("contracts.kpis.inApprovalOnPage", {
-                  defaultValue: "In approval (on this page)",
-                })
-          }
+          label={t("contracts.kpis.inApproval", { defaultValue: "In approval" })}
           value={kpis.inApproval.toLocaleString()}
           variant={kpis.inApproval > 0 ? "warning" : "default"}
-          delta={
-            kpis.totalAll <= items.length
-              ? undefined
-              : t("contracts.kpis.onPageOfN", {
-                  defaultValue: "on this page of {{n}} in scope",
-                  n: kpis.totalAll,
-                })
-          }
         />
         <StatCard
-          label={
-            kpis.totalAll <= items.length
-              ? t("contracts.kpis.expiring", { defaultValue: "Expiring soon" })
-              : t("contracts.kpis.expiringOnPage", {
-                  defaultValue: "Expiring soon (on this page)",
-                })
-          }
+          label={t("contracts.kpis.expiring", { defaultValue: "Expiring soon" })}
           value={kpis.expiring.toLocaleString()}
           variant={kpis.expiring > 0 ? "risk" : "default"}
-          delta={
-            kpis.totalAll <= items.length
-              ? undefined
-              : t("contracts.kpis.onPageOfN", {
-                  defaultValue: "on this page of {{n}} in scope",
-                  n: kpis.totalAll,
-                })
-          }
         />
       </div>
 
@@ -686,20 +659,10 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colCounterparty", { defaultValue: "Counterparty" })}
                 </th>
-                {/* R-LC6 LC-D2 / F60 — column shows c.signatoryFirstName +
-                    Last (which is actually the DRAFTER from
-                    fn_contract_list's drafted_by JOIN). Renaming to
-                    "Drafter" so the header is honest about what it shows
-                    and stops looking like every row is signed by the same
-                    person.
-                    R10 (Rashid audit 2026-06-01) — hide for Recipient:
-                    external counterparty signer shouldn't see the internal
-                    drafter's name. */}
-                {!isRecipientOnly && (
-                  <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("contracts.colDrafter", { defaultValue: "Drafter" })}
-                  </th>
-                )}
+                {/* E-rev-E-2 — Drafter column removed across the board.
+                    Executive demo doesn't need internal owner in the
+                    register row; keeps the table inside the viewport on
+                    standard laptop widths without horizontal scroll. */}
                 <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                   {t("contracts.colStatus")}
                 </th>
@@ -751,32 +714,7 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                         return cpName ?? "—";
                       })()}
                     </td>
-                    {/* R-LC6 LC-D2 — Signatory (drafter).
-                        R10 (Rashid audit 2026-06-01) — hide column cell for
-                        Recipient view (header also hidden above). */}
-                    {!isRecipientOnly && (
-                      <td className="px-4 py-3 text-xs text-ink-muted">
-                        {(() => {
-                          const fn = c.signatoryFirstName ?? "";
-                          const ln = c.signatoryLastName ?? "";
-                          const initials = `${fn[0] ?? ""}${ln[0] ?? ""}`.toUpperCase();
-                          const full = `${fn} ${ln}`.trim();
-                          if (!full) return "—";
-                          return (
-                            <span className="inline-flex items-center gap-1.5">
-                              <span
-                                aria-hidden="true"
-                                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gold/10 font-mono text-[9px] font-medium text-gold"
-                              >
-                                {initials}
-                              </span>
-                              <span aria-hidden="true">{" "}</span>
-                              <span>{full}</span>
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    )}
+                    {/* E-rev-E-2 - Drafter cell removed (column gone). */}
                     <td className="px-4 py-3">
                       <ContractStatusBadge status={c.status} />
                     </td>

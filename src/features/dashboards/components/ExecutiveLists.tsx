@@ -134,6 +134,9 @@ export function MostAmendedContractsCard({
 }) {
   const { t } = useTranslation();
   if (rows.length === 0) return null;
+  // E-rev-11 redesign: horizontal bars showing amendment count, scaled to the
+  // top contract. Each row is a clickable link to the contract detail.
+  const max = Math.max(...rows.map((r) => Number(r.amendmentCount ?? 0)), 1);
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <header className="mb-3 flex items-center gap-2">
@@ -144,28 +147,46 @@ export function MostAmendedContractsCard({
           })}
         </h3>
       </header>
-      <ul className="space-y-2">
-        {rows.map((r) => (
-          <li key={r.id} className="border-b border-border/40 pb-2 last:border-0">
-            <Link
-              to="/app/contracts/$id"
-              params={{ id: String(r.id) }}
-              className="block"
-            >
-              <div className="font-mono text-xs text-ink-muted">{r.contractNumber}</div>
-              <div className="text-sm text-ink hover:underline">
-                {r.titleEn ?? r.titleAr ?? r.contractNumber}
-              </div>
-              <div className="mt-1 font-mono text-xs text-ink-subtle">
-                {t("dashboards.executive.lists.mostAmendedContracts.versionLabel", {
-                  defaultValue: "v{{v}} · {{n}} amendments",
-                  v: String(r.currentVersion),
-                  n: String(r.amendmentCount),
-                })}
-              </div>
-            </Link>
-          </li>
-        ))}
+      <ul className="space-y-3">
+        {rows.map((r) => {
+          const count = Number(r.amendmentCount ?? 0);
+          const pct = Math.max(2, Math.round((count / max) * 100));
+          return (
+            <li key={r.id}>
+              <Link
+                to="/app/contracts/$id"
+                params={{ id: String(r.id) }}
+                className="block hover:opacity-90"
+                aria-label={`${r.contractNumber} — ${count} amendments`}
+              >
+                <div className="mb-1 flex items-baseline justify-between gap-2">
+                  <span className="truncate text-sm text-ink hover:underline">
+                    {r.titleEn ?? r.titleAr ?? r.contractNumber}
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-ink-muted">
+                    {count} {t("dashboards.executive.lists.mostAmendedContracts.amendmentsShort", { defaultValue: "amend." })}
+                  </span>
+                </div>
+                <div
+                  role="progressbar"
+                  aria-valuenow={count}
+                  aria-valuemin={0}
+                  aria-valuemax={max}
+                  className="h-2 w-full overflow-hidden rounded-full bg-surface"
+                >
+                  <div
+                    className="h-full rounded-full bg-plum/80"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[10px] text-ink-subtle">
+                  <span>{r.contractNumber}</span>
+                  <span>v{r.currentVersion}</span>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

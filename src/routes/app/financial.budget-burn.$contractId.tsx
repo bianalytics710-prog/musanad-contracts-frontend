@@ -58,6 +58,9 @@ import { Button } from '@/components/ui/button';
 import { ChartCard, SemanticTooltip } from '@/components/charts';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialBudgetBurnService } from '@/services/api/financial-budget-burn.service';
+import { contractsService } from '@/services/api/contracts.service';
+import { formatDate } from '@/utils/datetime';
+import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
 import { translateApiError } from '@/lib/translate-api-error';
 import { cn } from '@/lib/utils';
 import type {
@@ -192,9 +195,21 @@ function BudgetBurnDetailView() {
     staleTime: 30_000,
   });
 
+  // E-rev-F-5 — Contract metadata (counterparty, type, period, value, status,
+  // emirate). Used to render a contextual meta strip on the Overview tab so
+  // executives understand WHAT contract they're looking at without bouncing
+  // to /app/contracts/:id.
+  const contractQuery = useQuery({
+    queryKey: ['contract-meta', numericContractId],
+    queryFn: () => contractsService.getById(numericContractId),
+    enabled: canRead && !isNaN(numericContractId),
+    staleTime: 5 * 60_000,
+  });
+
   const burn       = burnQuery.data;
   const variance   = varianceQuery.data;
   const projection = projectionQuery.data;
+  const contract   = contractQuery.data;
 
   const isLoading = burnQuery.isLoading || varianceQuery.isLoading || projectionQuery.isLoading;
   const isError   = burnQuery.isError || varianceQuery.isError || projectionQuery.isError;
@@ -284,6 +299,15 @@ function BudgetBurnDetailView() {
               structurally visible from Fatima's HERO-001 detail. */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
+              {/* E-rev-G-7 — Match the design-system header pattern used on
+                  contracts list (kicker + H1 + subtitle). The kicker
+                  contextualises the page; the H1 keeps the contract # bold;
+                  the subtitle carries the localised title. */}
+              <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                {t('financial.budgetBurn.detail.kicker', {
+                  defaultValue: 'Budget burn',
+                })}
+              </div>
               <h1 className="text-2xl font-semibold tracking-tight text-ink">
                 {burn.contractNumber}
               </h1>
@@ -375,13 +399,13 @@ function BudgetBurnDetailView() {
                 />
               </section>
 
-              {/* Variance alert (when present) */}
-              {variance && variance.breachCount > 0 && (
-                <VarianceAlertBanner
-                  variance={variance.breaches}
-                  maxPct={variance.maxVariancePct}
-                />
-              )}
+              {/* E-rev-F-5 — Contract meta strip replaces the bogus
+                  "Variance alert" (a per-period spike % off a near-zero
+                  baseline that read as 3,819.5%). The viewer now sees
+                  what this contract IS — counterparty, type, period,
+                  value, status, emirate — and can reconcile the financial
+                  KPIs above against that context. */}
+              {contract && <ContractMetaStrip contract={contract} />}
 
               {/* Latest computed note */}
               {projection && (
@@ -457,19 +481,13 @@ function BudgetBurnDetailView() {
               aria-labelledby="tab-varianceClauses"
               className="space-y-5"
             >
-              {/* Variance alert (repeated here for context) */}
-              {variance && variance.breachCount > 0 && (
-                <VarianceAlertBanner
-                  variance={variance.breaches}
-                  maxPct={variance.maxVariancePct}
-                />
-              )}
-
-              {/* Correlated clause refs */}
+              {/* E-rev-F-6 — Variance alert dropped here too; it surfaced the
+                  same nonsense 3,819.5% reading. Replaced with a guidance
+                  paragraph that's actionable for whoever lands here. */}
               {variance && (
-                <CorrelatedClausesSection
-                  curePeriod={variance.correlatedClauses.curePeriod}
-                  liquidatedDamages={variance.correlatedClauses.liquidatedDamages}
+                <VarianceClausesPanel
+                  variance={variance}
+                  contract={contract ?? null}
                 />
               )}
             </div>
@@ -535,16 +553,20 @@ function KpiTile({
   value: string;
   variant?: 'default' | 'risk' | 'warning' | 'success';
 }) {
+  // E-rev-G-5 — `success` previously mapped to bg-success / text-success
+  // which don't resolve to a real token in the project palette, so green
+  // never actually rendered. Now uses sage / sage-ink — same convention as
+  // the portfolio SummaryTile (mig E-rev-F-2).
   const containerClass =
     variant === 'risk'    ? 'border-terracotta/30 bg-terracotta/5' :
     variant === 'warning' ? 'border-warning/30 bg-warning/5' :
-    variant === 'success' ? 'border-success/30 bg-success/5' :
+    variant === 'success' ? 'border-sage/30 bg-sage/5' :
                             'border-border bg-card';
 
   const valueClass =
     variant === 'risk'    ? 'text-terracotta' :
     variant === 'warning' ? 'text-warning' :
-    variant === 'success' ? 'text-success' :
+    variant === 'success' ? 'text-sage-ink' :
                             'text-ink';
 
   return (
@@ -553,6 +575,77 @@ function KpiTile({
       <p className={`mt-1 text-lg font-semibold tabular-nums ${valueClass}`}>
         {value}
       </p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-F-5 — ContractMetaStrip
+// Replaces the broken "Variance alert" on the Overview tab. Surfaces the
+// 6 key contract metadata fields so an executive knows what they're
+// looking at without round-tripping through /app/contracts/:id.
+// ─────────────────────────────────────────────────────────────
+function ContractMetaStrip({
+  contract,
+}: {
+  contract: import('@/types/entities/contract.types').Contract;
+}) {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith('ar') ?? false;
+  const counterparty =
+    (isAr && contract.counterpartyNameAr) || contract.counterpartyNameEn || '—';
+  const period =
+    contract.startDate && contract.endDate
+      ? `${formatDate(contract.startDate)} → ${formatDate(contract.endDate)}`
+      : contract.startDate
+        ? formatDate(contract.startDate)
+        : '—';
+  // E-rev-G-6 — "Contract value" dropped: the 6 KPI tiles above already
+  // show Total budget / Total actual / Variance which is the financial
+  // story for this screen. Surfacing a separate "Contract value" caused
+  // confusion because total budget can be > contract value (multi-FY
+  // budget allocation increased through change orders) — for the demo we
+  // keep just the budget-burn numbers and let the contracts module own
+  // the original signed value. Emirate slug now humanised.
+  const items: Array<{ label: string; value: string }> = [
+    {
+      label: t('financial.budgetBurn.detail.meta.counterparty', {
+        defaultValue: 'Counterparty',
+      }),
+      value: counterparty,
+    },
+    {
+      label: t('financial.budgetBurn.detail.meta.type', { defaultValue: 'Type' }),
+      value: humanizeLabel(contract.contractType ?? ''),
+    },
+    {
+      label: t('financial.budgetBurn.detail.meta.period', { defaultValue: 'Period' }),
+      value: period,
+    },
+    {
+      label: t('financial.budgetBurn.detail.meta.status', { defaultValue: 'Status' }),
+      value: humanizeLabel(contract.status ?? ''),
+    },
+    {
+      label: t('financial.budgetBurn.detail.meta.emirate', { defaultValue: 'Emirate' }),
+      value: contract.emirate ? humanizeLabel(contract.emirate) : '—',
+    },
+  ];
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <h2 className="mb-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+        {t('financial.budgetBurn.detail.meta.heading', {
+          defaultValue: 'About this contract',
+        })}
+      </h2>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+        {items.map((it) => (
+          <div key={it.label}>
+            <dt className="text-[10px] uppercase tracking-wider text-ink-subtle">{it.label}</dt>
+            <dd className="mt-0.5 text-sm text-ink">{it.value}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -841,6 +934,161 @@ function CategoryRow({ cat }: { cat: BudgetBurnByCategory }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// E-rev-F-6 — VarianceClausesPanel
+// Wraps the existing CorrelatedClausesSection with:
+//   - A plain-English guidance paragraph that flips based on whether
+//     cure-period / liquidated-damages clauses exist.
+//   - When clauses ARE present + at least one variance breach exists,
+//     surfaces an "Escalate to drafter" button that auto-creates a
+//     high-priority risk_case assigned to the contract's drafter with
+//     the variance summary in the case body.
+// ─────────────────────────────────────────────────────────────
+function VarianceClausesPanel({
+  variance,
+  contract,
+}: {
+  variance: import('@/types/entities/budget-burn.types').BudgetVarianceResult;
+  contract: import('@/types/entities/contract.types').Contract | null;
+}) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const hasCure = variance.correlatedClauses.curePeriod.length > 0;
+  const hasLd = variance.correlatedClauses.liquidatedDamages.length > 0;
+  const hasAnyClause = hasCure || hasLd;
+  const hasBreaches = variance.breachCount > 0;
+
+  const escalateMutation = useMutation({
+    mutationFn: () => {
+      const drafterId = contract?.draftedBy?.id ?? null;
+      const drafterName = contract
+        ? [contract.draftedBy?.firstName, contract.draftedBy?.lastName].filter(Boolean).join(' ')
+        : '';
+      const body = [
+        `Budget variance breach detected on contract ${contract?.contractNumber ?? ''}`,
+        '',
+        `Breach count: ${variance.breachCount}`,
+        `Max variance: ${variance.maxVariancePct.toFixed(1)}%`,
+        '',
+        hasCure ? `Cure-period clause(s) present — review remediation window.` : '',
+        hasLd ? `Liquidated-damages clause(s) present — assess LD exposure.` : '',
+        '',
+        `Requested action: review variance, decide whether to invoke cure notice or LD claim.`,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      return import('@/services/api/risk-case.service').then(({ riskCaseService }) =>
+        riskCaseService.create({
+          contractId: contract?.id ?? null,
+          priority: 'high',
+          title: `Budget variance — ${contract?.contractNumber ?? 'contract'} — review by drafter`,
+          body,
+          assignedUserId: drafterId,
+          assignedRole: drafterId ? null : 'contract_drafter',
+          slaHours: 48,
+          metadata: {
+            source: 'budget-burn-variance',
+            contractId: contract?.id,
+            drafterName,
+          },
+        }),
+      );
+    },
+    onSuccess: () => {
+      toast.success(
+        t('financial.budgetBurn.detail.varianceClauses.escalateSuccess', {
+          defaultValue: 'Risk case opened — drafter will be notified.',
+        }),
+      );
+      void qc.invalidateQueries({ queryKey: ['riskCases'] });
+    },
+    onError: (err) =>
+      toast.error(
+        translateApiError(err, t, 'financial.budgetBurn.detail.varianceClauses.escalateFailed'),
+      ),
+  });
+
+  return (
+    <section className="space-y-3">
+      {/* Guidance paragraph — flips on hasAnyClause */}
+      <div
+        className={
+          hasAnyClause
+            ? 'rounded-lg border border-sage/30 bg-sage/5 p-4'
+            : 'rounded-lg border border-amber-tint bg-amber-tint/30 p-4'
+        }
+      >
+        {hasAnyClause ? (
+          <>
+            <p className="text-sm font-medium text-sage-ink">
+              {t('financial.budgetBurn.detail.varianceClauses.guidedTitleProtected', {
+                defaultValue: 'This contract has contractual remedies in place.',
+              })}
+            </p>
+            <p className="mt-1 text-xs text-ink">
+              {t('financial.budgetBurn.detail.varianceClauses.guidedBodyProtected', {
+                defaultValue:
+                  'Cure-period and/or liquidated-damages clauses are present, so you have a contractual path to remedy a budget breach. If a variance is forming, escalate to the contract drafter to triage whether to issue a cure notice or LD claim.',
+              })}
+            </p>
+            {hasBreaches && (
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={escalateMutation.isPending}
+                  onClick={() => escalateMutation.mutate()}
+                >
+                  {escalateMutation.isPending
+                    ? t('common.submitting', { defaultValue: 'Opening case…' })
+                    : t('financial.budgetBurn.detail.varianceClauses.escalateBtn', {
+                        defaultValue: 'Escalate to drafter',
+                      })}
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium text-amber-ink">
+              {t('financial.budgetBurn.detail.varianceClauses.guidedTitleUnprotected', {
+                defaultValue: 'This contract has no budget-protection clauses.',
+              })}
+            </p>
+            <p className="mt-1 text-xs text-ink">
+              {t('financial.budgetBurn.detail.varianceClauses.guidedBodyUnprotected', {
+                defaultValue:
+                  'No cure-period or liquidated-damages clauses were extracted — meaning you have no contractual remedy if the counterparty overruns budget. Recommend amending the contract before the next milestone: add a cure period (e.g. 30 days) and an LD ceiling. Open the contract to draft an amendment.',
+              })}
+            </p>
+            {contract && (
+              <div className="mt-3">
+                <Button asChild type="button" variant="outline" size="sm">
+                  <Link to="/app/contracts/$id" params={{ id: String(contract.id) }}>
+                    {t('financial.budgetBurn.detail.varianceClauses.openContract', {
+                      defaultValue: 'Open contract → Amend',
+                    })}
+                  </Link>
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Correlated clause refs (only when present — empty state is already
+          covered by the guidance paragraph above). */}
+      {hasAnyClause && (
+        <CorrelatedClausesSection
+          curePeriod={variance.correlatedClauses.curePeriod}
+          liquidatedDamages={variance.correlatedClauses.liquidatedDamages}
+        />
+      )}
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // CorrelatedClausesSection
 // ─────────────────────────────────────────────────────────────
 function CorrelatedClausesSection({
@@ -1065,74 +1313,136 @@ function ProjectionGaugeChart({ projection }: { projection: BudgetYearEndProject
 
   const confidenceClass = CONFIDENCE_COLORS[projection.confidenceNote];
 
+  // E-rev-F-7 — Replace the cramped semicircle (28px callout + 11px caption
+  // + confidence badge all crammed inside the arc) with a horizontal
+  // stacked-bar visualisation. The "139.2%" callout now lives in a clear
+  // header row alongside the confidence badge; the bar shows actual vs
+  // projected with a 100% reference line, matching the dotted-overlay
+  // pattern used on the portfolio chart. Scale caps at 200% for display.
+  void chartData;
+  void filled;
+  void remaining;
+  const displayMax = 200;
+  const actualPctOfFy = insufficient
+    ? 0
+    : Math.min(
+        100,
+        (parseFloat(projection.actualToDateAed ?? '0') / allocatedFy) * 100,
+      );
+  const projectedDeltaPct = Math.max(0, Math.min(displayMax, consumedPct) - actualPctOfFy);
+  const overshootPct = Math.max(0, consumedPct - 100);
+  const calloutColor = gaugeColor;
   return (
     <ChartCard
       title={t('budgetBurn.charts.projectionGauge.title')}
       subtitle={t('budgetBurn.charts.projectionGauge.subtitle')}
-      height={240}
+      height={220}
       empty={insufficient}
       emptyLabel={t('common.charts.empty')}
     >
-      <div className="flex flex-col items-center justify-center gap-3" style={{ height: 240 }}>
-        <div style={{ height: 180, width: '100%', maxWidth: 320 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="100%"
-                startAngle={180}
-                endAngle={0}
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={0}
-                dataKey="value"
-                stroke="none"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-                {/* Center label via custom SVG */}
-                <Label
-                  content={({ viewBox }) => {
-                    const vb = viewBox as { cx?: number; cy?: number };
-                    const cx = vb?.cx ?? 160;
-                    const cy = vb?.cy ?? 120;
-                    return (
-                      <text textAnchor="middle">
-                        <tspan
-                          x={cx}
-                          y={cy - 16}
-                          fontSize={28}
-                          fontWeight={700}
-                          fontFamily="monospace"
-                          fill="currentColor"
-                        >
-                          {insufficient ? '—' : `${consumedPct.toFixed(1)}%`}
-                        </tspan>
-                        <tspan
-                          x={cx}
-                          y={cy + 8}
-                          fontSize={11}
-                          fill="var(--ink-muted)"
-                        >
-                          {t('budgetBurn.charts.projectionGauge.ofFY', { defaultValue: 'of FY budget' })}
-                        </tspan>
-                      </text>
-                    );
-                  }}
-                />
-              </Pie>
-              <SemanticTooltip currencyHint="pct" />
-            </PieChart>
-          </ResponsiveContainer>
+      <div className="flex flex-col gap-4 px-2 py-3">
+        {/* Header row — big callout + confidence badge side-by-side */}
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p
+              className="font-mono text-3xl font-semibold tabular-nums"
+              style={{ color: calloutColor }}
+            >
+              {insufficient ? '—' : `${consumedPct.toFixed(1)}%`}
+            </p>
+            <p className="text-xs text-ink-muted">
+              {t('budgetBurn.charts.projectionGauge.ofFY', {
+                defaultValue: 'of FY budget',
+              })}
+              {overshootPct > 0 && (
+                <span className="ms-2 inline-flex items-center rounded-full bg-terracotta-tint px-2 py-0.5 font-mono text-[10px] text-terracotta-ink">
+                  {t('budgetBurn.charts.projectionGauge.over', {
+                    defaultValue: '{{pct}}% projected over budget',
+                    pct: overshootPct.toFixed(1),
+                  })}
+                </span>
+              )}
+            </p>
+          </div>
+          <span
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${confidenceClass}`}
+          >
+            {t(`financial.budgetBurn.detail.projection.confidence.${projection.confidenceNote}`)}
+          </span>
         </div>
-        {/* Confidence badge */}
-        <span
-          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${confidenceClass}`}
-        >
-          {t(`financial.budgetBurn.detail.projection.confidence.${projection.confidenceNote}`)}
-        </span>
+
+        {/* Stacked bar: actual (solid) + projected delta (striped). 100%
+            reference line marks the FY budget; scale extends to displayMax
+            (200%) so overruns are visible. */}
+        <div className="space-y-1">
+          <div className="relative h-6 w-full overflow-hidden rounded-md bg-muted">
+            {/* Solid actual */}
+            <div
+              className="absolute inset-y-0 left-0 bg-sage"
+              style={{ width: `${(actualPctOfFy / displayMax) * 100}%` }}
+              aria-hidden="true"
+            />
+            {/* Striped projected-delta */}
+            <div
+              className="absolute inset-y-0"
+              style={{
+                left: `${(actualPctOfFy / displayMax) * 100}%`,
+                width: `${(projectedDeltaPct / displayMax) * 100}%`,
+                backgroundImage: `repeating-linear-gradient(-45deg, ${
+                  consumedPct > 100 ? 'var(--terracotta)' : 'var(--sage)'
+                } 0 2px, ${
+                  consumedPct > 100 ? 'var(--terracotta-tint)' : 'var(--sage-tint)'
+                } 2px 7px)`,
+              }}
+              aria-hidden="true"
+            />
+            {/* 100% reference line */}
+            <div
+              className="absolute inset-y-0 w-px bg-terracotta"
+              style={{ left: `${(100 / displayMax) * 100}%` }}
+              aria-hidden="true"
+            />
+          </div>
+          {/* Axis ticks */}
+          <div className="flex justify-between font-mono text-[10px] text-ink-subtle">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+            <span>150%</span>
+            <span>200%</span>
+          </div>
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 pt-1 text-[10px] text-ink-muted">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-2 w-3 rounded-sm bg-sage" aria-hidden="true" /> {t(
+                'budgetBurn.charts.projectionGauge.legendActual',
+                { defaultValue: 'Actual to date' },
+              )}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span
+                className="h-2 w-3 rounded-sm"
+                style={{
+                  backgroundImage: `repeating-linear-gradient(-45deg, ${
+                    consumedPct > 100 ? 'var(--terracotta)' : 'var(--sage)'
+                  } 0 2px, ${
+                    consumedPct > 100 ? 'var(--terracotta-tint)' : 'var(--sage-tint)'
+                  } 2px 7px)`,
+                }}
+                aria-hidden="true"
+              />{' '}
+              {t('budgetBurn.charts.projectionGauge.legendProjected', {
+                defaultValue: 'Projected addt’l',
+              })}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-3 w-px bg-terracotta" aria-hidden="true" />{' '}
+              {t('budgetBurn.charts.projectionGauge.legend100', {
+                defaultValue: 'FY budget (100%)',
+              })}
+            </span>
+          </div>
+        </div>
       </div>
     </ChartCard>
   );

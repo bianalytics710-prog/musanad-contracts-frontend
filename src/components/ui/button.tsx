@@ -9,7 +9,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        // E-rev-E — Primary buttons use the OqoodAI gold token (same hue as
+        // the floating chatbot FAB and the sidebar primary). Token convention
+        // is `bg-gold` + ink text (per --sidebar-primary-foreground = --ink),
+        // hover transitions to the darker gold-hover. Previous default mapped
+        // to bg-primary which resolves to bg-ink (dark navy) and reads as
+        // black across the app, breaking design consistency.
+        default: "bg-gold text-ink shadow hover:bg-gold-hover",
         destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",

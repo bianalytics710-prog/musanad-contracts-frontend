@@ -58,15 +58,20 @@ export function ExecutiveTradeMarginSection({
   if (tradeMarginSummary.openPositionCount === 0) return null;
 
   const {
-    openPositionCount,
-    totalMarginAed,
     bySide,
     recentMarginChange,
     topPositionsByMargin3,
   } = tradeMarginSummary;
 
+  // E-rev-H — Story 5a is sell-side only. Use bySide.sell as the source of
+  // truth for the tile; drop the buy column and the buy KPI.
+  const sellPositionCount = bySide.sell.positionCount;
+  const sellMarginAed = bySide.sell.marginAed;
+
   const hasCompression =
     recentMarginChange && parseFloat(recentMarginChange.deltaAed) < 0;
+  // Filter top positions to sell-side rows only.
+  const sellTopPositions = topPositionsByMargin3.filter((r) => r.side === 'sell');
 
   return (
     <section
@@ -92,46 +97,75 @@ export function ExecutiveTradeMarginSection({
         </Link>
       </div>
 
-      {/* KPI strip */}
+      {/* E-rev-H — Sell-side KPI strip. Buy tile dropped; new tile tracks
+          the Murban OSP context that drives the demo narrative. */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-border bg-surface p-3">
           <p className="text-xs text-ink-muted">
-            {t('financial.tradeMargin.executive.openPositions')}
+            {t('financial.tradeMargin.executive.openSellPositions', {
+              defaultValue: 'Open sell positions',
+            })}
           </p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
-            {openPositionCount}
+            {sellPositionCount}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-3">
           <p className="text-xs text-ink-muted">
-            {t('financial.tradeMargin.executive.totalMarginAed')}
-          </p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
-            {formatAedCompact(totalMarginAed)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-3">
-          <p className="text-xs text-ink-muted">
-            {t('financial.tradeMargin.executive.sellMarginAed')}
+            {t('financial.tradeMargin.executive.totalSellMarginAed', {
+              defaultValue: 'Total sell margin (AED)',
+            })}
           </p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-gold">
-            {formatAedCompact(bySide.sell.marginAed)}
-          </p>
-          <p className="text-[10px] text-ink-subtle">
-            {bySide.sell.positionCount}{' '}
-            {t('financial.tradeMargin.executive.positions')}
+            {formatAedCompact(sellMarginAed)}
           </p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-3">
           <p className="text-xs text-ink-muted">
-            {t('financial.tradeMargin.executive.buyMarginAed')}
+            {t('financial.tradeMargin.executive.murbanOspContext', {
+              defaultValue: 'Murban OSP context',
+            })}
           </p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-sage">
-            {formatAedCompact(bySide.buy.marginAed)}
+          <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
+            {recentMarginChange?.benchmarkCode === 'murban_osp'
+              ? formatAedCompact(recentMarginChange.deltaAed)
+              : '—'}
           </p>
           <p className="text-[10px] text-ink-subtle">
-            {bySide.buy.positionCount}{' '}
-            {t('financial.tradeMargin.executive.positions')}
+            {t('financial.tradeMargin.executive.deltaLast7d', {
+              defaultValue: 'Margin Δ from last move',
+            })}
+          </p>
+        </div>
+        <div
+          className={
+            'rounded-lg border p-3 ' +
+            (hasCompression
+              ? 'border-terracotta/30 bg-terracotta/5'
+              : 'border-sage/30 bg-sage/5')
+          }
+        >
+          <p className="text-xs text-ink-muted">
+            {t('financial.tradeMargin.executive.exposedPositions', {
+              defaultValue: 'At-risk positions',
+            })}
+          </p>
+          <p
+            className={
+              'mt-1 text-xl font-semibold tabular-nums ' +
+              (hasCompression ? 'text-terracotta' : 'text-sage-ink')
+            }
+          >
+            {hasCompression ? sellTopPositions.length : 0}
+          </p>
+          <p className="text-[10px] text-ink-subtle">
+            {hasCompression
+              ? t('financial.tradeMargin.executive.escalateHelper', {
+                  defaultValue: 'Escalate via Trade Margin',
+                })
+              : t('financial.tradeMargin.executive.allProtected', {
+                  defaultValue: 'All within band',
+                })}
           </p>
         </div>
       </div>
@@ -184,8 +218,8 @@ export function ExecutiveTradeMarginSection({
         );
       })()}
 
-      {/* Top positions by margin */}
-      {topPositionsByMargin3.length > 0 && (
+      {/* Top positions by margin — sell-side only */}
+      {sellTopPositions.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
             {t('financial.tradeMargin.executive.topPositions')}
@@ -212,7 +246,7 @@ export function ExecutiveTradeMarginSection({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {topPositionsByMargin3.map((row) => (
+                {sellTopPositions.map((row) => (
                   <tr
                     key={row.tradePositionId}
                     className="flex items-center justify-between gap-3 py-2"
@@ -225,17 +259,7 @@ export function ExecutiveTradeMarginSection({
                         {row.counterpartyName}
                       </p>
                     </td>
-                    <td>
-                      <span
-                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                          row.side === 'sell'
-                            ? 'border border-gold/30 bg-gold/10 text-gold'
-                            : 'border border-sage/30 bg-sage/10 text-sage'
-                        }`}
-                      >
-                        {t(`financial.tradeMargin.side.${row.side}`)}
-                      </span>
-                    </td>
+                    {/* E-rev-H — Side cell removed; sell-side only. */}
                     <td className="shrink-0 text-right">
                       <p className="font-semibold tabular-nums text-ink">
                         {formatAedCompact(row.totalMarginAed)}

@@ -13,6 +13,18 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { cn } from "@/lib/utils";
+import { ExpiryCliffActionModal } from "./ExpiryCliffActionModal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { impactSignalService, type ImpactSignalListItem } from "@/services/api/impact-signal.service";
+import { formatDateTime } from "@/utils/datetime";
 import {
   Bar,
   BarChart,
@@ -60,7 +72,7 @@ import type {
 import { ExecutiveAnomaliesCard } from "@/features/ai/components/ExecutiveAnomaliesCard";
 import { ExecutiveCharts } from "./ExecutiveCharts";
 import { ExecutiveLists } from "./ExecutiveLists";
-import { ExecutiveEventsCard } from "./ExecutiveEventsCard";
+// E-rev-12: ExecutiveEventsCard removed.
 // M14 — CR-F: AVaR extension
 import { AvarDashboardSection } from "./AvarDashboardSection";
 // M15 — CR-G: Executive dashboard extension (3 new sections)
@@ -104,6 +116,34 @@ export function ExecutiveDashboard() {
     const contractsByStatus = Object.fromEntries(
       Object.entries(data.kpis.contractsByStatus).map(([k, v]) => [k, Number(v)]),
     );
+    // E-rev-2 grounding: prefer REAL supplier names from charts.topSuppliers
+    // (counterparty.name_en) so the LLM emits "Bahri", "Vitol S.A." etc.
+    // instead of placeholder "Supplier A". Fall back to the legacy
+    // top-counterparties projection only if topSuppliers is empty.
+    const supplierConcentration =
+      data.charts?.topSuppliers && data.charts.topSuppliers.length > 0
+        ? data.charts.topSuppliers.slice(0, 5).map((s) => ({
+            supplier: s.name,
+            share: totalActiveValueAed > 0 ? Number(s.totalValueAed) / totalActiveValueAed : 0,
+            contractCount: s.contractCount,
+            totalValueAed: Number(s.totalValueAed),
+          }))
+        : data.kpis.topCounterpartiesByValue5.map((c) => ({
+            supplier: `counterparty-${c.counterpartyId}`,
+            share: totalActiveValueAed > 0 ? Number(c.totalValueAed) / totalActiveValueAed : 0,
+          }));
+    // Ground value-outlier + amendment-pattern signals with REAL contract numbers.
+    const topHighRiskContracts = (data.lists?.highRiskContracts8 ?? []).slice(0, 5).map((c) => ({
+      contractNumber: c.contractNumber,
+      title: c.titleEn ?? c.titleAr ?? c.contractNumber,
+      riskScore: c.riskScore ?? null,
+      valueAed: Number(c.valueAed ?? 0),
+    }));
+    const mostAmendedContracts = (data.lists?.mostAmendedContracts5 ?? []).slice(0, 5).map((c) => ({
+      contractNumber: c.contractNumber,
+      title: c.titleEn ?? c.titleAr ?? c.contractNumber,
+      amendmentCount: c.amendmentCount,
+    }));
     return {
       totalActiveValueAed,
       contractsByStatus,
@@ -112,19 +152,11 @@ export function ExecutiveDashboard() {
         { window: "next60d", count: data.kpis.expiryCliffs.next60d },
         { window: "next90d", count: data.kpis.expiryCliffs.next90d },
       ],
-      supplierConcentration: data.kpis.topCounterpartiesByValue5.map((c) => ({
-        supplier: `counterparty-${c.counterpartyId}`,
-        share: Math.min(
-          1,
-          Math.max(
-            0,
-            totalActiveValueAed > 0
-              ? Number(c.totalValueAed) / totalActiveValueAed
-              : 0,
-          ),
-        ),
-      })),
-    };
+      supplierConcentration,
+      topHighRiskContracts,
+      mostAmendedContracts,
+      todayIso: new Date().toISOString().slice(0, 10),
+    } as AiExecutiveAnomaliesStats;
   }, [data]);
 
   const language: AiLanguage = i18n.language?.startsWith("ar") ? "ar" : "en";
@@ -152,26 +184,7 @@ export function ExecutiveDashboard() {
             {t("dashboards.executive.subtitle")}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <TimeRangeSelector
-            range={range}
-            windowDays={windowDays}
-            onChange={({ range: r, windowDays: d }) => {
-              setRange(r);
-              setWindowDays(d);
-            }}
-          />
-          {/* BUG-013 clarification (QA Phase 3.2 from user screenshot 2026-05-31):
-              the AVaR snapshot KPIs (TOTAL AVAR / NO-VALUE CONTRACTS) reflect the
-              latest risk-score state and don't move with the date filter. Only
-              the prior-window delta is window-scoped. Surface that so the user
-              isn't confused when KPI numbers don't change on filter click. */}
-          <p className="text-[10px] text-ink-subtle">
-            {t("dashboards.executive.windowScopeHint", {
-              defaultValue: "Snapshot KPIs use latest data. Date filter scopes prior-window delta + trends.",
-            })}
-          </p>
-        </div>
+        {/* E-rev-C-4: date range filter removed per executive review feedback. */}
       </header>
 
       {isLoading && !data ? (
@@ -186,9 +199,8 @@ export function ExecutiveDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
-          {/* M14 — CR-F: AVaR section (before existing R-EX KPIs per brief).
-              Defensive: AvarDashboardSection renders nothing on 403 or error. */}
-          <AvarDashboardSection windowDays={windowDays} />
+          {/* E-rev-1: AVaR moved to BOTTOM (was top) per executive-review feedback —
+              generic KPI tiles + charts first, AVaR breakdown last. */}
 
           {/* R-EX0 — Top-line KPIs aligned to Lovable.
               5 tiles when AI cost is hidden:
@@ -208,11 +220,6 @@ export function ExecutiveDashboard() {
                 defaultValue: "Total contract value",
               })}
               value={formatAedCompact(data.kpis.totalActiveValueAed)}
-              helper={formatPctDelta(
-                data.kpis.totalActiveValueAed,
-                data.kpiPrev?.totalActiveValueAed,
-                t,
-              )}
               variant="success"
             />
             <KpiTile
@@ -220,39 +227,26 @@ export function ExecutiveDashboard() {
                 defaultValue: "Active contracts",
               })}
               value={formatNumber(data.kpis.activeContractsCount)}
-              helper={formatCountDelta(
-                data.kpis.activeContractsCount,
-                data.kpiPrev?.activeContractsCount,
-                t,
-              )}
             />
             <KpiTile
               label={t("dashboards.executive.kpis.avgCycleTime", {
                 defaultValue: "Avg. cycle time",
               })}
               value={`${data.kpis.avgCycleTimeDays.toFixed(1)}d`}
-            />
-            <KpiTile
-              label={t("dashboards.executive.kpis.renewals90d", {
-                defaultValue: "Renewals (90d)",
+              helper={t("dashboards.executive.kpis.avgCycleTimeHelper", {
+                defaultValue: "Drafting → counterparty signature, end-to-end",
               })}
-              value={formatNumber(data.kpis.renewalsCount90d)}
-              helper={formatCountDelta(
-                data.kpis.renewalsCount90d,
-                data.kpiPrev?.renewalsCount90d,
-                t,
-              )}
             />
+            {/* 2026-06-04: "Renewals (90d)" count tile dropped per executive
+                feedback — the value tile carries the actionable signal; the
+                count duplicated information. Strip is now 5 tiles by default
+                (4 visible + Renewal value), 6 when AI cost observability is
+                granted. */}
             <KpiTile
               label={t("dashboards.executive.kpis.renewalValue90d", {
                 defaultValue: "Renewal value (90d)",
               })}
               value={formatAedCompact(data.kpis.renewalValueAed90d)}
-              helper={formatPctDelta(
-                data.kpis.renewalValueAed90d,
-                data.kpiPrev?.renewalValueAed90d,
-                t,
-              )}
             />
             {/* R-EX0 — AI cost tile is shown ONLY when the actor has
                 ai.observability.read (server returns aiCostUsdWindow != null
@@ -267,13 +261,12 @@ export function ExecutiveDashboard() {
             )}
             {/* R-EX0 — Critical regulatory impacts is local-only intel
                 (M5). Keep alongside the Lovable five so executives still
-                see the regulator-aware gate. */}
-            <KpiTile
-              label={t("dashboards.executive.kpis.openRegulatoryImpactsCritical")}
-              value={formatNumber(data.kpis.openRegulatoryImpactsCritical)}
-              variant={
-                data.kpis.openRegulatoryImpactsCritical > 0 ? "risk" : "default"
-              }
+                see the regulator-aware gate.
+                2026-06-04: tile is now clickable — opens a modal listing
+                the active critical impact signals so the executive can
+                drill in without leaving the dashboard. */}
+            <CriticalRegulatoryImpactsTile
+              count={data.kpis.openRegulatoryImpactsCritical}
             />
           </section>
 
@@ -377,10 +370,7 @@ export function ExecutiveDashboard() {
               mostAmendedContracts5). Backed by migration 091. */}
           {data.lists && <ExecutiveLists lists={data.lists} />}
 
-          {/* R-EX3 — Executive events (last 14 days) timeline.
-              Backed by migration 092/093. Single chronological feed
-              of regulatory_update + contract_activity events. */}
-          {data.events14d && <ExecutiveEventsCard rows={data.events14d} />}
+          {/* E-rev-12: Executive events (14d) section removed. */}
 
           {anomaliesStats && (
             <ExecutiveAnomaliesCard
@@ -414,6 +404,8 @@ export function ExecutiveDashboard() {
               (data as unknown as { tradeMarginSummary?: TradeMarginSummary }).tradeMarginSummary ?? null
             }
           />
+
+          {/* E-rev-C-1: AVaR section hidden per executive review feedback. */}
         </>
       )}
     </motion.div>
@@ -422,58 +414,78 @@ export function ExecutiveDashboard() {
 
 function ExpiryCliffsBlock({ cliffs }: { cliffs: ExecutiveExpiryCliffs }) {
   const { t } = useTranslation();
+  const [modalWindow, setModalWindow] = useState<30 | 60 | 90 | null>(null);
   const max = Math.max(cliffs.next30d, cliffs.next60d, cliffs.next90d, 1);
   const items = [
     {
-      key: "next30d",
+      key: "next30d" as const,
       label: t("dashboards.executive.expiryCliffs.next30d"),
       count: cliffs.next30d,
       bg: "bg-terracotta",
       tint: "bg-terracotta/15",
+      days: 30 as const,
     },
     {
-      key: "next60d",
+      key: "next60d" as const,
       label: t("dashboards.executive.expiryCliffs.next60d"),
       count: cliffs.next60d,
       bg: "bg-amber",
       tint: "bg-amber/15",
+      days: 60 as const,
     },
     {
-      key: "next90d",
+      key: "next90d" as const,
       label: t("dashboards.executive.expiryCliffs.next90d"),
       count: cliffs.next90d,
       bg: "bg-sage",
       tint: "bg-sage/15",
+      days: 90 as const,
     },
   ];
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {items.map((it) => {
-        const pct = (it.count / max) * 100;
-        return (
-          <div
-            key={it.key}
-            className={`rounded-md border border-border ${it.tint} p-3`}
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
-                {it.label}
+    <>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {items.map((it) => {
+          const pct = (it.count / max) * 100;
+          return (
+            <button
+              key={it.key}
+              type="button"
+              onClick={() => setModalWindow(it.days)}
+              className={cn(
+                `w-full rounded-md border bg-clip-padding p-3 text-left transition`,
+                it.tint,
+                "border-border hover:border-ink/30 hover:shadow-sm",
+              )}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
+                  {it.label}
+                </p>
+                <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
+                  {formatNumber(it.count)}
+                </p>
+              </div>
+              <div className="mt-2 h-1.5 rounded-full bg-muted">
+                <div
+                  className={`h-1.5 rounded-full ${it.bg} transition-all`}
+                  style={{ width: `${pct}%` }}
+                  aria-hidden="true"
+                />
+              </div>
+              <p className="mt-1 text-[10px] text-ink-subtle">
+                {t("dashboards.executive.expiryCliffs.clickHint", { defaultValue: "Click to act" })}
               </p>
-              <p className="font-mono text-2xl font-semibold tabular-nums text-ink">
-                {formatNumber(it.count)}
-              </p>
-            </div>
-            <div className="mt-2 h-1.5 rounded-full bg-muted">
-              <div
-                className={`h-1.5 rounded-full ${it.bg} transition-all`}
-                style={{ width: `${pct}%` }}
-                aria-hidden="true"
-              />
-            </div>
-          </div>
-        );
-      })}
-    </div>
+            </button>
+          );
+        })}
+      </div>
+      <ExpiryCliffActionModal
+        open={modalWindow !== null}
+        windowDays={modalWindow ?? 30}
+        onClose={() => setModalWindow(null)}
+      />
+    </>
   );
 }
 
@@ -778,6 +790,173 @@ function formatCountDelta(
     defaultValue: `${display} vs prev`,
     n: display,
   });
+}
+
+// ─── CriticalRegulatoryImpactsTile ────────────────────────────────────────
+/**
+ * Clickable wrapper around the "Critical regulatory impacts" KPI tile.
+ * Clicking opens a modal listing the active critical impact signals so the
+ * executive can scan + drill in without leaving the dashboard. List query
+ * is lazy (only fires when the modal is open) so the tile itself stays
+ * cheap to render.
+ */
+function CriticalRegulatoryImpactsTile({ count: fallbackCount }: { count: number }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  // Eager fetch so the tile count and the modal list are derived from the
+  // SAME filtered set — otherwise the BE's openRegulatoryImpactsCritical
+  // (which uses a different window / no zero-impact filter) and the modal
+  // diverge and look broken.
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["executiveCriticalImpacts"],
+    queryFn: () => impactSignalService.list({ severity: "critical" }),
+    staleTime: 60_000,
+  });
+
+  /**
+   * The BE returns every critical signal across all time + can ship
+   * duplicates when the same signal is re-emitted on different days
+   * (e.g. weather alerts on a multi-day window). Filter the modal to
+   * match what an executive actually cares about:
+   *   1. Published within the last 7 days
+   *   2. At least one accessible contract is affected — a "critical
+   *      alert" with zero contracts impacted is noise and should not
+   *      surface
+   *   3. Dedup by titleEn — keep the most recent occurrence
+   */
+  const rawList: ImpactSignalListItem[] = data?.data ?? [];
+  const list = useMemo<ImpactSignalListItem[]>(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const relevant = rawList.filter((row) => {
+      const t = new Date(row.publishedDate).getTime();
+      if (!Number.isFinite(t) || t < cutoff) return false;
+      if ((row.impactedContractCount ?? 0) <= 0) return false;
+      return true;
+    });
+    const byTitle = new Map<string, ImpactSignalListItem>();
+    for (const row of relevant) {
+      const existing = byTitle.get(row.titleEn);
+      if (!existing) {
+        byTitle.set(row.titleEn, row);
+        continue;
+      }
+      const a = new Date(row.publishedDate).getTime();
+      const b = new Date(existing.publishedDate).getTime();
+      if (a > b) byTitle.set(row.titleEn, row);
+    }
+    return Array.from(byTitle.values()).sort(
+      (a, b) =>
+        new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
+    );
+  }, [rawList]);
+
+  // While the query is loading, fall back to the BE's count so the tile
+  // doesn't flash to zero. Once the list arrives, the filtered count
+  // becomes authoritative and matches the modal exactly.
+  const displayCount = data ? list.length : fallbackCount;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-label={t("dashboards.executive.kpis.openRegulatoryImpactsCriticalAria", {
+          defaultValue: "View {{count}} critical regulatory impact(s)",
+          count: displayCount,
+        })}
+        className="block h-full w-full text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-lg"
+      >
+        <KpiTile
+          label={t("dashboards.executive.kpis.openRegulatoryImpactsCritical")}
+          value={formatNumber(displayCount)}
+          variant={displayCount > 0 ? "risk" : "default"}
+          className="h-full"
+        />
+      </button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>
+              {t("dashboards.executive.criticalImpactsModal.title", {
+                defaultValue: "Critical regulatory impacts",
+              })}
+            </DialogTitle>
+          </DialogHeader>
+
+          {isLoading && (
+            <div className="space-y-2 py-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-16 animate-pulse rounded-md bg-muted" />
+              ))}
+            </div>
+          )}
+
+          {isError && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              {(error as Error)?.message ??
+                t("common.error", { defaultValue: "Failed to load impacts." })}
+            </div>
+          )}
+
+          {!isLoading && !isError && list.length === 0 && (
+            <p className="py-8 text-center text-sm text-ink-muted">
+              {t("dashboards.executive.criticalImpactsModal.empty", {
+                defaultValue: "No active critical regulatory impacts right now.",
+              })}
+            </p>
+          )}
+
+          {!isLoading && !isError && list.length > 0 && (
+            <ul className="max-h-[480px] divide-y divide-border overflow-y-auto rounded-md border border-border">
+              {list.map((item) => (
+                <li key={item.id} className="p-3">
+                  <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+                    <Link
+                      to="/app/regulations"
+                      onClick={() => setOpen(false)}
+                      className="font-medium text-ink hover:text-gold"
+                    >
+                      {item.titleEn}
+                    </Link>
+                    <span className="rounded-full bg-terracotta/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-terracotta">
+                      {item.severity}
+                    </span>
+                  </div>
+                  {item.descriptionEn && (
+                    <p className="mb-2 line-clamp-2 text-xs text-ink-muted">
+                      {item.descriptionEn}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
+                    <span>
+                      <span className="font-mono uppercase">{item.source}</span>
+                      {" · "}
+                      {item.category}
+                    </span>
+                    <span>
+                      {t("dashboards.executive.criticalImpactsModal.contractCount", {
+                        defaultValue: "{{n}} contract(s) affected",
+                        n: item.impactedContractCount,
+                      })}
+                    </span>
+                    <span>
+                      {t("dashboards.executive.criticalImpactsModal.published", {
+                        defaultValue: "published {{when}}",
+                        when: formatDateTime(item.publishedDate),
+                      })}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 export default ExecutiveDashboard;

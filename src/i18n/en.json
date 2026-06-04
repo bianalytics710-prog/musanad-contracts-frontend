@@ -26,7 +26,12 @@
       },
       "dimBreakdown": {
         "title": "Dimension breakdown",
-        "barAriaLabel": "{{dim}}: {{score}} out of 100"
+        "barAriaLabel": "{{dim}}: {{score}} out of 100",
+        "detailTitle": "What drove this score",
+        "detailEmpty": "No factors currently driving this dimension."
+      },
+      "narrative": {
+        "ariaLabel": "Risk score summary"
       },
       "dim": {
         "legal": "Legal",
@@ -37,8 +42,7 @@
       },
       "whatif": {
         "title": "What-if analysis",
-        "description": "Estimated change in Health Score if each correlation were removed.",
-        "probabilityLabel": "Probability: {{value}}%",
+        "description": "Estimated change in Health Score if each signal were resolved.",
         "deltaLabel": "Without this: {{delta}}",
         "disclaimer": "Estimates are approximate client-side derivations."
       },
@@ -457,7 +461,7 @@
     "rejectionNote": "Workflow halted at the rejected stage. See reason on the Approvals tab."
   },
   "templates": {
-    "kicker": "{{count}} templates available",
+    "kicker": "Template library",
     "newTemplate": "New template",
     "newKicker": "Define a reusable contract template",
     "contractType": "Contract type",
@@ -478,7 +482,7 @@
     "useThisTemplate": "Use this template",
     "bilingual": "Bilingual",
     "inactiveBadge": "Inactive",
-    "usedTimes": "Used {{count}} times",
+    "usedTimes": "{{count}}× used",
     "emptyTitle": "No templates match your filters",
     "emptyDescription": "Try clearing filters or change the search query.",
     "description": "Description",
@@ -505,7 +509,88 @@
     "publish": "Publish template",
     "publishedToast": "Template published",
     "validationFix": "Please complete the required fields before continuing.",
-    "title": "Templates"
+    "title": "Templates",
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "use": "Use this template",
+      "save": "Save template"
+    },
+    "editor": {
+      "metaKicker": "Template metadata",
+      "bodyKicker": "Body",
+      "placeholdersKicker": "Placeholders ({{count}})",
+      "placeholdersEmpty": "No placeholders yet. Add tokens like {{employer_name}} so users can substitute values when they use this template.",
+      "addPlaceholder": "Add placeholder",
+      "removePlaceholder": "Remove placeholder",
+      "nameEn": "Name (EN)",
+      "nameAr": "Name (AR)",
+      "contractType": "Contract type",
+      "language": "Language",
+      "descriptionEn": "Description (EN)",
+      "descriptionAr": "Description (AR)",
+      "bodyEn": "Body (EN, Markdown)",
+      "bodyAr": "Body (AR, Markdown)",
+      "regulatoryReference": "Regulatory reference (chip)",
+      "regulatoryTags": "Tags (comma-separated)",
+      "required": "required",
+      "orphanWarning": "This key is not used anywhere in the body — add or remove this row."
+    },
+    "newScratch": {
+      "title": "New template — from scratch",
+      "subtitle": "Author the body in Markdown. Use snake_case tokens where party-specific values should be substituted."
+    },
+    "newDialog": {
+      "fromContract": {
+        "title": "From a contract",
+        "body": "Upload a finalised PDF/DOCX. AI extracts the structure, redacts party-specific data into tokens, and lets you review before saving."
+      },
+      "fromScratch": {
+        "title": "From scratch",
+        "body": "Start with an empty editor. Author the body in Markdown using snake_case tokens and define the placeholder catalog as you go."
+      },
+      "title": "Create a new template",
+      "description": "How would you like to start? You can author from scratch, or upload an existing contract and let the AI redact entity-specific data into placeholders."
+    },
+    "newFromContract": {
+      "title": "New template — from a contract",
+      "subtitle": "Upload a finalised PDF/DOCX. The AI identifies entity-specific data (parties, addresses, IDs, dates, amounts) and replaces them with placeholders you can review before saving.",
+      "step1": "Step 1 — Upload contract",
+      "step2": "Step 2 — Review the redacted body + placeholder catalog below. Edit anything that the AI missed, then save.",
+      "dropTitle": "Drop a contract file here",
+      "dropSubtitle": "PDF or DOCX, single file",
+      "chooseFile": "Choose file",
+      "removeFile": "Remove file",
+      "extract": "Extract template with AI",
+      "extracting": "Extracting…",
+      "extractFailed": "Could not extract text from this file.",
+      "invalidType": "Only PDF or DOCX files are supported.",
+      "reviewWarnings": "Review the warnings",
+      "progress": {
+        "reading": "Reading file",
+        "uploading": "Sending document to AI",
+        "analyzing": "AI analyzing structure and entities",
+        "building": "Building placeholder catalog"
+      },
+      "progressTitle": "Extracting template",
+      "progressHint": "30–60 seconds"
+    },
+    "edit": {
+      "title": "Edit · {{name}}"
+    },
+    "toasts": {
+      "created": "Template created",
+      "updated": "Template updated",
+      "deleted": "Template deleted"
+    },
+    "placeholdersShort": "ph",
+    "descriptionKicker": "Description",
+    "placeholdersKicker": "Placeholders ({{count}})",
+    "bodyPreviewKicker": "Body preview",
+    "backToList": "Back to templates",
+    "backToDetail": "Back to template",
+    "confirmDeleteTitle": "Delete template?",
+    "confirmDeleteDescription": "This will hide \"{{name}}\" from the library. Existing contracts that referenced it are unaffected."
   },
   "settings": {
     "preferencesKicker": "Personal preferences",
@@ -577,6 +662,8 @@
     "dashboardsComplianceEsg": "Compliance & ESG",
     "dashboardsProcurement": "Procurement Risk",
     "legalAdvisoryQueue": "Advisory Queue",
+    "legalAdvisoryTemplates": "Advisory Templates",
+    "tpaReview": "Third-Party Review",
     "adminAdvisoryTemplates": "Advisory templates",
     "adminNotifications": "Notifications",
     "profileNotificationPreferences": "Notification preferences",
@@ -586,7 +673,8 @@
     "adminReportTemplates": "Report templates",
     "complianceRegulatoryCASCADE": "Regulatory Cascade",
     "financialBudgetBurn": "Budget Burn",
-    "financialTradeMargin": "Trade Margin"
+    "financialTradeMargin": "Trade Margin",
+    "adminMigration": "Migration"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -1067,7 +1155,7 @@
       "title": "Compose contract",
       "subtitle": "Walk through four steps to draft a new contract with milestones.",
       "newCta": "Compose contract",
-      "submit": "Create contract",
+      "submit": "Send for approval",
       "discardDraft": "Discard draft",
       "progressLabel": "Compose wizard progress",
       "stepIndex": "Step {{n}} of {{total}}",
@@ -1240,7 +1328,11 @@
         "retryQueued": "Re-extraction queued. The document is being processed."
       }
     },
-    "noEndDate": "No end date"
+    "noEndDate": "No end date",
+    "importCta": {
+      "label": "Import",
+      "ariaLabel": "Import one or more contracts"
+    }
   },
   "contractDetail": {
     "breadcrumbHome": "Home",
@@ -1742,7 +1834,7 @@
   },
   "clauses": {
     "title": "Clauses",
-    "kicker": "{{count}} clauses · {{categories}} categories",
+    "kicker": "Clause library",
     "newClause": "New clause",
     "allClauses": "All clauses",
     "favourites": "Favourites",
@@ -2262,7 +2354,7 @@
   "import": {
     "switchBulk": "Switch to bulk import",
     "title": "Import existing contract",
-    "kicker": "Bring an existing PDF or Word contract into OqoodAI",
+    "kicker": "Migration & imports",
     "step1": "Upload",
     "step2": "Review extracted data",
     "step3": "Save",
@@ -2424,7 +2516,19 @@
       "forbiddenTitle": "You don't have permission to run imports",
       "forbiddenDescription": "Contact a platform administrator to request the import.run permission.",
       "backToContracts": "Back to contracts",
-      "resumeHint": "An interrupted import was detected for batch #{{batchId}}. Re-select the same files to continue."
+      "resumeHint": "An interrupted import was detected for batch #{{batchId}}. Re-select the same files to continue.",
+      "col": {
+        "file": "File",
+        "size": "Size",
+        "actions": "Actions",
+        "status": "Status",
+        "confidence": "Confidence"
+      },
+      "subtitle": "Drag-and-drop PDF/DOCX files. AI extracts metadata and routes by confidence.",
+      "dropZoneKicker": "Step 1 — Select files",
+      "selectedKicker": "Selected files",
+      "configKicker": "Step 2 — Pre-flight configuration",
+      "perFileKicker": "Per-file results"
     },
     "review": {
       "title": "Review queue",
@@ -2454,7 +2558,8 @@
       "bulkPartialFailToast": "{{fail}} could not be approved",
       "showingRange": "Showing {{from}}-{{to}} of {{total}}",
       "emptyTitle": "Review queue is empty",
-      "emptyDescription": "All imported contracts have been reviewed or had high enough confidence to auto-save."
+      "emptyDescription": "All imported contracts have been reviewed or had high enough confidence to auto-save.",
+      "subtitle": "Medium-confidence drafts where AI extraction was uncertain — approve, edit, or reject before they move forward."
     },
     "manual": {
       "title": "Manual entries",
@@ -2473,7 +2578,14 @@
       },
       "showingRange": "Showing {{from}}-{{to}} of {{total}}",
       "emptyTitle": "Nothing requires manual entry",
-      "emptyDescription": "All imports were extracted with sufficient confidence."
+      "emptyDescription": "All imports were extracted with sufficient confidence.",
+      "subtitle": "Low-confidence drafts that need a human to finish the metadata before they can be sent for approval."
+    },
+    "subnav": {
+      "bulk": "Bulk import",
+      "review": "Review queue",
+      "manual": "Manual entries",
+      "ariaLabel": "Import sections"
     }
   },
   "aiAssistant": {
@@ -6354,7 +6466,27 @@
       "examples": {
         "hormuz": "Which contracts are exposed to Hormuz disruption?",
         "sanctions": "What's our top sanctions risk?",
-        "icv": "Show me suppliers below ICV minimum"
+        "icv": "Show me suppliers below ICV minimum",
+        "executive": {
+          "counterparties": "Which counterparties carry our largest exposure right now?",
+          "topRisk": "Which 5 contracts carry the highest risk scores?",
+          "expiring": "Show me contracts expiring in the next 90 days"
+        },
+        "legal": {
+          "advisoryQueue": "Show me advisory drafts pending my review",
+          "regulationsThisWeek": "Which contracts are affected by new regulations this week?",
+          "flaggedClauses": "What clauses are flagged for redline in active drafts?"
+        },
+        "drafter": {
+          "awaiting": "Which of my drafts are awaiting action?",
+          "templates": "Show me templates similar to a vendor MSA",
+          "stuckAtLegal": "Which of my drafts are stuck waiting on legal review?"
+        },
+        "approver": {
+          "sla": "What's in my queue that's overdue past SLA?",
+          "highValue": "Show me high-value contracts awaiting my approval",
+          "highRisk": "Which contracts in my queue carry the highest risk?"
+        }
       },
       "input": {
         "label": "Ask a question",
@@ -7280,7 +7412,8 @@
         "awaitingMyActionCount": "Awaiting my action",
         "readyToSendCount": "Ready to send",
         "myRecentlyApprovedCount": "Recently approved",
-        "pipeline": "Drafting pipeline"
+        "pipeline": "Drafting pipeline",
+        "myRecentlySignedCount": "Recently signed"
       },
       "lists": {
         "myDraftsTitle": "My drafts",
@@ -7298,10 +7431,16 @@
         "draft": "Drafts",
         "awaitingAction": "Awaiting action",
         "readyToSend": "Ready to send",
-        "approved": "Approved"
+        "approved": "Approved",
+        "signed": "Signed"
       },
       "recentDrafts": {
-        "title": "Recent drafts"
+        "title": "Recent drafts",
+        "colNumber": "Number",
+        "colTitle": "Title",
+        "colValue": "Value",
+        "colStatus": "Status",
+        "colUpdated": "Updated"
       },
       "tts": {
         "title": "Time to signature",
@@ -8724,8 +8863,9 @@
     },
     "tradeMargin": {
       "portfolio": {
-        "title": "Trade Margin — Positions",
-        "subtitle": "Oil-trade margin on both sides: ADNOC as integrated seller and buyer",
+        "title": "Trade Margin",
+        "subtitle": "Murban OSP × open sell positions — band-protection status and margin impact.",
+        "kicker": "Sell-side oil-trade desk",
         "tabsLabel": "Trade margin views",
         "tab": {
           "positions": "Positions",

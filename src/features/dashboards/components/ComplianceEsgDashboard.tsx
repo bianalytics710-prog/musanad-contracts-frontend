@@ -52,7 +52,8 @@ import {
 import { SanctionsChainIndentedHierarchy } from '@/features/compliance-esg/components/SanctionsChainIndentedHierarchy';
 import { IcvCertificateSummarySection } from '@/features/compliance-esg/components/IcvCertificateSummarySection';
 import { IcvCertificateUploadDialog } from '@/features/compliance-esg/components/IcvCertificateUploadDialog';
-import { RegulatoryCascadeTile } from '@/features/compliance-esg/components/RegulatoryCascadeTile';
+// E-rev-E — RegulatoryCascadeTile import removed; module dropped from sidebar + dashboard for demo focus.
+// import { RegulatoryCascadeTile } from '@/features/compliance-esg/components/RegulatoryCascadeTile';
 
 function formatAedCompact(value: string | number): string {
   const num = typeof value === 'string' ? Number(value) : value;
@@ -265,8 +266,10 @@ export function ComplianceEsgDashboard() {
         </>
       )}
 
-      {/* CR-M — Regulatory Cascade tile (additive) */}
-      <RegulatoryCascadeTile />
+      {/* E-rev-E — Regulatory Cascade tile hidden along with the sidebar
+          entry; module dropped from the demo to keep scope tight. Component
+          + route stay in the codebase. */}
+      {/* <RegulatoryCascadeTile /> */}
 
       <IcvCertificateUploadDialog
         contractId={icvUploadContractId}

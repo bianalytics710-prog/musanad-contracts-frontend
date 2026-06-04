@@ -268,6 +268,15 @@ function ScoringWeightsPage() {
               </span>
             </div>
 
+            {/* Live preview — shows how the proposed weights compare to the
+                current saved weights for a sample contract's per-dimension
+                profile. Pure client-side math; no extra BE call. Educates
+                the user about what their slider moves actually do. */}
+            <ScoringPreviewCard
+              proposed={effectiveWeights}
+              current={data.current}
+            />
+
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-3">
               <Button
@@ -328,6 +337,80 @@ function ScoringWeightsPage() {
 }
 
 // ─── DimSlider ────────────────────────────────────────────────────────────
+
+/**
+ * ScoringPreviewCard — live preview showing how the proposed weights would
+ * shift a sample contract's overall score versus the currently saved
+ * weights. Uses a fixed exemplar profile (Legal 60 / Financial 50 /
+ * Operational 70 / Reputational 73 / Compliance 68) typical of an
+ * ADNOC-tier contract. Pure client-side; no extra BE call.
+ */
+function ScoringPreviewCard({
+  proposed,
+  current,
+}: {
+  proposed: WeightsState;
+  current: WeightsState;
+}) {
+  const { t } = useTranslation();
+  const sampleProfile: Record<Dim, number> = {
+    legal: 60,
+    financial: 50,
+    operational: 70,
+    reputational: 73,
+    compliance: 68,
+  };
+  const weightedScore = (weights: WeightsState): number =>
+    DIMS.reduce((sum, d) => sum + sampleProfile[d] * weights[d], 0);
+  const currentScore = Math.round(weightedScore(current));
+  const proposedScore = Math.round(weightedScore(proposed));
+  const delta = proposedScore - currentScore;
+  const deltaLabel = delta > 0 ? `+${delta}` : `${delta}`;
+  return (
+    <div className="rounded-md border border-border bg-surface/40 p-3 text-xs">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="font-semibold text-ink">
+          {t('admin.scoring.preview.title', {
+            defaultValue: 'Live impact preview (sample contract)',
+          })}
+        </p>
+        <span
+          className={`font-mono font-semibold ${
+            delta === 0
+              ? 'text-ink-subtle'
+              : delta > 0
+              ? 'text-sage'
+              : 'text-terracotta'
+          }`}
+        >
+          {currentScore} → {proposedScore} ({deltaLabel})
+        </span>
+      </div>
+      <p className="mb-2 text-ink-muted">
+        {t('admin.scoring.preview.help', {
+          defaultValue:
+            'Applies your proposed weights to an ADNOC-typical contract profile (Legal 60 / Financial 50 / Operational 70 / Reputational 73 / Compliance 68) so you can see the shift before saving.',
+        })}
+      </p>
+      <ul className="grid gap-1 sm:grid-cols-5">
+        {DIMS.map((d) => {
+          const contrib = sampleProfile[d] * proposed[d];
+          return (
+            <li
+              key={d}
+              className="rounded bg-card px-2 py-1 font-mono text-[10px]"
+            >
+              <span className="text-ink-subtle">
+                {t(`admin.scoring.dims.${d}`).slice(0, 4)}
+              </span>{' '}
+              <span className="text-ink">{contrib.toFixed(1)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 interface DimSliderProps {
   dim: Dim;

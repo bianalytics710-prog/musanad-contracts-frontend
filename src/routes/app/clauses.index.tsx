@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -19,13 +19,12 @@ import { Button } from "@/components/ui/button";
 import {
   clausesService,
   type ClauseListItem,
-  type ClauseDetail,
 } from "@/services/api/m_parity.service";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { cn } from "@/lib/utils";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
-import { CreateClauseDialog } from "@/features/m_parity/components/CreateEntityDialogs";
+import { NewClauseDialog } from "@/features/clauses/components/NewClauseDialog";
 import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 
 export const Route = createFileRoute("/app/clauses/")({
@@ -68,7 +67,7 @@ function ClausesMasterDetailView() {
   const [showFavouritesOnly, setShowFavouritesOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [favourites, setFavourites] = useState<Set<number>>(() => loadFavourites());
-  const [createOpen, setCreateOpen] = useState(false);
+  const [newDialogOpen, setNewDialogOpen] = useState(false);
   const canCreate = useAuthStore(selectHasPermission("contract.edit"));
   const debounced = useDebounce(search, 300);
 
@@ -138,6 +137,9 @@ function ClausesMasterDetailView() {
     >
       <header className="flex items-start justify-between gap-3">
         <div>
+          <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t("clauses.kicker", { defaultValue: "Clause library" })}
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
             {t("clauses.title", { defaultValue: "Clause library" })}
           </h1>
@@ -149,13 +151,13 @@ function ClausesMasterDetailView() {
           </p>
         </div>
         {canCreate && (
-          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+          <Button type="button" size="sm" onClick={() => setNewDialogOpen(true)}>
             <Plus className="h-4 w-4" />
             {t("clauses.create.cta", { defaultValue: "New clause" })}
           </Button>
         )}
       </header>
-      <CreateClauseDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <NewClauseDialog open={newDialogOpen} onClose={() => setNewDialogOpen(false)} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-4">
@@ -191,10 +193,12 @@ function ClausesMasterDetailView() {
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)_minmax(0,1.2fr)]">
-        {/* Categories sidebar */}
-        <aside className="space-y-1">
-          <CategoryButton
+      {/* Category chip strip — replaces the left-rail. Horizontal-scrolls on
+          narrow viewports; gold-tinted active state matches the rest of the
+          design system. */}
+      <div className="-mx-1 overflow-x-auto">
+        <div className="flex min-w-max items-center gap-1.5 px-1 pb-1">
+          <CategoryChip
             active={category === "" && !showFavouritesOnly}
             onClick={() => {
               setCategory("");
@@ -203,7 +207,7 @@ function ClausesMasterDetailView() {
             label={t("common.all", { defaultValue: "All" })}
             count={items.length}
           />
-          <CategoryButton
+          <CategoryChip
             active={showFavouritesOnly}
             onClick={() => {
               setShowFavouritesOnly((v) => !v);
@@ -213,55 +217,64 @@ function ClausesMasterDetailView() {
             count={favourites.size}
             icon={<Star className="h-3 w-3 fill-current text-gold" />}
           />
-          <div className="my-2 border-t border-border" />
+          <span className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />
           {[...categoryCounts.entries()]
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([cat, count]) => (
-              <CategoryButton
+              <CategoryChip
                 key={cat}
                 active={category === cat && !showFavouritesOnly}
                 onClick={() => {
                   setCategory((prev) => (prev === cat ? "" : cat));
                   setShowFavouritesOnly(false);
                 }}
-                /* D35 — category labels now pass through humanizeLabel for
-                   UAE acronym preservation + title casing. Was "force
-                   majeure" / "non compete" / "data protection" lowercase. */
                 label={humanizeLabel(cat)}
                 count={count}
               />
             ))}
-        </aside>
+        </div>
+      </div>
 
-        {/* Clause list */}
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3">
-            <div className="relative min-w-[200px] flex-1">
-              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-              <Input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("clauses.searchPlaceholder", {
-                  defaultValue: "Search clauses…",
-                })}
-                className="ps-9"
-              />
-            </div>
-            <select
-              value={variant}
-              onChange={(e) => setVariant(e.target.value as typeof variant)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">
-                {t("clauses.allVariants", { defaultValue: "All variants" })}
-              </option>
-              <option value="standard">Standard</option>
-              <option value="alternative">Alternative</option>
-              <option value="fallback">Fallback</option>
-            </select>
-          </div>
+      {/* Search + variant filter row */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-3">
+        <div className="relative min-w-[240px] flex-1">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+          <Input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("clauses.searchPlaceholder", {
+              defaultValue: "Search clauses…",
+            })}
+            className="ps-9"
+          />
+        </div>
+        <select
+          value={variant}
+          onChange={(e) => setVariant(e.target.value as typeof variant)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          aria-label={t("clauses.allVariants", { defaultValue: "All variants" })}
+        >
+          <option value="">
+            {t("clauses.allVariants", { defaultValue: "All variants" })}
+          </option>
+          <option value="standard">Standard</option>
+          <option value="alternative">Alternative</option>
+          <option value="fallback">Fallback</option>
+        </select>
+        <span className="ms-auto font-mono text-[11px] text-ink-subtle">
+          {t("clauses.resultCount", {
+            defaultValue: "{{count}} of {{total}} shown",
+            count: filtered.length,
+            total: items.length,
+          })}
+        </span>
+      </div>
 
+      {/* 2-col main: list (left) + detail (right). At lg+ the detail gets
+          ~58% of the width so the body text breathes. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div>
           {isLoading ? (
             <div className="space-y-2">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -286,11 +299,6 @@ function ClausesMasterDetailView() {
                       selectedId === c.id && "bg-surface",
                     )}
                   >
-                    {/* D36 — variant chip + category chip now render with
-                        clear margin between them and humanizeLabel for the
-                        category slug. Was previously rendering as a glued
-                        "standardassignment" / "alternativeconfidentiality"
-                        mash in textContent. */}
                     <span
                       className={`mt-0.5 inline-flex shrink-0 items-center rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
                         variantTone[c.variant] ?? ""
@@ -318,7 +326,6 @@ function ClausesMasterDetailView() {
           )}
         </div>
 
-        {/* Detail pane */}
         <ClauseDetailPanel
           clauseId={selectedId}
           listItems={items}
@@ -330,7 +337,7 @@ function ClausesMasterDetailView() {
   );
 }
 
-interface CategoryButtonProps {
+interface CategoryChipProps {
   active: boolean;
   onClick: () => void;
   label: string;
@@ -338,23 +345,28 @@ interface CategoryButtonProps {
   icon?: React.ReactNode;
 }
 
-function CategoryButton({ active, onClick, label, count, icon }: CategoryButtonProps) {
+function CategoryChip({ active, onClick, label, count, icon }: CategoryChipProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         active
-          ? "bg-gold/10 font-medium text-ink"
-          : "text-ink-muted hover:bg-surface hover:text-ink",
+          ? "border-gold bg-gold/15 font-medium text-ink"
+          : "border-border bg-card text-ink-muted hover:border-gold/40 hover:bg-surface hover:text-ink",
       )}
     >
-      <span className="inline-flex items-center gap-1.5 truncate">
-        {icon}
-        {label}
+      {icon}
+      <span className="truncate">{label}</span>
+      <span
+        className={cn(
+          "font-mono text-[10px]",
+          active ? "text-ink/70" : "text-ink-subtle",
+        )}
+      >
+        {count}
       </span>
-      <span className="font-mono text-[10px] text-ink-subtle">{count}</span>
     </button>
   );
 }

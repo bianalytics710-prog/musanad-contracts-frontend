@@ -28,6 +28,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAiContractInsights } from "@/features/ai/hooks/useAi";
 import { useAiInsightsSseStream } from "@/features/ai/hooks/useAiInsightsSseStream";
+import { aiService } from "@/services/api/ai.service";
 import { translateApiError } from "@/lib/translate-api-error";
 import { cn } from "@/lib/utils";
 import type {
@@ -135,9 +136,52 @@ export function ContractAIInsightsPanel({ contractId }: ContractAIInsightsPanelP
     [contractId, language, summaryStream, insights, setTabResult, t],
   );
 
-  // Auto-fire summary on first mount so the panel isn't empty.
+  // Auto-fire ALL 5 tabs in parallel on first mount so every tab is ready
+  // by the time the user scrolls down. Summary uses SSE (its own hook); the
+  // other 4 bypass the shared useMutation (which would serialise them) and
+  // call aiService directly via Promise.all so requests fire concurrently.
   useEffect(() => {
     void runTab("summary");
+    const parallelTabs: Exclude<InsightsTab, "summary">[] = [
+      "key_terms",
+      "risks",
+      "obligations",
+      "regulatory",
+    ];
+    parallelTabs.forEach((tab) =>
+      setTabResult(tab, { isLoading: true, error: undefined, payload: undefined }),
+    );
+    void Promise.all(
+      parallelTabs.map(async (tab) => {
+        try {
+          const resp = await aiService.contractInsights({
+            contractId,
+            mode: TAB_TO_MODE[tab],
+            language,
+          });
+          if (
+            resp.mode === "key_terms" ||
+            resp.mode === "risks" ||
+            resp.mode === "obligations" ||
+            resp.mode === "regulatory"
+          ) {
+            setTabResult(tab, { isLoading: false, payload: resp.payload });
+          } else {
+            setTabResult(tab, {
+              isLoading: false,
+              error: t("ai.insights.unexpectedShape", {
+                defaultValue: "Unexpected response shape",
+              }),
+            });
+          }
+        } catch (err) {
+          setTabResult(tab, {
+            isLoading: false,
+            error: translateApiError(err as Parameters<typeof translateApiError>[0], t),
+          });
+        }
+      }),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contractId]);
 

@@ -78,14 +78,32 @@ const CATEGORY_ICON: Record<ImpactCategory, React.ComponentType<{ className?: st
   market_financial: Sparkles,
 };
 
+// E-rev-E-3 — Executive demo scope keeps 3 categories: Regulatory,
+// Commodity Prices, Supply Chain. Geopolitical + Market & Financial
+// tabs (and their signals) hidden from the UI; data remains in DB.
+const HIDDEN_CATEGORIES: ReadonlySet<ImpactCategory> = new Set<ImpactCategory>([
+  "geopolitical",
+  "market_financial",
+]);
+
 const CATEGORIES: Array<{ key: ImpactCategory | "all"; labelKey: string; defaultLabel: string }> = [
   { key: "all", labelKey: "all", defaultLabel: "All" },
   { key: "regulatory", labelKey: "regulatory", defaultLabel: "Regulatory" },
   { key: "commodity_prices", labelKey: "commodity", defaultLabel: "Commodity Prices" },
   { key: "supply_chain", labelKey: "supply", defaultLabel: "Supply Chain" },
-  { key: "geopolitical", labelKey: "geopolitical", defaultLabel: "Geopolitical" },
-  { key: "market_financial", labelKey: "market", defaultLabel: "Market & Financial" },
 ];
+
+// E-rev-E-5 — Band an impact_score (0..100) into a severity slug for
+// display purposes only. impact_score is still stored as INTEGER server-
+// side; the exec just needs to read the row as "High" not "75".
+function impactScoreBand(score: number | null | undefined): "critical" | "high" | "medium" | "low" | "informational" {
+  if (score == null) return "informational";
+  if (score >= 80) return "critical";
+  if (score >= 60) return "high";
+  if (score >= 40) return "medium";
+  if (score >= 20) return "low";
+  return "informational";
+}
 
 const SEVERITY_TONE: Record<string, string> = {
   critical: "bg-terracotta text-card",
@@ -136,7 +154,13 @@ function ImpactWatchView() {
 
   // E31 fix — default-filter to signals with impactedContractCount > 0
   // so the executive sees actionable rows first. Toggle reveals all.
-  const rawItems = list?.data ?? [];
+  // E-rev-E-3 — also strip signals from hidden categories (Geopolitical
+  // + Market & Financial) so the count + list stay consistent with the
+  // visible pill set.
+  const rawItems = useMemo(
+    () => (list?.data ?? []).filter((s) => !HIDDEN_CATEGORIES.has(s.category)),
+    [list?.data],
+  );
   const items = useMemo(
     () => (onlyImpacted ? rawItems.filter((s) => (s.impactedContractCount ?? 0) > 0) : rawItems),
     [rawItems, onlyImpacted],
@@ -175,15 +199,33 @@ function ImpactWatchView() {
     onError: (e) => toast.error(translateApiError(e, t)),
   });
 
+  // Post-bulk-amend handoff modal. The bulk-amend endpoint only flips
+  // impact_signal_contract.status → 'amended' and logs an activity row; it
+  // doesn't draft amendments or notify drafters. So after success we
+  //   (a) auto-fire Notify drafters (the missing handoff drafters need to act),
+  //   (b) open a "what next" modal so the LC can navigate to Approvals,
+  //       jump to the affected contracts, or stay here.
+  // Without this, "Bulk amend" was a silent dead-end for the user.
+  const [bulkAmendResult, setBulkAmendResult] = useState<{
+    amended: number;
+    notified: number;
+  } | null>(null);
+
   const bulkAmendMutation = useMutation({
-    mutationFn: () => impactSignalService.bulkAmend(selectedId as number),
+    mutationFn: async () => {
+      const id = selectedId as number;
+      const amend = await impactSignalService.bulkAmend(id);
+      let notified = 0;
+      try {
+        const n = await impactSignalService.notifyDrafters(id);
+        notified = n.notified;
+      } catch {
+        // notify is best-effort; the amend rows are already committed.
+      }
+      return { amended: amend.amended, notified };
+    },
     onSuccess: (r) => {
-      toast.success(
-        t("impactWatch.bulkAmend.success", {
-          count: r.amended,
-          defaultValue: `Amendment initiated for ${r.amended} contracts`,
-        }),
-      );
+      setBulkAmendResult(r);
       void qc.invalidateQueries({ queryKey: ["impact-signal", selectedId] });
     },
     onError: (e) => toast.error(translateApiError(e, t)),
@@ -482,12 +524,43 @@ function ImpactWatchView() {
                               </Link>
                             </td>
                             <td className="px-3 py-2 text-xs text-ink">{c.titleEn}</td>
-                            <td className="px-3 py-2 text-end font-mono text-xs text-ink">
-                              {c.impactScore}
+                            <td className="px-3 py-2 text-end text-xs">
+                              {/* E-rev-E-5 — Show severity band, not raw
+                                  number. Same SEVERITY_TONE palette as the
+                                  signal-severity badge in the detail header,
+                                  so the table visually echoes the parent
+                                  signal's risk level. */}
+                              {(() => {
+                                const band = impactScoreBand(c.impactScore);
+                                return (
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] ${SEVERITY_TONE[band] ?? "bg-muted text-ink-muted"}`}
+                                    title={`Score: ${c.impactScore}`}
+                                  >
+                                    {humanizeLabel(band)}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="px-3 py-2">
+                              {/* E-rev-E-4 — DB stores 'pending' but that
+                                  reads like "approval pending" to an exec.
+                                  Display label remaps to "Flagged" (system
+                                  voice) while the underlying value, audit
+                                  logs and BE code stay unchanged. */}
                               <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-                                {c.status}
+                                {t(`impactWatch.linkStatus.${c.status}`, {
+                                  defaultValue:
+                                    c.status === "pending"
+                                      ? "Flagged"
+                                      : c.status === "reviewed"
+                                        ? "Reviewed"
+                                        : c.status === "amended"
+                                          ? "Amendment started"
+                                          : c.status === "dismissed"
+                                            ? "Dismissed"
+                                            : c.status,
+                                })}
                               </span>
                             </td>
                             <td className="px-3 py-2 text-end">
@@ -572,6 +645,101 @@ function ImpactWatchView() {
                     "AI-generated guidance — verify with counsel before action.",
                 })}
               </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Post-bulk-amend handoff modal — explains what happened and
+          surfaces the actual next destinations. Replaces the silent toast. */}
+      <Dialog
+        open={bulkAmendResult !== null}
+        onOpenChange={(open) => {
+          if (!open) setBulkAmendResult(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="h-5 w-5 text-gold" />
+              {t("impactWatch.bulkAmend.modal.title", {
+                defaultValue: "Amendments initiated",
+              })}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.titleEn ?? ""}
+            </DialogDescription>
+          </DialogHeader>
+          {bulkAmendResult && (
+            <div className="space-y-4 text-sm">
+              <div className="rounded-md border border-border bg-surface p-3 text-ink">
+                <p>
+                  {t("impactWatch.bulkAmend.modal.summary", {
+                    amended: bulkAmendResult.amended,
+                    defaultValue:
+                      "{{amended}} contracts flagged for amendment.",
+                  })}
+                </p>
+                {bulkAmendResult.notified > 0 && (
+                  <p className="mt-1 text-xs text-ink-muted">
+                    {t("impactWatch.bulkAmend.modal.notified", {
+                      count: bulkAmendResult.notified,
+                      defaultValue:
+                        bulkAmendResult.notified === 1
+                          ? "1 drafter notified."
+                          : `${bulkAmendResult.notified} drafters notified.`,
+                    })}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5 text-xs text-ink-muted">
+                <p className="font-medium text-ink">
+                  {t("impactWatch.bulkAmend.modal.nextHeading", {
+                    defaultValue: "What happens next",
+                  })}
+                </p>
+                <ol className="ms-4 list-decimal space-y-1">
+                  <li>
+                    {t("impactWatch.bulkAmend.modal.step1", {
+                      defaultValue:
+                        "Drafters open each affected contract and edit the impacted clauses.",
+                    })}
+                  </li>
+                  <li>
+                    {t("impactWatch.bulkAmend.modal.step2", {
+                      defaultValue:
+                        "Drafters submit the amendment for approval (existing approval chain).",
+                    })}
+                  </li>
+                  <li>
+                    {t("impactWatch.bulkAmend.modal.step3", {
+                      defaultValue:
+                        "Items land in your Approvals queue when ready for legal review.",
+                    })}
+                  </li>
+                </ol>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setBulkAmendResult(null)}
+                >
+                  {t("impactWatch.bulkAmend.modal.stay", {
+                    defaultValue: "Stay here",
+                  })}
+                </Button>
+                <Link
+                  to="/app/approvals"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-xs font-medium text-ink hover:bg-surface"
+                >
+                  {t("impactWatch.bulkAmend.modal.openApprovals", {
+                    defaultValue: "Open Approvals",
+                  })}
+                  <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+                </Link>
+              </div>
             </div>
           )}
         </DialogContent>

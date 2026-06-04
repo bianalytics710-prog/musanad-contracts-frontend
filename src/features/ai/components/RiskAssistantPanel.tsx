@@ -83,6 +83,88 @@ function CitationChip({ citation }: { citation: RiskAssistantCitation }) {
 
 // ─── Message bubble ────────────────────────────────────────────────────────────
 
+/**
+ * Tiny markdown renderer for the assistant's responses. We intentionally
+ * keep this dependency-free — covers the structure the prompts ask for:
+ *   **bold**            → <strong>
+ *   ### / ## / # heading → small uppercase sub-heading
+ *   - / * / • bullets    → bulleted list
+ *   blank line           → paragraph break
+ *
+ * User messages render plain (no formatting).
+ */
+function renderStructuredMessage(text: string): React.ReactNode {
+  const lines = text.split(/\r?\n/);
+  const blocks: React.ReactNode[] = [];
+  let currentList: string[] | null = null;
+
+  const flushList = () => {
+    if (currentList && currentList.length > 0) {
+      blocks.push(
+        <ul key={`ul-${blocks.length}`} className="my-1 list-disc space-y-0.5 ps-5">
+          {currentList.map((item, i) => (
+            <li key={i} className="text-sm text-ink">{renderInline(item)}</li>
+          ))}
+        </ul>,
+      );
+    }
+    currentList = null;
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (line === '') {
+      flushList();
+      continue;
+    }
+    const bulletMatch = line.match(/^(?:[-*•]\s+)(.*)/);
+    if (bulletMatch) {
+      if (!currentList) currentList = [];
+      currentList.push(bulletMatch[1]);
+      continue;
+    }
+    const headingMatch = line.match(/^(#{1,3})\s+(.*)/);
+    if (headingMatch) {
+      flushList();
+      blocks.push(
+        <p
+          key={`h-${blocks.length}`}
+          className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-subtle"
+        >
+          {renderInline(headingMatch[2])}
+        </p>,
+      );
+      continue;
+    }
+    flushList();
+    blocks.push(
+      <p key={`p-${blocks.length}`} className="text-sm text-ink">
+        {renderInline(line)}
+      </p>,
+    );
+  }
+  flushList();
+  return blocks;
+}
+
+/** Inline formatter — handles **bold** and `code`. */
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith('**') && p.endsWith('**')) {
+      return <strong key={i}>{p.slice(2, -2)}</strong>;
+    }
+    if (p.startsWith('`') && p.endsWith('`')) {
+      return (
+        <code key={i} className="rounded bg-muted px-1 font-mono text-[12px]">
+          {p.slice(1, -1)}
+        </code>
+      );
+    }
+    return <span key={i}>{p}</span>;
+  });
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
   return (
@@ -99,9 +181,9 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
       <div className={`max-w-[85%] space-y-1 ${isUser ? 'items-end' : 'items-start'}`}>
         <div
-          className={`rounded-xl px-3 py-2 text-sm ${isUser ? 'bg-gold/15 text-ink' : 'bg-surface text-ink'}`}
+          className={`space-y-1 rounded-xl px-3 py-2 text-sm ${isUser ? 'bg-gold/15 text-ink' : 'bg-surface text-ink'}`}
         >
-          {message.content}
+          {isUser ? message.content : renderStructuredMessage(message.content)}
           {message.isStreaming && (
             <span className="ms-1 inline-block h-2.5 w-1.5 animate-pulse rounded-sm bg-ink-muted" aria-hidden />
           )}
@@ -123,11 +205,49 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const EXAMPLE_PROMPTS = [
+/**
+ * Persona-specific suggestion chips shown on the empty state. Each row is
+ * 3 i18n keys grounded in the modules that role actually uses. Falls back
+ * to the legacy executive-ish defaults for roles without a custom row.
+ */
+const EXAMPLE_PROMPTS_BY_ROLE: Record<string, string[]> = {
+  executive: [
+    'ai.riskAssistant.examples.executive.counterparties',
+    'ai.riskAssistant.examples.executive.topRisk',
+    'ai.riskAssistant.examples.executive.expiring',
+  ],
+  legal_counsel: [
+    'ai.riskAssistant.examples.legal.advisoryQueue',
+    'ai.riskAssistant.examples.legal.regulationsThisWeek',
+    'ai.riskAssistant.examples.legal.flaggedClauses',
+  ],
+  contract_drafter: [
+    'ai.riskAssistant.examples.drafter.awaiting',
+    'ai.riskAssistant.examples.drafter.templates',
+    'ai.riskAssistant.examples.drafter.stuckAtLegal',
+  ],
+  contract_approver: [
+    'ai.riskAssistant.examples.approver.sla',
+    'ai.riskAssistant.examples.approver.highValue',
+    'ai.riskAssistant.examples.approver.highRisk',
+  ],
+  contract_approver_2: [
+    'ai.riskAssistant.examples.approver.sla',
+    'ai.riskAssistant.examples.approver.highValue',
+    'ai.riskAssistant.examples.approver.highRisk',
+  ],
+};
+
+const DEFAULT_EXAMPLE_PROMPTS = [
   'ai.riskAssistant.examples.hormuz',
   'ai.riskAssistant.examples.sanctions',
   'ai.riskAssistant.examples.icv',
 ];
+
+function getExamplePromptKeys(roleName: string | null | undefined): string[] {
+  if (!roleName) return DEFAULT_EXAMPLE_PROMPTS;
+  return EXAMPLE_PROMPTS_BY_ROLE[roleName.toLowerCase()] ?? DEFAULT_EXAMPLE_PROMPTS;
+}
 
 export function RiskAssistantPanel() {
   const { t } = useTranslation();
@@ -391,7 +511,7 @@ export function RiskAssistantPanel() {
                       <p className="text-xs font-medium uppercase tracking-wider text-ink-subtle">
                         {t('ai.riskAssistant.emptyState.examplesLabel')}
                       </p>
-                      {EXAMPLE_PROMPTS.map((key) => (
+                      {getExamplePromptKeys(user?.role?.name).map((key) => (
                         <button
                           key={key}
                           type="button"

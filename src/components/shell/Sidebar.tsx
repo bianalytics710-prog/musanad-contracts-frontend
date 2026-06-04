@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import { useTranslation } from "react-i18next";
-import { useAuthStore, selectUser, selectRefreshToken } from "@/store/auth.store";
+import { useAuthStore, selectUser, selectRefreshToken, selectHasPermission } from "@/store/auth.store";
 import { useTheme } from "@/lib/design-system/theme-provider";
 import { authService } from "@/services/api/auth.service";
 import { brand } from "@/config/brand";
@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForEffectiveSet, modulesForRole } from "@/config/sidebar";
+import { ADMIN_GROUPS, ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForEffectiveSet, modulesForRole } from "@/config/sidebar";
 import { useNavigate } from "@tanstack/react-router";
 
 function getInitials(firstName: string | undefined, lastName: string | undefined): string {
@@ -47,6 +47,9 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const refreshToken = useAuthStore(selectRefreshToken);
   const logoutAction = useAuthStore((s) => s.logout);
   const path = useRouterState({ select: (s) => s.location.pathname });
+  // Gate the Clauses → Review queue sub-nav. Only legal_counsel + platform_admin
+  // hold clause.review, so drafters and everyone else shouldn't see the link.
+  const canReviewClauses = useAuthStore(selectHasPermission("clause.review"));
   const { resolvedTheme, toggleTheme, locale, setLocale } = useTheme();
   const navigate = useNavigate();
 
@@ -69,9 +72,17 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
   // CR-W: use effectiveModules from auth payload when available; fall back to
   // static role mapping for backward-compat (e.g. tokens minted before CR-V).
-  const items = user?.effectiveModules?.length
-    ? modulesForEffectiveSet(user.effectiveModules)
-    : modulesForRole(user?.role.name);
+  //
+  // platform_admin is a tech-ops role whose sidebar is the admin workbench
+  // only. Bypass effectiveModules for this role so the static ROLE_MODULES
+  // restriction (["admin"]) is authoritative — even when the BE auth payload
+  // still ships the wider legacy module set.
+  const roleName = user?.role.name;
+  const items = roleName === "platform_admin"
+    ? modulesForRole("platform_admin")
+    : user?.effectiveModules?.length
+      ? modulesForEffectiveSet(user.effectiveModules)
+      : modulesForRole(roleName);
 
   const initials = getInitials(user?.firstName, user?.lastName);
   const fullName = user ? `${user.firstName} ${user.lastName}` : "";
@@ -145,33 +156,47 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               </Link>
 
               {isAdmin && onAdminRoute && !collapsed && (
-                <ul className="mt-1 ms-4 space-y-0.5 border-s border-white/10 ps-2">
-                  {ADMIN_SUB_NAV.map((sub) => {
-                    const subActive = path === sub.to;
-                    const SubIcon = sub.icon;
+                <div className="mt-1 ms-4 space-y-3 border-s border-white/10 ps-2">
+                  {ADMIN_GROUPS.map((group) => {
+                    const groupItems = ADMIN_SUB_NAV.filter((s) => s.group === group.key);
+                    if (groupItems.length === 0) return null;
                     return (
-                      <li key={sub.to}>
-                        <Link
-                          to={sub.to}
-                          className={cn(
-                            "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
-                            subActive
-                              ? "bg-gold/20 text-white font-medium"
-                              : "text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground",
-                          )}
-                        >
-                          <SubIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">
-                            {t(sub.labelKey, { defaultValue: sub.defaultLabel })}
-                          </span>
-                        </Link>
-                      </li>
+                      <div key={group.key} className="space-y-0.5">
+                        <p className="px-2.5 pb-0.5 pt-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                          {t(group.labelKey, { defaultValue: group.defaultLabel })}
+                        </p>
+                        <ul className="space-y-0.5">
+                          {groupItems.map((sub) => {
+                            const subActive = path === sub.to;
+                            const SubIcon = sub.icon;
+                            return (
+                              <li key={sub.to}>
+                                <Link
+                                  to={sub.to}
+                                  className={cn(
+                                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
+                                    subActive
+                                      ? "bg-gold/20 text-white font-medium"
+                                      : "text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground",
+                                  )}
+                                >
+                                  <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">
+                                    {t(sub.labelKey, { defaultValue: sub.defaultLabel })}
+                                  </span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               )}
-              {/* M12 — Clauses sub-nav (review queue) when on a /app/clauses/* route */}
-              {isClauses && onClausesRoute && !collapsed && (
+              {/* M12 — Clauses sub-nav (review queue) when on a /app/clauses/* route.
+                  Gated by clause.review so drafters / recipients don't see it. */}
+              {isClauses && onClausesRoute && !collapsed && canReviewClauses && (
                 <ul className="mt-1 ms-4 space-y-0.5 border-s border-white/10 ps-2">
                   {CLAUSES_SUB_NAV.map((sub) => {
                     const subActive = path === sub.to || path.startsWith(sub.to + "/");

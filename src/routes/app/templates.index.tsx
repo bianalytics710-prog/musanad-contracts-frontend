@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Search, FileStack, Languages, TrendingUp, ArrowRight, Eye, Plus } from "lucide-react";
+import { Search, FileStack, Languages, TrendingUp, ArrowRight, Eye, Plus, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
@@ -11,8 +11,11 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { TemplatePreviewDialog } from "@/features/templates/components/TemplatePreviewDialog";
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
-import { CreateTemplateDialog } from "@/features/m_parity/components/CreateEntityDialogs";
 import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
+import { NewTemplateDialog } from "@/features/templates/components/NewTemplateDialog";
+import { useDeleteTemplate, templatesKeys } from "@/features/templates/hooks/useTemplates";
+import { ConfirmDialog } from "@/features/imports/components/ConfirmDialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/app/templates/")({
   component: () => (
@@ -34,10 +37,12 @@ function TemplatesListView() {
   const [sort, setSort] = useState<"most_used" | "az" | "newest">("most_used");
   const debounced = useDebounce(search, 300);
   const canCreate = useAuthStore(selectHasPermission("contract.edit"));
-  const canDelete = useAuthStore(selectHasPermission("contract.delete"));
+  const queryClient = useQueryClient();
+  const deleteMutation = useDeleteTemplate();
+  const [deleteTarget, setDeleteTarget] = useState<TemplateListItem | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["templates", debounced, contractType],
+    queryKey: templatesKeys.list({ contractType, q: debounced, limit: 200 }),
     queryFn: () =>
       templatesService.list({
         contractType: contractType || undefined,
@@ -57,7 +62,7 @@ function TemplatesListView() {
         list = [...list].sort((a, b) => a.nameEn.localeCompare(b.nameEn));
         break;
       case "newest":
-        list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        list = [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         break;
       default:
         list = [...list].sort((a, b) => b.usageCount - a.usageCount);
@@ -78,6 +83,9 @@ function TemplatesListView() {
     >
       <header className="flex items-start justify-between gap-3">
         <div>
+          <div className="mb-2 font-mono text-xs uppercase tracking-wider text-ink-subtle">
+            {t("templates.kicker", { defaultValue: "Template library" })}
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
             {t("templates.title", { defaultValue: "Contract templates" })}
           </h1>
@@ -94,7 +102,7 @@ function TemplatesListView() {
           </Button>
         )}
       </header>
-      <CreateTemplateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <NewTemplateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
       <section className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-border bg-card p-4">
@@ -220,12 +228,19 @@ function TemplatesListView() {
                 <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
                   {humanizeLabel(tpl.contractType)}
                 </span>
-                {tpl.language === "bilingual" && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
-                    <Languages className="h-3 w-3" />
-                    AR · EN
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {tpl.placeholderCount > 0 && (
+                    <span className="rounded-md bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
+                      {tpl.placeholderCount} {t("templates.placeholdersShort", { defaultValue: "ph" })}
+                    </span>
+                  )}
+                  {tpl.language === "bilingual" && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-sage-tint px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-sage-ink">
+                      <Languages className="h-3 w-3" />
+                      AR · EN
+                    </span>
+                  )}
+                </div>
               </div>
               <Link
                 to="/app/templates/$id"
@@ -258,6 +273,11 @@ function TemplatesListView() {
                   visible chips show humanized labels with explicit
                   background pills. */}
               <div className="mt-3 flex flex-wrap gap-1.5" role="list">
+                {tpl.regulatoryReference && (
+                  <span role="listitem" className="rounded-full bg-amber-tint px-2 py-0.5 font-mono text-[10px] text-amber-ink">
+                    {tpl.regulatoryReference}
+                  </span>
+                )}
                 {tpl.regulatoryTags.slice(0, 2).map((tag, idx, arr) => (
                   <span key={tag} role="listitem" className="contents">
                     <span className="rounded-full bg-surface px-1.5 py-0.5 font-mono text-[10px] text-ink-subtle">
@@ -284,16 +304,21 @@ function TemplatesListView() {
                 })}
               </p>
               <div className="mt-auto flex items-center gap-2 pt-3">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPreviewTemplate(tpl)}
+                <Link
+                  to="/app/templates/$id"
+                  params={{ id: String(tpl.id) }}
                   className="flex-1"
                 >
-                  <Eye className="me-1.5 h-3.5 w-3.5" />
-                  {t("templates.preview.cta", { defaultValue: "Preview" })}
-                </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Eye className="me-1.5 h-3.5 w-3.5" />
+                    {t("templates.preview.cta", { defaultValue: "Preview" })}
+                  </Button>
+                </Link>
                 <Link
                   to="/app/contracts/compose"
                   search={{ template_id: tpl.id }}
@@ -302,12 +327,32 @@ function TemplatesListView() {
                   <Button
                     type="button"
                     size="sm"
-                    className="w-full bg-gold text-ink hover:bg-gold-hover"
+                    className="w-full"
                   >
                     {t("templates.useTemplate.short", { defaultValue: "Use template" })}
                     <ArrowRight className="ms-1.5 h-3.5 w-3.5 rtl:rotate-180" />
                   </Button>
                 </Link>
+                {canCreate && (
+                  <>
+                    <Link
+                      to="/app/templates/$id/edit"
+                      params={{ id: String(tpl.id) }}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-ink-muted transition-colors hover:bg-surface hover:text-ink"
+                      aria-label={t("templates.actions.edit", { defaultValue: "Edit" })}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(tpl)}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-ink-muted transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={t("templates.actions.delete", { defaultValue: "Delete" })}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                )}
               </div>
             </li>
           ))}
@@ -320,6 +365,30 @@ function TemplatesListView() {
         onOpenChange={(open) => {
           if (!open) setPreviewTemplate(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t("templates.confirmDeleteTitle", { defaultValue: "Delete template?" })}
+        description={t("templates.confirmDeleteDescription", {
+          defaultValue:
+            "This will hide \"{{name}}\" from the library. Existing contracts that referenced it are unaffected.",
+          name: deleteTarget?.nameEn,
+        })}
+        confirmLabel={t("templates.actions.delete", { defaultValue: "Delete" })}
+        destructive
+        isPending={deleteMutation.isPending}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          try {
+            await deleteMutation.mutateAsync(deleteTarget.id);
+            setDeleteTarget(null);
+            void queryClient.invalidateQueries({ queryKey: templatesKeys.lists() });
+          } catch {
+            // toast raised by hook
+          }
+        }}
+        onClose={() => setDeleteTarget(null)}
       />
     </motion.div>
   );

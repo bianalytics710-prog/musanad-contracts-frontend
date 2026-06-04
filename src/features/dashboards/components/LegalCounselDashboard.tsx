@@ -16,7 +16,6 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangle,
   ArrowRight,
   Briefcase,
   Building2,
@@ -49,16 +48,13 @@ import {
   DashboardErrorState,
   DashboardLoadingSkeleton,
   KpiTile,
-  TimeRangeSelector,
   asWindowQuery,
   formatNumber,
-  rangeFromWindowDays,
 } from "./dashboard-primitives";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
 import type {
   DashboardOpenImpactRow,
-  DashboardRangeKey,
   DashboardRegulatoryUpdateRow,
   LegalCounselApprovalQueueRow,
   LegalCounselObligationRow,
@@ -113,32 +109,14 @@ type ActivityFilter = "all" | "mine" | "mentions" | "high";
 export function LegalCounselDashboard() {
   const { t } = useTranslation();
   const user = useAuthStore(selectUser);
-  const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
-  const [range, setRange] = useState<DashboardRangeKey>(
-    rangeFromWindowDays(DEFAULT_WINDOW_DAYS),
-  );
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
 
+  // Time-range filter removed — dashboard now always reads the 30-day window
+  // for downstream activity feed + 12-week aggregates. Snapshot KPIs are
+  // moment-in-time anyway, so a date selector at the top was misleading.
   const { data, isLoading, isError, error, refetch } = useLegalCounselDashboard(
-    asWindowQuery(windowDays),
+    asWindowQuery(DEFAULT_WINDOW_DAYS),
   );
-
-  const topCriticalImpact = useMemo(
-    () =>
-      (data?.lists.openImpacts5 ?? []).find(
-        (r) => r.severity?.toLowerCase() === "critical",
-      ) ?? null,
-    [data],
-  );
-  // L15 — Critical banner under-narrates. Surface up to 3 affected contracts so
-  // the rollup shows the breadth of the impact, not just one cited contract.
-  const criticalImpactContracts = useMemo(() => {
-    const all = data?.lists.openImpacts5 ?? [];
-    if (!topCriticalImpact) return [] as typeof all;
-    return all
-      .filter((r) => r.regulationTitleEn === topCriticalImpact.regulationTitleEn)
-      .slice(0, 3);
-  }, [data, topCriticalImpact]);
 
   const riskDonut = useMemo(() => {
     if (!data?.risk) return [] as Array<{ key: string; count: number; fill: string }>;
@@ -237,28 +215,20 @@ export function LegalCounselDashboard() {
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          {/* R-LC1 LC-C1 — welcome line with Hijri date (mirror approver R5c). */}
-          <p className="text-xs text-ink-subtle">
+          {/* Kicker mirrors Drafter dashboard — mono uppercase so the welcome
+              line reads as a label, not as body copy. */}
+          <p className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
             {user
               ? `${t("dashboards.common.welcome", { defaultValue: "Welcome back" })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
               : `${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`}
           </p>
-          {/* R-LC1 LC-C2 — H1 wording: "Legal insights" (Lovable parity). */}
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
             {t("dashboards.legalCounsel.title", { defaultValue: "Legal insights" })}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             {t("dashboards.legalCounsel.subtitle")}
           </p>
         </div>
-        <TimeRangeSelector
-          range={range}
-          windowDays={windowDays}
-          onChange={({ range: r, windowDays: d }) => {
-            setRange(r);
-            setWindowDays(d);
-          }}
-        />
       </header>
 
       {isLoading && !data ? (
@@ -273,66 +243,9 @@ export function LegalCounselDashboard() {
         <DashboardEmptyState />
       ) : (
         <>
-          {/* Hot regulation banner */}
-          {topCriticalImpact && (
-            <Link
-              to="/app/regulatory-radar"
-              className="relative block overflow-hidden rounded-xl border border-terracotta bg-terracotta/10 p-5 transition-colors hover:bg-terracotta/20"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="font-mono text-xs uppercase tracking-wider text-terracotta">
-                    {t("dashboards.legalCounsel.hero.kicker", {
-                      defaultValue: "Critical regulatory impact",
-                    })}
-                  </div>
-                  <div className="mt-1 text-lg font-semibold leading-tight text-ink md:text-xl">
-                    {topCriticalImpact.regulationTitleEn}
-                  </div>
-                  {/* L15 — cite up to 3 affected contracts so the banner narrates breadth. */}
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-                    {criticalImpactContracts.map((c) => (
-                      <span
-                        key={c.id}
-                        className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono"
-                      >
-                        {c.contractNumber}
-                      </span>
-                    ))}
-                    {data.kpis.openRegulatoryImpacts > criticalImpactContracts.length && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-ink/5 px-2 py-0.5 font-mono">
-                        +{data.kpis.openRegulatoryImpacts - criticalImpactContracts.length}{" "}
-                        {t("dashboards.legalCounsel.hero.openImpactsMore", {
-                          defaultValue: "more affected",
-                        })}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-terracotta px-3 py-1.5 text-sm font-medium text-card">
-                    {t("dashboards.legalCounsel.hero.openRadar", {
-                      defaultValue: "Open Radar",
-                    })}
-                    <ArrowRight className="h-4 w-4 rtl:rotate-180" />
-                  </div>
-                </div>
-                <AlertTriangle className="h-12 w-12 text-terracotta" />
-              </div>
-            </Link>
-          )}
-
-          {/* L1 — KPI strip section heading (was floating without context). */}
-          <h2 className="text-base font-semibold text-ink">
-            {t("dashboards.legalCounsel.kpiGroupHeading", {
-              defaultValue: "Portfolio snapshot",
-            })}
-          </h2>
-          <p className="-mt-2 text-xs text-ink-subtle">
-            {t("dashboards.legalCounsel.kpiGroupCaption", {
-              defaultValue:
-                "Snapshot counts at the current moment — date filter affects activity feed and audit summary only.",
-            })}
-          </p>
-          {/* R-LC1 LC-C4/C5/C6 — contracts-led KPIs (top row, clickable). */}
+          {/* R-LC1 LC-C4/C5/C6 — contracts-led KPIs (top row, clickable).
+              Drafter + Executive dashboards drop the KPI-strip section heading
+              and let the tiles speak for themselves; match that pattern here. */}
           <section
             aria-label={t("dashboards.legalCounsel.kpiGroupLabel")}
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"

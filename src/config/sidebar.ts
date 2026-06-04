@@ -54,6 +54,8 @@ import {
   BellRing,
   // M17-M18 / CR-I+CR-J demo harness icon
   FlaskConical,
+  // M22 / CR-MIG-DRIVE — migration icon
+  Database,
   // M19-M20 / CR-K + CR-L Risk Cases + Reports
   ShieldX,
   FileBarChart2,
@@ -103,6 +105,8 @@ export type ModuleKey =
   | "legal.advisoryQueue"
   // L49 — Advisory templates management for legal counsel
   | "legal.advisoryTemplates"
+  // TPA — Third-Party Agreement review for legal counsel
+  | "legal.thirdPartyReview"
   // M19 / CR-K — Risk Cases (visible to all 7 dashboard personas)
   | "riskCases"
   // M20 / CR-L — Reports (visible to all)
@@ -154,10 +158,15 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   "legal.advisoryQueue": { key: "legal.advisoryQueue", to: "/app/legal/advisory-queue", labelKey: "nav.legalAdvisoryQueue", defaultLabel: "Advisory Queue", icon: FileEdit, displayOrder: 350 },
   // L49 — Advisory templates (gated by advisory.template.manage)
   "legal.advisoryTemplates": { key: "legal.advisoryTemplates", to: "/app/admin/advisory-templates", labelKey: "nav.legalAdvisoryTemplates", defaultLabel: "Advisory Templates", icon: FileStack, displayOrder: 355 },
+  // TPA — Third-Party Review (gated by tpa.review.read)
+  "legal.thirdPartyReview": { key: "legal.thirdPartyReview", to: "/app/legal/third-party-review", labelKey: "nav.tpaReview", defaultLabel: "Third-Party Review", icon: ScrollText, displayOrder: 358 },
   // M19 / CR-K — Risk Cases
   riskCases: { key: "riskCases", to: "/app/risk-cases", labelKey: "nav.riskCases", defaultLabel: "Risk Cases", icon: ShieldX,      displayOrder: 360 },
   // M20 / CR-L — Reports
-  reports:   { key: "reports",   to: "/app/reports",    labelKey: "nav.reports",   defaultLabel: "Reports",    icon: FileBarChart2, displayOrder: 370 },
+  // Reports bumped to displayOrder 490 (2026-06-04) so it always renders
+  // as the last CLM-bundle entry — sits after Budget Burn (400) and Trade
+  // Margin (410) on executive, after Risk Cases (360) on legal counsel, etc.
+  reports:   { key: "reports",   to: "/app/reports",    labelKey: "nav.reports",   defaultLabel: "Reports",    icon: FileBarChart2, displayOrder: 490 },
   // CR-M — Labor-Law Cascade (gated by regulatory.cascade.read at render time)
   "compliance.regulatoryCascade": {
     key: "compliance.regulatoryCascade",
@@ -229,8 +238,10 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "legal.advisoryQueue",
     // L49 — Advisory templates
     "legal.advisoryTemplates",
-    // CR-M — Regulatory Cascade (read)
-    "compliance.regulatoryCascade",
+    // TPA — Third-Party Review
+    "legal.thirdPartyReview",
+    // E-rev-E — Regulatory Cascade hidden from all sidebars to keep the
+    // demo focused. Route + tables remain in the codebase; just no link.
     // M21 / CR-N — Budget Burn (read — legal counsel drafts cure notices)
     "financial.budgetBurn",
     // M19 / M20
@@ -249,19 +260,11 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // /app/obligations leak.
   // M20 — Reports library visible for downloadable shared briefings.
   contract_recipient: ["insights", "contracts", "reports"],
-  platform_admin: [
-    "admin", "insights", "contracts", "parties", "templates", "clauses",
-    // M15 / CR-G — all 4 persona dashboards visible to platform_admin for diagnostics
-    "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
-    // CR-M — Regulatory Cascade (read + run)
-    "compliance.regulatoryCascade",
-    // M21 / CR-N — Financial Intelligence Budget Burn
-    "financial.budgetBurn",
-    // M21 / CR-O — Financial Intelligence Trade Margin
-    "financial.tradeMargin",
-    // M19 / M20
-    "riskCases", "reports",
-  ],
+  // Platform admin is a tech-ops role. Their workbench is the admin sub-nav
+  // (35 items, grouped). They land on /app/admin overview and navigate
+  // everything from there — they don't need contracts, persona dashboards,
+  // reports, etc. cluttering the top-level sidebar.
+  platform_admin: ["admin"],
   "Super Admin": [
     "admin",
     "insights",
@@ -276,14 +279,15 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "radar",
     // M15 / CR-G — all 4 persona dashboards for Super Admin
     "dashboards.operations", "dashboards.financeTreasury", "dashboards.complianceEsg", "dashboards.procurement",
-    // CR-M — Regulatory Cascade (read + run)
-    "compliance.regulatoryCascade",
+    // E-rev-E — Regulatory Cascade hidden from sidebars (demo focus).
     // M21 / CR-N — Financial Intelligence Budget Burn
     "financial.budgetBurn",
     // M21 / CR-O — Financial Intelligence Trade Margin
     "financial.tradeMargin",
     // M19 / M20
     "riskCases", "reports",
+    // TPA — Third-Party Review
+    "legal.thirdPartyReview",
   ],
   // R-EX0 audit: Lovable executive sidebar is Insights / Contracts /
   // Impact Watch only. Drop the Parties leak — executive consumes
@@ -292,14 +296,13 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // CR-M — Regulatory Cascade (read)
   // M21 / CR-N — Budget Burn (read)
   // M21 / CR-O — Trade Margin (read)
-  executive: ["insights", "contracts", "regulations", "compliance.regulatoryCascade", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "reports"],
+  executive: ["insights", "contracts", "regulations", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "reports"],
   // CR-M — procurement_supplier_risk seeded in migration 292
   procurement_supplier_risk: [
     "insights",
     "dashboards.procurement",
     "contracts",
-    // CR-M — read access to regulatory cascade
-    "compliance.regulatoryCascade",
+    // E-rev-E — Regulatory Cascade hidden from sidebars (demo focus).
     // M21 / CR-N — Budget Burn read access
     "financial.budgetBurn",
     "riskCases",
@@ -337,66 +340,124 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "contracts",
     "regulations",
     "radar",
-    // CR-M — primary persona for Regulatory Cascade
-    "compliance.regulatoryCascade",
+    // E-rev-E — Regulatory Cascade hidden from sidebars (demo focus).
     "riskCases",
     "reports",
   ],
 };
+
+/**
+ * Admin sub-nav grouping (2026-06-03). 35 items split into 8 logical
+ * sections so platform_admin's sidebar reads as a workbench rather than
+ * a flat dump. Section keys are stable; ordering inside each section is
+ * deliberate (most-used items first).
+ */
+export type AdminGroupKey =
+  | "system"
+  | "identity"
+  | "workflow"
+  | "templates"
+  | "dataSources"
+  | "ai"
+  | "audit"
+  | "diagnostics";
 
 export interface AdminSubItem {
   to: string;
   labelKey: string;
   defaultLabel: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** Stable group key — drives the section header in the sidebar. */
+  group: AdminGroupKey;
 }
 
-export const ADMIN_SUB_NAV: AdminSubItem[] = [
-  { to: "/app/admin",                       labelKey: "nav.adminOverview",        defaultLabel: "Overview",              icon: LayoutGrid },
-  { to: "/app/admin/users",                 labelKey: "nav.adminUsers",           defaultLabel: "Users",                 icon: UsersIcon },
-  { to: "/app/admin/roles",                 labelKey: "nav.adminRoles",           defaultLabel: "Roles & permissions",   icon: KeyRound },
-  { to: "/app/admin/audit",                 labelKey: "nav.adminAudit",           defaultLabel: "Audit log",             icon: ScrollText },
-  { to: "/app/admin/audit/verify",          labelKey: "nav.adminAuditVerify",     defaultLabel: "Audit verify",          icon: ShieldCheck },
-  { to: "/app/admin/config",                labelKey: "nav.adminConfig",          defaultLabel: "Configuration",         icon: SettingsIcon },
-  { to: "/app/admin/branding",              labelKey: "nav.adminBranding",        defaultLabel: "Branding",              icon: Palette },
-  { to: "/app/admin/email-templates",       labelKey: "nav.adminEmailTemplates",  defaultLabel: "Email templates",       icon: Mail },
-  { to: "/app/admin/email-config",          labelKey: "nav.adminEmailConfig",     defaultLabel: "Email server",          icon: Mail },
-  { to: "/app/admin/tenants",               labelKey: "nav.adminTenants",         defaultLabel: "Tenants",               icon: Building2 },
-  { to: "/app/admin/demo/purge",            labelKey: "nav.adminDemoPurge",       defaultLabel: "Demo purge",            icon: Trash2 },
-  { to: "/app/admin/health",                labelKey: "nav.adminHealth",          defaultLabel: "Health",                icon: Activity },
-  { to: "/app/admin/sources",               labelKey: "nav.adminSources",         defaultLabel: "Sources",               icon: Globe },
-  { to: "/app/admin/source-health",         labelKey: "nav.adminSourceHealth",    defaultLabel: "Source health",         icon: Activity },
-  { to: "/app/admin/internal-signal-kinds", labelKey: "nav.adminInternalSignalKinds", defaultLabel: "Internal signal kinds", icon: Radar },
-  { to: "/app/admin/approval-matrix",       labelKey: "nav.adminMatrix",          defaultLabel: "Approval matrix",       icon: KeyRound },
-  { to: "/app/admin/approval-chains",       labelKey: "nav.adminChains",          defaultLabel: "Approval chains",       icon: KeyRound },
-  { to: "/app/admin/regulations",           labelKey: "nav.adminRegs",            defaultLabel: "Regulations",           icon: Scale },
-  { to: "/app/admin/impact-categories",     labelKey: "nav.adminImpacts",         defaultLabel: "Impact cats",           icon: Palette },
-  { to: "/app/admin/imports",               labelKey: "nav.adminImports",         defaultLabel: "Imports",               icon: ScrollText },
-  { to: "/app/admin/ai/cost-report",        labelKey: "nav.adminAiCost",          defaultLabel: "AI cost",               icon: Activity },
-  { to: "/app/admin/ai/prompts",            labelKey: "nav.adminAiPrompts",       defaultLabel: "AI prompts",            icon: SettingsIcon },
-  { to: "/app/admin/ai/requests",           labelKey: "nav.adminAiReqs",          defaultLabel: "AI requests",           icon: ScrollText },
-  // M11 — Document Ingestion Pipeline (CR-D0)
-  { to: "/app/admin/ingestion-queue",       labelKey: "nav.admin.ingestionQueue", defaultLabel: "Ingestion queue",       icon: Inbox },
-  // M12 — Clause Extraction / Taxonomy (CR-D)
-  { to: "/app/admin/clause-taxonomy",       labelKey: "nav.adminClauseTaxonomy",  defaultLabel: "Clause taxonomy",       icon: BookOpen },
-  // M13 — Correlation Rules (CR-E)
-  { to: "/app/admin/rules",                 labelKey: "nav.adminRules",           defaultLabel: "Correlation rules",     icon: GitMerge },
-  // M14 — Scoring Weights (CR-F) — visible to score.weights.manage roles only
-  { to: "/app/admin/scoring-weights",       labelKey: "nav.adminScoringWeights",  defaultLabel: "Scoring weights",       icon: SlidersHorizontal },
-  // M16 / CR-H — Advisory Templates + Notification Dispatch Log
-  { to: "/app/admin/advisory-templates",    labelKey: "nav.adminAdvisoryTemplates", defaultLabel: "Advisory templates",  icon: FileEdit },
-  { to: "/app/admin/notifications",         labelKey: "nav.adminNotifications",     defaultLabel: "Notifications",       icon: Bell },
-  // M17-M18 / CR-I+CR-J — Demo Control Panel (gated by demo.scenario.trigger in route)
-  { to: "/app/admin/demo",                 labelKey: "nav.adminDemo",              defaultLabel: "Demo Control",        icon: FlaskConical },
-  // M20 / CR-L — Report Templates (platform_admin only)
-  { to: "/app/admin/report-templates",      labelKey: "nav.adminReportTemplates",   defaultLabel: "Report templates",    icon: FileBarChart2 },
-  // CR-X (v1.5) — Product Module Toggle admin screens
-  { to: "/app/admin/product-modules",       labelKey: "admin.sidebar.productModules",    defaultLabel: "Product modules",     icon: Package },
-  { to: "/app/admin/role-modules",          labelKey: "admin.sidebar.roleModuleAccess",  defaultLabel: "Role × module access", icon: LayoutGrid },
+/**
+ * Ordered list of admin section headers. The sidebar renders them in this
+ * order; items are bucketed by their `group` field.
+ */
+export const ADMIN_GROUPS: ReadonlyArray<{
+  key: AdminGroupKey;
+  labelKey: string;
+  defaultLabel: string;
+}> = [
+  { key: "system",       labelKey: "admin.group.system",       defaultLabel: "System configuration" },
+  { key: "identity",     labelKey: "admin.group.identity",     defaultLabel: "Identity & access" },
+  { key: "workflow",     labelKey: "admin.group.workflow",     defaultLabel: "Workflow & rules" },
+  { key: "templates",    labelKey: "admin.group.templates",    defaultLabel: "Templates" },
+  { key: "dataSources",  labelKey: "admin.group.dataSources",  defaultLabel: "Data sources" },
+  { key: "ai",           labelKey: "admin.group.ai",           defaultLabel: "AI governance" },
+  { key: "audit",        labelKey: "admin.group.audit",        defaultLabel: "Audit & compliance" },
+  { key: "diagnostics",  labelKey: "admin.group.diagnostics",  defaultLabel: "Diagnostics" },
 ];
 
-// M12 — Sub-items shown when the "Clauses" module is active (legal_counsel + platform_admin)
-export const CLAUSES_SUB_NAV: AdminSubItem[] = [
+export const ADMIN_SUB_NAV: AdminSubItem[] = [
+  // ── System configuration ────────────────────────────────────────────────
+  { to: "/app/admin",                       labelKey: "nav.adminOverview",        defaultLabel: "Overview",              icon: LayoutGrid,        group: "system" },
+  { to: "/app/admin/config",                labelKey: "nav.adminConfig",          defaultLabel: "Configuration",         icon: SettingsIcon,      group: "system" },
+  { to: "/app/admin/branding",              labelKey: "nav.adminBranding",        defaultLabel: "Branding",              icon: Palette,           group: "system" },
+  { to: "/app/admin/email-config",          labelKey: "nav.adminEmailConfig",     defaultLabel: "Email server",          icon: Mail,              group: "system" },
+  { to: "/app/admin/migration",             labelKey: "nav.adminMigration",       defaultLabel: "Migration",             icon: Database,          group: "system" },
+
+  // ── Identity & access ──────────────────────────────────────────────────
+  { to: "/app/admin/users",                 labelKey: "nav.adminUsers",           defaultLabel: "Users",                 icon: UsersIcon,         group: "identity" },
+  { to: "/app/admin/roles",                 labelKey: "nav.adminRoles",           defaultLabel: "Roles & permissions",   icon: KeyRound,          group: "identity" },
+  { to: "/app/admin/tenants",               labelKey: "nav.adminTenants",         defaultLabel: "Tenants",               icon: Building2,         group: "identity" },
+  { to: "/app/admin/product-modules",       labelKey: "admin.sidebar.productModules",   defaultLabel: "Product modules",       icon: Package,     group: "identity" },
+  { to: "/app/admin/role-modules",          labelKey: "admin.sidebar.roleModuleAccess", defaultLabel: "Role × module access",  icon: LayoutGrid,  group: "identity" },
+
+  // ── Workflow & rules ───────────────────────────────────────────────────
+  { to: "/app/admin/approval-matrix",       labelKey: "nav.adminMatrix",          defaultLabel: "Approval matrix",       icon: KeyRound,          group: "workflow" },
+  { to: "/app/admin/approval-chains",       labelKey: "nav.adminChains",          defaultLabel: "Approval chains",       icon: KeyRound,          group: "workflow" },
+  { to: "/app/admin/rules",                 labelKey: "nav.adminRules",           defaultLabel: "Correlation rules",     icon: GitMerge,          group: "workflow" },
+  { to: "/app/admin/scoring-weights",       labelKey: "nav.adminScoringWeights",  defaultLabel: "Scoring weights",       icon: SlidersHorizontal, group: "workflow" },
+  { to: "/app/admin/risk-scoring",          labelKey: "nav.adminRiskScoring",     defaultLabel: "Risk scoring formula",  icon: SlidersHorizontal, group: "workflow" },
+  { to: "/app/admin/clause-taxonomy",       labelKey: "nav.adminClauseTaxonomy",  defaultLabel: "Clause taxonomy",       icon: BookOpen,          group: "workflow" },
+
+  // ── Templates ──────────────────────────────────────────────────────────
+  { to: "/app/admin/email-templates",       labelKey: "nav.adminEmailTemplates",  defaultLabel: "Email templates",       icon: Mail,              group: "templates" },
+  { to: "/app/admin/advisory-templates",    labelKey: "nav.adminAdvisoryTemplates", defaultLabel: "Advisory templates",  icon: FileEdit,          group: "templates" },
+  { to: "/app/admin/report-templates",      labelKey: "nav.adminReportTemplates", defaultLabel: "Report templates",      icon: FileBarChart2,     group: "templates" },
+  { to: "/app/admin/notifications",         labelKey: "nav.adminNotifications",   defaultLabel: "Notifications",         icon: Bell,              group: "templates" },
+
+  // ── Data sources ───────────────────────────────────────────────────────
+  { to: "/app/admin/sources",               labelKey: "nav.adminSources",         defaultLabel: "Sources",               icon: Globe,             group: "dataSources" },
+  { to: "/app/admin/source-health",         labelKey: "nav.adminSourceHealth",    defaultLabel: "Source health",         icon: Activity,          group: "dataSources" },
+  { to: "/app/admin/internal-signal-kinds", labelKey: "nav.adminInternalSignalKinds", defaultLabel: "Internal signal kinds", icon: Radar,         group: "dataSources" },
+  { to: "/app/admin/regulations",           labelKey: "nav.adminRegs",            defaultLabel: "Regulations",           icon: Scale,             group: "dataSources" },
+  { to: "/app/admin/impact-categories",     labelKey: "nav.adminImpacts",         defaultLabel: "Impact categories",     icon: Palette,           group: "dataSources" },
+  { to: "/app/admin/imports",               labelKey: "nav.adminImports",         defaultLabel: "Imports",               icon: ScrollText,        group: "dataSources" },
+  { to: "/app/admin/ingestion-queue",       labelKey: "nav.admin.ingestionQueue", defaultLabel: "Ingestion queue",       icon: Inbox,             group: "dataSources" },
+
+  // ── AI governance ──────────────────────────────────────────────────────
+  { to: "/app/admin/ai/cost-report",        labelKey: "nav.adminAiCost",          defaultLabel: "AI cost",               icon: Activity,          group: "ai" },
+  { to: "/app/admin/ai/prompts",            labelKey: "nav.adminAiPrompts",       defaultLabel: "AI prompts",            icon: SettingsIcon,      group: "ai" },
+  { to: "/app/admin/ai/requests",           labelKey: "nav.adminAiReqs",          defaultLabel: "AI requests",           icon: ScrollText,        group: "ai" },
+
+  // ── Audit & compliance ─────────────────────────────────────────────────
+  { to: "/app/admin/audit",                 labelKey: "nav.adminAudit",           defaultLabel: "Audit log",             icon: ScrollText,        group: "audit" },
+  { to: "/app/admin/audit/verify",          labelKey: "nav.adminAuditVerify",     defaultLabel: "Audit verify",          icon: ShieldCheck,       group: "audit" },
+
+  // ── Diagnostics ────────────────────────────────────────────────────────
+  { to: "/app/admin/health",                labelKey: "nav.adminHealth",          defaultLabel: "Health",                icon: Activity,          group: "diagnostics" },
+  { to: "/app/admin/demo",                  labelKey: "nav.adminDemo",            defaultLabel: "Demo Control",          icon: FlaskConical,      group: "diagnostics" },
+  { to: "/app/admin/demo/purge",            labelKey: "nav.adminDemoPurge",       defaultLabel: "Demo purge",            icon: Trash2,            group: "diagnostics" },
+  // Mig 538 — toggle persona visibility on the dev one-click login panel.
+  { to: "/app/admin/dev-login-personas",    labelKey: "nav.adminDevPersonas",     defaultLabel: "Login personas",        icon: ShieldCheck,       group: "diagnostics" },
+];
+
+/**
+ * M12 — Sub-items shown when the "Clauses" module is active
+ * (legal_counsel + platform_admin). Reuses AdminSubItem shape minus the
+ * grouping (only one entry here, no sectioning needed).
+ */
+export interface ClausesSubItem {
+  to: string;
+  labelKey: string;
+  defaultLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+export const CLAUSES_SUB_NAV: ClausesSubItem[] = [
   { to: "/app/clauses/review", labelKey: "nav.clausesReview", defaultLabel: "Review queue", icon: ClipboardList },
 ];
 
@@ -421,6 +482,8 @@ export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
   "advisory_queue":                 "legal.advisoryQueue",
   // L49 — Advisory templates BE key → FE ModuleKey
   "legal.advisory_templates":       "legal.advisoryTemplates",
+  // TPA — Third-Party Review
+  "tpa_review":                     "legal.thirdPartyReview",
   "insights_hub":                   "insights",
   // O31: BE-returned "impact_signals" module key maps to the FE "regulations"
   // sidebar entry (Impact Watch).
@@ -454,11 +517,18 @@ export function modulesForEffectiveSet(effectiveModules: string[] | null | undef
   const seen = new Set<ModuleKey>();
   const result: SidebarModule[] = [];
 
+  // E-rev-E — Regulatory Cascade module dropped from the demo. Suppress
+  // its sidebar entry regardless of what the BE sends in effectiveModules.
+  // Route + tables remain available; only the navigation link is hidden.
+  const SUPPRESSED_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
+    "compliance.regulatoryCascade",
+  ]);
+
   for (const beKey of effectiveModules) {
     // Normalise BE key → FE ModuleKey
     const feKey: ModuleKey | undefined = (BE_TO_FE_KEY[beKey] as ModuleKey | undefined) ?? (beKey as ModuleKey);
-    // Skip if the FE key has no display entry or we already added it
-    if (!MODULES[feKey] || seen.has(feKey)) continue;
+    // Skip if the FE key has no display entry, is suppressed, or already added
+    if (!MODULES[feKey] || SUPPRESSED_MODULES.has(feKey) || seen.has(feKey)) continue;
     seen.add(feKey);
     result.push(MODULES[feKey]);
   }
@@ -471,17 +541,18 @@ export function modulesForEffectiveSet(effectiveModules: string[] | null | undef
     result.push(MODULES.admin);
   }
 
-  // O10/O42: drop the redundant "Insights" entry when the user has any
-  // dedicated persona dashboard. /app/dashboards/insights resolves to the
-  // role's home dashboard, so showing both is a duplicate sidebar entry.
-  const PERSONA_DASHBOARDS: ModuleKey[] = [
-    "dashboards.operations",
-    "dashboards.financeTreasury",
-    "dashboards.complianceEsg",
-    "dashboards.procurement",
-  ];
-  const hasPersonaDashboard = PERSONA_DASHBOARDS.some((k) => seen.has(k));
-  const filtered = hasPersonaDashboard ? result.filter((m) => m.key !== "insights") : result;
+  // O10/O42: drop the redundant "Insights" entry only when the user is on
+  // a persona role whose Insights link literally resolves to their already-
+  // visible persona dashboard. For approvers / drafters / legal / executive
+  // etc., "Insights" routes to /app/dashboards/<role> which is a distinct
+  // page from "Procurement Risk" or any other ancillary dashboard they have
+  // access to — so we keep Insights for them.
+  //
+  // The persona dashboards filter was over-aggressive: contract_approver has
+  // `dashboards.procurement` for side-feature access, but their home is the
+  // approver dashboard reached via Insights. Suppressing Insights stranded
+  // them on a sidebar that no longer linked to their primary view.
+  const filtered = result;
 
   // Sort by displayOrder for a consistent sidebar order.
   filtered.sort((a, b) => a.displayOrder - b.displayOrder);

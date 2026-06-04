@@ -20,9 +20,14 @@ import type { ComposeWizardState } from "@/types/entities/payment-schedule.types
 
 interface Step5ReviewProps {
   state: ComposeWizardState;
+  /**
+   * Compose-revamp 2026-06-03 — drafter's typed placeholder values from
+   * Step 2. The Body section substitutes {{token}} → value when present.
+   */
+  placeholderValues?: Record<string, string>;
 }
 
-export function Step5Review({ state }: Step5ReviewProps) {
+export function Step5Review({ state, placeholderValues = {} }: Step5ReviewProps) {
   const { t } = useTranslation();
   const { step1, step2, step3 } = state;
 
@@ -168,16 +173,33 @@ export function Step5Review({ state }: Step5ReviewProps) {
         </CardContent>
       </Card>
 
-      {/* Body */}
+      {/* Body — placeholder-substituted, single-language view per Step 3
+          revamp. Pick EN by default; AR appears only if bodyAr exists. */}
       <Card>
         <CardContent className="space-y-3 p-6">
           <h2 className="text-base font-semibold text-ink">
             {t("contracts.compose.steps.step5.bodySection")}
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <BodyBlock label={t("contracts.fields.bodyEn")} body={step3.bodyEn ?? null} />
-            <BodyBlock label={t("contracts.fields.bodyAr")} body={step3.bodyAr ?? null} rtl />
-          </div>
+          {step3.bodyEn && (
+            <BodyBlock
+              label={t("contracts.fields.bodyEn")}
+              body={substitutePlaceholders(step3.bodyEn, placeholderValues)}
+            />
+          )}
+          {step3.bodyAr && (
+            <BodyBlock
+              label={t("contracts.fields.bodyAr")}
+              body={substitutePlaceholders(step3.bodyAr, placeholderValues)}
+              rtl
+            />
+          )}
+          {!step3.bodyEn && !step3.bodyAr && (
+            <p className="text-xs text-ink-muted">
+              {t("contracts.compose.steps.step5.bodyEmpty", {
+                defaultValue: "No body content. Go back to Step 3 to add clauses.",
+              })}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -221,6 +243,18 @@ function BodyBlock({ label, body, rtl }: BodyBlockProps) {
       </pre>
     </div>
   );
+}
+
+/**
+ * Replace `{{token}}` occurrences with the matching value from the supplied
+ * dictionary. Tokens without a corresponding entry stay as-is so the
+ * drafter can spot any gaps.
+ */
+function substitutePlaceholders(body: string, values: Record<string, string>): string {
+  return body.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (raw, key) => {
+    const v = values?.[key];
+    return typeof v === "string" && v.trim() !== "" ? v : raw;
+  });
 }
 
 export default Step5Review;

@@ -334,45 +334,113 @@ export interface ApproverDashboardKpis {
   };
 }
 
-export interface ApproverRecentDecisionRow {
+/**
+ * Mig 532 — approver dashboard shape revamp. Replaces the legacy
+ * `lists` + `charts` containers with a flat queue-management view + an
+ * insights block tuned to "what's on my plate today".
+ */
+export type RiskBand = "Low" | "Medium" | "High";
+
+export interface ApproverPendingQueueRowV2 {
   stepId: number;
   contractId: number;
   contractNumber: string;
   titleEn: string;
-  decision: "approve" | "reject" | "request_resubmission" | "skipped";
-  decidedAt: string;
-  hoursAgo: number;
+  titleAr: string | null;
+  valueAed: number | null;
+  counterpartyName: string | null;
+  riskScore: number | null;
+  riskBand: RiskBand | null;
+  hoursWaiting: number;
+  slaAtRisk: boolean;
+  submittedByName: string | null;
+  requestedAt: string;
 }
 
-export interface ApproverDashboardLists {
-  pendingQueue5: ApproverPendingQueueRow[];
-  recentDecisions5?: ApproverRecentDecisionRow[];
+export interface ApproverNextUp {
+  stepId: number;
+  contractId: number;
+  contractNumber: string;
+  titleEn: string;
+  titleAr: string | null;
+  valueAed: number | null;
+  counterpartyName: string | null;
+  riskScore: number | null;
+  riskBand: RiskBand | null;
+  hoursWaiting: number;
+  submittedByName: string | null;
 }
 
-export interface ApproverDashboardCharts {
-  decisionMixSplit?: {
-    approve: number;
-    reject: number;
-    requestResubmission: number;
-    skipped: number;
+export interface ApproverDashboardKpisV2 {
+  awaitingMyDecision: { current: number; previous: number };
+  slaAtRisk: number;
+  highValueInQueue: { count: number; totalAed: number | string | null };
+  medianDecisionHours: {
+    thisMonth: number | null;
+    lastMonth: number | null;
+    /** Mig 534+ — "rolling_30d" or "all_time". Tells FE which label to show. */
+    source?: "rolling_30d" | "all_time";
   };
-  decisionsByValue?: Array<{
-    bucket: "lt100k" | "p100to500" | "p500to1m" | "gt1m";
-    approved: number;
-    rejected: number;
-    other: number;
-  }>;
-  approvalsByApprover?: Array<{
-    userId: number;
-    name: string;
-    count: number;
-  }>;
+}
+
+export interface ApproverVelocityPoint {
+  day: string;
+  decisionCount: number;
+  medianHours: number | null;
+}
+
+export interface ApproverQueueRiskProfile {
+  low: number;
+  medium: number;
+  high: number;
+  unrated: number;
+  total: number;
+}
+
+export interface ApproverCounterpartyConcentration {
+  counterpartyId: number;
+  name: string | null;
+  contractsCount: number;
+  totalAed: number | string | null;
+}
+
+export interface ApproverRecentDecisionRowV2 {
+  contractId: number;
+  contractNumber: string;
+  titleEn: string;
+  titleAr: string | null;
+  counterpartyName: string | null;
+  decision: "approve" | "reject" | "request_info" | "request_resubmission";
+  decisionNote: string | null;
+  decidedAt: string;
+  valueAed: number | null;
+}
+
+export interface ApproverDecisionMix90d {
+  approved: number;
+  rejected: number;
+  requestedInfo: number;
+  total: number;
+}
+
+export interface ApproverDashboardInsights {
+  /** Canonical velocity series — mig 534+ uses {@link decisionVelocityWindowDays}. */
+  decisionVelocity?: ApproverVelocityPoint[];
+  /** Mig 534+ — actual window the velocity covers (30, 90, 180, or up to 365 for all-time). */
+  decisionVelocityWindowDays?: number;
+  /** Legacy field maintained for back-compat. */
+  decisionVelocity30d: ApproverVelocityPoint[];
+  queueRiskProfile: ApproverQueueRiskProfile;
+  counterpartyConcentration: ApproverCounterpartyConcentration[];
+  recentDecisions: ApproverRecentDecisionRowV2[];
+  decisionMix90d: ApproverDecisionMix90d;
 }
 
 export interface ApproverDashboardSnapshot {
-  kpis: ApproverDashboardKpis;
-  lists: ApproverDashboardLists;
-  charts?: ApproverDashboardCharts;
+  kpis: ApproverDashboardKpisV2;
+  nextUp: ApproverNextUp | null;
+  pendingQueue: ApproverPendingQueueRowV2[];
+  insights: ApproverDashboardInsights;
 }
 
 // ─── Legal-counsel dashboard (S4) ───────────────────────────────────────────
