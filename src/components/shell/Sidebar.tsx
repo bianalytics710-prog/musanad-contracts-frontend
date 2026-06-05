@@ -26,6 +26,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ADMIN_GROUPS, ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForEffectiveSet, modulesForRole } from "@/config/sidebar";
 import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { sidebarOrderService } from "@/services/api/sidebar-order.service";
 
 function getInitials(firstName: string | undefined, lastName: string | undefined): string {
   const first = firstName?.[0] ?? "";
@@ -78,10 +80,23 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   // restriction (["admin"]) is authoritative — even when the BE auth payload
   // still ships the wider legacy module set.
   const roleName = user?.role.name;
+
+  // Mig 539 — fetch the per-role sidebar order override map. Cached 5 min
+  // so navigation between pages doesn't re-hit the API. platform_admin is
+  // explicitly excluded from this feature (their sidebar is the static
+  // ["admin"] list managed by ADMIN_SUB_NAV).
+  const { data: orderMap } = useQuery({
+    queryKey: ["sidebarRoleOrderMap"],
+    queryFn: () => sidebarOrderService.getOrder(),
+    enabled: !!user && roleName !== "platform_admin",
+    staleTime: 5 * 60 * 1000,
+  });
+  const orderOverride = roleName && orderMap ? orderMap[roleName] : undefined;
+
   const items = roleName === "platform_admin"
     ? modulesForRole("platform_admin")
     : user?.effectiveModules?.length
-      ? modulesForEffectiveSet(user.effectiveModules)
+      ? modulesForEffectiveSet(user.effectiveModules, orderOverride)
       : modulesForRole(roleName);
 
   const initials = getInitials(user?.firstName, user?.lastName);

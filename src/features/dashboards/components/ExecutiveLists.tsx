@@ -18,10 +18,25 @@ import type {
   ExecutiveTemplateUsageRow,
 } from "@/types/entities/dashboards.types";
 import { formatAedCompact, formatNumber } from "./dashboard-primitives";
+import { RiskTypePill, type RiskTypeSlug } from "@/components/risk/RiskTypePill";
 
 // ─── 1. High-risk contracts ─────────────────────────────────────────────────
 
-export function HighRiskContractsCard({ rows }: { rows: ExecutiveHighRiskRow[] }) {
+/**
+ * Row shape accepted by HighRiskContractsCard. Extends the legacy
+ * highRiskContracts8 slice (id / contractNumber / titleEn / titleAr /
+ * valueAed / riskScore) with the two columns sourced from the side-car
+ * fn (mig 560): counterpartyName + riskType. Both are nullable — when
+ * the side-car query hasn't returned (or the contract has no counterparty
+ * / no open risk_case) we render an em-dash for counterparty and the
+ * neutral "other" pill for risk type.
+ */
+export interface HighRiskContractRow extends ExecutiveHighRiskRow {
+  counterpartyName?: string | null;
+  riskType?: RiskTypeSlug | null;
+}
+
+export function HighRiskContractsCard({ rows }: { rows: HighRiskContractRow[] }) {
   const { t } = useTranslation();
   if (rows.length === 0) return null;
   return (
@@ -35,7 +50,7 @@ export function HighRiskContractsCard({ rows }: { rows: ExecutiveHighRiskRow[] }
         </h3>
         <Link
           to="/app/contracts"
-          search={{ sort: "alpha" } as never}
+          search={{ risk: "flagged", sort: "risk" } as never}
           className="text-xs text-ink-subtle hover:text-ink"
         >
           {t("dashboards.executive.lists.highRisk.viewAll", {
@@ -43,36 +58,78 @@ export function HighRiskContractsCard({ rows }: { rows: ExecutiveHighRiskRow[] }
           })}
         </Link>
       </header>
-      <ul className="space-y-2">
-        {rows.map((r) => (
-          <li
-            key={r.id}
-            className="flex items-center justify-between gap-3 border-b border-border/40 pb-2 last:border-0"
-          >
-            <Link
-              to="/app/contracts/$id"
-              params={{ id: String(r.id) }}
-              className="min-w-0 flex-1"
-            >
-              <div className="font-mono text-xs text-ink-muted">{r.contractNumber}</div>
-              <div className="truncate text-sm text-ink hover:underline">
-                {r.titleEn ?? r.titleAr ?? r.contractNumber}
-              </div>
-            </Link>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="font-mono text-ink-muted">
-                {formatAedCompact(r.valueAed)}
-              </span>
-              <span className="rounded-md bg-terracotta/10 px-2 py-0.5 font-mono text-terracotta">
-                {t("dashboards.executive.lists.highRisk.riskBadge", {
-                  defaultValue: "Risk {{score}}",
-                  score: String(r.riskScore),
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-ink-muted">
+              <th scope="col" className="py-2 pr-4 font-medium">
+                {t("dashboards.executive.lists.highRisk.col.contract", {
+                  defaultValue: "Contract",
                 })}
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
+              </th>
+              <th scope="col" className="py-2 pr-4 font-medium">
+                {t("dashboards.executive.lists.highRisk.col.counterparty", {
+                  defaultValue: "Counterparty",
+                })}
+              </th>
+              <th scope="col" className="py-2 pr-4 font-medium">
+                {t("dashboards.executive.lists.highRisk.col.riskType", {
+                  defaultValue: "Risk type",
+                })}
+              </th>
+              <th scope="col" className="py-2 pr-4 text-right font-medium">
+                {t("dashboards.executive.lists.highRisk.col.valueAed", {
+                  defaultValue: "Value (AED)",
+                })}
+              </th>
+              <th scope="col" className="py-2 text-right font-medium">
+                {t("dashboards.executive.lists.highRisk.col.riskScore", {
+                  defaultValue: "Risk score",
+                })}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr
+                key={r.id}
+                className="border-b border-border/40 last:border-0 hover:bg-surface/50"
+              >
+                <td className="py-2 pr-4 align-top">
+                  <Link
+                    to="/app/contracts/$id"
+                    params={{ id: String(r.id) }}
+                    className="block min-w-0"
+                  >
+                    <div className="font-mono text-xs text-ink-muted hover:underline">
+                      {r.contractNumber}
+                    </div>
+                    <div className="truncate text-sm text-ink hover:underline">
+                      {r.titleEn ?? r.titleAr ?? r.contractNumber}
+                    </div>
+                  </Link>
+                </td>
+                <td className="py-2 pr-4 align-top text-ink">
+                  {r.counterpartyName ?? (
+                    <span className="text-ink-subtle">—</span>
+                  )}
+                </td>
+                <td className="py-2 pr-4 align-top">
+                  <RiskTypePill type={r.riskType ?? null} />
+                </td>
+                <td className="py-2 pr-4 text-right align-top font-mono text-ink-muted">
+                  {formatAedCompact(r.valueAed)}
+                </td>
+                <td className="py-2 text-right align-top">
+                  <span className="rounded-md bg-terracotta/10 px-2 py-0.5 font-mono text-xs text-terracotta">
+                    {r.riskScore ?? "—"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

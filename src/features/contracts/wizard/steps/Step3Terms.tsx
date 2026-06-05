@@ -654,6 +654,40 @@ function SortableClauseSection({
 // ─── PlaceholderRenderedBody ─────────────────────────────────────────────────
 
 /**
+ * Convert inline Markdown bold/italic markers in a plain text segment into
+ * React nodes. Handles `**bold**` and `__bold__` → <strong>, `*it*` and `_it_`
+ * → <em>. Orphan markers left after a placeholder-split (e.g. a leading or
+ * trailing `**` with no matching pair in this segment) are stripped so they
+ * don't render as literal asterisks. Keeps the rest of the text intact.
+ */
+function renderInlineMarkdown(input: string): React.ReactNode[] {
+  if (!input) return [];
+  // 1. Strip orphan double-marker at very start/end (the common case where
+  //    `**{{name}}**` got split into "**" + placeholder + "** ...").
+  let s = input;
+  if (/^\*\*(?!\*)/.test(s) && (s.match(/\*\*/g) || []).length % 2 === 1) {
+    s = s.replace(/^\*\*/, "");
+  }
+  if (/\*\*(?!\*)$/.test(s) && (s.match(/\*\*/g) || []).length % 2 === 1) {
+    s = s.replace(/\*\*$/, "");
+  }
+  // 2. Walk balanced **bold** / __bold__ pairs into <strong>; emit the rest
+  //    as plain text spans.
+  const parts: React.ReactNode[] = [];
+  const re = /\*\*([^*\n]+?)\*\*|__([^_\n]+?)__/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let idx = 0;
+  while ((m = re.exec(s)) !== null) {
+    if (m.index > last) parts.push(<span key={`t${idx++}`}>{s.slice(last, m.index)}</span>);
+    parts.push(<strong key={`b${idx++}`}>{m[1] ?? m[2] ?? ""}</strong>);
+    last = m.index + m[0].length;
+  }
+  if (last < s.length) parts.push(<span key={`t${idx++}`}>{s.slice(last)}</span>);
+  return parts;
+}
+
+/**
  * Render a clause / preamble / signature body with {{token}} placeholders
  * substituted by the matching value from placeholderValues. Filled tokens
  * are wrapped in a gold <mark>; unfilled tokens stay visible as raw text in
@@ -669,19 +703,28 @@ function PlaceholderRenderedBody({
   dir: "ltr" | "rtl";
 }) {
   const segments = useMemo(() => {
+    // Strip Markdown bold markers that surround a placeholder token. Templates
+    // commonly wrap party names with `**{{discloser_name}}**` for typographic
+    // emphasis; once the placeholder is substituted, the gold <mark> below
+    // already provides the visual hit, and the literal `**` would otherwise
+    // leak into the preview.
+    const cleaned = body.replace(
+      /\*\*\s*(\{\{[a-zA-Z0-9_]+\}\})\s*\*\*/g,
+      "$1",
+    );
     const re = /\{\{([a-zA-Z0-9_]+)\}\}/g;
     const out: Array<{ kind: "text" | "placeholder"; content: string; key?: string }> = [];
     let lastIdx = 0;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(body)) !== null) {
+    while ((m = re.exec(cleaned)) !== null) {
       if (m.index > lastIdx) {
-        out.push({ kind: "text", content: body.slice(lastIdx, m.index) });
+        out.push({ kind: "text", content: cleaned.slice(lastIdx, m.index) });
       }
       out.push({ kind: "placeholder", content: m[0], key: m[1] });
       lastIdx = m.index + m[0].length;
     }
-    if (lastIdx < body.length) {
-      out.push({ kind: "text", content: body.slice(lastIdx) });
+    if (lastIdx < cleaned.length) {
+      out.push({ kind: "text", content: cleaned.slice(lastIdx) });
     }
     return out;
   }, [body]);
@@ -692,7 +735,13 @@ function PlaceholderRenderedBody({
       className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink"
     >
       {segments.map((seg, i) => {
-        if (seg.kind === "text") return <span key={i}>{seg.content}</span>;
+        if (seg.kind === "text") {
+          // Render inline Markdown bold (**text**) as <strong> and strip
+          // orphan `**` markers left behind when a bold span was split by
+          // a {{placeholder}} substitution. Avoids `**ADNOC...**` leaking
+          // into the preview verbatim.
+          return <span key={i}>{renderInlineMarkdown(seg.content)}</span>;
+        }
         const v = (seg.key && placeholderValues[seg.key]) || "";
         if (v.trim()) {
           return (

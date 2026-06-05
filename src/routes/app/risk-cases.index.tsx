@@ -27,26 +27,26 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useAuthStore, selectHasPermission, selectUser } from '@/store/auth.store';
 import { riskCaseService } from '@/services/api/risk-case.service';
 import { translateApiError } from '@/lib/translate-api-error';
-import type { RiskCaseListItem } from '@/types/risk-case.types';
+import type { AssignableUser, RiskCaseListItem } from '@/types/risk-case.types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDateTime } from '@/utils/datetime';
 import {
   RISK_CASE_STATUSES,
   RISK_CASE_PRIORITIES,
-  RISK_CASE_CASE_TYPES,
 } from '@/types/risk-case.types';
 import type {
   RiskCaseStatus,
   RiskCasePriority,
-  RiskCaseType,
 } from '@/types/risk-case.types';
 import { StatusBadge, PriorityBadge, SlaCountdown } from '@/components/risk-cases/Badges';
+import { RiskTypePill, RISK_TYPE_SLUGS } from '@/components/risk/RiskTypePill';
 import { CreateRiskCaseDialog } from '@/components/risk-cases/CreateRiskCaseDialog';
 // Re-audit fix — humanize assignedRole slug display.
 import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
@@ -73,7 +73,15 @@ function RiskCaseListView() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<RiskCaseStatus | 'open_all' | ''>('open_all');
   const [priorityFilter, setPriorityFilter] = useState<RiskCasePriority | ''>('');
-  const [caseTypeFilter, setCaseTypeFilter] = useState<RiskCaseType | ''>('');
+  // 2026-06-04 — case_type filter dropped from the UI in favour of risk_type
+  // (the rule-based taxonomy from fn_classify_risk). case_type stays in the
+  // BE response as provenance metadata but is no longer rendered/filterable.
+  // riskType filter is client-side because the BE list fn doesn't accept it
+  // yet (only filters on case_type / status / priority / SLA / search).
+  const [riskTypeFilter, setRiskTypeFilter] = useState<string>('');
+  // Phase A — new server-side "Assigned to" filter. Passes assignedUserId
+  // through to fn_risk_case_list. '' means "any assignee".
+  const [assignedUserIdFilter, setAssignedUserIdFilter] = useState<string>('');
   const [assignedToMe, setAssignedToMe] = useState(false);
   const [slaDueWithinHours, setSlaDueWithinHours] = useState<string>('');
 
@@ -87,9 +95,9 @@ function RiskCaseListView() {
         search: debouncedSearch,
         status: statusFilter,
         priority: priorityFilter,
-        caseType: caseTypeFilter,
         assignedToMe,
         slaDueWithinHours,
+        assignedUserIdFilter,
       },
     ],
     queryFn: () =>
@@ -99,17 +107,33 @@ function RiskCaseListView() {
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         priority: priorityFilter || undefined,
-        caseType: caseTypeFilter || undefined,
         assignedToMe: assignedToMe || undefined,
         slaDueWithinHours: slaDueWithinHours ? Number(slaDueWithinHours) : undefined,
+        assignedUserId: assignedUserIdFilter ? Number(assignedUserIdFilter) : undefined,
       }),
     staleTime: 30_000,
+  });
+
+  // Phase A — assignable users for the inline reassign dropdown + the
+  // Assigned-to filter. Cached for 5 minutes since the role/user roster
+  // doesn't change between page loads.
+  const { data: assignableUsers = [] } = useQuery({
+    queryKey: ['riskCases', 'assignableUsers'],
+    queryFn: () => riskCaseService.assignableUsers(),
+    staleTime: 5 * 60_000,
   });
 
   const [showCreate, setShowCreate] = useState(false);
   const [showBulkEscalate, setShowBulkEscalate] = useState(false);
 
-  const items = data?.data ?? [];
+  const rawItems = data?.data ?? [];
+  // Client-side risk-type filter — BE list fn doesn't accept riskType yet,
+  // but classification is computed server-side and shipped on every row,
+  // so the filter is cheap and consistent. Pagination total stays the
+  // backend total when no risk-type filter is active.
+  const items = riskTypeFilter
+    ? rawItems.filter((item: RiskCaseListItem) => item.riskType === riskTypeFilter)
+    : rawItems;
   const pagination = data?.pagination;
 
   // Cases that are overdue OR due within 24h, excluding terminal states.
@@ -251,22 +275,48 @@ function RiskCaseListView() {
         </div>
 
         <div>
-          <label htmlFor="rc-list-type" className="sr-only">
-            {t('riskCases.filters.caseType')}
+          <label htmlFor="rc-list-risk-type" className="sr-only">
+            {t('riskCases.filters.riskType', { defaultValue: 'Risk type' })}
           </label>
           <select
-            id="rc-list-type"
-            value={caseTypeFilter}
+            id="rc-list-risk-type"
+            value={riskTypeFilter}
             onChange={(e) => {
-              setCaseTypeFilter(e.target.value as RiskCaseType | '');
+              setRiskTypeFilter(e.target.value);
               setPage(1);
             }}
             className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="">{t('riskCases.filters.allCaseTypes')}</option>
-            {RISK_CASE_CASE_TYPES.map((c) => (
-              <option key={c} value={c}>
-                {t(`riskCases.caseTypes.${c}`)}
+            <option value="">
+              {t('riskCases.filters.allRiskTypes', { defaultValue: 'All risk types' })}
+            </option>
+            {RISK_TYPE_SLUGS.map((slug) => (
+              <option key={slug} value={slug}>
+                {t(`riskTypes.${slug}`)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="rc-list-assignee" className="sr-only">
+            {t('riskCases.filters.assignedTo', { defaultValue: 'Assigned to' })}
+          </label>
+          <select
+            id="rc-list-assignee"
+            value={assignedUserIdFilter}
+            onChange={(e) => {
+              setAssignedUserIdFilter(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">
+              {t('riskCases.filters.allAssignees', { defaultValue: 'All assignees' })}
+            </option>
+            {assignableUsers.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} · {u.roleDisplay}
               </option>
             ))}
           </select>
@@ -362,16 +412,19 @@ function RiskCaseListView() {
                     <thead className="border-b border-border bg-surface">
                       <tr className="text-left">
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                          {t('riskCases.columns.title')}
+                          {t('riskCases.columns.contract', { defaultValue: 'Contract' })}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.counterparty', { defaultValue: 'Counterparty' })}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.riskType', { defaultValue: 'Risk type' })}
                         </th>
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                           {t('riskCases.columns.priority')}
                         </th>
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                           {t('riskCases.columns.status')}
-                        </th>
-                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                          {t('riskCases.columns.caseType')}
                         </th>
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                           {t('riskCases.columns.assignedTo')}
@@ -382,90 +435,54 @@ function RiskCaseListView() {
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                           {t('riskCases.columns.dueAt')}
                         </th>
-                        {/* E-rev-E — Actions column hidden for executive */}
-                        {!isExecutive && (
-                          <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                            {t('common.actions')}
-                          </th>
-                        )}
                       </tr>
                     </thead>
                 <tbody className="divide-y divide-border bg-card">
                   {items.map((item) => (
                     <tr key={item.id} className="hover:bg-surface/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-ink">
-                        <Link
-                          to="/app/risk-cases/$caseId"
-                          params={{ caseId: String(item.id) }}
-                          className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded block"
-                        >
-                          {item.title}
-                        </Link>
-                        {/* D50 — case title + linked contract title were
-                            rendered as inline+block siblings which made the
-                            DOM textContent read "Case TitleContract Title"
-                            (no separator). Adding an explicit "Contract:"
-                            prefix + block-level paragraph keeps them
-                            visually identical but readable for screen
-                            readers and DOM extractors. */}
-                        {item.contractTitle && (
-                          <p
-                            className="mt-0.5 text-xs text-ink-muted truncate"
-                            title={item.contractTitle}
+                      {/* Contract column — number links to detail page;
+                          title below in muted text for context. */}
+                      <td className="px-4 py-3 align-top">
+                        {item.contractId ? (
+                          <Link
+                            to="/app/contracts/$id"
+                            params={{ id: String(item.contractId) }}
+                            className="font-mono text-xs text-gold hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
                           >
-                            <span className="text-ink-subtle">
-                              {t("riskCases.linkedContractPrefix", {
-                                defaultValue: "Contract:",
-                              })}
-                            </span>{" "}
+                            {item.contractNumber ?? `#${item.contractId}`}
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-ink-muted">—</span>
+                        )}
+                        {item.contractTitle && (
+                          <p className="mt-0.5 max-w-[260px] truncate text-xs text-ink-muted" title={item.contractTitle}>
                             {item.contractTitle}
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      {/* Counterparty column */}
+                      <td className="px-4 py-3 align-top text-xs text-ink">
+                        {item.counterpartyName ?? <span className="text-ink-muted">—</span>}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <RiskTypePill type={item.riskType} />
+                      </td>
+                      <td className="px-4 py-3 align-top">
                         <PriorityBadge priority={item.priority} />
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 align-top">
                         <StatusBadge status={item.status} />
                       </td>
-                      <td className="px-4 py-3 text-xs text-ink-muted">
-                        {t(`riskCases.caseTypes.${item.caseType}`, { defaultValue: item.caseType })}
+                      {/* Inline reassign dropdown */}
+                      <td className="px-4 py-3 align-top">
+                        <AssigneeCell item={item} assignableUsers={assignableUsers} />
                       </td>
-                      <td className="px-4 py-3 text-xs text-ink">
-                        {/* O22: distinguish person assignment from role-only routing.
-                            When no user is assigned (only a role), render "— · {role}"
-                            so the column reads as pending-assignment rather than
-                            falsely implying a role name is a person name. */}
-                        {item.assignedUserName ? (
-                          item.assignedUserName
-                        ) : item.assignedRole ? (
-                          <span className="text-ink-muted">
-                            — · {humanizeLabel(item.assignedRole)}
-                          </span>
-                        ) : (
-                          <span className="text-ink-muted">{t('riskCases.list.unassigned')}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 align-top">
                         <SlaCountdown seconds={item.slaCountdownSeconds} />
                       </td>
-                      <td className="px-4 py-3 text-xs text-ink-muted">
+                      <td className="px-4 py-3 align-top text-xs text-ink-muted">
                         {item.dueAt ? formatDateTime(item.dueAt, { showTime: true }) : '—'}
                       </td>
-                      {/* E-rev-E — Actions cell hidden for executive */}
-                      {!isExecutive && (
-                        <td className="px-4 py-3">
-                          <Link
-                            to="/app/risk-cases/$caseId"
-                            params={{ caseId: String(item.id) }}
-                            aria-label={t('riskCases.actions.view')}
-                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-ink hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
-                          >
-                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                            {t('riskCases.actions.view')}
-                          </Link>
-                        </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -740,5 +757,138 @@ function BulkEscalateDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── AssigneeCell ────────────────────────────────────────────────────
+// Phase A — inline reassignment dropdown for the Risk Cases list.
+// Selecting a new person opens a confirm modal — on confirm, calls the
+// existing /risk-cases/:id/assign endpoint (fn_risk_case_assign) with the
+// new user_id + that user's role. On success, invalidates the list query
+// so the row updates in place. On cancel or error, the dropdown reverts.
+//
+// Renders a plain text label (no select) when the actor doesn't hold
+// risk.case.escalate — non-eligible callers see a read-only column.
+function AssigneeCell({
+  item,
+  assignableUsers,
+}: {
+  item: RiskCaseListItem;
+  assignableUsers: AssignableUser[];
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const canReassign =
+    useAuthStore(selectHasPermission('risk.case.escalate')) ||
+    useAuthStore(selectHasPermission('risk.case.create'));
+  const [pending, setPending] = useState<AssignableUser | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: (target: AssignableUser) =>
+      riskCaseService.assign(item.id, {
+        assignedUserId: Number(target.id),
+        assignedRole: target.roleName,
+      }),
+    onSuccess: (_data, target) => {
+      toast.success(
+        t('riskCases.reassign.success', {
+          defaultValue: 'Reassigned to {{name}}',
+          name: target.name,
+        }),
+      );
+      void queryClient.invalidateQueries({ queryKey: ['riskCases'] });
+      setPending(null);
+    },
+    onError: (e) => {
+      toast.error(translateApiError(e, t));
+      setPending(null);
+    },
+  });
+
+  // When the actor can't reassign, fall back to the same read-only label
+  // we rendered before — keeps non-privileged callers' UI clean.
+  if (!canReassign) {
+    return (
+      <span className="text-xs text-ink">
+        {item.assignedUserName ?? (
+          <span className="text-ink-muted">
+            {item.assignedRole
+              ? `— · ${humanizeLabel(item.assignedRole)}`
+              : t('riskCases.list.unassigned')}
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <label htmlFor={`rc-assignee-${item.id}`} className="sr-only">
+        {t('riskCases.columns.assignedTo')}
+      </label>
+      <select
+        id={`rc-assignee-${item.id}`}
+        value={item.assignedUserId ? String(item.assignedUserId) : ''}
+        onChange={(e) => {
+          const target = assignableUsers.find((u) => u.id === e.target.value);
+          if (target && Number(target.id) !== item.assignedUserId) {
+            setPending(target);
+          }
+        }}
+        disabled={mutation.isPending}
+        className="max-w-[180px] truncate rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+      >
+        <option value="">
+          {item.assignedRole
+            ? t('riskCases.reassign.roleOnlyOption', {
+                defaultValue: '— · {{role}}',
+                role: humanizeLabel(item.assignedRole),
+              })
+            : t('riskCases.list.unassigned')}
+        </option>
+        {assignableUsers.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.name}
+          </option>
+        ))}
+      </select>
+
+      <Dialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {t('riskCases.reassign.confirmTitle', { defaultValue: 'Reassign case?' })}
+            </DialogTitle>
+            <DialogDescription>
+              {t('riskCases.reassign.confirmBody', {
+                defaultValue:
+                  'Reassign this case to {{name}} ({{role}}). They will be notified and the SLA clock continues from where it stood.',
+                name: pending?.name ?? '',
+                role: pending?.roleDisplay ?? '',
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setPending(null)}
+              disabled={mutation.isPending}
+            >
+              {t('common.cancel', { defaultValue: 'Cancel' })}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => pending && mutation.mutate(pending)}
+              disabled={mutation.isPending || !pending}
+            >
+              {mutation.isPending
+                ? t('common.submitting', { defaultValue: 'Reassigning…' })
+                : t('riskCases.reassign.confirmCta', { defaultValue: 'Reassign' })}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

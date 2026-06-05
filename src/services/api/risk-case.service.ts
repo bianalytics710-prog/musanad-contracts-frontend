@@ -35,6 +35,7 @@ import type {
   SnoozeRiskCaseDto,
   CloseRiskCaseDto,
   RiskCaseEvidenceDetail,
+  AssignableUser,
 } from '@/types/risk-case.types';
 
 const BASE = '/api/v1/risk-cases';
@@ -46,6 +47,18 @@ export const riskCaseService = {
       { params },
     );
     return unwrap<RiskCaseListResponse>(data);
+  },
+
+  /**
+   * Phase A — populates the inline reassignment dropdown + the new
+   * "Assigned to" filter on the Risk Cases list. Returns active users
+   * in any role that can legitimately own a risk case.
+   */
+  assignableUsers: async (): Promise<AssignableUser[]> => {
+    const { data } = await apiClient.get<{ data: AssignableUser[] }>(
+      `${BASE}/assignable-users`,
+    );
+    return data.data ?? [];
   },
 
   getById: async (id: number): Promise<RiskCaseDetail> => {

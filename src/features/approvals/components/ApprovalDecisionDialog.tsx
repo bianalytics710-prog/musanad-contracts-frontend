@@ -59,9 +59,15 @@ interface Props {
   onSuccess?: () => void;
 }
 
-/** Min-length thresholds — match Lovable visual behaviour. */
+/**
+ * Min-length thresholds. 2026-06-04 — approve was previously optional (0).
+ * Stakeholders require a comment for EVERY action so reviewers leave an audit
+ * trail for the next stage and so a misclick (empty approve) can't slip
+ * through. We require at least 1 character for approve; reject /
+ * request_resubmission keep their longer-form minimums.
+ */
 const MIN_LEN: Record<DecideKind, number> = {
-  approve: 0,
+  approve: 1,
   reject: 10,
   request_resubmission: 20,
 };
@@ -133,7 +139,11 @@ export function ApprovalDecisionDialog({
 
   // ─── Validation ───────────────────────────────────────────────────────────
   const trimmedNote = note.trim();
-  const minLen = kind && kind !== "delegate" ? MIN_LEN[kind as DecideKind] : 0;
+  // 2026-06-04 — comment mandatory for ALL kinds (incl. delegate). For
+  // delegate we use the same 1-char minimum as approve so the dialog feels
+  // consistent without forcing a paragraph just to delegate.
+  const minLen =
+    kind === "delegate" ? 1 : kind ? MIN_LEN[kind as DecideKind] : 0;
   const noteTooShort = minLen > 0 && trimmedNote.length < minLen;
 
   const parsedDelegatedToUserId = delegatedToUserId
@@ -150,7 +160,8 @@ export function ApprovalDecisionDialog({
     !!kind &&
     !isPending &&
     !lock.isLocked() &&
-    (kind === "delegate" ? !delegateInvalid : !noteTooShort);
+    !noteTooShort &&
+    !delegateInvalid;
 
   // ─── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = (e: React.FormEvent) => {
@@ -188,24 +199,17 @@ export function ApprovalDecisionDialog({
           ? "approval.decide.resubmitTitle"
           : "approval.delegate.title";
 
-  const submitLabel = !kind
-    ? t("common.continue")
-    : kind === "approve"
-      ? t("approval.decide.approve")
-      : kind === "reject"
-        ? t("approval.decide.reject")
-        : kind === "request_resubmission"
-          ? t("approval.decide.requestResubmission")
-          : t("approval.delegate.submit");
+  // 2026-06-04 — single CTA label "Perform action" regardless of the kind
+  // picked above; the kind already determines colour (destructive for reject
+  // etc.) so the label stays neutral and unambiguous.
+  const submitLabel = t("approval.decide.performAction", {
+    defaultValue: "Perform action",
+  });
 
-  const noteLabelKey =
-    kind === "approve"
-      ? "approval.decide.noteOptional"
-      : kind === "reject"
-        ? "approval.decide.rejectReason"
-        : kind === "request_resubmission"
-          ? "approval.decide.resubmitReason"
-          : "approval.delegate.noteOptional";
+  // 2026-06-04 — note is now MANDATORY for all decisions (incl. approve and
+  // delegate). The same label key is used for every kind; the per-kind
+  // placeholder still hints what to write.
+  const noteLabelKey = "approval.decide.noteRequired";
 
   const notePlaceholderKey =
     kind === "approve"
@@ -309,7 +313,7 @@ export function ApprovalDecisionDialog({
                 htmlFor={noteId}
                 className="block text-xs font-medium text-ink-muted"
               >
-                {t(noteLabelKey)}
+                {t(noteLabelKey, { defaultValue: "Comment" })}
                 {minLen > 0 && (
                   <span className="ms-1 text-destructive" aria-hidden>
                     *

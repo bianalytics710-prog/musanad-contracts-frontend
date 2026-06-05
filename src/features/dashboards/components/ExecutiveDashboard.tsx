@@ -10,21 +10,23 @@
  *   GET /api/v1/dashboards/executive?windowDays=N
  */
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
-import { ExpiryCliffActionModal } from "./ExpiryCliffActionModal";
+import { ExpiryCliffFrame } from "./ExpiryCliffFrame";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { impactSignalService, type ImpactSignalListItem } from "@/services/api/impact-signal.service";
+  criticalImpactService,
+  type CriticalImpactRow,
+} from "@/services/api/critical-impact.service";
+import { topCounterpartyService } from "@/services/api/top-counterparty.service";
+import { executiveTrendsService } from "@/services/api/executive-trends.service";
+import { executiveHighRiskService } from "@/services/api/executive-high-risk.service";
 import { formatDateTime } from "@/utils/datetime";
+import { ChevronDown, ChevronRight, ExternalLink, Layers, Brain } from "lucide-react";
+import { RiskTypePill } from "@/components/risk/RiskTypePill";
 import {
   Bar,
   BarChart,
@@ -71,7 +73,11 @@ import type {
 } from "@/types/entities/dashboards.types";
 import { ExecutiveAnomaliesCard } from "@/features/ai/components/ExecutiveAnomaliesCard";
 import { ExecutiveCharts } from "./ExecutiveCharts";
-import { ExecutiveLists } from "./ExecutiveLists";
+import {
+  HighRiskContractsCard,
+  MostAmendedContractsCard,
+  MostUsedTemplatesCard,
+} from "./ExecutiveLists";
 // E-rev-12: ExecutiveEventsCard removed.
 // M14 — CR-F: AVaR extension
 import { AvarDashboardSection } from "./AvarDashboardSection";
@@ -103,10 +109,36 @@ export function ExecutiveDashboard() {
   const [range, setRange] = useState<DashboardRangeKey>(
     rangeFromWindowDays(DEFAULT_WINDOW_DAYS),
   );
+  // Lifted state: the Critical Impact tile toggles an inline frame that
+  // renders BELOW the KPI strip (not a modal), so the open/close state
+  // has to live one level above both pieces.
+  const [criticalImpactOpen, setCriticalImpactOpen] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = useExecutiveDashboard(
     asWindowQuery(windowDays),
   );
+
+  // Side-car: trend chart override — last 2 quarters (6 months) regardless of
+  // the KPI windowDays. fn_dashboard_executive's trends block follows
+  // p_window_days; this fn returns the same arrays for a fixed 6-month span.
+  const { data: trendsExtended } = useQuery({
+    queryKey: ["executive-trends-extended", 6],
+    queryFn: () => executiveTrendsService.extended(6),
+    staleTime: 60_000,
+    enabled: !!data,
+  });
+
+  // Side-car: high-risk extended (mig 560) — adds counterpartyName + riskType
+  // to each row so the ECIP "High-risk contracts" table can render the same
+  // columns surfaced by the Risk Cases module. Falls back to the legacy
+  // inline slice (data.lists.highRiskContracts8) when the side-car query
+  // hasn't returned yet.
+  const { data: highRiskExtended } = useQuery({
+    queryKey: ["executive-high-risk-extended", 8],
+    queryFn: () => executiveHighRiskService.list(8),
+    staleTime: 60_000,
+    enabled: !!data,
+  });
 
   const nowISO = new Date().toISOString();
 
@@ -259,151 +291,246 @@ export function ExecutiveDashboard() {
                 helper={t("dashboards.executive.kpis.aiCostHelper")}
               />
             )}
-            {/* R-EX0 — Critical regulatory impacts is local-only intel
-                (M5). Keep alongside the Lovable five so executives still
-                see the regulator-aware gate.
-                2026-06-04: tile is now clickable — opens a modal listing
-                the active critical impact signals so the executive can
-                drill in without leaving the dashboard. */}
-            <CriticalRegulatoryImpactsTile
-              count={data.kpis.openRegulatoryImpactsCritical}
+            {/* 2026-06-04 — broadened from "Critical regulatory impacts"
+                to "Critical impact". The tile counts critical osint_signal
+                rows + open critical risk_case rows (BE fn merges both),
+                falling back to the existing exec dashboard count while
+                the merged query is in flight. Clicking opens the inline
+                frame below (replaces the old modal). */}
+            <CriticalImpactTile
+              fallbackCount={data.kpis.openRegulatoryImpactsCritical}
+              open={criticalImpactOpen}
+              onToggle={() => setCriticalImpactOpen((prev) => !prev)}
             />
           </section>
 
-          {/* Expiry cliffs hero — colored progressive risk bands */}
-          <section className="rounded-lg border border-border bg-card p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber" />
-              <h3 className="text-sm font-semibold text-ink">
-                {t("dashboards.executive.expiryCliffs.title")}
-              </h3>
-            </div>
-            <p className="mb-3 text-xs text-ink-subtle">
-              {t("dashboards.executive.expiryCliffs.description")}
-            </p>
-            <ExpiryCliffsBlock cliffs={data.kpis.expiryCliffs} />
-          </section>
+          {/* Inline Critical Impact frame — collapses below the KPI strip
+              when the tile is clicked. Renders rows with criticality,
+              date, contracts-affected count + source URL, each expandable
+              into a contract drill-down table. */}
+          <CriticalImpactFrame open={criticalImpactOpen} />
 
-          {/* Status + value distribution */}
-          <div className="grid gap-3 lg:grid-cols-2">
+          {/* ────────────────────────────────────────────────────────────
+              SECTION 1 — Contract Lifecycle (CLM)
+              Portfolio operations: expiry, status mix, partners, trends,
+              templates and amendments. Aligns with the platform-admin
+              CLM module toggle.
+              ──────────────────────────────────────────────────────────── */}
+          <section
+            aria-label={t("dashboards.executive.sections.clm.ariaLabel", {
+              defaultValue: "Contract lifecycle insights",
+            })}
+            className="space-y-3"
+          >
+            <header className="flex items-center gap-3 border-b border-border pb-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-gold/10 text-gold">
+                <Layers className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-ink">
+                  {t("dashboards.executive.sections.clm.title", {
+                    defaultValue: "Contract Lifecycle",
+                  })}
+                </h2>
+                <p className="text-xs text-ink-subtle">
+                  {t("dashboards.executive.sections.clm.subtitle", {
+                    defaultValue:
+                      "Portfolio health, throughput, partners and templates.",
+                  })}
+                </p>
+              </div>
+            </header>
+
+            {/* Expiry cliffs hero — colored progressive risk bands */}
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-gold" />
+                <AlertTriangle className="h-4 w-4 text-amber" />
                 <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.executive.contractsByStatus.title")}
-                </h3>
-              </div>
-              {Object.keys(data.kpis.contractsByStatus).length === 0 ? (
-                <DashboardEmptyState />
-              ) : (
-                <ContractsByStatusChart data={data.kpis.contractsByStatus} />
-              )}
-            </section>
-
-            <section className="rounded-lg border border-border bg-card p-4">
-              <div className="mb-1 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-gold" />
-                <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.executive.valueDistribution.title")}
+                  {t("dashboards.executive.expiryCliffs.title")}
                 </h3>
               </div>
               <p className="mb-3 text-xs text-ink-subtle">
-                {t("dashboards.executive.valueDistribution.description")}
+                {t("dashboards.executive.expiryCliffs.description")}
               </p>
-              <ValueDistributionBlock buckets={data.kpis.valueDistribution} />
+              <ExpiryCliffsBlock cliffs={data.kpis.expiryCliffs} />
             </section>
-          </div>
 
-          {/* Top counterparties */}
-          <section className="rounded-lg border border-border bg-card p-4">
-            <div className="mb-1 flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-gold" />
-              <h3 className="text-sm font-semibold text-ink">
-                {t("dashboards.executive.topCounterparties.title")}
-              </h3>
+            {/* Status + value distribution */}
+            <div className="grid gap-3 lg:grid-cols-2">
+              <section className="rounded-lg border border-border bg-card p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-gold" />
+                  <h3 className="text-sm font-semibold text-ink">
+                    {t("dashboards.executive.contractsByStatus.title")}
+                  </h3>
+                </div>
+                {Object.keys(data.kpis.contractsByStatus).length === 0 ? (
+                  <DashboardEmptyState />
+                ) : (
+                  <ContractsByStatusChart data={data.kpis.contractsByStatus} />
+                )}
+              </section>
+
+              <section className="rounded-lg border border-border bg-card p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-gold" />
+                  <h3 className="text-sm font-semibold text-ink">
+                    {t("dashboards.executive.valueDistribution.title")}
+                  </h3>
+                </div>
+                <p className="mb-3 text-xs text-ink-subtle">
+                  {t("dashboards.executive.valueDistribution.description")}
+                </p>
+                <ValueDistributionBlock buckets={data.kpis.valueDistribution} />
+              </section>
             </div>
-            <p className="mb-3 text-xs text-ink-subtle">
-              {t("dashboards.executive.topCounterparties.description")}
-            </p>
-            <TopCounterpartiesBlockWithNames
-              rows={data.kpis.topCounterpartiesByValue5}
-              totalValue={data.kpis.totalActiveValueAed}
-            />
+
+            {/* Top counterparties */}
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-1 flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-gold" />
+                <h3 className="text-sm font-semibold text-ink">
+                  {t("dashboards.executive.topCounterparties.title")}
+                </h3>
+              </div>
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.executive.topCounterparties.description")}
+              </p>
+              <TopCounterpartiesBlockWithNames
+                rows={data.kpis.topCounterpartiesByValue5}
+                totalValue={data.kpis.totalActiveValueAed}
+              />
+            </section>
+
+            {/* Trends — recharts */}
+            <div className="grid gap-3 lg:grid-cols-2">
+              <section className="rounded-lg border border-border bg-card p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-gold" />
+                  <h3 className="text-sm font-semibold text-ink">
+                    {t("dashboards.executive.trends.valueOverTimeTitle")}
+                  </h3>
+                </div>
+                <ValueOverTimeChart
+                  points={
+                    trendsExtended?.valueOverTimeByMonth ??
+                    data.trends.valueOverTimeByMonth
+                  }
+                />
+              </section>
+
+              <section className="rounded-lg border border-border bg-card p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-gold" />
+                  <h3 className="text-sm font-semibold text-ink">
+                    {t("dashboards.executive.trends.contractsCreatedTitle")}
+                  </h3>
+                </div>
+                <ContractsByMonthChart
+                  points={
+                    trendsExtended?.contractsCreatedByMonth ??
+                    data.trends.contractsCreatedByMonth
+                  }
+                />
+              </section>
+            </div>
+
+            {/* R-EX1 — six Lovable-parity chart sections (spendByCategory /
+                topSuppliers / revenueUnderContract12m / cycleTimeFunnel /
+                contractThroughput12m / expiryCliff). Backed by migration 090. */}
+            {data.charts && (
+              <ExecutiveCharts
+                charts={data.charts}
+                cycleTimeFunnel={data.kpis.cycleTimeFunnel}
+                totalValueAed={data.kpis.totalActiveValueAed}
+              />
+            )}
+
+            {/* Templates + amendments — split out of the legacy 3-col so
+                High-risk contracts can be promoted into the ECIP section. */}
+            {data.lists && (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <MostUsedTemplatesCard rows={data.lists.mostUsedTemplates8} />
+                <MostAmendedContractsCard rows={data.lists.mostAmendedContracts5} />
+              </div>
+            )}
           </section>
 
-          {/* Trends — recharts */}
-          <div className="grid gap-3 lg:grid-cols-2">
-            <section className="rounded-lg border border-border bg-card p-4">
-              <div className="mb-1 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-gold" />
-                <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.executive.trends.valueOverTimeTitle")}
-                </h3>
+          {/* ────────────────────────────────────────────────────────────
+              SECTION 2 — Contract Intelligence (ECIP)
+              Risk signals, AI insights, financial intelligence. Aligns
+              with the platform-admin ECIP module toggle — hiding this
+              section is a one-conditional change when the module is off.
+              ──────────────────────────────────────────────────────────── */}
+          <section
+            aria-label={t("dashboards.executive.sections.ecip.ariaLabel", {
+              defaultValue: "Contract intelligence insights",
+            })}
+            className="space-y-3 pt-4"
+          >
+            <header className="flex items-center gap-3 border-b border-border pb-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-plum/10 text-plum">
+                <Brain className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold tracking-tight text-ink">
+                  {t("dashboards.executive.sections.ecip.title", {
+                    defaultValue: "Contract Intelligence",
+                  })}
+                </h2>
+                <p className="text-xs text-ink-subtle">
+                  {t("dashboards.executive.sections.ecip.subtitle", {
+                    defaultValue:
+                      "Risk signals, AI insights and financial intelligence.",
+                  })}
+                </p>
               </div>
-              <ValueOverTimeChart points={data.trends.valueOverTimeByMonth} />
-            </section>
+            </header>
 
-            <section className="rounded-lg border border-border bg-card p-4">
-              <div className="mb-1 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-gold" />
-                <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.executive.trends.contractsCreatedTitle")}
-                </h3>
-              </div>
-              <ContractsByMonthChart points={data.trends.contractsCreatedByMonth} />
-            </section>
-          </div>
+            {/* High-risk contracts — promoted to full-width dedicated section
+                (was buried in a 3-col with templates+amendments). Prefers
+                the mig 560 side-car (counterpartyName + riskType columns);
+                falls back to the legacy slice while the side-car query is
+                in flight. */}
+            {(highRiskExtended && highRiskExtended.length > 0) ? (
+              <HighRiskContractsCard rows={highRiskExtended} />
+            ) : data.lists ? (
+              <HighRiskContractsCard rows={data.lists.highRiskContracts8} />
+            ) : null}
 
-          {/* R-EX1 — six Lovable-parity chart sections (spendByCategory /
-              topSuppliers / revenueUnderContract12m / cycleTimeFunnel /
-              contractThroughput12m / expiryCliff). Backed by migration 090. */}
-          {data.charts && (
-            <ExecutiveCharts
-              charts={data.charts}
-              cycleTimeFunnel={data.kpis.cycleTimeFunnel}
-              totalValueAed={data.kpis.totalActiveValueAed}
+            {anomaliesStats && (
+              <ExecutiveAnomaliesCard
+                stats={anomaliesStats}
+                language={language}
+                autoFetch
+              />
+            )}
+
+            {/* M15 — CR-G: 3 additive executive sections (whatChangedToday / recommendedActions / clausesTriggered).
+                Defensive guards: sections only render when arrays are non-empty.
+                The existing R-EX payload returns these keys as of migration 180. */}
+            <ExecutiveCrgExtension
+              whatChangedToday={(data as unknown as ExecutiveDashboardCrgAdditions).whatChangedToday ?? []}
+              recommendedActions={(data as unknown as ExecutiveDashboardCrgAdditions).recommendedActions ?? []}
+              clausesTriggered={(data as unknown as ExecutiveDashboardCrgAdditions).clausesTriggered ?? { last7d: [], last30d: [] }}
             />
-          )}
 
-          {/* R-EX2 — three Lovable-parity list sections
-              (highRiskContracts8 / mostUsedTemplates8 /
-              mostAmendedContracts5). Backed by migration 091. */}
-          {data.lists && <ExecutiveLists lists={data.lists} />}
-
-          {/* E-rev-12: Executive events (14d) section removed. */}
-
-          {anomaliesStats && (
-            <ExecutiveAnomaliesCard
-              stats={anomaliesStats}
-              language={language}
-              autoFetch
+            {/* M21 — CR-N: Budget Burn rollup (10th additive key on fn_dashboard_executive).
+                Defensive: renders nothing when budgetBurnSummary is absent (pre-mig or no budgets). */}
+            <ExecutiveBudgetBurnSection
+              budgetBurnSummary={
+                (data as unknown as { budgetBurnSummary?: BudgetBurnSummary }).budgetBurnSummary ?? null
+              }
             />
-          )}
 
-          {/* M15 — CR-G: 3 additive executive sections (whatChangedToday / recommendedActions / clausesTriggered).
-              Defensive guards: sections only render when arrays are non-empty.
-              The existing R-EX payload returns these keys as of migration 180. */}
-          <ExecutiveCrgExtension
-            whatChangedToday={(data as unknown as ExecutiveDashboardCrgAdditions).whatChangedToday ?? []}
-            recommendedActions={(data as unknown as ExecutiveDashboardCrgAdditions).recommendedActions ?? []}
-            clausesTriggered={(data as unknown as ExecutiveDashboardCrgAdditions).clausesTriggered ?? { last7d: [], last30d: [] }}
-          />
-
-          {/* M21 — CR-N: Budget Burn rollup (10th additive key on fn_dashboard_executive).
-              Defensive: renders nothing when budgetBurnSummary is absent (pre-mig or no budgets). */}
-          <ExecutiveBudgetBurnSection
-            budgetBurnSummary={
-              (data as unknown as { budgetBurnSummary?: BudgetBurnSummary }).budgetBurnSummary ?? null
-            }
-          />
-
-          {/* M21 — CR-O: Trade Margin rollup (11th additive key on fn_dashboard_executive).
-              Defensive: renders nothing when tradeMarginSummary is absent (pre-mig or no positions). */}
-          <ExecutiveTradeMarginSection
-            tradeMarginSummary={
-              (data as unknown as { tradeMarginSummary?: TradeMarginSummary }).tradeMarginSummary ?? null
-            }
-          />
+            {/* M21 — CR-O: Trade Margin rollup (11th additive key on fn_dashboard_executive).
+                Defensive: renders nothing when tradeMarginSummary is absent (pre-mig or no positions). */}
+            <ExecutiveTradeMarginSection
+              tradeMarginSummary={
+                (data as unknown as { tradeMarginSummary?: TradeMarginSummary }).tradeMarginSummary ?? null
+              }
+            />
+          </section>
 
           {/* E-rev-C-1: AVaR section hidden per executive review feedback. */}
         </>
@@ -414,7 +541,9 @@ export function ExecutiveDashboard() {
 
 function ExpiryCliffsBlock({ cliffs }: { cliffs: ExecutiveExpiryCliffs }) {
   const { t } = useTranslation();
-  const [modalWindow, setModalWindow] = useState<30 | 60 | 90 | null>(null);
+  // Single-frame state — clicking the open tile closes; clicking a different
+  // tile swaps to that one. We never show two frames stacked.
+  const [openCliff, setOpenCliff] = useState<30 | 60 | 90 | null>(null);
   const max = Math.max(cliffs.next30d, cliffs.next60d, cliffs.next90d, 1);
   const items = [
     {
@@ -447,15 +576,21 @@ function ExpiryCliffsBlock({ cliffs }: { cliffs: ExecutiveExpiryCliffs }) {
       <div className="grid gap-3 sm:grid-cols-3">
         {items.map((it) => {
           const pct = (it.count / max) * 100;
+          const isOpen = openCliff === it.days;
           return (
             <button
               key={it.key}
               type="button"
-              onClick={() => setModalWindow(it.days)}
+              aria-expanded={isOpen}
+              aria-controls="expiry-cliff-frame"
+              onClick={() =>
+                setOpenCliff((prev) => (prev === it.days ? null : it.days))
+              }
               className={cn(
                 `w-full rounded-md border bg-clip-padding p-3 text-left transition`,
                 it.tint,
                 "border-border hover:border-ink/30 hover:shadow-sm",
+                isOpen && "ring-2 ring-ink/30",
               )}
             >
               <div className="flex items-baseline justify-between gap-2">
@@ -480,11 +615,15 @@ function ExpiryCliffsBlock({ cliffs }: { cliffs: ExecutiveExpiryCliffs }) {
           );
         })}
       </div>
-      <ExpiryCliffActionModal
-        open={modalWindow !== null}
-        windowDays={modalWindow ?? 30}
-        onClose={() => setModalWindow(null)}
-      />
+      {openCliff !== null && (
+        <div id="expiry-cliff-frame" className="mt-3">
+          <ExpiryCliffFrame
+            key={openCliff}
+            windowDays={openCliff}
+            onClose={() => setOpenCliff(null)}
+          />
+        </div>
+      )}
     </>
   );
 }
@@ -514,8 +653,10 @@ function ContractsByStatusChart({ data }: { data: Record<string, number> }) {
           <YAxis
             type="category"
             dataKey="label"
-            width={120}
+            width={170}
+            interval={0}
             tick={{ fontSize: 10, fill: "var(--ink-muted)" }}
+            tickMargin={6}
           />
           <Tooltip
             contentStyle={{
@@ -579,6 +720,7 @@ function TopCounterpartiesBlockWithNames({
 }) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   if (rows.length === 0) {
     return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
@@ -589,6 +731,7 @@ function TopCounterpartiesBlockWithNames({
       <table className="min-w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-ink-subtle">
+            <th className="w-8 py-2" aria-hidden></th>
             <th className="py-2 pe-3 font-medium">
               {t("dashboards.executive.topCounterparties.counterparty")}
             </th>
@@ -611,59 +754,201 @@ function TopCounterpartiesBlockWithNames({
               totalValue > 0
                 ? Math.round((row.totalValueAed / totalValue) * 100)
                 : 0;
-            // Names are now embedded in the row by the BE (CR-FIX1).
             const name =
               isAr && row.counterpartyNameAr
                 ? row.counterpartyNameAr
                 : row.counterpartyName;
+            const isExpanded = expandedId === row.counterpartyId;
             return (
-              <tr
-                key={row.counterpartyId}
-                className="border-t border-border/60"
-              >
-                <td className="py-2 pe-3">
-                  {name ? (
-                    <>
-                      <span className="text-sm font-medium text-ink">
-                        {name}
-                      </span>
-                      {row.counterpartyEmirate && (
-                        // E15 fix: title-case emirate ("fujairah" → "Fujairah",
-                        // "abu_dhabi" → "Abu Dhabi"). Drop uppercase tracking
-                        // for the same reason.
-                        <span className="ms-2 inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-subtle">
-                          {humanizeLabel(row.counterpartyEmirate)}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="font-mono text-xs text-ink-subtle">
-                      {t("dashboards.executive.topCounterparties.idLabel", {
-                        id: row.counterpartyId,
-                      })}
-                    </span>
+              <Fragment key={row.counterpartyId}>
+                <tr
+                  className={cn(
+                    "border-t border-border/60 cursor-pointer transition-colors",
+                    isExpanded ? "bg-surface" : "hover:bg-surface/60",
                   )}
-                </td>
-                <td className="py-2 pe-3 font-mono tabular-nums text-ink">
-                  {formatAed(row.totalValueAed)}
-                </td>
-                <td className="py-2 pe-3 font-mono tabular-nums text-ink">
-                  {formatNumber(row.contractCount)}
-                </td>
-                <td className="py-2 pe-3 font-mono tabular-nums text-ink">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="inline-block h-1.5 w-12 rounded-full bg-muted">
-                      <span
-                        className="block h-1.5 rounded-full bg-gold"
-                        style={{ width: `${share}%` }}
-                      />
+                  onClick={() =>
+                    setExpandedId(isExpanded ? null : row.counterpartyId)
+                  }
+                  aria-expanded={isExpanded}
+                >
+                  <td className="py-2 ps-2 pe-1 align-top">
+                    <button
+                      type="button"
+                      aria-label={t(
+                        isExpanded
+                          ? "dashboards.executive.topCounterparties.collapseAria"
+                          : "dashboards.executive.topCounterparties.expandAria",
+                        {
+                          defaultValue: isExpanded
+                            ? "Hide contracts"
+                            : "Show contracts",
+                        },
+                      )}
+                      className="inline-flex h-5 w-5 items-center justify-center rounded text-ink-subtle hover:bg-muted hover:text-ink"
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" aria-hidden />
+                      )}
+                    </button>
+                  </td>
+                  <td className="py-2 pe-3">
+                    {name ? (
+                      <>
+                        <span className="text-sm font-medium text-ink">
+                          {name}
+                        </span>
+                        {row.counterpartyEmirate && (
+                          <span className="ms-2 inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-subtle">
+                            {humanizeLabel(row.counterpartyEmirate)}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="font-mono text-xs text-ink-subtle">
+                        {t("dashboards.executive.topCounterparties.idLabel", {
+                          id: row.counterpartyId,
+                        })}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+                    {formatAed(row.totalValueAed)}
+                  </td>
+                  <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+                    {formatNumber(row.contractCount)}
+                  </td>
+                  <td className="py-2 pe-3 font-mono tabular-nums text-ink">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="inline-block h-1.5 w-12 rounded-full bg-muted">
+                        <span
+                          className="block h-1.5 rounded-full bg-gold"
+                          style={{ width: `${share}%` }}
+                        />
+                      </span>
+                      {share}%
                     </span>
-                    {share}%
-                  </span>
-                </td>
-              </tr>
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr className="bg-surface/40">
+                    <td colSpan={5} className="px-3 py-2">
+                      <CounterpartyContractsDrill
+                        counterpartyId={row.counterpartyId}
+                        displayName={name ?? `ID #${row.counterpartyId}`}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CounterpartyContractsDrill({
+  counterpartyId,
+  displayName,
+}: {
+  counterpartyId: number;
+  displayName: string;
+}) {
+  const { t } = useTranslation();
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["executive-top-counterparty-contracts", counterpartyId],
+    queryFn: () => topCounterpartyService.contracts(counterpartyId),
+    staleTime: 60_000,
+  });
+  if (isLoading) {
+    return (
+      <div className="space-y-1">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-8 animate-pulse rounded-md bg-muted" />
+        ))}
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <p className="text-xs text-destructive">
+        {t("dashboards.executive.topCounterparties.drillLoadFailed", {
+          defaultValue: "Could not load contracts.",
+        })}
+      </p>
+    );
+  }
+  const rows = data?.rows ?? [];
+  if (rows.length === 0) {
+    return (
+      <p className="text-xs italic text-ink-subtle">
+        {t("dashboards.executive.topCounterparties.drillEmpty", {
+          defaultValue: "No active contracts for this partner.",
+        })}
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto rounded-md border border-border bg-card">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-ink-subtle">
+            <th className="px-2 py-2">
+              {t("dashboards.executive.topCounterparties.drill.col.contract", {
+                defaultValue: "Contract #",
+              })}
+            </th>
+            <th className="px-2 py-2">
+              {t("dashboards.executive.topCounterparties.drill.col.title", {
+                defaultValue: "Title",
+              })}
+            </th>
+            <th className="px-2 py-2">
+              {t("dashboards.executive.topCounterparties.drill.col.counterparty", {
+                defaultValue: "Counterparty",
+              })}
+            </th>
+            <th className="px-2 py-2 text-right">
+              {t("dashboards.executive.topCounterparties.drill.col.value", {
+                defaultValue: "Value",
+              })}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.contractId} className="border-b border-border/40">
+              <td className="px-2 py-1.5">
+                <Link
+                  to="/app/contracts/$id"
+                  params={{ id: r.contractId }}
+                  className="font-mono text-[11px] text-gold hover:underline"
+                >
+                  {r.contractNumber}
+                </Link>
+              </td>
+              <td className="px-2 py-1.5">
+                <Link
+                  to="/app/contracts/$id"
+                  params={{ id: r.contractId }}
+                  className="text-sm text-ink hover:underline"
+                >
+                  {r.titleEn ?? r.titleAr ?? "—"}
+                </Link>
+              </td>
+              <td className="px-2 py-1.5 text-sm text-ink">
+                {r.counterpartyName ?? displayName}
+              </td>
+              <td className="px-2 py-1.5 text-right font-mono text-sm text-ink">
+                {r.valueAed != null && Number(r.valueAed) > 0
+                  ? formatAedCompact(Number(r.valueAed))
+                  : "—"}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -700,7 +985,9 @@ function ValueOverTimeChart({ points }: { points: TrendMonthValueAed[] }) {
               borderRadius: 8,
               fontSize: 11,
             }}
-            formatter={(v: number) => formatAed(v)}
+            // Tooltip should match the Y-axis style — compact AED (22B/45M)
+            // instead of the long "AED 22,000,000,000".
+            formatter={(v: number) => formatAedCompact(Number(v))}
           />
           <Area
             type="monotone"
@@ -792,170 +1079,319 @@ function formatCountDelta(
   });
 }
 
-// ─── CriticalRegulatoryImpactsTile ────────────────────────────────────────
+// ─── CriticalImpactTile ────────────────────────────────────────────────
 /**
- * Clickable wrapper around the "Critical regulatory impacts" KPI tile.
- * Clicking opens a modal listing the active critical impact signals so the
- * executive can scan + drill in without leaving the dashboard. List query
- * is lazy (only fires when the modal is open) so the tile itself stays
- * cheap to render.
+ * KPI-tile button that toggles the inline Critical Impact frame open or
+ * closed. Renders the merged count (osint_signal severity=critical + open
+ * critical risk_case rows) — falls back to the executive dashboard's own
+ * openRegulatoryImpactsCritical count until the merged query resolves so
+ * the tile never flashes to zero on first render.
  */
-function CriticalRegulatoryImpactsTile({ count: fallbackCount }: { count: number }) {
+function CriticalImpactTile({
+  fallbackCount,
+  open,
+  onToggle,
+}: {
+  fallbackCount: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-
-  // Eager fetch so the tile count and the modal list are derived from the
-  // SAME filtered set — otherwise the BE's openRegulatoryImpactsCritical
-  // (which uses a different window / no zero-impact filter) and the modal
-  // diverge and look broken.
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["executiveCriticalImpacts"],
-    queryFn: () => impactSignalService.list({ severity: "critical" }),
+  const { data } = useQuery({
+    queryKey: ["executiveCriticalImpacts", 7],
+    queryFn: () => criticalImpactService.list({ windowDays: 7 }),
     staleTime: 60_000,
   });
+  const displayCount = data?.rows.length ?? fallbackCount;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls="critical-impact-frame"
+      aria-label={t("dashboards.executive.kpis.openCriticalImpactsAria", {
+        defaultValue: "Toggle {{count}} critical impact(s)",
+        count: displayCount,
+      })}
+      className="block h-full w-full text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-lg"
+    >
+      <KpiTile
+        label={t("dashboards.executive.kpis.openCriticalImpacts", {
+          defaultValue: "Critical impact",
+        })}
+        value={formatNumber(displayCount)}
+        variant={displayCount > 0 ? "risk" : "default"}
+        className="h-full"
+      />
+    </button>
+  );
+}
 
-  /**
-   * The BE returns every critical signal across all time + can ship
-   * duplicates when the same signal is re-emitted on different days
-   * (e.g. weather alerts on a multi-day window). Filter the modal to
-   * match what an executive actually cares about:
-   *   1. Published within the last 7 days
-   *   2. At least one accessible contract is affected — a "critical
-   *      alert" with zero contracts impacted is noise and should not
-   *      surface
-   *   3. Dedup by titleEn — keep the most recent occurrence
-   */
-  const rawList: ImpactSignalListItem[] = data?.data ?? [];
-  const list = useMemo<ImpactSignalListItem[]>(() => {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const relevant = rawList.filter((row) => {
-      const t = new Date(row.publishedDate).getTime();
-      if (!Number.isFinite(t) || t < cutoff) return false;
-      if ((row.impactedContractCount ?? 0) <= 0) return false;
-      return true;
-    });
-    const byTitle = new Map<string, ImpactSignalListItem>();
-    for (const row of relevant) {
-      const existing = byTitle.get(row.titleEn);
-      if (!existing) {
-        byTitle.set(row.titleEn, row);
-        continue;
-      }
-      const a = new Date(row.publishedDate).getTime();
-      const b = new Date(existing.publishedDate).getTime();
-      if (a > b) byTitle.set(row.titleEn, row);
-    }
-    return Array.from(byTitle.values()).sort(
-      (a, b) =>
-        new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
-    );
-  }, [rawList]);
-
-  // While the query is loading, fall back to the BE's count so the tile
-  // doesn't flash to zero. Once the list arrives, the filtered count
-  // becomes authoritative and matches the modal exactly.
-  const displayCount = data ? list.length : fallbackCount;
+// ─── CriticalImpactFrame ───────────────────────────────────────────────
+/**
+ * Inline collapsible frame that opens below the KPI strip when the
+ * Critical Impact tile is clicked. Renders the merged osint_signal +
+ * risk_case feed; each row can be expanded to drill into the affected
+ * contracts (number / title / counterparty / value) — those contract
+ * numbers + titles link to /app/contracts/:id. RSS-sourced rows carry a
+ * "Verify source" external link; internal:harness + risk_case rows omit
+ * the link since no public URL exists.
+ */
+function CriticalImpactFrame({ open }: { open: boolean }) {
+  const { t } = useTranslation();
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["executiveCriticalImpacts", 7],
+    queryFn: () => criticalImpactService.list({ windowDays: 7 }),
+    staleTime: 60_000,
+    enabled: open,
+  });
+  const rows = data?.rows ?? [];
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-haspopup="dialog"
-        aria-label={t("dashboards.executive.kpis.openRegulatoryImpactsCriticalAria", {
-          defaultValue: "View {{count}} critical regulatory impact(s)",
-          count: displayCount,
-        })}
-        className="block h-full w-full text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-lg"
-      >
-        <KpiTile
-          label={t("dashboards.executive.kpis.openRegulatoryImpactsCritical")}
-          value={formatNumber(displayCount)}
-          variant={displayCount > 0 ? "risk" : "default"}
-          className="h-full"
-        />
-      </button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[720px]">
-          <DialogHeader>
-            <DialogTitle>
-              {t("dashboards.executive.criticalImpactsModal.title", {
-                defaultValue: "Critical regulatory impacts",
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.section
+          id="critical-impact-frame"
+          aria-label={t("dashboards.executive.criticalImpactsFrame.regionLabel", {
+            defaultValue: "Critical impact details",
+          })}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="overflow-hidden rounded-lg border border-border bg-card"
+        >
+          <header className="flex items-baseline justify-between gap-3 border-b border-border p-4">
+            <h3 className="text-sm font-semibold text-ink">
+              {t("dashboards.executive.criticalImpactsFrame.title", {
+                defaultValue: "Critical impact",
               })}
-            </DialogTitle>
-          </DialogHeader>
-
-          {isLoading && (
-            <div className="space-y-2 py-4">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 animate-pulse rounded-md bg-muted" />
-              ))}
-            </div>
-          )}
-
-          {isError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {(error as Error)?.message ??
-                t("common.error", { defaultValue: "Failed to load impacts." })}
-            </div>
-          )}
-
-          {!isLoading && !isError && list.length === 0 && (
-            <p className="py-8 text-center text-sm text-ink-muted">
-              {t("dashboards.executive.criticalImpactsModal.empty", {
-                defaultValue: "No active critical regulatory impacts right now.",
+            </h3>
+            <p className="text-xs text-ink-subtle">
+              {t("dashboards.executive.criticalImpactsFrame.subtitle", {
+                defaultValue:
+                  "Live critical signals + open critical risk cases (last 7 days)",
               })}
             </p>
-          )}
+          </header>
+          <div className="p-4">
+            {isLoading && (
+              <div className="space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-16 animate-pulse rounded-md bg-muted" />
+                ))}
+              </div>
+            )}
+            {isError && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                {(error as Error)?.message ??
+                  t("common.error", { defaultValue: "Failed to load impacts." })}
+              </div>
+            )}
+            {!isLoading && !isError && rows.length === 0 && (
+              <p className="py-8 text-center text-sm text-ink-muted">
+                {t("dashboards.executive.criticalImpactsFrame.empty", {
+                  defaultValue: "No critical impacts in the last 7 days.",
+                })}
+              </p>
+            )}
+            {!isLoading && !isError && rows.length > 0 && (
+              <ul className="divide-y divide-border rounded-md border border-border">
+                {rows.map((row) => (
+                  <CriticalImpactRowItem key={`${row.kind}:${row.id}`} row={row} />
+                ))}
+              </ul>
+            )}
+          </div>
+        </motion.section>
+      )}
+    </AnimatePresence>
+  );
+}
 
-          {!isLoading && !isError && list.length > 0 && (
-            <ul className="max-h-[480px] divide-y divide-border overflow-y-auto rounded-md border border-border">
-              {list.map((item) => (
-                <li key={item.id} className="p-3">
-                  <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-                    <Link
-                      to="/app/regulations"
-                      onClick={() => setOpen(false)}
-                      className="font-medium text-ink hover:text-gold"
-                    >
-                      {item.titleEn}
-                    </Link>
-                    <span className="rounded-full bg-terracotta/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-terracotta">
-                      {item.severity}
-                    </span>
-                  </div>
-                  {item.descriptionEn && (
-                    <p className="mb-2 line-clamp-2 text-xs text-ink-muted">
-                      {item.descriptionEn}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
-                    <span>
-                      <span className="font-mono uppercase">{item.source}</span>
-                      {" · "}
-                      {item.category}
-                    </span>
-                    <span>
-                      {t("dashboards.executive.criticalImpactsModal.contractCount", {
-                        defaultValue: "{{n}} contract(s) affected",
-                        n: item.impactedContractCount,
-                      })}
-                    </span>
-                    <span>
-                      {t("dashboards.executive.criticalImpactsModal.published", {
-                        defaultValue: "published {{when}}",
-                        when: formatDateTime(item.publishedDate),
-                      })}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+// ─── CriticalImpactRowItem ─────────────────────────────────────────────
+/**
+ * Single row in the Critical Impact frame. Collapsed view shows the
+ * impact metadata; expanding reveals the affected-contracts table.
+ * Rows with zero contracts cannot be expanded (the chevron is omitted).
+ */
+function CriticalImpactRowItem({ row }: { row: CriticalImpactRow }) {
+  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
+  const canExpand = row.contracts.length > 0;
+  const safeUrl =
+    row.sourceUrl &&
+    (row.sourceUrl.startsWith("https://") || row.sourceUrl.startsWith("http://"))
+      ? row.sourceUrl
+      : null;
+
+  return (
+    <li className="p-3">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={() => canExpand && setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          aria-label={t(
+            expanded
+              ? "dashboards.executive.criticalImpactsFrame.collapseRowAria"
+              : "dashboards.executive.criticalImpactsFrame.expandRowAria",
+            { defaultValue: expanded ? "Hide affected contracts" : "Show affected contracts" },
           )}
-        </DialogContent>
-      </Dialog>
-    </>
+          disabled={!canExpand}
+          className={cn(
+            "mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-ink-subtle",
+            canExpand
+              ? "hover:bg-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              : "opacity-30",
+          )}
+        >
+          {expanded ? (
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          )}
+        </button>
+        <div className="flex-1">
+          {/* 2026-06-04 — title row dropped per executive feedback. The
+              upstream sources (hand-curated demo copy, RSS article
+              titles, analyst-typed case titles) don't produce a
+              consistently scannable label in production, so we lead with
+              the rule-based risk type pill + criticality and let the
+              description carry the narrative. */}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <RiskTypePill type={row.riskType} />
+            <span className="rounded-full bg-terracotta/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-terracotta">
+              {row.criticality}
+            </span>
+          </div>
+          {row.description && (
+            <p className="mb-2 text-sm text-ink-muted">{row.description}</p>
+          )}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
+            <span>
+              {/* Prefer the registry's display_name (e.g. "OFAC SDN List")
+                  over the raw slug (e.g. "OFAC_SDN") when available. Slug
+                  rendered uppercase + mono as a stable fallback for
+                  internal sources that haven't been registered. */}
+              {row.sourceDisplayName ? (
+                <span className="font-medium text-ink">{row.sourceDisplayName}</span>
+              ) : (
+                <span className="font-mono uppercase">{row.source}</span>
+              )}
+              {" · "}
+              {row.category}
+            </span>
+            <span>
+              {t("dashboards.executive.criticalImpactsFrame.contractCount", {
+                defaultValue: "{{n}} contract(s) affected",
+                n: row.contractsAffected,
+              })}
+            </span>
+            <span>
+              {t("dashboards.executive.criticalImpactsFrame.occurredAt", {
+                defaultValue: "occurred {{when}}",
+                when: formatDateTime(row.occurredAt),
+              })}
+            </span>
+            {safeUrl && (
+              <a
+                href={safeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded"
+              >
+                {t("dashboards.executive.criticalImpactsFrame.verifySource", {
+                  defaultValue: "Verify source",
+                })}
+                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              </a>
+            )}
+          </div>
+          {expanded && canExpand && (
+            <CriticalImpactContractsTable contracts={row.contracts} />
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+// ─── CriticalImpactContractsTable ──────────────────────────────────────
+/**
+ * Drill-down table inside an expanded row. Each contract number + title
+ * link to the contract detail page so the executive can investigate
+ * without leaving the dashboard.
+ */
+function CriticalImpactContractsTable({
+  contracts,
+}: {
+  contracts: CriticalImpactRow["contracts"];
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-3 overflow-x-auto rounded-md border border-border bg-paper-2">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-muted/40 text-ink-subtle">
+          <tr>
+            <th scope="col" className="px-3 py-2 font-semibold">
+              {t("dashboards.executive.criticalImpactsFrame.colContractNumber", {
+                defaultValue: "Contract #",
+              })}
+            </th>
+            <th scope="col" className="px-3 py-2 font-semibold">
+              {t("dashboards.executive.criticalImpactsFrame.colTitle", {
+                defaultValue: "Title",
+              })}
+            </th>
+            <th scope="col" className="px-3 py-2 font-semibold">
+              {t("dashboards.executive.criticalImpactsFrame.colCounterparty", {
+                defaultValue: "Counterparty",
+              })}
+            </th>
+            <th scope="col" className="px-3 py-2 text-end font-semibold">
+              {t("dashboards.executive.criticalImpactsFrame.colValue", {
+                defaultValue: "Value",
+              })}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {contracts.map((c) => {
+            const value =
+              c.valueAed == null
+                ? "—"
+                : formatAedCompact(
+                    typeof c.valueAed === "string" ? Number(c.valueAed) : c.valueAed,
+                  );
+            return (
+              <tr key={c.id}>
+                <td className="px-3 py-2">
+                  <Link
+                    to="/app/contracts/$id"
+                    params={{ id: c.id }}
+                    className="font-mono text-gold hover:underline"
+                  >
+                    {c.contractNumber}
+                  </Link>
+                </td>
+                <td className="px-3 py-2">
+                  <Link
+                    to="/app/contracts/$id"
+                    params={{ id: c.id }}
+                    className="text-ink hover:text-gold hover:underline"
+                  >
+                    {c.titleEn ?? "—"}
+                  </Link>
+                </td>
+                <td className="px-3 py-2 text-ink-muted">{c.counterpartyName ?? "—"}</td>
+                <td className="px-3 py-2 text-end text-ink">{value}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

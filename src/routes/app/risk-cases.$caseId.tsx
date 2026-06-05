@@ -40,6 +40,7 @@ import {
   STRICT_TRANSITIONS,
 } from '@/types/risk-case.types';
 import { StatusBadge, PriorityBadge, SlaCountdown } from '@/components/risk-cases/Badges';
+import { RiskTypePill } from '@/components/risk/RiskTypePill';
 import { RiskCaseTimeline } from '@/components/risk-cases/RiskCaseTimeline';
 import { RiskCaseEvidenceList } from '@/components/risk-cases/RiskCaseEvidenceList';
 import { CommentInline } from '@/components/risk-cases/CommentInline';
@@ -180,12 +181,13 @@ function RiskCaseDetailView() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-ink">{riskCase.title}</h1>
+              <RiskTypePill type={riskCase.riskType} size="md" />
               <StatusBadge status={riskCase.status} />
               <PriorityBadge priority={riskCase.priority} />
             </div>
+            <h1 className="mt-2 text-xl font-semibold text-ink">{riskCase.title}</h1>
             <p className="mt-1 text-xs text-ink-muted">
-              {t(`riskCases.caseTypes.${riskCase.caseType}`)} · #{riskCase.id}
+              #{riskCase.id}
               {' · '}
               {t('riskCases.detail.createdAt', { date: formatDateTime(riskCase.createdAt, { showTime: true }) })}
             </p>

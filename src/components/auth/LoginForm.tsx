@@ -206,13 +206,17 @@ export function LoginForm() {
   const allPersonas: Array<{ key: string; name: string; role: string; initials: string; email: string }> = [
     // OqoodAI rebrand 2026-06-01 — drop role-label last names; first names
     // Arab; family names Emirati. Login email + password unchanged.
-    { key: "super",     name: "System Admin",      role: "Super Admin",        initials: "SA", email: "admin@musanad.local"     },
-    { key: "platform",  name: "Omar Al Mansoori",  role: "Platform Admin",     initials: "OM", email: "platform@musanad.local"  },
-    { key: "legal",     name: "Layla Al Hashemi",  role: "Legal Counsel",      initials: "LH", email: "legal@musanad.local"     },
+    //
+    // 2026-06-04 — primary 6 personas first per stakeholder request:
+    //   Executive, Drafter, Legal Counsel, Approver, Recipient, Platform Admin.
+    // Secondary personas (Super Admin + 4 CR-G persona dashboards) follow.
+    { key: "executive",  name: "Eman Al Mazrouei",   role: "Executive",          initials: "EM", email: "executive@musanad.local"  },
     { key: "drafter",   name: "Hala Al Suwaidi",   role: "Contract Drafter",   initials: "HS", email: "drafter@musanad.local"   },
+    { key: "legal",     name: "Layla Al Hashemi",  role: "Legal Counsel",      initials: "LH", email: "legal@musanad.local"     },
     { key: "approver",  name: "Aisha Al Nahyan",   role: "Contract Approver",  initials: "AN", email: "approver@musanad.local"  },
     { key: "recipient", name: "Rashid Al Awadi",   role: "Contract Recipient", initials: "RA", email: "recipient@musanad.local" },
-    { key: "executive",  name: "Eman Al Mazrouei",   role: "Executive",          initials: "EM", email: "executive@musanad.local"  },
+    { key: "platform",  name: "Omar Al Mansoori",  role: "Platform Admin",     initials: "OM", email: "platform@musanad.local"  },
+    { key: "super",     name: "System Admin",      role: "Super Admin",        initials: "SA", email: "admin@musanad.local"     },
     { key: "operations", name: "Yusuf Al Falasi",    role: "Operations",         initials: "YF", email: "operations@musanad.local" },
     { key: "finance",    name: "Fatima Al Marri",    role: "Finance & Treasury", initials: "FM", email: "finance@musanad.local"    },
     { key: "compliance", name: "Khalid Al Qubaisi",  role: "Compliance & ESG",   initials: "KQ", email: "compliance@musanad.local" },

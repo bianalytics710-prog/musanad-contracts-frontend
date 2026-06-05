@@ -30,6 +30,8 @@ import { translateApiError } from "@/lib/translate-api-error";
 import { approvalService } from "@/services/api/approval.service";
 import { approvalMatrixService } from "@/services/api/admin/approval-matrix.service";
 import { approvalChainsService } from "@/services/api/admin/approval-chains.service";
+import { contractsKeys } from "@/features/contracts/hooks/useContracts";
+import type { Contract } from "@/types/entities/contract.types";
 import type {
   ApprovalChainGetResponse,
   ApprovalChainListQuery,
@@ -111,11 +113,43 @@ export function useDecideApproval(
     ApiError,
     { stepId: number; data: DecideApprovalDto }
   >({
+    // 2026-06-04 — `...options` must come BEFORE the explicit onSuccess /
+    // onError so the hook's handlers take precedence at the React Query
+    // level. Otherwise the caller-supplied onSuccess (passed by
+    // ApprovalDecisionDialog) overrides this one and the cache
+    // invalidation / optimistic update never runs.
+    ...options,
     mutationFn: ({ stepId, data }) => approvalService.decide(stepId, data),
     onSuccess: (data, variables, onMutateResult, context) => {
-      queryClient.invalidateQueries({ queryKey: approvalKeys.all });
-      // Touch contracts because chain transitions update contract.status.
-      queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      const contractKey = contractsKeys.detail(data.contractId);
+      const chainKey = approvalKeys.chainByContract(data.contractId);
+      // Paint the new status into the cache immediately using the BE's
+      // own response (it already includes newContractStatus and
+      // newChainStatus). Previously only invalidate was called, which
+      // depended on a refetch round-trip — and in practice no refetch
+      // fired because the caller's onSuccess was overriding ours.
+      queryClient.setQueryData<Contract | undefined>(contractKey, (prev) =>
+        prev ? { ...prev, status: data.newContractStatus } : prev,
+      );
+      queryClient.setQueryData<ApprovalChainGetResponse | undefined>(
+        chainKey,
+        (prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            chain: { ...prev.chain, status: data.newChainStatus },
+            steps: prev.steps.map((s) =>
+              s.id === data.stepId
+                ? { ...s, status: data.newStepStatus }
+                : s,
+            ),
+          };
+        },
+      );
+      // refetchType:'all' forces refetch even of inactive queries — useful
+      // when the user navigates to a related panel right after.
+      queryClient.invalidateQueries({ queryKey: approvalKeys.all, refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: contractsKeys.all, refetchType: 'all' });
       // Decision-specific toast key — caller can override via options.
       const key =
         variables.data.decision === "approve"
@@ -130,7 +164,6 @@ export function useDecideApproval(
       toast.error(translateApiError(err, t, "errors.approval.decideFailed"));
       options?.onError?.(err, variables, onMutateResult, context);
     },
-    ...options,
   });
 }
 

@@ -672,7 +672,7 @@
     "reports": "التقارير",
     "adminReportTemplates": "قوالب التقارير",
     "complianceRegulatoryCASCADE": "التدرج التنظيمي",
-    "financialBudgetBurn": "الاستهلاك الميزاني",
+    "financialBudgetBurn": "صحة إنفاق العقود",
     "financialTradeMargin": "هامش التداول",
     "adminMigration": "ترحيل"
   },
@@ -983,6 +983,20 @@
       "english": "القانون الإنجليزي",
       "other": "أخرى"
     },
+    "filters": {
+      "risk": "المخاطرة",
+      "riskOption": {
+        "high": "مرتفعة (≥70)",
+        "medium": "متوسطة (40–69)",
+        "low": "منخفضة (<40)",
+        "flagged": "أي عقد موسوم"
+      },
+      "sortOption": {
+        "risk": "درجة المخاطرة"
+      }
+    },
+    "colRiskBadge": "مخاطرة {{score}}",
+    "colRiskBadgeTooltip": "درجة المخاطرة بالذكاء الاصطناعي",
     "relationshipTypeOptions": {
       "amendment": "تعديل",
       "renewal": "تجديد",
@@ -6418,10 +6432,10 @@
       }
     },
     "executive": {
-      "title": "حالات شاذة بالذكاء الاصطناعي",
-      "regenerate": "إعادة الإنشاء",
-      "empty": "لم يتم اكتشاف حالات شاذة.",
-      "notRunYet": "لم يتم تشغيل اكتشاف الحالات الشاذة بعد.",
+      "title": "ذكاء العقود بالذكاء الاصطناعي",
+      "regenerate": "تحديث",
+      "empty": "لم يتم اكتشاف رؤى.",
+      "notRunYet": "لم يتم تشغيل ذكاء العقود بعد.",
       "generatedAt": "تم الإنشاء"
     },
     "regulatory": {
@@ -7650,6 +7664,18 @@
     "executive": {
       "title": "نظرة عامة على المؤسسة",
       "subtitle": "نظرة شاملة على قيمة العقود ومخاطرها.",
+      "sections": {
+        "clm": {
+          "title": "دورة حياة العقد",
+          "subtitle": "صحة المحفظة، الإنتاجية، الشركاء والقوالب.",
+          "ariaLabel": "رؤى دورة حياة العقد"
+        },
+        "ecip": {
+          "title": "ذكاء العقود",
+          "subtitle": "إشارات المخاطر، رؤى الذكاء الاصطناعي والذكاء المالي.",
+          "ariaLabel": "رؤى ذكاء العقود"
+        }
+      },
       "kpiGroupLabel": "مؤشرات الأداء التنفيذية",
       "kpis": {
         "totalActiveValueAed": "إجمالي القيمة النشطة",
@@ -7659,6 +7685,8 @@
         "renewals90d": "التجديدات (90 يومًا)",
         "renewalValue90d": "قيمة التجديدات (90 يومًا)",
         "openRegulatoryImpactsCritical": "تأثيرات تنظيمية حرجة",
+        "openCriticalImpacts": "تأثير حرج",
+        "openCriticalImpactsAria": "إظهار/إخفاء {{count}} تأثير حرج",
         "aiCostUsdWindow": "تكلفة الذكاء الاصطناعي (دولار)",
         "aiCostHelper": "محدد بآخر 90 يومًا.",
         "aiCostDenied": "ليس لديك صلاحية ai.observability.read لعرض تكاليف الذكاء الاصطناعي.",
@@ -7667,18 +7695,88 @@
         "deltaVsPrev": "{{pct}} مقارنة بالسابق",
         "deltaCountVsPrev": "{{n}} مقارنة بالسابق"
       },
+      "criticalImpactsFrame": {
+        "title": "تأثير حرج",
+        "subtitle": "إشارات حرجة مباشرة + حالات مخاطر حرجة مفتوحة (آخر 7 أيام)",
+        "regionLabel": "تفاصيل التأثير الحرج",
+        "empty": "لا توجد تأثيرات حرجة خلال آخر 7 أيام.",
+        "contractCount": "{{n}} عقد متأثر",
+        "occurredAt": "وقع في {{when}}",
+        "verifySource": "التحقق من المصدر",
+        "expandRowAria": "إظهار العقود المتأثرة",
+        "collapseRowAria": "إخفاء العقود المتأثرة",
+        "colContractNumber": "رقم العقد",
+        "colTitle": "العنوان",
+        "colCounterparty": "الطرف المقابل",
+        "colValue": "القيمة"
+      },
       "expiryCliffs": {
         "title": "حواف الانتهاء",
         "description": "العقود التي تنتهي خلال 30 / 60 / 90 يومًا التالية.",
         "next30d": "خلال 30 يومًا",
         "next60d": "خلال 60 يومًا",
-        "next90d": "خلال 90 يومًا"
+        "next90d": "خلال 90 يومًا",
+        "clickHint": "انقر للتصرف",
+        "frame": {
+          "regionLabel": "العقود المنتهية — {{w}} يوم",
+          "title": "العقود التي تنتهي خلال {{w}} يومًا",
+          "closeAria": "إغلاق إطار الانتهاء",
+          "searchPlaceholder": "ابحث عن عقد أو طرف مقابل أو محرر…",
+          "filter": {
+            "all": "الكل",
+            "open": "لم يتم التصعيد",
+            "escalated": "تم التصعيد"
+          },
+          "selectAll": "تحديد كل الصفوف",
+          "selectRow": "تحديد {{n}}",
+          "col": {
+            "contract": "العقد",
+            "counterparty": "الطرف المقابل",
+            "value": "القيمة",
+            "drafter": "المحرر",
+            "endDate": "ينتهي",
+            "status": "الحالة"
+          },
+          "filterLabel": {
+            "escalation": "التصعيد",
+            "drafter": "المحرر",
+            "counterparty": "الطرف المقابل"
+          },
+          "daysSuffix": "خلال {{d}} يوم",
+          "noDrafter": "— لا يوجد محرر",
+          "badge": {
+            "escalated": "تم التصعيد",
+            "noTarget": "لا يوجد هدف"
+          },
+          "tip": {
+            "noDrafter": "لا يوجد محرر مُعيَّن — يتعذر إرسال التنبيه.",
+            "alreadyEscalated": "آخر تصعيد {{when}} بواسطة {{who}}. هل تريد الإرسال مجددًا؟"
+          },
+          "sendAgain": "إرسال مجددًا؟",
+          "cancelResend": "إلغاء",
+          "selectionSummary": "{{n}} من {{m}} محدد · {{d}} محرر فريد",
+          "sendAlerts": "إرسال تنبيهات التجديد ({{d}})",
+          "loadFailed": "تعذر تحميل العقود المنتهية.",
+          "empty": "لا توجد عقود تنتهي في هذه النافذة.",
+          "emptyFiltered": "لا توجد عقود تطابق التصفية.",
+          "confirm": {
+            "title": "إرسال تنبيهات التجديد",
+            "description": "{{n}} عقد(عقود) سيُرسَل لها تنبيه داخلي إلى {{d}} محرر. يمكنك إضافة ملاحظة اختيارية.",
+            "noteLabel": "ملاحظة (اختياري)",
+            "notePlaceholder": "مثال: يُرجى تجهيز شروط التجديد بحلول الجمعة.",
+            "send": "إرسال التنبيهات"
+          },
+          "toast": {
+            "sent": "تم إرسال {{sent}} تنبيه تجديد للمحررين.",
+            "sentWithSkipped": "تم إرسال {{sent}} تنبيه تجديد · تم تخطي {{skipped}} (بدون محرر أو محرر من المسؤول)"
+          }
+        }
       },
       "contractsByStatus": {
         "title": "العقود حسب الحالة"
       },
       "valueDistribution": {
-        "title": "توزيع القيم",
+        "title": "توزيع قيم العقود",
         "description": "عدد العقود حسب فئة القيمة بالدرهم.",
         "bucket": {
           "<100k": "أقل من 100 ألف",
@@ -7688,17 +7786,44 @@
         }
       },
       "topCounterparties": {
-        "title": "أعلى الأطراف المقابلة",
+        "title": "أهم شركاء الأعمال",
         "description": "حسب إجمالي قيمة العقود النشطة (أعلى 5).",
-        "counterparty": "الطرف المقابل",
+        "counterparty": "الشريك",
         "totalValue": "إجمالي القيمة",
         "contractCount": "عدد العقود",
+        "share": "النصيب",
         "idLabel": "المعرف #{{id}}",
-        "namePending": "الاسم قيد التحضير"
+        "namePending": "الاسم قيد التحضير",
+        "expandAria": "إظهار العقود",
+        "collapseAria": "إخفاء العقود",
+        "drillLoadFailed": "تعذر تحميل العقود.",
+        "drillEmpty": "لا توجد عقود نشطة لهذا الشريك.",
+        "drill": {
+          "col": {
+            "contract": "رقم العقد",
+            "title": "العنوان",
+            "counterparty": "الطرف المقابل",
+            "value": "القيمة"
+          }
+        }
       },
       "trends": {
-        "valueOverTimeTitle": "القيمة عبر الزمن",
-        "contractsCreatedTitle": "العقود التي تم إنشاؤها"
+        "valueOverTimeTitle": "قيمة العقود عبر الزمن",
+        "contractsCreatedTitle": "العقود المُنشأة عبر الزمن"
+      },
+      "lists": {
+        "highRisk": {
+          "title": "العقود عالية المخاطر",
+          "viewAll": "عرض كل العقود الموسومة ←",
+          "riskBadge": "مخاطرة {{score}}",
+          "col": {
+            "contract": "العقد",
+            "counterparty": "الطرف المقابل",
+            "riskType": "نوع المخاطرة",
+            "valueAed": "القيمة (درهم)",
+            "riskScore": "درجة المخاطرة"
+          }
+        }
       },
       "errors": {
         "loadFailed": "تعذر تحميل اللوحة التنفيذية."
@@ -8049,7 +8174,7 @@
       "viewContract": "عرض"
     },
     "clausesTriggered": {
-      "title": "البنود المحفَّزة",
+      "title": "بنود مُفعَّلة بالإشارات",
       "sectionAriaLabel": "قسم البنود المحفَّزة",
       "windowGroupAriaLabel": "محدد النافذة الزمنية",
       "window": {
@@ -8448,10 +8573,25 @@
       }
     }
   },
+  "riskTypes": {
+    "force_majeure": "حدث قوة قاهرة",
+    "sanctions": "تعرض للعقوبات",
+    "sla_breach": "خرق اتفاقية مستوى الخدمة",
+    "approval_workflow": "مخاطر سير الموافقات",
+    "budget_overrun": "تجاوز الميزانية",
+    "counterparty_concentration": "تركّز الطرف المقابل",
+    "vendor_supplier": "مخاطر المورد",
+    "icv_local_content": "فجوة المحتوى المحلي ICV",
+    "esg_sustainability": "مخاطر الاستدامة (ESG)",
+    "commodity_price": "مخاطر أسعار السلع",
+    "regulatory_change": "تغيير تنظيمي",
+    "geopolitical": "مخاطر جيوسياسية",
+    "other": "أخرى"
+  },
   "riskCases": {
     "list": {
       "title": "حالات المخاطر",
-      "subtitle": "سير عمل إدارة المخاطر النشط لتنبيهات الارتباط والالتزامات وانتهاكات اتفاقية مستوى الخدمة.",
+      "subtitle": "سير عمل إدارة المخاطر النشط للتنبيهات المكتشفة تلقائياً والالتزامات وانتهاكات اتفاقية مستوى الخدمة.",
       "empty": "لا توجد حالات مخاطر تطابق الفلاتر",
       "unassigned": "غير مُعيَّن",
       "drafterScopeCaption": "عرض للقراءة فقط — هذه حالات مخاطر على مستوى القسم؛ لا توجد حالة مسندة إليك مباشرة."
@@ -8519,11 +8659,11 @@
       "critical": "حرجة"
     },
     "caseTypes": {
-      "correlation_alert": "تنبيه ارتباط",
+      "correlation_alert": "كشف تلقائي",
       "obligation_due": "التزام مستحق",
       "sla_breach": "انتهاك اتفاقية مستوى الخدمة",
-      "system": "نظام",
-      "manual": "يدوي"
+      "system": "حدث نظامي",
+      "manual": "إنشاء يدوي"
     },
     "outcomes": {
       "mitigated": "تم التخفيف",
@@ -8734,6 +8874,56 @@
     }
   },
   "financial": {
+    "spendHealth": {
+      "sectionLabel": "صحة إنفاق العقد",
+      "title": "صحة إنفاق العقود",
+      "viewAll": "عرض الكل",
+      "viewAllAriaLabel": "فتح وحدة صحة إنفاق العقود",
+      "trackedWithBudget": "متابع بميزانية",
+      "xOfYContracts": "{{x}} من أصل {{y}} عقد",
+      "xOfYActiveContracts": "{{x}} من أصل {{y}} عقد نشط",
+      "scopeNote": "الميزانيات التفصيلية محددة لهذه العقود فقط.",
+      "withoutBudget": "بدون ميزانية",
+      "withoutBudgetNote": "عقود نشطة لم تُحدَّد لها ميزانية تفصيلية بعد.",
+      "currentlyOver": "تجاوز الميزانية حاليًا (حتى تاريخه)",
+      "projectedToOverrun": "متوقع تجاوزها بنهاية السنة المالية",
+      "projectedSummary": "{{n}} عقد · {{aed}}",
+      "allWithinTrack": "الكل ضمن المسار",
+      "topProjected": "أهم التجاوزات المتوقعة",
+      "projectedAbbrev": "تجاوز متوقع",
+      "viewContractAriaLabel": "عرض تفاصيل {{number}}",
+      "allHealthy": "جميع {{count}} عقدًا متابعًا ضمن الميزانية وعلى المسار الصحيح.",
+      "module": {
+        "title": "صحة إنفاق العقود",
+        "subtitle": "الميزانية مقابل الفعلي حتى تاريخه عبر العقود ذات الميزانيات التفصيلية.",
+        "scopeLabel": "صحة الإنفاق — النطاق",
+        "forwardLabel": "صحة الإنفاق — مستقبلًا",
+        "trackedWithBudget": "متابع بميزانية",
+        "xOfYContracts": "{{x}} من أصل {{y}}",
+        "withoutBudgetHelper": "{{n}} عقد بلا ميزانية محددة",
+        "totalFyBudget": "إجمالي ميزانية السنة المالية",
+        "actualYtd": "الفعلي حتى تاريخه",
+        "varianceYtd": "الانحراف حتى تاريخه",
+        "varianceHelper": "السالب = أقل من الميزانية",
+        "currentlyOver": "تجاوز الميزانية حاليًا (حتى تاريخه)",
+        "projectedToOverrun": "متوقع تجاوزها بنهاية السنة المالية",
+        "projectedSummary": "{{n}} عقد · {{aed}}",
+        "allWithinTrack": "الكل ضمن المسار",
+        "columns": {
+          "variance": "الانحراف"
+        },
+        "filters": {
+          "varianceBucket": "الانحراف",
+          "currentlyOver": "تجاوز الميزانية حاليًا",
+          "trendingOver": "متجه نحو التجاوز",
+          "onTrack": "على المسار الصحيح",
+          "counterparty": "الطرف المقابل",
+          "pageSize": "صفوف لكل صفحة"
+        },
+        "showingRange": "{{from}}–{{to}} من {{total}}",
+        "pageOf": "صفحة {{page}} من {{total}}"
+      }
+    },
     "budgetBurn": {
       "portfolio": {
         "title": "الاستهلاك الميزاني — المحفظة",

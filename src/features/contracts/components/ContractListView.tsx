@@ -105,6 +105,19 @@ const SORT_OPTIONS: ReadonlyArray<{
   { value: "end_date", label: "End date" },
   { value: "value", label: "Value" },
   { value: "alpha", label: "Alphabetical" },
+  { value: "risk", label: "Risk score" },
+];
+
+const RISK_OPTIONS: ReadonlyArray<{
+  value: "" | NonNullable<ContractListQuery["risk"]>;
+  label: string;
+  defaultLabel: string;
+}> = [
+  { value: "", label: "common.all", defaultLabel: "All" },
+  { value: "high", label: "contracts.filters.riskOption.high", defaultLabel: "High (≥70)" },
+  { value: "medium", label: "contracts.filters.riskOption.medium", defaultLabel: "Medium (40–69)" },
+  { value: "low", label: "contracts.filters.riskOption.low", defaultLabel: "Low (<40)" },
+  { value: "flagged", label: "contracts.filters.riskOption.flagged", defaultLabel: "Any flagged" },
 ];
 
 
@@ -128,9 +141,18 @@ interface ContractListViewProps {
    * such as the drafter dashboard pipeline pills.
    */
   initialStatus?: ContractStatus;
+  /** Mig 562 — pre-applies a risk-bucket filter. Set by the executive
+   *  dashboard "View all flagged contracts →" link (?risk=high). */
+  initialRisk?: NonNullable<ContractListQuery["risk"]>;
+  /** Mig 562 — pre-applies a sort. Set by the same exec link (?sort=risk). */
+  initialSort?: NonNullable<ContractListQuery["sort"]>;
 }
 
-export function ContractListView({ initialStatus }: ContractListViewProps = {}) {
+export function ContractListView({
+  initialStatus,
+  initialRisk,
+  initialSort,
+}: ContractListViewProps = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -155,7 +177,11 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
   const [startFromFilter, setStartFromFilter] = useState<string>("");
   const [startToFilter, setStartToFilter] = useState<string>("");
   const [sortField, setSortField] = useState<NonNullable<ContractListQuery["sort"]>>(
-    "updated_at",
+    initialSort ?? "updated_at",
+  );
+  // Mig 562 — Risk bucket filter (high / medium / low / flagged / unset)
+  const [riskFilter, setRiskFilter] = useState<"" | NonNullable<ContractListQuery["risk"]>>(
+    initialRisk ?? "",
   );
   const [deleteTarget, setDeleteTarget] = useState<ContractListItem | null>(null);
 
@@ -173,6 +199,7 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
       startDateFrom: startFromFilter || undefined,
       startDateTo: startToFilter || undefined,
       sort: sortField,
+      risk: riskFilter || undefined,
     }),
     [
       page,
@@ -184,6 +211,7 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
       startFromFilter,
       startToFilter,
       sortField,
+      riskFilter,
     ],
   );
 
@@ -223,6 +251,7 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
     setStartFromFilter("");
     setStartToFilter("");
     setSortField("updated_at");
+    setRiskFilter("");
     setPage(1);
   };
 
@@ -236,6 +265,7 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
     !!governingLawFilter ||
     !!startFromFilter ||
     !!startToFilter ||
+    !!riskFilter ||
     sortField !== "updated_at";
 
   // E-rev-E-1: KPI strip reads scope-wide counts from the BE response
@@ -382,8 +412,8 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
             </Button>
           )}
         </div>
-        {/* Filters: Status / Type / Language / Governing law / Date range / Sort */}
-        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
+        {/* Filters: Status / Type / Language / Governing law / Risk / Date range / Sort */}
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-8">
           <FilterSelect
             label={t("contracts.filters.status", { defaultValue: "Status" })}
             value={statusFilter}
@@ -466,6 +496,24 @@ export function ContractListView({ initialStatus }: ContractListViewProps = {}) 
                 }),
               })),
             ]}
+          />
+          {/* Mig 562 — AI risk bucket filter (executive "View all flagged" link
+              lands here pre-set to ?risk=high). */}
+          <FilterSelect
+            label={t("contracts.filters.risk", { defaultValue: "Risk" })}
+            value={riskFilter}
+            onChange={(v) => {
+              setRiskFilter(
+                (RISK_OPTIONS.map((o) => o.value) as readonly string[]).includes(v)
+                  ? (v as NonNullable<ContractListQuery["risk"]> | "")
+                  : "",
+              );
+              setPage(1);
+            }}
+            options={RISK_OPTIONS.map((o) => ({
+              value: o.value,
+              label: t(o.label, { defaultValue: o.defaultLabel }),
+            }))}
           />
           <div className="flex flex-col gap-1">
             <label
@@ -689,13 +737,31 @@ function ContractTable({ items, onDelete, canDelete }: ContractTableProps) {
                       {c.contractNumber}
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        to="/app/contracts/$id"
-                        params={{ id: String(c.id) }}
-                        className="font-medium text-ink hover:underline"
-                      >
-                        {displayTitle}
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to="/app/contracts/$id"
+                          params={{ id: String(c.id) }}
+                          className="font-medium text-ink hover:underline"
+                        >
+                          {displayTitle}
+                        </Link>
+                        {/* Mig 562 — inline Risk N badge inside the Title cell
+                            when ai_risk_score ≥ 70. Avoids a 9th column while
+                            still surfacing the score on high-risk rows. */}
+                        {typeof c.aiRiskScore === "number" && c.aiRiskScore >= 70 && (
+                          <span
+                            className="inline-flex items-center rounded-md bg-terracotta/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-terracotta"
+                            title={t("contracts.colRiskBadgeTooltip", {
+                              defaultValue: "AI risk score",
+                            })}
+                          >
+                            {t("contracts.colRiskBadge", {
+                              defaultValue: "Risk {{score}}",
+                              score: String(c.aiRiskScore),
+                            })}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-ink-muted">
                       {/* E23 fix: drop uppercase tracking — "services" /

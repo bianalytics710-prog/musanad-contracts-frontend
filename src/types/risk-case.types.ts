@@ -78,13 +78,41 @@ export interface RiskCaseListItem {
   status: RiskCaseStatus;
   title: string;
   caseType: RiskCaseType;
+  /**
+   * Rule-based risk taxonomy slug (fn_classify_risk, migration 544).
+   * Authoritative classification surfaced in the UI as a colored pill —
+   * see components/risk/RiskTypePill for the canonical slug list and
+   * fallback behavior. `caseType` stays as provenance ("how the case
+   * was opened") but is no longer rendered in the list.
+   */
+  riskType: string;
   assignedRole: string | null;
   assignedUserId: number | null;
   assignedUserName: string | null;
   dueAt: string | null;
   slaCountdownSeconds: number | null;
+  // Phase A — dedicated Contract + Counterparty columns. fn_risk_case_list
+  // (migration 548) splits the contract metadata across these fields so
+  // the FE can render Contract # / Title / Counterparty independently
+  // without a per-row sub-query.
+  contractId: number | null;
+  contractNumber: string | null;
   contractTitle: string | null;
+  counterpartyName: string | null;
   correlationSummary: CorrelationSummary | null;
+}
+
+/**
+ * Phase A — payload returned by GET /risk-cases/assignable-users.
+ * Powers the inline reassignment dropdown + the new "Assigned to"
+ * filter on the Risk Cases list.
+ */
+export interface AssignableUser {
+  id: string;
+  name: string;
+  email: string;
+  roleName: string;
+  roleDisplay: string;
 }
 
 export interface RiskCaseListResponse {
@@ -101,6 +129,8 @@ export interface RiskCaseListQuery {
   search?: string;
   page?: number;
   limit?: number;
+  // Phase A — server-side "Assigned to" filter.
+  assignedUserId?: number;
 }
 
 export interface RiskCase {
@@ -109,6 +139,8 @@ export interface RiskCase {
   correlationId: number | null;
   contractId: number | null;
   caseType: RiskCaseType;
+  /** See RiskCaseListItem.riskType. */
+  riskType: string;
   priority: RiskCasePriority;
   title: string;
   body: string | null;

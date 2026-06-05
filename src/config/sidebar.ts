@@ -181,7 +181,7 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
     key: "financial.budgetBurn",
     to: "/app/financial/budget-burn",
     labelKey: "nav.financialBudgetBurn",
-    defaultLabel: "Budget Burn",
+    defaultLabel: "Contract Spend Health",
     icon: DollarSign,
     displayOrder: 400,
   },
@@ -443,6 +443,14 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/demo/purge",            labelKey: "nav.adminDemoPurge",       defaultLabel: "Demo purge",            icon: Trash2,            group: "diagnostics" },
   // Mig 538 — toggle persona visibility on the dev one-click login panel.
   { to: "/app/admin/dev-login-personas",    labelKey: "nav.adminDevPersonas",     defaultLabel: "Login personas",        icon: ShieldCheck,       group: "diagnostics" },
+  // Mig 539 — reorder sidebar modules per role.
+  { to: "/app/admin/sidebar-order",         labelKey: "nav.adminSidebarOrder",    defaultLabel: "Sidebar order",         icon: SlidersHorizontal, group: "identity" },
+  // Mig 549/550 — Risk routing matrix + Risk review (manual triage for
+  // low-confidence alerts). Both sit under Workflow & rules with the
+  // approval matrix + correlation rules since they're the same family
+  // of "how should the platform handle this incoming event" policy.
+  { to: "/app/admin/risk-routing",          labelKey: "nav.adminRiskRouting",     defaultLabel: "Risk routing",          icon: SlidersHorizontal, group: "workflow" },
+  { to: "/app/admin/risk-review",           labelKey: "nav.adminRiskReview",      defaultLabel: "Risk review",           icon: ShieldCheck,       group: "workflow" },
 ];
 
 /**
@@ -508,7 +516,10 @@ export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
  * Result is sorted by displayOrder so sidebar order is always consistent
  * regardless of the order the BE returns the array.
  */
-export function modulesForEffectiveSet(effectiveModules: string[] | null | undefined): SidebarModule[] {
+export function modulesForEffectiveSet(
+  effectiveModules: string[] | null | undefined,
+  orderOverride?: string[] | null,
+): SidebarModule[] {
   if (!effectiveModules || effectiveModules.length === 0) {
     // Fallback: show only insights hub so the user can navigate somewhere.
     return [MODULES.insights];
@@ -554,8 +565,21 @@ export function modulesForEffectiveSet(effectiveModules: string[] | null | undef
   // them on a sidebar that no longer linked to their primary view.
   const filtered = result;
 
-  // Sort by displayOrder for a consistent sidebar order.
-  filtered.sort((a, b) => a.displayOrder - b.displayOrder);
+  // Mig 539 — if a per-role override is supplied, sort by the override
+  // index first; modules not in the override fall to the end in their
+  // built-in displayOrder. If no override, plain displayOrder sort.
+  if (orderOverride && orderOverride.length > 0) {
+    const index = new Map<string, number>();
+    orderOverride.forEach((k, i) => index.set(k, i));
+    filtered.sort((a, b) => {
+      const ai = index.has(a.key) ? (index.get(a.key) as number) : Number.MAX_SAFE_INTEGER;
+      const bi = index.has(b.key) ? (index.get(b.key) as number) : Number.MAX_SAFE_INTEGER;
+      if (ai !== bi) return ai - bi;
+      return a.displayOrder - b.displayOrder;
+    });
+  } else {
+    filtered.sort((a, b) => a.displayOrder - b.displayOrder);
+  }
   return filtered;
 }
 

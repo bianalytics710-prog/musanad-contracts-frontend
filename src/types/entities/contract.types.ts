@@ -298,6 +298,9 @@ export interface ContractListItem {
   importConfidence: number | null;
   /** Human-readable AI warnings array. Null when none. */
   importWarnings: string[] | null;
+  /** Mig 562 — derived AI risk score (0..100). Surfaced inline in the
+   *  Title cell as a "Risk N" badge when ≥ 70. NULL when no compute exists. */
+  aiRiskScore?: number | null;
 }
 
 export interface ContractTag {
@@ -496,7 +499,10 @@ export interface ContractListQuery {
   // ─── R5+ Lovable parity filters ────────────────────────────────────
   language?: ContractLanguage;
   governingLaw?: GoverningLaw;
-  sort?: "updated_at" | "created_at" | "end_date" | "value" | "alpha";
+  sort?: "updated_at" | "created_at" | "end_date" | "value" | "alpha" | "risk";
+  // ─── Mig 562 — AI risk bucket filter ──────────────────────────────
+  /** high=score≥70 / medium=40-69 / low=1-39 / flagged=score>0. */
+  risk?: "high" | "medium" | "low" | "flagged";
 }
 
 export interface ContractVersionListQuery {

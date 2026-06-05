@@ -27,7 +27,7 @@
  *   T11: ErrorBoundary at route level
  *   T12: formatDateTime for timestamps
  */
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, type ReactNode } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -56,13 +56,16 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { ChartCard, SemanticTooltip } from '@/components/charts';
+import { Card, CardContent } from '@/components/ui/card';
 // Shared split-table alignment utility — keeps the sticky header and
 // virtualized body in lockstep column-for-column.
 import { ScrollbarReservedHeader, PercentColgroup } from '@/components/patterns';
 
 // Column widths used by BOTH the head table and every per-row body table.
 // 8 columns, must sum to 100.
-const BUDGET_BURN_COL_WIDTHS = [24, 13, 10, 10, 9, 12, 12, 10] as const;
+// Mig 565 — Status column replaced by Variance column.
+// Layout: Contract / Counterparty / Budget / Actual / Variance / % Consumed / Projected over/under / Action
+const BUDGET_BURN_COL_WIDTHS = [22, 14, 10, 10, 12, 9, 13, 10] as const;
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialBudgetBurnService } from '@/services/api/financial-budget-burn.service';
 import { translateApiError } from '@/lib/translate-api-error';
@@ -152,12 +155,77 @@ function BudgetBurnPortfolioView() {
   const [showSubsidiaryPicker, setShowSubsidiaryPicker] = useState(false);
   const [showEmiratePicker, setShowEmiratePicker] = useState(false);
 
-  // ── Sort: variancePct DESC so breaches surface first ───────
-  const sortedRows = useMemo(
-    () =>
-      [...allRows].sort((a, b) => (b.variancePct ?? 0) - (a.variancePct ?? 0)),
-    [allRows],
-  );
+  // ── Mig 565 — explicit filters/sort/pagination state ───────
+  type VarianceBucket = 'all' | 'currentlyOver' | 'trendingOver' | 'onTrack';
+  type SortField =
+    | 'variancePct'
+    | 'varianceAed'
+    | 'budgetAed'
+    | 'actualAed'
+    | 'pctConsumed'
+    | 'projectedOverUnderAed'
+    | 'contractNumber'
+    | 'counterparty';
+  const [varianceBucket, setVarianceBucket] = useState<VarianceBucket>('all');
+  const [counterpartyFilter, setCounterpartyFilter] = useState<string>('');
+  const [sortField, setSortField] = useState<SortField>('variancePct');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const pageSize = 25;
+  const [pageNum, setPageNum] = useState<number>(1);
+
+  // Distinct counterparties (alphabetical) — derived from the dataset.
+  const counterpartyOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of allRows) {
+      if (r.counterpartyName) s.add(r.counterpartyName);
+    }
+    return Array.from(s).sort();
+  }, [allRows]);
+
+  // Sort rows by the user-selected column.
+  const sortedRows = useMemo(() => {
+    const numeric = (r: PortfolioContractRow, key: SortField): number => {
+      switch (key) {
+        case 'variancePct':
+          return r.variancePct ?? 0;
+        case 'varianceAed':
+          return parseFloat(r.varianceAed || '0');
+        case 'budgetAed':
+          return parseFloat(r.budgetAed || '0');
+        case 'actualAed':
+          return parseFloat(r.actualAed || '0');
+        case 'pctConsumed':
+          return r.pctConsumed ?? 0;
+        case 'projectedOverUnderAed':
+          return parseFloat(r.projectedOverUnderAed || '0');
+        default:
+          return 0;
+      }
+    };
+    const txt = (r: PortfolioContractRow, key: SortField): string => {
+      if (key === 'contractNumber') return r.contractNumber ?? '';
+      if (key === 'counterparty') return r.counterpartyName ?? '';
+      return '';
+    };
+    const isTextSort = sortField === 'contractNumber' || sortField === 'counterparty';
+    const mul = sortDir === 'asc' ? 1 : -1;
+    return [...allRows].sort((a, b) => {
+      if (isTextSort) {
+        return txt(a, sortField).localeCompare(txt(b, sortField)) * mul;
+      }
+      return (numeric(a, sortField) - numeric(b, sortField)) * mul;
+    });
+  }, [allRows, sortField, sortDir]);
+
+  const handleHeaderSort = (field: SortField) => {
+    setPageNum(1);
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
 
   // ── Derive emirate list from counterpartyName (substring match) ──
   // Emirates from data: parse from counterpartyName if they include known emirate strings.
@@ -225,8 +293,32 @@ function BudgetBurnPortfolioView() {
       );
     }
 
+    // Mig 565 — Variance bucket filter
+    if (varianceBucket !== 'all') {
+      rows = rows.filter((r) => {
+        const projected = parseFloat(r.projectedOverUnderAed || '0');
+        const isOver = r.varianceFlag || r.pctConsumed >= 100;
+        if (varianceBucket === 'currentlyOver') return isOver;
+        if (varianceBucket === 'trendingOver') return !isOver && projected > 0;
+        if (varianceBucket === 'onTrack') return !isOver && projected <= 0;
+        return true;
+      });
+    }
+
+    // Mig 565 — Counterparty exact match
+    if (counterpartyFilter) {
+      rows = rows.filter((r) => (r.counterpartyName ?? '') === counterpartyFilter);
+    }
+
     return rows;
-  }, [sortedRows, search, overBudgetOnly, selectedSubsidiary, selectedEmirate]);
+  }, [sortedRows, search, overBudgetOnly, selectedSubsidiary, selectedEmirate, varianceBucket, counterpartyFilter]);
+
+  // Paginate the filtered set
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const pagedRows = useMemo(() => {
+    const start = (pageNum - 1) * pageSize;
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, pageNum, pageSize]);
 
   // ── Chart #5 data: top 15 by pctConsumed descending ───────
   // E-rev-F-3 / E-rev-G-2 — Each row carries actual + projected segments
@@ -260,7 +352,7 @@ function BudgetBurnPortfolioView() {
   // ── Virtualization ─────────────────────────────────────────
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
-    count: filteredRows.length,
+    count: pagedRows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 56,
     overscan: 8,
@@ -287,10 +379,15 @@ function BudgetBurnPortfolioView() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t('financial.budgetBurn.portfolio.title')}
+            {t('financial.spendHealth.module.title', {
+              defaultValue: 'Contract Spend Health',
+            })}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {t('financial.budgetBurn.portfolio.subtitle')}
+            {t('financial.spendHealth.module.subtitle', {
+              defaultValue:
+                'Year-to-date budget vs actual across contracts with line-item budgets.',
+            })}
           </p>
         </div>
 
@@ -367,32 +464,54 @@ function BudgetBurnPortfolioView() {
 
       {!isLoading && !isError && (
         <>
-          {/* Portfolio summary strip */}
+          {/* Portfolio summary strip — restructured into two rows for
+              "scope vs forward-looking" rhythm (mig 563 revamp). */}
           {summary && (
             <>
+              {/* Row 1 — SCOPE: who's in the tracked set, lifetime numbers */}
               <section
-                aria-label={t('financial.budgetBurn.portfolio.summaryLabel')}
-                className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+                aria-label={t('financial.spendHealth.module.scopeLabel', {
+                  defaultValue: 'Spend health — scope',
+                })}
+                className="grid grid-cols-2 gap-3 sm:grid-cols-4"
               >
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.contractsWithBudget')}
-                  value={String(summary.contractsWithBudget)}
+                  label={t('financial.spendHealth.module.trackedWithBudget', {
+                    defaultValue: 'Tracked with budget',
+                  })}
+                  value={
+                    summary.contractsTotalCount != null
+                      ? t('financial.spendHealth.module.xOfYContracts', {
+                          defaultValue: '{{x}} of {{y}}',
+                          x: summary.contractsWithBudget,
+                          y: summary.contractsTotalCount,
+                        })
+                      : String(summary.contractsWithBudget)
+                  }
+                  helper={
+                    summary.contractsWithoutBudgetCount != null && summary.contractsWithoutBudgetCount > 0
+                      ? t('financial.spendHealth.module.withoutBudgetHelper', {
+                          defaultValue: '{{n}} contracts have no budget set',
+                          n: summary.contractsWithoutBudgetCount,
+                        })
+                      : undefined
+                  }
                 />
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.totalBudget')}
+                  label={t('financial.spendHealth.module.totalFyBudget', {
+                    defaultValue: 'Total FY budget',
+                  })}
                   value={formatAed(summary.totalBudgetAed)}
                 />
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.totalActual')}
+                  label={t('financial.spendHealth.module.actualYtd', {
+                    defaultValue: 'Actual YTD',
+                  })}
                   value={formatAed(summary.totalActualAed)}
                 />
-                {/* E-rev-F-2 — Variance signing: negative variance means we
-                    spent LESS than budget (favourable) → render sage/green
-                    via the "success" variant. Positive variance is overrun
-                    → "risk" terracotta. Caption below clarifies the sign. */}
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.totalVariance', {
-                    defaultValue: 'Total variance',
+                  label={t('financial.spendHealth.module.varianceYtd', {
+                    defaultValue: 'Variance YTD',
                   })}
                   value={formatAed(summary.totalVarianceAed)}
                   variant={
@@ -402,26 +521,46 @@ function BudgetBurnPortfolioView() {
                         ? 'success'
                         : 'default'
                   }
-                  helper={t('financial.budgetBurn.portfolio.summary.totalVarianceHelper', {
+                  helper={t('financial.spendHealth.module.varianceHelper', {
                     defaultValue: 'Negative = under budget',
                   })}
                 />
-                {/* E-rev-F-1 — fixed 5th-tile broken i18n key. Was passing a
-                    raw JS expression as the key; now reads a proper label +
-                    the actual count value. */}
+              </section>
+
+              {/* Row 2 — FORWARD: what to act on */}
+              <section
+                aria-label={t('financial.spendHealth.module.forwardLabel', {
+                  defaultValue: 'Spend health — forward',
+                })}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              >
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.overBudgetCount', {
-                    defaultValue: 'Over budget',
+                  label={t('financial.spendHealth.module.currentlyOver', {
+                    defaultValue: 'Currently over budget (YTD)',
                   })}
-                  value={String((summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0))}
-                  variant={(summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0) > 0 ? 'warning' : 'default'}
+                  value={String(summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0)}
+                  variant={
+                    (summary.overBudgetContractCount ?? summary.overBudgetCount ?? 0) > 0
+                      ? 'risk'
+                      : 'default'
+                  }
                 />
                 <SummaryTile
-                  label={t('financial.budgetBurn.portfolio.summary.totalProjectedOverrun', {
-                    defaultValue: 'Projected overrun',
+                  label={t('financial.spendHealth.module.projectedToOverrun', {
+                    defaultValue: 'Projected to overrun by FY end',
                   })}
-                  value={formatAed(summary.totalProjectedOverrunAed)}
-                  variant={parseFloat(summary.totalProjectedOverrunAed) > 0 ? 'risk' : 'default'}
+                  value={
+                    (summary.trendingOverContractCount ?? 0) > 0
+                      ? t('financial.spendHealth.module.projectedSummary', {
+                          defaultValue: '{{n}} contracts · {{aed}}',
+                          n: summary.trendingOverContractCount ?? 0,
+                          aed: formatAed(summary.totalProjectedOverrunAed),
+                        })
+                      : t('financial.spendHealth.module.allWithinTrack', {
+                          defaultValue: 'All within track',
+                        })
+                  }
+                  variant={parseFloat(summary.totalProjectedOverrunAed) > 0 ? 'risk' : 'success'}
                 />
               </section>
               {/* E37 fix — surface the year-end projection narrative on the
@@ -439,10 +578,214 @@ function BudgetBurnPortfolioView() {
             </>
           )}
 
-          {/* ── Chart #5: Portfolio consumption horizontal bar ──── */}
-          {/* E39 fix — clarify subtitle that this chart shows the TOP-N
-              by consumption, not the entire portfolio, so executives
-              don't wonder "where are the other contracts?". */}
+          {/* Mig 566 — Filter row above the table (matches Contracts list
+              pattern). Variance bucket + Counterparty only; page size
+              kept at default 25 per user direction. */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:max-w-3xl">
+            <FilterSelect
+              label={t('financial.spendHealth.module.filters.varianceBucket', {
+                defaultValue: 'Variance',
+              })}
+              value={varianceBucket}
+              onChange={(v) => {
+                setVarianceBucket(v as VarianceBucket);
+                setPageNum(1);
+              }}
+              options={[
+                { value: 'all', label: t('common.all', { defaultValue: 'All' }) },
+                { value: 'currentlyOver', label: t('financial.spendHealth.module.filters.currentlyOver', { defaultValue: 'Currently over budget' }) },
+                { value: 'trendingOver', label: t('financial.spendHealth.module.filters.trendingOver', { defaultValue: 'Trending to overrun' }) },
+                { value: 'onTrack', label: t('financial.spendHealth.module.filters.onTrack', { defaultValue: 'On track' }) },
+              ]}
+            />
+            <FilterSelect
+              label={t('financial.spendHealth.module.filters.counterparty', {
+                defaultValue: 'Counterparty',
+              })}
+              value={counterpartyFilter}
+              onChange={(v) => {
+                setCounterpartyFilter(v);
+                setPageNum(1);
+              }}
+              options={[
+                { value: '', label: t('common.all', { defaultValue: 'All' }) },
+                ...counterpartyOptions.map((c) => ({ value: c, label: c })),
+              ]}
+            />
+          </div>
+
+          {/* ── Virtualized table — moved above the chart so the executive
+              sees the contract-level breakdown first (the natural next
+              question after "AED -2B variance" is "which contracts?"). */}
+          {filteredRows.length === 0 ? (
+            <Card>
+              <CardContent className="flex h-56 flex-col items-center justify-center gap-3 p-8">
+                <TrendingUp className="h-8 w-8 text-ink-subtle" aria-hidden="true" />
+                <p className="text-sm font-medium text-ink">
+                  {search || overBudgetOnly || selectedSubsidiary || selectedEmirate || varianceBucket !== 'all' || counterpartyFilter
+                    ? t('budgetBurn.portfolio.filters.noResults', { defaultValue: 'No contracts match the current filters.' })
+                    : t('financial.budgetBurn.portfolio.empty.title')}
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {!(search || overBudgetOnly || selectedSubsidiary || selectedEmirate || varianceBucket !== 'all' || counterpartyFilter) &&
+                    t('financial.budgetBurn.portfolio.empty.body')}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+              <ScrollbarReservedHeader>
+              <table className="w-full table-fixed text-sm">
+                <PercentColgroup widths={BUDGET_BURN_COL_WIDTHS} />
+                <thead className="bg-surface">
+                  <tr>
+                    <SortableTh
+                      align="left"
+                      active={sortField === 'contractNumber'}
+                      dir={sortDir}
+                      onClick={() => handleHeaderSort('contractNumber')}
+                    >
+                      {t('financial.budgetBurn.columns.contract')}
+                    </SortableTh>
+                    <SortableTh
+                      align="left"
+                      active={sortField === 'counterparty'}
+                      dir={sortDir}
+                      onClick={() => handleHeaderSort('counterparty')}
+                    >
+                      {t('financial.budgetBurn.columns.counterparty')}
+                    </SortableTh>
+                    <SortableTh
+                      align="right"
+                      active={sortField === 'budgetAed'}
+                      dir={sortDir}
+                      onClick={() => handleHeaderSort('budgetAed')}
+                    >
+                      {t('financial.budgetBurn.columns.budget')}
+                    </SortableTh>
+                    <SortableTh
+                      align="right"
+                      active={sortField === 'actualAed'}
+                      dir={sortDir}
+                      onClick={() => handleHeaderSort('actualAed')}
+                    >
+                      {t('financial.budgetBurn.columns.actual')}
+                    </SortableTh>
+                    <SortableTh
+                      align="right"
+                      active={sortField === 'pctConsumed'}
+                      dir={sortDir}
+                      onClick={() => handleHeaderSort('pctConsumed')}
+                    >
+                      {t('financial.budgetBurn.columns.consumed')}
+                    </SortableTh>
+                    <SortableTh
+                      align="right"
+                      active={sortField === 'varianceAed'}
+                      dir={sortDir}
+                      onClick={() => handleHeaderSort('varianceAed')}
+                    >
+                      {t('financial.spendHealth.module.columns.variance', {
+                        defaultValue: 'Variance',
+                      })}
+                    </SortableTh>
+                    <SortableTh
+                      align="right"
+                      active={sortField === 'projectedOverUnderAed'}
+                      dir={sortDir}
+                      onClick={() => handleHeaderSort('projectedOverUnderAed')}
+                    >
+                      {t('financial.budgetBurn.columns.projectedOverUnder')}
+                    </SortableTh>
+                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                      {t('common.action', { defaultValue: 'Action' })}
+                    </th>
+                  </tr>
+                </thead>
+              </table>
+              </ScrollbarReservedHeader>
+
+              <div
+                ref={parentRef}
+                className="h-[600px] overflow-y-scroll"
+              >
+                <div
+                  style={{
+                    height: virtualizer.getTotalSize(),
+                    width: '100%',
+                    position: 'relative',
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = pagedRows[virtualRow.index];
+                    if (!row) return null;
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        data-index={virtualRow.index}
+                        ref={virtualizer.measureElement}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                      >
+                        <table className="w-full table-fixed text-sm">
+                          <PercentColgroup widths={BUDGET_BURN_COL_WIDTHS} />
+                          <tbody>
+                            <PortfolioRow row={row} />
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer — row count + pagination controls */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2 text-xs text-ink-muted">
+                <span>
+                  {t('financial.spendHealth.module.showingRange', {
+                    defaultValue: '{{from}}–{{to}} of {{total}}',
+                    from: filteredRows.length === 0 ? 0 : (pageNum - 1) * pageSize + 1,
+                    to: Math.min(pageNum * pageSize, filteredRows.length),
+                    total: filteredRows.length,
+                  })}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPageNum((p) => Math.max(p - 1, 1))}
+                    disabled={pageNum <= 1}
+                    className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {t('common.previous', { defaultValue: 'Previous' })}
+                  </button>
+                  <span className="tabular-nums">
+                    {t('financial.spendHealth.module.pageOf', {
+                      defaultValue: 'Page {{page}} of {{total}}',
+                      page: pageNum,
+                      total: totalPages,
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPageNum((p) => Math.min(p + 1, totalPages))}
+                    disabled={pageNum >= totalPages}
+                    className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {t('common.next', { defaultValue: 'Next' })}
+                  </button>
+                </div>
+              </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Portfolio consumption chart (moved below the table). ──── */}
           {chartRows.length > 0 && (
             <ChartCard
               title={t('budgetBurn.charts.portfolioConsumption.title')}
@@ -473,14 +816,16 @@ function BudgetBurnPortfolioView() {
                     domain={[0, 'auto']}
                     ticks={[0, 25, 50, 75, 100, 125, 150]}
                   />
-                  {/* E-rev-G-1 — Widen YAxis from 100 → 140 so longer contract
-                      numbers (e.g. "CRN-296-HERO-001") stop getting truncated
-                      on the start edge. */}
+                  {/* Mig 565 — YAxis bumped 140 → 180 so contract numbers
+                      like CRN-296-HERO-001 + interval=0 so every label
+                      renders even on dense lists. */}
                   <YAxis
                     dataKey="contractNumber"
                     type="category"
-                    width={140}
+                    width={180}
                     fontSize={10}
+                    tickMargin={4}
+                    interval={0}
                     tick={{ fill: 'var(--ink-muted)' }}
                   />
                   {/* E-rev-G-2 / fix — Custom tooltip showing AED amounts.
@@ -563,112 +908,6 @@ function BudgetBurnPortfolioView() {
               </ResponsiveContainer>
             </ChartCard>
           )}
-
-          {/* ── Virtualized table ────────────────────────────────── */}
-          {filteredRows.length === 0 ? (
-            <div className="flex h-56 flex-col items-center justify-center gap-3 rounded-lg border border-border bg-card">
-              <TrendingUp className="h-8 w-8 text-ink-subtle" aria-hidden="true" />
-              <p className="text-sm font-medium text-ink">
-                {search || overBudgetOnly || selectedSubsidiary || selectedEmirate
-                  ? t('budgetBurn.portfolio.filters.noResults', { defaultValue: 'No contracts match the current filters.' })
-                  : t('financial.budgetBurn.portfolio.empty.title')}
-              </p>
-              <p className="text-xs text-ink-muted">
-                {!(search || overBudgetOnly || selectedSubsidiary || selectedEmirate) &&
-                  t('financial.budgetBurn.portfolio.empty.body')}
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-border shadow-sm">
-              {/* Column widths shared by head + body tables — see
-                  components/patterns/FixedColumnsTable.tsx for the why. */}
-              <ScrollbarReservedHeader>
-              <table className="w-full table-fixed text-sm">
-                <PercentColgroup widths={BUDGET_BURN_COL_WIDTHS} />
-                <thead className="bg-surface">
-                  <tr>
-                    <th scope="col" className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                      {t('financial.budgetBurn.columns.contract')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                      {t('financial.budgetBurn.columns.counterparty')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
-                      {t('financial.budgetBurn.columns.budget')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
-                      {t('financial.budgetBurn.columns.actual')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
-                      {t('financial.budgetBurn.columns.consumed')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle tabular-nums">
-                      {t('financial.budgetBurn.columns.projectedOverUnder')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                      {t('financial.budgetBurn.columns.status')}
-                    </th>
-                    <th scope="col" className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                      {t('common.action', { defaultValue: 'Action' })}
-                    </th>
-                  </tr>
-                </thead>
-              </table>
-              </ScrollbarReservedHeader>
-
-              {/* Virtualized table body. overflow-y is 'scroll' (not 'auto')
-                  so the scrollbar is always present — keeps body width in
-                  exact lockstep with head width, even when content is short. */}
-              <div
-                ref={parentRef}
-                className="h-[600px] overflow-y-scroll"
-              >
-                <div
-                  style={{
-                    height: virtualizer.getTotalSize(),
-                    width: '100%',
-                    position: 'relative',
-                  }}
-                >
-                  {virtualizer.getVirtualItems().map((virtualRow) => {
-                    const row = filteredRows[virtualRow.index];
-                    if (!row) return null;
-                    return (
-                      <div
-                        key={virtualRow.key}
-                        data-index={virtualRow.index}
-                        ref={virtualizer.measureElement}
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          transform: `translateY(${virtualRow.start}px)`,
-                        }}
-                      >
-                        <table className="w-full table-fixed text-sm">
-                          {/* Same widths as head — see BUDGET_BURN_COL_WIDTHS const above. */}
-                          <PercentColgroup widths={BUDGET_BURN_COL_WIDTHS} />
-                          <tbody>
-                            <PortfolioRow row={row} />
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Row count footer */}
-              <div className="border-t border-border px-4 py-2 text-xs text-ink-muted">
-                {t('budgetBurn.portfolio.filters.showing', {
-                  count: filteredRows.length,
-                  total: sortedRows.length,
-                  defaultValue: '{{count}} of {{total}} contracts',
-                })}
-              </div>
-            </div>
-          )}
         </>
       )}
     </motion.div>
@@ -729,26 +968,16 @@ function PortfolioRow({ row }: { row: PortfolioContractRow }) {
 
   const projectedAed = parseFloat(row.projectedOverUnderAed);
   const projectedClass = projectedAed > 0 ? 'text-terracotta' : 'text-success';
-
-  // E13/E37 follow-up: status badge must reflect THREE states, not two.
-  // The original `varianceFlag` only marks contracts where actual > budget
-  // today, missing the entire demo narrative (HERO-001 has +AED 105.7M
-  // projected overrun but actuals haven't exceeded budget yet). Three states:
-  //   1. Over budget   — actual already > budget today          (terracotta)
-  //   2. Trending over — projected year-end overrun > 0          (warning)
-  //   3. On track      — neither                                 (success)
-  const isOverToday = row.varianceFlag || row.pctConsumed >= 100;
-  const isTrendingOver = !isOverToday && projectedAed > 0;
+  const varianceAed = parseFloat(row.varianceAed || '0');
+  // Variance = actual - budget. Positive (over) is BAD → terracotta.
+  // Negative (under budget) is GOOD → sage success token.
+  const varianceClass =
+    varianceAed > 0 ? 'text-terracotta' : varianceAed < 0 ? 'text-success' : 'text-ink';
 
   return (
-    // E12-table fix: column widths now live on shared <colgroup> in both
-    // head and body tables (see file's main render), so per-td widths are
-    // intentionally OMITTED here — colgroup is authoritative.
     <tr className="border-b border-border transition-colors hover:bg-surface/50 last:border-0">
       <td className="px-4 py-3">
         <p className="font-medium text-ink">{row.contractNumber}</p>
-        {/* E12-bilingual fix: only show AR title when actor language is AR.
-            In EN mode showing both is noise and clutters the row. */}
         <p className="text-xs text-ink-muted">{isAr && row.titleAr ? row.titleAr : row.titleEn}</p>
       </td>
       <td className="px-4 py-3 text-sm text-ink-muted">
@@ -760,46 +989,21 @@ function PortfolioRow({ row }: { row: PortfolioContractRow }) {
       <td className="px-4 py-3 text-right font-mono tabular-nums text-sm text-ink">
         {formatAed(row.actualAed)}
       </td>
+      {/* Mig 566 — % Consumed now precedes Variance (per user request).
+          Plain number only — no burn bar / percent suffix. */}
       <td className="px-4 py-3 text-right font-mono tabular-nums text-sm">
         <span className={row.pctConsumed >= 100 ? 'text-terracotta' : 'text-ink'}>
           {row.pctConsumed.toFixed(1)}%
         </span>
       </td>
+      {/* Mig 567 — Variance shows the bare AED magnitude (no leading
+          sign — colour already conveys direction: terracotta = over,
+          sage = under). */}
+      <td className={`px-4 py-3 text-right font-mono tabular-nums text-sm ${varianceClass}`}>
+        {formatAed(String(Math.abs(varianceAed)))}
+      </td>
       <td className={`px-4 py-3 text-right font-mono tabular-nums text-sm ${projectedClass}`}>
         {projectedAed > 0 ? '+' : ''}{formatAed(row.projectedOverUnderAed)}
-      </td>
-      <td className="px-4 py-3">
-        {/* E-rev-F-4 — Status pills now use the solid-tint + dark-ink-text
-            convention from Impact Watch SEVERITY_TONE / Risk Cases badges
-            (sage / amber / terracotta tokens). Drops the borders + translucent
-            backgrounds for a cleaner, design-system-consistent look. */}
-        {isOverToday ? (
-          <span className="inline-flex items-center rounded-full bg-terracotta-tint px-2 py-0.5 text-[10px] font-medium text-terracotta-ink">
-            {t('financial.budgetBurn.varianceFlag.over')}
-          </span>
-        ) : isTrendingOver ? (
-          <span
-            className="inline-flex items-center rounded-full bg-amber-tint/60 px-2 py-0.5 text-[10px] font-medium text-amber-ink"
-            title={t('financial.budgetBurn.varianceFlag.trendingOverTitle', {
-              defaultValue:
-                'Within budget today but projected year-end overrun > 0 based on current run-rate.',
-            })}
-          >
-            {t('financial.budgetBurn.varianceFlag.trendingOver', { defaultValue: 'Trending over' })}
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full bg-sage-tint px-2 py-0.5 text-[10px] font-medium text-sage-ink">
-            {t('financial.budgetBurn.varianceFlag.onTrack')}
-          </span>
-        )}
-        {/* Burn bar */}
-        <div className="mt-1.5 h-1 w-24 overflow-hidden rounded-full bg-surface">
-          <div
-            className={`h-full rounded-full transition-all ${row.pctConsumed >= 100 ? 'bg-terracotta' : row.pctConsumed >= 80 ? 'bg-warning' : 'bg-success'}`}
-            style={{ width: `${Math.min(100, row.pctConsumed)}%` }}
-            role="presentation"
-          />
-        </div>
       </td>
       <td className="px-4 py-3 text-right">
         <Link
@@ -815,5 +1019,85 @@ function PortfolioRow({ row }: { row: PortfolioContractRow }) {
         </Link>
       </td>
     </tr>
+  );
+}
+
+/**
+ * FilterSelect — labelled select for the filter row above the table
+ * (mig 565). Same shape as the Contracts list's FilterSelect so the
+ * two surfaces stay visually consistent.
+ */
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: ReadonlyArray<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
+        {options.map((o) => (
+          <option key={o.value || '_all'} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * SortableTh — column header that toggles sort field/direction on click.
+ * Used by the Contract Spend Health portfolio table (mig 565).
+ */
+function SortableTh({
+  children,
+  align,
+  active,
+  dir,
+  onClick,
+}: {
+  children: ReactNode;
+  align: 'left' | 'right';
+  active: boolean;
+  dir: 'asc' | 'desc';
+  onClick: () => void;
+}) {
+  // Mig 566 — inactive headers show a subtle ⇅ so first-time users see
+  // the column is sortable. Active header shows the direction arrow.
+  return (
+    <th
+      scope="col"
+      className={`px-4 py-3 font-mono text-[10px] uppercase tracking-wider ${active ? 'text-ink' : 'text-ink-subtle'} ${align === 'right' ? 'text-right' : 'text-left'}`}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex w-full items-center gap-1 hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary ${align === 'right' ? 'justify-end' : 'justify-start'}`}
+      >
+        {children}
+        {active ? (
+          <span aria-hidden="true" className="text-ink">
+            {dir === 'asc' ? '▲' : '▼'}
+          </span>
+        ) : (
+          <span aria-hidden="true" className="text-ink-subtle/60 opacity-60">
+            ⇅
+          </span>
+        )}
+      </button>
+    </th>
   );
 }

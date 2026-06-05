@@ -96,7 +96,7 @@ import { documentIngestionService } from "@/services/api/document-ingestion.serv
 import { ContractRiskTab } from "./ContractRiskTab";
 import { useContractVersions } from "@/features/contracts/hooks/useContracts";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
-import { useMyPendingApprovals } from "@/features/approvals/hooks/useApprovals";
+import { useApprovalChainByContract } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
 import { approvalService } from "@/services/api/approval.service";
 import { signatureService } from "@/services/api/signature.service";
@@ -202,18 +202,37 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
     retry: false,
   });
 
-  // R1 audit 8.1.4: surface a top-level Approve CTA on contract detail when
-  // (a) the user holds approval.act and (b) they have a pending step on
-  // this contract. Tapping it opens the existing ApprovalDecisionDialog
-  // pre-bound to that step. Lovable embeds Approve in the header so the
-  // approver can act without round-tripping to /approvals.
-  const myPending = useMyPendingApprovals({ page: 1, limit: 100 }, { enabled: canApprove });
-  const myPendingStep = useMemo(
-    () => myPending.data?.data?.find((row) => row.contractId === contractId) ?? null,
-    [myPending.data?.data, contractId],
-  );
-  const [approveOpen, setApproveOpen] = useState(false);
+  // 2026-06-04 — derive my pending step from THIS contract's approval chain
+  // instead of the whole my-pending queue. The previous implementation fired
+  // GET /approvals/my-pending?limit=100 then filtered to this contract, which
+  // forced a slow, unrelated round-trip and made the action button take ~30s
+  // to appear on the detail page. The chain endpoint is already needed for
+  // the chain card below and scopes the data to this contract only.
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
+  const currentRoleName = useAuthStore((s) => s.user?.role?.name ?? null);
+  // canApprove gate is FE-only; even if the chain loads for a non-approver
+  // the derivation below returns null (no role match) and the trigger button
+  // stays hidden — so we don't need to disable the query separately.
+  const chainQuery = useApprovalChainByContract(canApprove ? contractId : null);
+  const myPendingStep = useMemo(() => {
+    const steps = chainQuery.data?.steps ?? [];
+    const match = steps.find((s) => {
+      if (s.status !== "pending") return false;
+      const explicit =
+        (s.approverUser?.id != null && s.approverUser.id === currentUserId) ||
+        (s.delegatedTo?.id != null && s.delegatedTo.id === currentUserId) ||
+        (s.reassignedTo?.id != null && s.reassignedTo.id === currentUserId);
+      const roleFallback =
+        s.approverUser == null &&
+        s.delegatedTo == null &&
+        s.reassignedTo == null &&
+        !!currentRoleName &&
+        s.approverRole === currentRoleName;
+      return explicit || roleFallback;
+    });
+    return match ? { stepId: match.id } : null;
+  }, [chainQuery.data?.steps, currentUserId, currentRoleName]);
+  const [approveOpen, setApproveOpen] = useState(false);
 
   // R5 audit — Watch toggle. Local state for UX; we don't have a GET-watch
   // endpoint so we start unset and let the user toggle. The watch tab on
@@ -373,7 +392,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               )}
             </Button>
           )}
-          {/* R1 audit 8.1.4: approver-perspective top-level Approve CTA. */}
+          {/* 2026-06-04 — single "Action" CTA. The decision (approve / reject /
+              request resubmission / delegate) is chosen INSIDE the dialog;
+              the trigger does not pre-select. */}
           {myPendingStep && contract.status === "in_approval" && (
             <Button
               type="button"
@@ -382,7 +403,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               className="hidden sm:inline-flex"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {t("contracts.detail.actions.approve", { defaultValue: "Approve" })}
+              {t("contracts.detail.actions.action", { defaultValue: "Action" })}
             </Button>
           )}
           {/* R-RC1 — recipient-perspective top-level Sign CTA. Visible when
@@ -920,14 +941,11 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         />
       )}
 
-      {/* R1 audit 8.1.4 — top-level Approve dialog (approver perspective).
-          initialKind="approve" pre-selects the action so the user lands
-          directly on the approve confirmation, matching Lovable's 1-click
-          flow. */}
+      {/* 2026-06-04 — Action dialog. No initialKind so the approver explicitly
+          picks approve / reject / request_resubmission / delegate inside. */}
       {approveOpen && myPendingStep && (
         <ApprovalDecisionDialog
           stepId={myPendingStep.stepId}
-          initialKind="approve"
           currentUserId={currentUserId}
           open={approveOpen}
           onClose={() => setApproveOpen(false)}

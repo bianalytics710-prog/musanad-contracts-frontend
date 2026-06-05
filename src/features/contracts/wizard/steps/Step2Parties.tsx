@@ -47,6 +47,26 @@ const EMIRATE_OPTIONS = [
   "Ras Al Khaimah",
   "Fujairah",
 ] as const;
+
+// 2026-06-04 — placeholder-specific enum dropdowns. When a template
+// placeholder key matches one of these, Step 2 renders a <select> with the
+// listed values instead of a free-text input. Values are stable strings the
+// BE accepts as-is (no canonicalisation needed at submit).
+const ARBITRATION_SEAT_OPTIONS = [
+  "DIFC",
+  "ADGM",
+  "DIAC (Onshore Dubai)",
+  "Onshore UAE",
+  "London (LCIA)",
+  "Paris (ICC)",
+  "Singapore (SIAC)",
+] as const;
+
+const PLACEHOLDER_DROPDOWNS: Record<string, readonly string[]> = {
+  emirate: EMIRATE_OPTIONS,
+  governing_emirate: EMIRATE_OPTIONS,
+  arbitration_seat: ARBITRATION_SEAT_OPTIONS,
+};
 import {
   PAYMENT_SCHEDULE_RECURRENCE_VALUES,
   PAYMENT_SCHEDULE_STATUS_VALUES,
@@ -303,6 +323,7 @@ export function Step2Parties({
                 const v = placeholderValues[ph.key] ?? "";
                 const empty = ph.required && v.trim() === "";
                 const label = (isAr && ph.labelAr) || ph.labelEn;
+                const dropdownOptions = PLACEHOLDER_DROPDOWNS[ph.key];
                 const inputType =
                   ph.kind === "date"
                     ? "date"
@@ -322,16 +343,41 @@ export function Step2Parties({
                         </span>
                       )}
                     </label>
-                    <Input
-                      id={`ph-${ph.key}`}
-                      type={inputType}
-                      value={v}
-                      onChange={(e) => handlePlaceholderChange(ph.key, e.target.value)}
-                      disabled={disabled}
-                      aria-invalid={empty}
-                      autoComplete="off"
-                      className={cn("mt-1", empty && "border-destructive/40")}
-                    />
+                    {dropdownOptions ? (
+                      <select
+                        id={`ph-${ph.key}`}
+                        value={v}
+                        onChange={(e) => handlePlaceholderChange(ph.key, e.target.value)}
+                        disabled={disabled}
+                        aria-invalid={empty}
+                        className={cn(
+                          "mt-1 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+                          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
+                          empty && "border-destructive/40",
+                        )}
+                      >
+                        <option value="">
+                          {t("contracts.fields.notSet", { defaultValue: "Select…" })}
+                        </option>
+                        {dropdownOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input
+                        id={`ph-${ph.key}`}
+                        type={inputType}
+                        value={v}
+                        onChange={(e) => handlePlaceholderChange(ph.key, e.target.value)}
+                        disabled={disabled}
+                        aria-invalid={empty}
+                        autoComplete="off"
+                        className={cn("mt-1", empty && "border-destructive/40")}
+                      />
+                    )}
                     {empty && (
                       <p className="mt-1 text-[11px] text-destructive">
                         {t("contracts.compose.steps.step2.placeholderRequired", {

@@ -341,11 +341,36 @@ export interface PortfolioSummary {
   overBudgetCount?: number;
   totalProjectedOverrunAed: string;
   trendingOverContractCount?: number;
+  // ── mig 563 additions ──────────────────────────────────────
+  /** Active contract count platform-wide (for "X of Y" rollup line). */
+  contractsTotalCount?: number;
+  /** = contractsTotalCount - contractsWithBudget */
+  contractsWithoutBudgetCount?: number;
+  /** YTD as-of month (YYYY-MM) — what "currently" means in the rollup */
+  asOfPeriod?: string;
+  /** Current fiscal year resolved server-side */
+  fiscalYear?: number;
+}
+
+/** Rollup-only top 3 projected overruns (mig 563 — for "Contract Spend Health"
+ *  section since with the YTD predicate topOverBudget is empty mid-FY). */
+export interface BudgetBurnTopProjectedRow {
+  contractId: number;
+  contractNumber: string;
+  titleEn: string;
+  titleAr: string | null;
+  budgetAed: string;
+  actualAed: string;
+  variancePct: number;
+  projectedOverUnderAed: string;
+  varianceFlag: boolean;
 }
 
 export interface BudgetBurnPortfolio {
   summary: PortfolioSummary;
   topOverBudget: PortfolioContractRow[];
+  /** Mig 563 — top 3 contracts trending toward FY-end overrun. */
+  topProjectedOverrun3?: BudgetBurnTopProjectedRow[];
   data: PortfolioContractRow[];
   pagination: PaginationMeta;
 }

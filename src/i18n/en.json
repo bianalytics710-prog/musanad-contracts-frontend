@@ -672,7 +672,7 @@
     "reports": "Reports",
     "adminReportTemplates": "Report templates",
     "complianceRegulatoryCASCADE": "Regulatory Cascade",
-    "financialBudgetBurn": "Budget Burn",
+    "financialBudgetBurn": "Contract Spend Health",
     "financialTradeMargin": "Trade Margin",
     "adminMigration": "Migration"
   },
@@ -983,6 +983,20 @@
       "english": "English law",
       "other": "Other"
     },
+    "filters": {
+      "risk": "Risk",
+      "riskOption": {
+        "high": "High (≥70)",
+        "medium": "Medium (40–69)",
+        "low": "Low (<40)",
+        "flagged": "Any flagged"
+      },
+      "sortOption": {
+        "risk": "Risk score"
+      }
+    },
+    "colRiskBadge": "Risk {{score}}",
+    "colRiskBadgeTooltip": "AI risk score",
     "relationshipTypeOptions": {
       "amendment": "Amendment",
       "renewal": "Renewal",
@@ -6418,10 +6432,10 @@
       }
     },
     "executive": {
-      "title": "AI anomalies",
-      "regenerate": "Regenerate",
-      "empty": "No anomalies detected.",
-      "notRunYet": "Anomaly detection has not been run yet.",
+      "title": "AI Contract Intelligence",
+      "regenerate": "Refresh",
+      "empty": "No insights detected.",
+      "notRunYet": "Contract intelligence has not been run yet.",
       "generatedAt": "Generated"
     },
     "regulatory": {
@@ -7650,6 +7664,18 @@
     "executive": {
       "title": "Enterprise overview",
       "subtitle": "Enterprise-wide view of contract value and risk.",
+      "sections": {
+        "clm": {
+          "title": "Contract Lifecycle",
+          "subtitle": "Portfolio health, throughput, partners and templates.",
+          "ariaLabel": "Contract lifecycle insights"
+        },
+        "ecip": {
+          "title": "Contract Intelligence",
+          "subtitle": "Risk signals, AI insights and financial intelligence.",
+          "ariaLabel": "Contract intelligence insights"
+        }
+      },
       "kpiGroupLabel": "Executive key performance indicators",
       "kpis": {
         "totalActiveValueAed": "Total active value",
@@ -7659,6 +7685,8 @@
         "renewals90d": "Renewals (90d)",
         "renewalValue90d": "Renewal value (90d)",
         "openRegulatoryImpactsCritical": "Critical regulatory impacts",
+        "openCriticalImpacts": "Critical impact",
+        "openCriticalImpactsAria": "Toggle {{count}} critical impact(s)",
         "aiCostUsdWindow": "AI cost (USD)",
         "aiCostHelper": "Capped at the last 90 days.",
         "aiCostDenied": "You don't have the ai.observability.read permission to view AI costs.",
@@ -7667,18 +7695,88 @@
         "deltaVsPrev": "{{pct}} vs prev",
         "deltaCountVsPrev": "{{n}} vs prev"
       },
+      "criticalImpactsFrame": {
+        "title": "Critical impact",
+        "subtitle": "Live critical signals + open critical risk cases (last 7 days)",
+        "regionLabel": "Critical impact details",
+        "empty": "No critical impacts in the last 7 days.",
+        "contractCount": "{{n}} contract(s) affected",
+        "occurredAt": "occurred {{when}}",
+        "verifySource": "Verify source",
+        "expandRowAria": "Show affected contracts",
+        "collapseRowAria": "Hide affected contracts",
+        "colContractNumber": "Contract #",
+        "colTitle": "Title",
+        "colCounterparty": "Counterparty",
+        "colValue": "Value"
+      },
       "expiryCliffs": {
         "title": "Expiry cliffs",
         "description": "Contracts expiring in the next 30 / 60 / 90 days.",
         "next30d": "Next 30 days",
         "next60d": "Next 60 days",
-        "next90d": "Next 90 days"
+        "next90d": "Next 90 days",
+        "clickHint": "Click to act",
+        "frame": {
+          "regionLabel": "Expiring contracts — {{w}} days",
+          "title": "Contracts expiring within {{w}} days",
+          "closeAria": "Close expiry frame",
+          "searchPlaceholder": "Search contract, counterparty, drafter…",
+          "filter": {
+            "all": "All",
+            "open": "Not escalated",
+            "escalated": "Escalated"
+          },
+          "selectAll": "Select all rows",
+          "selectRow": "Select {{n}}",
+          "col": {
+            "contract": "Contract",
+            "counterparty": "Counterparty",
+            "value": "Value",
+            "drafter": "Drafter",
+            "endDate": "Ends",
+            "status": "Status"
+          },
+          "filterLabel": {
+            "escalation": "Escalation",
+            "drafter": "Drafter",
+            "counterparty": "Counterparty"
+          },
+          "daysSuffix": "in {{d}}d",
+          "noDrafter": "— No drafter",
+          "badge": {
+            "escalated": "Escalated",
+            "noTarget": "No target"
+          },
+          "tip": {
+            "noDrafter": "No drafter assigned — cannot send alert.",
+            "alreadyEscalated": "Last escalated {{when}} by {{who}}. Send again?"
+          },
+          "sendAgain": "Send again?",
+          "cancelResend": "Cancel",
+          "selectionSummary": "{{n}} of {{m}} selected · {{d}} unique drafter(s)",
+          "sendAlerts": "Send renewal alerts ({{d}})",
+          "loadFailed": "Could not load expiring contracts.",
+          "empty": "No contracts expiring in this window.",
+          "emptyFiltered": "No contracts match your filter.",
+          "confirm": {
+            "title": "Send renewal alerts",
+            "description": "{{n}} contract(s) will trigger in-app alerts to {{d}} drafter(s). You can add an optional note.",
+            "noteLabel": "Note (optional)",
+            "notePlaceholder": "e.g. Please prepare renewal terms by Friday.",
+            "send": "Send alerts"
+          },
+          "toast": {
+            "sent": "Sent {{sent}} renewal alert(s) to drafters.",
+            "sentWithSkipped": "Sent {{sent}} renewal alert(s) · skipped {{skipped}} (no drafter or admin-drafted)"
+          }
+        }
       },
       "contractsByStatus": {
         "title": "Contracts by status"
       },
       "valueDistribution": {
-        "title": "Value distribution",
+        "title": "Contract Value Distribution",
         "description": "Contract count by AED bucket.",
         "bucket": {
           "<100k": "Below 100k",
@@ -7688,17 +7786,44 @@
         }
       },
       "topCounterparties": {
-        "title": "Top counterparties",
+        "title": "Top Business Partners",
         "description": "By total active contract value (top 5).",
-        "counterparty": "Counterparty",
+        "counterparty": "Partner",
         "totalValue": "Total value",
         "contractCount": "Contracts",
+        "share": "Share",
         "idLabel": "ID #{{id}}",
-        "namePending": "Name pending"
+        "namePending": "Name pending",
+        "expandAria": "Show contracts",
+        "collapseAria": "Hide contracts",
+        "drillLoadFailed": "Could not load contracts.",
+        "drillEmpty": "No active contracts for this partner.",
+        "drill": {
+          "col": {
+            "contract": "Contract #",
+            "title": "Title",
+            "counterparty": "Counterparty",
+            "value": "Value"
+          }
+        }
       },
       "trends": {
-        "valueOverTimeTitle": "Value over time",
-        "contractsCreatedTitle": "Contracts created"
+        "valueOverTimeTitle": "Contract Value over time",
+        "contractsCreatedTitle": "Contracts created over time"
+      },
+      "lists": {
+        "highRisk": {
+          "title": "High-risk contracts",
+          "viewAll": "View all flagged contracts →",
+          "riskBadge": "Risk {{score}}",
+          "col": {
+            "contract": "Contract",
+            "counterparty": "Counterparty",
+            "riskType": "Risk type",
+            "valueAed": "Value (AED)",
+            "riskScore": "Risk score"
+          }
+        }
       },
       "errors": {
         "loadFailed": "Could not load the executive dashboard."
@@ -8049,8 +8174,8 @@
       "viewContract": "View"
     },
     "clausesTriggered": {
-      "title": "Clauses triggered",
-      "sectionAriaLabel": "Clauses triggered section",
+      "title": "Signal-Triggered Clauses",
+      "sectionAriaLabel": "Signal-triggered clauses section",
       "windowGroupAriaLabel": "Time window selector",
       "window": {
         "last7d": "Last 7d",
@@ -8448,10 +8573,25 @@
       }
     }
   },
+  "riskTypes": {
+    "force_majeure": "Force Majeure Event",
+    "sanctions": "Sanctions Exposure",
+    "sla_breach": "SLA / Performance Breach",
+    "approval_workflow": "Approval / Workflow Risk",
+    "budget_overrun": "Budget Overrun",
+    "counterparty_concentration": "Counterparty Concentration",
+    "vendor_supplier": "Vendor / Supplier Risk",
+    "icv_local_content": "ICV / Local Content Gap",
+    "esg_sustainability": "ESG / Sustainability Risk",
+    "commodity_price": "Commodity / Price Risk",
+    "regulatory_change": "Regulatory Change",
+    "geopolitical": "Geopolitical Risk",
+    "other": "Other"
+  },
   "riskCases": {
     "list": {
       "title": "Risk Cases",
-      "subtitle": "Active risk-management workflow for correlation alerts, obligations and SLA breaches.",
+      "subtitle": "Active risk-management workflow for auto-detected alerts, obligations and SLA breaches.",
       "empty": "No risk cases match your filters",
       "unassigned": "Unassigned",
       "drafterScopeCaption": "Read-only view — these are department-wide risk cases; none are assigned to you directly."
@@ -8519,11 +8659,11 @@
       "critical": "Critical"
     },
     "caseTypes": {
-      "correlation_alert": "Correlation alert",
+      "correlation_alert": "Auto-detected",
       "obligation_due": "Obligation due",
       "sla_breach": "SLA breach",
-      "system": "System",
-      "manual": "Manual"
+      "system": "System event",
+      "manual": "Analyst-created"
     },
     "outcomes": {
       "mitigated": "Mitigated",
@@ -8734,6 +8874,56 @@
     }
   },
   "financial": {
+    "spendHealth": {
+      "sectionLabel": "Contract spend health",
+      "title": "Contract Spend Health",
+      "viewAll": "View all",
+      "viewAllAriaLabel": "Open Contract Spend Health module",
+      "trackedWithBudget": "Tracked with budget",
+      "xOfYContracts": "{{x}} of {{y}} contracts",
+      "xOfYActiveContracts": "{{x}} of {{y}} active contracts",
+      "scopeNote": "Line-item budgets are set up on these contracts only.",
+      "withoutBudget": "Without budget set",
+      "withoutBudgetNote": "Active contracts with no line-item budget yet.",
+      "currentlyOver": "Currently over budget (YTD)",
+      "projectedToOverrun": "Projected to overrun by FY end",
+      "projectedSummary": "{{n}} contracts · {{aed}}",
+      "allWithinTrack": "All within track",
+      "topProjected": "Top projected overruns",
+      "projectedAbbrev": "projected over",
+      "viewContractAriaLabel": "View detail for {{number}}",
+      "allHealthy": "All {{count}} tracked contracts are within budget and trending on track.",
+      "module": {
+        "title": "Contract Spend Health",
+        "subtitle": "Year-to-date budget vs actual across contracts with line-item budgets.",
+        "scopeLabel": "Spend health — scope",
+        "forwardLabel": "Spend health — forward",
+        "trackedWithBudget": "Tracked with budget",
+        "xOfYContracts": "{{x}} of {{y}}",
+        "withoutBudgetHelper": "{{n}} contracts have no budget set",
+        "totalFyBudget": "Total FY budget",
+        "actualYtd": "Actual YTD",
+        "varianceYtd": "Variance YTD",
+        "varianceHelper": "Negative = under budget",
+        "currentlyOver": "Currently over budget (YTD)",
+        "projectedToOverrun": "Projected to overrun by FY end",
+        "projectedSummary": "{{n}} contracts · {{aed}}",
+        "allWithinTrack": "All within track",
+        "columns": {
+          "variance": "Variance"
+        },
+        "filters": {
+          "varianceBucket": "Variance",
+          "currentlyOver": "Currently over budget",
+          "trendingOver": "Trending to overrun",
+          "onTrack": "On track",
+          "counterparty": "Counterparty",
+          "pageSize": "Rows per page"
+        },
+        "showingRange": "{{from}}–{{to}} of {{total}}",
+        "pageOf": "Page {{page}} of {{total}}"
+      }
+    },
     "budgetBurn": {
       "portfolio": {
         "title": "Budget Burn — Portfolio",

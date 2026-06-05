@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { contractsService } from "@/services/api/contracts.service";
 import { paymentScheduleService } from "@/services/api/payment-schedule.service";
 import { partiesService } from "@/services/api/m_parity.service";
+import { approvalService } from "@/services/api/approval.service";
 import { ApiError } from "@/lib/api-client";
 import { translateApiError } from "@/lib/translate-api-error";
 import { contractsKeys } from "@/features/contracts/hooks/useContracts";
@@ -50,7 +51,12 @@ import type {
 } from "@/types/entities/payment-schedule.types";
 
 /** Internal — which step is currently in flight. */
-export type ComposeSubmitPhase = "idle" | "creating-contract" | "saving-schedule" | "done";
+export type ComposeSubmitPhase =
+  | "idle"
+  | "creating-contract"
+  | "saving-schedule"
+  | "sending-for-approval"
+  | "done";
 
 /** Result returned by useComposeSubmit().submit(). */
 export interface ComposeSubmitResult {
@@ -314,7 +320,10 @@ export function useComposeSubmit(): UseComposeSubmitReturn {
   // retry button must not trigger parallel PUT /payment-schedules either.
   const submittingRef = useRef(false);
 
-  const isSubmitting = phase === "creating-contract" || phase === "saving-schedule";
+  const isSubmitting =
+    phase === "creating-contract" ||
+    phase === "saving-schedule" ||
+    phase === "sending-for-approval";
 
   /**
    * Step 2 only — wrapped so submit() and retryStep2() share the call site.
@@ -344,10 +353,37 @@ export function useComposeSubmit(): UseComposeSubmitReturn {
             exact: false,
           });
         }
+        // 2026-06-04 — actually fire submit-for-approval. The wizard button is
+        // labelled "Send for approval" but used to only create a draft row, so
+        // contracts sat in `status='draft'` with no approval_chain. We now hit
+        // POST /contracts/:id/submit-for-approval (S7) which routes the
+        // contract through the approval matrix and creates the chain + steps.
+        // Failure here is NON-fatal — the contract still exists as a draft; the
+        // user can resubmit manually from the detail page.
+        setPhase("sending-for-approval");
+        let approvalRouted = false;
+        try {
+          await approvalService.submitForApproval(contractId);
+          approvalRouted = true;
+        } catch (approvalErr) {
+          const apiErr = approvalErr instanceof ApiError ? approvalErr : (approvalErr as Error);
+          toast.warning(
+            translateApiError(apiErr, t, "contracts.compose.toasts.approvalRoutingFailed"),
+          );
+        }
         setPhase("done");
         // Success — clear draft + show toast + navigate.
         clearComposeDraft(userId, state.composeDraftId);
-        toast.success(t("contracts.compose.toasts.submitSuccess", { number: contractNumber }));
+        toast.success(
+          t(
+            approvalRouted
+              ? "contracts.compose.toasts.submitSuccessRouted"
+              : "contracts.compose.toasts.submitSuccess",
+            { number: contractNumber, defaultValue: approvalRouted
+              ? `${contractNumber} sent for approval.`
+              : `${contractNumber} saved as draft.` },
+          ),
+        );
         // Bust contract list so the new contract appears.
         queryClient.invalidateQueries({ queryKey: contractsKeys.lists() });
         // Defer navigation to next microtask so the toast registers in the
