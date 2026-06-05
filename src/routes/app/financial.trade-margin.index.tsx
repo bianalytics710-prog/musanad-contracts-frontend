@@ -34,6 +34,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   RefreshCcw,
+  ChevronDown,
   ChevronRight,
   TrendingUp,
   TrendingDown,
@@ -822,6 +823,16 @@ function WhatIfOspPanel({
     return r ? parseFloat(r.latestBenchmarkUsdPerBbl ?? '0') : 103;
   })();
   const [whatIfOsp, setWhatIfOsp] = useState<number>(todaysOsp);
+  // E-rev-P — Click an affected row to expand its calculation breakdown.
+  // Set of position ids whose row is currently expanded.
+  const [expandedRowIds, setExpandedRowIds] = useState<Set<number>>(new Set());
+  const toggleExpand = (id: number) =>
+    setExpandedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   // R-IL — slider bounds come from the catalog row (typical_low / typical_high).
   // Fallback to 80–130 when catalog unavailable (back-compat).
   const sliderMin = benchmark?.typicalLow != null ? parseFloat(benchmark.typicalLow) : 80;
@@ -991,7 +1002,7 @@ function WhatIfOspPanel({
         </div>
       </div>
 
-      {/* Affected rows with inline escalate */}
+      {/* Affected rows — click row to expand the calculation breakdown. */}
       {affected.length > 0 ? (
         <div>
           <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
@@ -1000,42 +1011,104 @@ function WhatIfOspPanel({
             })}
           </p>
           <ul className="space-y-2">
-            {affected.map((e) => (
-              <li
-                key={e.row.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface p-2 text-xs"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-mono text-ink">{e.row.positionRef}</p>
-                  <p className="text-[11px] text-ink-muted">
-                    {e.row.counterparty?.nameEn} ·{' '}
-                    {humanizeLabel(e.status)} ·{' '}
-                    {e.hasClause
-                      ? t('financial.tradeMargin.whatIf.clausePresent', {
-                          defaultValue: 'Has price-protection clause',
-                        })
-                      : t('financial.tradeMargin.whatIf.clauseMissing', {
-                          defaultValue: 'No price-protection clause',
-                        })}
-                  </p>
-                </div>
-                <p className="font-mono text-terracotta">
-                  {formatAedCompact(String(Math.round(e.compressionAed)))}
-                </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onEscalate(e.row)}
-                  className="h-8"
+            {affected.map((e) => {
+              const expanded = expandedRowIds.has(e.row.id);
+              const vol = parseFloat(e.row.volumeBbl ?? '0');
+              const floorNum = e.row.contractedFloorUsdPerBbl
+                ? parseFloat(e.row.contractedFloorUsdPerBbl) : null;
+              const ceilingNum = e.row.contractedCeilingUsdPerBbl
+                ? parseFloat(e.row.contractedCeilingUsdPerBbl) : null;
+              const overshootUsd = (() => {
+                if (e.status === 'above_ceiling' && ceilingNum != null)
+                  return whatIfOsp - ceilingNum;
+                if (e.status === 'below_floor' && floorNum != null)
+                  return floorNum - whatIfOsp;
+                if (e.status === 'no_band')
+                  return Math.abs(whatIfOsp - todaysOsp);
+                return 0;
+              })();
+              const usdTotal = overshootUsd * vol;
+              const aedTotal = usdTotal * usdAed;
+              const rowAriaId = `whatif-explain-${e.row.id}`;
+              return (
+                <li
+                  key={e.row.id}
+                  className="rounded-md border border-border bg-surface text-xs"
                 >
-                  <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
-                  {t('financial.tradeMargin.actions.escalate', {
-                    defaultValue: 'Escalate',
-                  })}
-                </Button>
-              </li>
-            ))}
+                  {/* Row is a clickable container (not a <button> — the
+                      Escalate <button> sits inside, and nested buttons
+                      are invalid HTML). role + keyboard handlers keep
+                      it accessible. */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleExpand(e.row.id)}
+                    onKeyDown={(ev) => {
+                      if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        toggleExpand(e.row.id);
+                      }
+                    }}
+                    aria-expanded={expanded}
+                    aria-controls={rowAriaId}
+                    className="flex flex-wrap items-center justify-between gap-2 p-2 cursor-pointer hover:bg-surface/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 text-ink-subtle transition-transform duration-150 ${expanded ? 'rotate-0' : '-rotate-90'}`}
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-ink">{e.row.positionRef}</p>
+                      <p className="text-[11px] text-ink-muted">
+                        {e.row.counterparty?.nameEn} ·{' '}
+                        {humanizeLabel(e.status)} ·{' '}
+                        {e.hasClause
+                          ? t('financial.tradeMargin.whatIf.clausePresent', {
+                              defaultValue: 'Has price-protection clause',
+                            })
+                          : t('financial.tradeMargin.whatIf.clauseMissing', {
+                              defaultValue: 'No price-protection clause',
+                            })}
+                      </p>
+                    </div>
+                    <p className="font-mono text-terracotta">
+                      {formatAedCompact(String(Math.round(e.compressionAed)))}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        onEscalate(e.row);
+                      }}
+                      className="h-8"
+                    >
+                      <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
+                      {t('financial.tradeMargin.actions.escalate', {
+                        defaultValue: 'Escalate',
+                      })}
+                    </Button>
+                  </div>
+                  {expanded && (
+                    <WhatIfBreakdown
+                      id={rowAriaId}
+                      status={e.status as 'above_ceiling' | 'below_floor' | 'no_band'}
+                      hasClause={e.hasClause}
+                      ceilingUsd={ceilingNum}
+                      floorUsd={floorNum}
+                      whatIfOsp={whatIfOsp}
+                      todaysOsp={todaysOsp}
+                      volumeBbl={vol}
+                      usdAed={usdAed}
+                      overshootUsd={overshootUsd}
+                      usdTotal={usdTotal}
+                      aedTotal={aedTotal}
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : (
@@ -1056,6 +1129,134 @@ function WhatIfOspPanel({
 
       {/* Hidden helper to keep imports referenced. */}
       <span className="sr-only">{withClause.length}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-P — WhatIfBreakdown
+// Inline calculation panel rendered under an expanded affected-position
+// row. Spells out the math so the AED number isn't a black box.
+// ─────────────────────────────────────────────────────────────
+function WhatIfBreakdown({
+  id,
+  status,
+  hasClause,
+  ceilingUsd,
+  floorUsd,
+  whatIfOsp,
+  todaysOsp,
+  volumeBbl,
+  usdAed,
+  overshootUsd,
+  usdTotal,
+  aedTotal,
+}: {
+  id: string;
+  status: 'above_ceiling' | 'below_floor' | 'no_band';
+  hasClause: boolean;
+  ceilingUsd: number | null;
+  floorUsd: number | null;
+  whatIfOsp: number;
+  todaysOsp: number;
+  volumeBbl: number;
+  usdAed: number;
+  overshootUsd: number;
+  usdTotal: number;
+  aedTotal: number;
+}) {
+  const { t } = useTranslation();
+  const fmtAed = (n: number) =>
+    new Intl.NumberFormat('en-AE', {
+      style: 'currency',
+      currency: 'AED',
+      maximumFractionDigits: 0,
+    }).format(n);
+  const fmtUsd = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(n);
+  const fmtBbl = (n: number) => new Intl.NumberFormat('en-US').format(n);
+
+  // Headline + per-line labels vary by which side of the band was breached.
+  const formulaLabel =
+    status === 'above_ceiling'
+      ? t('financial.tradeMargin.whatIf.formulaAboveCeiling', {
+          defaultValue: '(Benchmark OSP − Ceiling) × Volume × USD→AED',
+        })
+      : status === 'below_floor'
+      ? t('financial.tradeMargin.whatIf.formulaBelowFloor', {
+          defaultValue: '(Floor − Benchmark OSP) × Volume × USD→AED',
+        })
+      : t('financial.tradeMargin.whatIf.formulaNoBand', {
+          defaultValue: '|Benchmark move from today| × Volume × USD→AED',
+        });
+
+  const overshootLine =
+    status === 'above_ceiling' && ceilingUsd != null
+      ? `($${whatIfOsp.toFixed(2)} − $${ceilingUsd.toFixed(2)}) = $${overshootUsd.toFixed(2)}/bbl`
+      : status === 'below_floor' && floorUsd != null
+      ? `($${floorUsd.toFixed(2)} − $${whatIfOsp.toFixed(2)}) = $${overshootUsd.toFixed(2)}/bbl`
+      : `|$${whatIfOsp.toFixed(2)} − $${todaysOsp.toFixed(2)}| = $${overshootUsd.toFixed(2)}/bbl`;
+
+  const explainer = (() => {
+    if (status === 'above_ceiling') {
+      return hasClause
+        ? t('financial.tradeMargin.whatIf.explainAboveCeilingClause', {
+            defaultValue:
+              'Benchmark is above the contracted ceiling. If the buyer invokes the price-review clause and demands a reset to the ceiling, the trader forgoes the overshoot on every barrel lifted at this OSP.',
+          })
+        : t('financial.tradeMargin.whatIf.explainAboveCeilingNoClause', {
+            defaultValue:
+              'Benchmark is above the contracted ceiling but there is no clause to invoke — exposure is informational until a clause is added.',
+          });
+    }
+    if (status === 'below_floor') {
+      return hasClause
+        ? t('financial.tradeMargin.whatIf.explainBelowFloorClause', {
+            defaultValue:
+              'Benchmark is below the contracted floor. The seller can invoke the floor and recover the shortfall on every barrel — symmetric to the ceiling case.',
+          })
+        : t('financial.tradeMargin.whatIf.explainBelowFloorNoClause', {
+            defaultValue:
+              'Benchmark is below the contracted floor but there is no clause — exposure is informational until a clause is added.',
+          });
+    }
+    return t('financial.tradeMargin.whatIf.explainNoBand', {
+      defaultValue:
+        'No price-protection clause means every $1/bbl of benchmark movement flows directly through to the trader’s margin. The number shown is the gross dollar impact of moving from today’s OSP to the slider value.',
+    });
+  })();
+
+  return (
+    <div
+      id={id}
+      className="border-t border-border/60 bg-card/40 p-3"
+    >
+      <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+        {t('financial.tradeMargin.whatIf.howCalculated', {
+          defaultValue: 'How this is calculated',
+        })}
+      </p>
+
+      {/* Formula header */}
+      <p className="font-mono text-[11px] text-ink">{formulaLabel}</p>
+
+      {/* Step-by-step substitution */}
+      <div className="mt-2 space-y-1 font-mono text-[11px] text-ink-muted">
+        <p>{overshootLine}</p>
+        <p>
+          ${overshootUsd.toFixed(2)}/bbl × {fmtBbl(volumeBbl)} bbl × {usdAed.toFixed(2)} AED/USD
+        </p>
+        <p className="text-ink">
+          = {fmtUsd(usdTotal)} = <span className="text-terracotta">{fmtAed(aedTotal)}</span>
+        </p>
+      </div>
+
+      {/* Plain-English explanation */}
+      <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">{explainer}</p>
     </div>
   );
 }
