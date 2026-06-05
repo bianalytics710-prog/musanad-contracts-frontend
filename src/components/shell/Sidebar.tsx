@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Sun,
@@ -8,6 +9,7 @@ import {
   LogOut,
   Settings,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 import { useAuthStore, selectUser, selectRefreshToken, selectHasPermission } from "@/store/auth.store";
@@ -24,7 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ADMIN_GROUPS, ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForEffectiveSet, modulesForRole } from "@/config/sidebar";
+import { ADMIN_GROUPS, ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForEffectiveSet, modulesForRole, type AdminGroupKey } from "@/config/sidebar";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { sidebarOrderService } from "@/services/api/sidebar-order.service";
@@ -92,6 +94,40 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     staleTime: 5 * 60 * 1000,
   });
   const orderOverride = roleName && orderMap ? orderMap[roleName] : undefined;
+
+  // Admin sidebar — per-group collapse state. All groups expanded by default;
+  // user toggles persist in localStorage so the choice survives reload.
+  const ADMIN_GROUPS_STORAGE_KEY = "sidebar.adminGroupsExpanded.v1";
+  const [adminGroupsExpanded, setAdminGroupsExpanded] = useState<
+    Record<AdminGroupKey, boolean>
+  >(() => {
+    const defaults = Object.fromEntries(
+      ADMIN_GROUPS.map((g) => [g.key, true]),
+    ) as Record<AdminGroupKey, boolean>;
+    if (typeof window === "undefined") return defaults;
+    try {
+      const raw = window.localStorage.getItem(ADMIN_GROUPS_STORAGE_KEY);
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw) as Partial<Record<AdminGroupKey, boolean>>;
+      // Merge so newly-added groups stay expanded even if the stored map predates them.
+      return { ...defaults, ...parsed };
+    } catch {
+      return defaults;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        ADMIN_GROUPS_STORAGE_KEY,
+        JSON.stringify(adminGroupsExpanded),
+      );
+    } catch {
+      /* localStorage quota / disabled — ignore */
+    }
+  }, [adminGroupsExpanded]);
+  const toggleAdminGroup = (key: AdminGroupKey) =>
+    setAdminGroupsExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const items = roleName === "platform_admin"
     ? modulesForRole("platform_admin")
@@ -175,35 +211,54 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                   {ADMIN_GROUPS.map((group) => {
                     const groupItems = ADMIN_SUB_NAV.filter((s) => s.group === group.key);
                     if (groupItems.length === 0) return null;
+                    const expanded = adminGroupsExpanded[group.key] ?? true;
+                    const panelId = `admin-group-${group.key}`;
                     return (
                       <div key={group.key} className="space-y-0.5">
-                        <p className="px-2.5 pb-0.5 pt-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
-                          {t(group.labelKey, { defaultValue: group.defaultLabel })}
-                        </p>
-                        <ul className="space-y-0.5">
-                          {groupItems.map((sub) => {
-                            const subActive = path === sub.to;
-                            const SubIcon = sub.icon;
-                            return (
-                              <li key={sub.to}>
-                                <Link
-                                  to={sub.to}
-                                  className={cn(
-                                    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
-                                    subActive
-                                      ? "bg-gold/20 text-white font-medium"
-                                      : "text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground",
-                                  )}
-                                >
-                                  <SubIcon className="h-3.5 w-3.5 shrink-0" />
-                                  <span className="truncate">
-                                    {t(sub.labelKey, { defaultValue: sub.defaultLabel })}
-                                  </span>
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                        <button
+                          type="button"
+                          onClick={() => toggleAdminGroup(group.key)}
+                          aria-expanded={expanded}
+                          aria-controls={panelId}
+                          className="flex w-full items-center justify-between gap-2 rounded-md px-2.5 pb-0.5 pt-1 text-start font-mono text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 transition-colors hover:bg-white/5 hover:text-sidebar-foreground/70"
+                        >
+                          <span className="truncate">
+                            {t(group.labelKey, { defaultValue: group.defaultLabel })}
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              "h-3 w-3 shrink-0 transition-transform duration-200",
+                              expanded ? "rotate-0" : "-rotate-90",
+                            )}
+                            aria-hidden="true"
+                          />
+                        </button>
+                        {expanded && (
+                          <ul id={panelId} className="space-y-0.5">
+                            {groupItems.map((sub) => {
+                              const subActive = path === sub.to;
+                              const SubIcon = sub.icon;
+                              return (
+                                <li key={sub.to}>
+                                  <Link
+                                    to={sub.to}
+                                    className={cn(
+                                      "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs transition-colors",
+                                      subActive
+                                        ? "bg-gold/20 text-white font-medium"
+                                        : "text-sidebar-foreground/70 hover:bg-white/10 hover:text-sidebar-foreground",
+                                    )}
+                                  >
+                                    <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate">
+                                      {t(sub.labelKey, { defaultValue: sub.defaultLabel })}
+                                    </span>
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
                       </div>
                     );
                   })}
