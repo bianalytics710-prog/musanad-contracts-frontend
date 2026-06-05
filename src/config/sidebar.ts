@@ -419,7 +419,7 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/notification-rules",    labelKey: "nav.adminNotificationRules", defaultLabel: "Notification rules",   icon: BellOff,           group: "workflow" },
 
   // ── Templates ──────────────────────────────────────────────────────────
-  { to: "/app/admin/email-templates",       labelKey: "nav.adminEmailTemplates",  defaultLabel: "Email templates",       icon: Mail,              group: "templates" },
+  { to: "/app/admin/email-templates",       labelKey: "nav.adminEmailTemplates",  defaultLabel: "Message templates",     icon: Mail,              group: "templates" },
   { to: "/app/admin/advisory-templates",    labelKey: "nav.adminAdvisoryTemplates", defaultLabel: "Advisory templates",  icon: FileEdit,          group: "templates" },
   { to: "/app/admin/report-templates",      labelKey: "nav.adminReportTemplates", defaultLabel: "Report templates",      icon: FileBarChart2,     group: "templates" },
   { to: "/app/admin/notifications",         labelKey: "nav.adminNotifications",   defaultLabel: "Notifications",         icon: Bell,              group: "templates" },

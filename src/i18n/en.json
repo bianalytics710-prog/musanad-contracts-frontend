@@ -640,7 +640,7 @@
     "enterpriseView": "Enterprise view",
     "adminInternalSignalKinds": "Internal signal kinds",
     "adminAuditVerify": "Audit verify",
-    "adminEmailTemplates": "Email templates",
+    "adminEmailTemplates": "Message templates",
     "adminEmailConfig": "Email server",
     "adminTenants": "Tenants",
     "adminDemoPurge": "Demo purge",
@@ -4625,8 +4625,8 @@
       }
     },
     "emailTemplates": {
-      "title": "Email templates",
-      "subtitle": "Manage notification templates for all channels.",
+      "title": "Message templates",
+      "subtitle": "Manage notification templates across all channels — email, in-app, Teams, Slack.",
       "searchPlaceholder": "Search templates…",
       "channelFilter": "Filter by channel",
       "allChannels": "All channels",

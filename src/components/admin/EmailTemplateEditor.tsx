@@ -225,7 +225,9 @@ export function EmailTemplateEditor({ template }: Props) {
               defaultValue: 'Rendered preview (sample values)',
             })}
           </p>
-          {previewResult.subject && (
+          {/* Subject only makes sense for email-channel templates. In-app /
+              Teams / Slack messages don't carry a separate subject line. */}
+          {template.channel === 'email' && previewResult.subject && (
             <div>
               <p className="text-xs text-ink-subtle">
                 {t('admin.emailTemplates.previewSubject', { defaultValue: 'Subject' })}

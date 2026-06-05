@@ -51,6 +51,22 @@ export const adminNotificationTemplatesService = {
     return data;
   },
 
+  create: async (payload: {
+    templateId: string;
+    channel: NotificationTemplateChannel;
+    subjectEn?: string | null;
+    subjectAr?: string | null;
+    bodyEn: string;
+    bodyAr?: string | null;
+    parameterSchema?: Record<string, unknown> | null;
+  }): Promise<NotificationTemplate> => {
+    const { data } = await apiClient.post<NotificationTemplate>(
+      '/api/v1/admin/notification-templates',
+      payload,
+    );
+    return data;
+  },
+
   render: async (
     payload: NotificationTemplateRenderRequest,
   ): Promise<NotificationTemplateRenderResult> => {

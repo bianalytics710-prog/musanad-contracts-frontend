@@ -61,7 +61,7 @@ function EmailTemplateEditView() {
           className="inline-flex items-center gap-1 text-sm text-ink-muted hover:text-ink"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          {t('admin.emailTemplates.backToList', { defaultValue: 'Email templates' })}
+          {t('admin.emailTemplates.backToList', { defaultValue: 'Message templates' })}
         </Link>
       </div>
 

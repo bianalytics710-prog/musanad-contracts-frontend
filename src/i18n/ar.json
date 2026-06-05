@@ -640,7 +640,7 @@
     "enterpriseView": "عرض المؤسسة",
     "adminInternalSignalKinds": "أنواع الإشارات الداخلية",
     "adminAuditVerify": "التحقق من سجل المراجعة",
-    "adminEmailTemplates": "قوالب البريد الإلكتروني",
+    "adminEmailTemplates": "قوالب الرسائل",
     "adminEmailConfig": "خادم البريد الإلكتروني",
     "adminTenants": "المستأجرون",
     "adminDemoPurge": "حذف البيانات التجريبية",
@@ -4625,8 +4625,8 @@
       }
     },
     "emailTemplates": {
-      "title": "قوالب البريد الإلكتروني",
-      "subtitle": "إدارة قوالب الإشعارات لجميع القنوات.",
+      "title": "قوالب الرسائل",
+      "subtitle": "إدارة قوالب الإشعارات عبر جميع القنوات — البريد الإلكتروني والتطبيق وTeams وSlack.",
       "searchPlaceholder": "البحث في القوالب…",
       "channelFilter": "تصفية حسب القناة",
       "allChannels": "جميع القنوات",
