@@ -83,7 +83,9 @@ export function ExecutiveTradeMarginSection({
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-gold" aria-hidden="true" />
           <h3 className="text-sm font-semibold text-ink">
-            {t('financial.tradeMargin.executive.title')}
+            {t('financial.tradeMargin.executive.title', {
+              defaultValue: 'Index-Linked Contracts',
+            })}
           </h3>
         </div>
         {/* C14: Router Link */}
@@ -103,7 +105,7 @@ export function ExecutiveTradeMarginSection({
         <div className="rounded-lg border border-border bg-surface p-3">
           <p className="text-xs text-ink-muted">
             {t('financial.tradeMargin.executive.openSellPositions', {
-              defaultValue: 'Open sell positions',
+              defaultValue: 'Open contracts',
             })}
           </p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
@@ -113,7 +115,7 @@ export function ExecutiveTradeMarginSection({
         <div className="rounded-lg border border-border bg-surface p-3">
           <p className="text-xs text-ink-muted">
             {t('financial.tradeMargin.executive.totalSellMarginAed', {
-              defaultValue: 'Total sell margin (AED)',
+              defaultValue: 'Total margin (AED)',
             })}
           </p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-gold">
@@ -123,7 +125,7 @@ export function ExecutiveTradeMarginSection({
         <div className="rounded-lg border border-border bg-surface p-3">
           <p className="text-xs text-ink-muted">
             {t('financial.tradeMargin.executive.murbanOspContext', {
-              defaultValue: 'Murban OSP context',
+              defaultValue: 'Benchmark context',
             })}
           </p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
@@ -147,7 +149,7 @@ export function ExecutiveTradeMarginSection({
         >
           <p className="text-xs text-ink-muted">
             {t('financial.tradeMargin.executive.exposedPositions', {
-              defaultValue: 'At-risk positions',
+              defaultValue: 'At-risk contracts',
             })}
           </p>
           <p

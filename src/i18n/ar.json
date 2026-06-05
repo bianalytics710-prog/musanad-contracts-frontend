@@ -673,8 +673,9 @@
     "adminReportTemplates": "قوالب التقارير",
     "complianceRegulatoryCASCADE": "التدرج التنظيمي",
     "financialBudgetBurn": "صحة إنفاق العقود",
-    "financialTradeMargin": "هامش التداول",
-    "adminMigration": "ترحيل"
+    "financialTradeMargin": "العقود المرتبطة بمؤشر",
+    "adminMigration": "ترحيل",
+    "adminIndustryCatalogs": "كتالوجات الصناعات"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -9053,9 +9054,10 @@
     },
     "tradeMargin": {
       "portfolio": {
-        "title": "هامش التداول",
-        "subtitle": "سعر مربان الرسمي × عقود البيع المفتوحة — حالة حماية النطاق وأثر الهامش.",
-        "tabsLabel": "عروض هامش التداول",
+        "title": "العقود المرتبطة بمؤشر",
+        "subtitle": "العقود التي يتغير سعرها وفقاً لمؤشر خارجي — حالة حماية النطاق وأثر الهامش.",
+        "kicker": "تعرض الأسعار المرتبطة بمؤشر",
+        "tabsLabel": "عروض العقود المرتبطة بمؤشر",
         "tab": {
           "positions": "المراكز",
           "aggregate": "الإجمالي"
@@ -9077,7 +9079,7 @@
       },
       "columns": {
         "side": "الجانب",
-        "position": "المركز",
+        "position": "العقد",
         "grade": "الدرجة",
         "counterparty": "الطرف المقابل",
         "volume": "الحجم",
@@ -9283,18 +9285,26 @@
         }
       },
       "executive": {
-        "sectionLabel": "ملخص هامش التداول",
-        "title": "هامش التداول",
+        "sectionLabel": "ملخص العقود المرتبطة بمؤشر",
+        "title": "العقود المرتبطة بمؤشر",
         "viewAll": "عرض الكل",
-        "viewAllAriaLabel": "عرض جميع مراكز هامش التداول",
-        "openPositions": "المراكز المفتوحة",
+        "viewAllAriaLabel": "عرض جميع العقود المرتبطة بمؤشر",
+        "openPositions": "العقود المفتوحة",
+        "openSellPositions": "العقود المفتوحة",
         "totalMarginAed": "إجمالي الهامش (درهم)",
+        "totalSellMarginAed": "إجمالي الهامش (درهم)",
         "sellMarginAed": "هامش جانب البيع",
         "buyMarginAed": "هامش جانب الشراء",
-        "positions": "مراكز",
+        "positions": "عقود",
         "recentChange": "تغيير سعر {{benchmarkCode}}: {{delta}} اعتباراً من {{asOf}}",
-        "topPositions": "أعلى المراكز هامشاً",
-        "viewPositionAriaLabel": "عرض تفاصيل هامش التداول لـ {{ref}}"
+        "recentChangeStable": "{{benchmarkLabel}} مستقر — لا حركة مؤثرة خلال آخر 7 أيام",
+        "murbanOspContext": "سياق المعيار",
+        "deltaLast7d": "Δ الهامش من آخر تحرك",
+        "exposedPositions": "العقود المعرضة للخطر",
+        "allProtected": "الكل ضمن النطاق",
+        "escalateHelper": "التصعيد عبر العقود المرتبطة بمؤشر",
+        "topPositions": "أعلى العقود هامشاً",
+        "viewPositionAriaLabel": "عرض تفاصيل العقد المرتبط بمؤشر لـ {{ref}}"
       },
       "charts": {
         "murbanBenchmark": {

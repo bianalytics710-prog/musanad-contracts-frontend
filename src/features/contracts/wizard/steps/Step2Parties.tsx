@@ -18,12 +18,12 @@
  * array is at 100. AC-S3-05 / AC-S3-06: row-level validation lives in
  * paymentScheduleRowSchema (compose-wizard-schemas.ts).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
-import { Trash2, Plus } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Trash2, Plus, Loader2, Languages } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +35,7 @@ import {
   type RelationshipType,
 } from "@/types/entities/contract.types";
 import { contractsService } from "@/services/api/contracts.service";
+import { aiService } from "@/services/api/ai.service";
 
 // D25 — UAE emirates enum mirrors the Parties page filter values + Parties
 // form so any contract recorded here lines up with the rest of the app.
@@ -120,6 +121,12 @@ interface Step2PartiesProps {
    */
   ourPartyName?: string | null;
   counterpartyName?: string | null;
+  /**
+   * Step 1's chosen contract language. Drives the AR-title auto-translation
+   * on EN-title blur — only fires when the contract is `bilingual` or `ar`
+   * (no point translating for an EN-only contract).
+   */
+  contractLanguage?: "en" | "ar" | "bilingual";
 }
 
 export function Step2Parties({
@@ -129,9 +136,14 @@ export function Step2Parties({
   templatePlaceholders = [],
   ourPartyName = null,
   counterpartyName = null,
+  contractLanguage = "en",
 }: Step2PartiesProps) {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
+  // Whether AR auto-translation is in play — only when the contract needs
+  // Arabic (bilingual + ar both require it; pure-en contracts skip the call).
+  const wantsArTranslation =
+    contractLanguage === "bilingual" || contractLanguage === "ar";
 
   // Placeholder input state — keyed by placeholder.key. Initial value
   // mirrors what was previously saved in step2.placeholderValues so a
@@ -215,6 +227,51 @@ export function Step2Parties({
     control: form.control,
     name: "paymentSchedule",
   });
+
+  // ─── AR title auto-translate (only when bilingual / AR) ──────────────
+  // 1. On EN-title blur with AR empty + bilingual contract → call translate.
+  // 2. Track the last EN value we translated for, so re-blurring the same
+  //    value doesn't re-fire (cache).
+  // 3. If the user manually edits AR, lock it (manualArEdited = true) so
+  //    auto-translate won't overwrite their work.
+  const translateMutation = useMutation({
+    mutationFn: (text: string) =>
+      aiService.translateTitle({ text, source: "en", target: "ar" }),
+  });
+  const lastTranslatedEn = useRef<string | null>(null);
+  const [manualArEdited, setManualArEdited] = useState<boolean>(
+    () => (value.titleAr ?? "").trim().length > 0,
+  );
+  const [arHelperVisible, setArHelperVisible] = useState<boolean>(false);
+
+  const tryAutoTranslate = async (opts: { force?: boolean } = {}) => {
+    if (!wantsArTranslation) return;
+    const en = (form.getValues("titleEn") ?? "").trim();
+    if (en.length === 0) return;
+    const ar = (form.getValues("titleAr") ?? "")?.trim() ?? "";
+    if (!opts.force) {
+      if (ar.length > 0) return; // never overwrite existing AR.
+      if (manualArEdited) return; // never re-translate after manual edit.
+      if (lastTranslatedEn.current === en) return; // same EN — skip.
+    }
+    lastTranslatedEn.current = en;
+    try {
+      const result = await translateMutation.mutateAsync(en);
+      const translated = (result.translated ?? "").trim();
+      if (translated.length > 0) {
+        form.setValue("titleAr", translated, {
+          shouldDirty: true,
+          shouldValidate: false,
+        });
+        setManualArEdited(false);
+        setArHelperVisible(true);
+        // Auto-fade the helper after 6s so the form stays clean.
+        setTimeout(() => setArHelperVisible(false), 6000);
+      }
+    } catch {
+      // Soft failure — leave AR blank for manual entry.
+    }
+  };
 
   const watched = form.watch();
   // Stable dep — JSON of the schedule array, computed once per render. The
@@ -416,7 +473,11 @@ export function Step2Parties({
               <Input
                 id="compose-titleEn"
                 type="text"
-                {...form.register("titleEn")}
+                {...form.register("titleEn", {
+                  onBlur: () => {
+                    void tryAutoTranslate();
+                  },
+                })}
                 disabled={disabled}
                 maxLength={500}
                 aria-invalid={!!form.formState.errors.titleEn}
@@ -430,18 +491,68 @@ export function Step2Parties({
             </div>
 
             <div>
-              <label htmlFor="compose-titleAr" className="block text-xs font-medium text-ink-muted">
-                {t("contracts.fields.titleAr")}
-              </label>
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor="compose-titleAr" className="block text-xs font-medium text-ink-muted">
+                  {t("contracts.fields.titleAr")}
+                </label>
+                {wantsArTranslation && (
+                  <button
+                    type="button"
+                    onClick={() => void tryAutoTranslate({ force: true })}
+                    disabled={
+                      disabled ||
+                      translateMutation.isPending ||
+                      (form.getValues("titleEn") ?? "").trim().length === 0
+                    }
+                    className="inline-flex items-center gap-1 text-[10px] font-medium text-gold hover:underline disabled:opacity-40"
+                  >
+                    {translateMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Languages className="h-3 w-3" />
+                    )}
+                    {t("contracts.compose.translateFromEn", {
+                      defaultValue: "Translate from EN",
+                    })}
+                  </button>
+                )}
+              </div>
               <Input
                 id="compose-titleAr"
                 type="text"
                 dir="rtl"
-                {...form.register("titleAr")}
-                disabled={disabled}
+                {...form.register("titleAr", {
+                  onChange: () => {
+                    // Drafter touched the AR field manually — lock it so the
+                    // next EN blur doesn't overwrite their typing. Auto-fill
+                    // clears this lock so the helper still renders.
+                    if (!translateMutation.isPending) {
+                      setManualArEdited(true);
+                      setArHelperVisible(false);
+                    }
+                  },
+                })}
+                disabled={disabled || translateMutation.isPending}
                 maxLength={500}
-                className="mt-1"
+                className={cn(
+                  "mt-1 transition-opacity",
+                  translateMutation.isPending && "opacity-60",
+                )}
+                placeholder={
+                  translateMutation.isPending
+                    ? t("contracts.compose.translating", {
+                        defaultValue: "Translating…",
+                      })
+                    : undefined
+                }
               />
+              {arHelperVisible && !manualArEdited && (
+                <p className="mt-1 text-[11px] text-sage-ink" role="status">
+                  {t("contracts.compose.arAutoTranslated", {
+                    defaultValue: "Auto-translated from English — edit if needed.",
+                  })}
+                </p>
+              )}
             </div>
 
             <div>

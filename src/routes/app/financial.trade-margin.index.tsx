@@ -55,6 +55,10 @@ import { Button } from '@/components/ui/button';
 import { ChartCard, SemanticTooltip } from '@/components/charts';
 import { useAuthStore, selectHasPermission } from '@/store/auth.store';
 import { financialTradeMarginService } from '@/services/api/financial-trade-margin.service';
+import {
+  indexLinkedCatalogService,
+  type CatalogBenchmark,
+} from '@/services/api/index-linked-catalog.service';
 import { translateApiError } from '@/lib/translate-api-error';
 // E-rev-J — useDebounce import dropped along with the Search input.
 import type {
@@ -216,6 +220,26 @@ function TradeMarginPortfolioView() {
   // reach the page's row set.
   const [escalateTarget, setEscalateTarget] = useState<TradePositionListItem | null>(null);
 
+  // R-IL — table sort (mirrors Contract Spend Health pattern).
+  type SortField =
+    | 'positionRef'
+    | 'counterparty'
+    | 'volumeBbl'
+    | 'osp'
+    | 'marginPerBbl'
+    | 'totalMarginAed'
+    | 'bandStatus';
+  const [sortField, setSortField] = useState<SortField>('totalMarginAed');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const handleHeaderSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
+
   const LIMIT = 50;
 
   // E-rev-H — Story 5a is sell-side only. Buy positions exist in the DB but
@@ -229,6 +253,17 @@ function TradeMarginPortfolioView() {
     [page],
   );
 
+  // R-IL — Tenant-resolved benchmark catalog. Drives the kicker text +
+  // what-if slider bounds + the "Benchmark today" tile label. Falls back
+  // to i18n defaultValue when catalog is unavailable.
+  const { data: catalogBenchmarks } = useQuery({
+    queryKey: ['index-linked-catalog-benchmarks'],
+    queryFn: () => indexLinkedCatalogService.benchmarks(),
+    staleTime: 5 * 60_000,
+    enabled: canRead,
+  });
+  const primaryBenchmark: CatalogBenchmark | undefined =
+    catalogBenchmarks?.find((b) => !b.isFx);
   // E-rev-I — Aggregate query dropped along with its tab.
 
   const {
@@ -260,6 +295,37 @@ function TradeMarginPortfolioView() {
   const rows = positionsData?.data ?? [];
   const pagination = positionsData?.pagination;
 
+  // R-IL — apply sort across filtered rows. Text sorts use localeCompare,
+  // numeric sorts coerce strings → numbers, NULLs sort last.
+  function sortRows(rs: TradePositionListItem[]): TradePositionListItem[] {
+    const mul = sortDir === 'asc' ? 1 : -1;
+    const num = (v: string | null | undefined) => (v == null ? Number.NEGATIVE_INFINITY : parseFloat(v));
+    const bandRank = (r: TradePositionListItem) => {
+      const m: Record<string, number> = {
+        within_band: 0, at_floor: 1, at_ceiling: 2, below_floor: 3, above_ceiling: 4, no_band: 5,
+      };
+      return m[r.bandStatus ?? 'no_band'] ?? 99;
+    };
+    return [...rs].sort((a, b) => {
+      switch (sortField) {
+        case 'positionRef':
+          return a.positionRef.localeCompare(b.positionRef) * mul;
+        case 'counterparty':
+          return (a.counterparty?.nameEn ?? '').localeCompare(b.counterparty?.nameEn ?? '') * mul;
+        case 'volumeBbl':
+          return (num(a.volumeBbl) - num(b.volumeBbl)) * mul;
+        case 'osp':
+          return (num(a.latestBenchmarkUsdPerBbl) - num(b.latestBenchmarkUsdPerBbl)) * mul;
+        case 'marginPerBbl':
+          return (num(a.marginPerBbl) - num(b.marginPerBbl)) * mul;
+        case 'totalMarginAed':
+          return (num(a.totalMarginAed) - num(b.totalMarginAed)) * mul;
+        case 'bandStatus':
+          return (bandRank(a) - bandRank(b)) * mul;
+      }
+    });
+  }
+
   // E-rev-J — Apply band-status filter to the displayed rows. The KPI strip
   // and scenario panel keep using the unfiltered rows (those describe the
   // entire portfolio, not the current view).
@@ -279,6 +345,7 @@ function TradeMarginPortfolioView() {
         return true;
     }
   });
+  const sortedRows = sortRows(filteredRows);
 
   return (
     <motion.div
@@ -292,19 +359,20 @@ function TradeMarginPortfolioView() {
         {/* E-rev-I — Match contracts-page kicker pattern + drop "Positions"
             qualifier; only positions are shown anyway. */}
         <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-          {t('financial.tradeMargin.portfolio.kicker', {
-            defaultValue: 'Sell-side oil-trade desk',
-          })}
+          {primaryBenchmark?.kickerText ??
+            t('financial.tradeMargin.portfolio.kicker', {
+              defaultValue: 'Index-linked pricing exposure',
+            })}
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-ink">
           {t('financial.tradeMargin.portfolio.title', {
-            defaultValue: 'Trade Margin',
+            defaultValue: 'Index-Linked Contracts',
           })}
         </h1>
         <p className="mt-1 text-sm text-ink-muted">
           {t('financial.tradeMargin.portfolio.subtitle', {
             defaultValue:
-              'Murban OSP × open sell positions — band-protection status and margin impact.',
+              'Contracts whose price floats with an external index — band-protection status and margin impact.',
           })}
         </p>
       </div>
@@ -321,7 +389,9 @@ function TradeMarginPortfolioView() {
           {/* E-rev-H — Sell-side KPI strip + Murban-OSP context, sourced
               entirely from the rows already in memory. Lights up the
               demo story before the table. */}
-          {!positionsLoading && rows.length > 0 && <SellSideKpiStrip rows={rows} />}
+          {!positionsLoading && rows.length > 0 && (
+            <SellSideKpiStrip rows={rows} benchmark={primaryBenchmark} />
+          )}
           {/* E-rev-L — What-If OSP analysis. Replaces the fixed Today + "If $1
               more" boxes. Slider/input lets the user simulate any Murban OSP
               level and the panel recomputes affected positions, AED margin
@@ -331,6 +401,7 @@ function TradeMarginPortfolioView() {
             <WhatIfOspPanel
               rows={rows}
               onEscalate={(row) => setEscalateTarget(row)}
+              benchmark={primaryBenchmark}
             />
           )}
 
@@ -446,40 +517,42 @@ function TradeMarginPortfolioView() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="border-b border-border bg-surface">
-                          <tr className="text-left">
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                              {t('financial.tradeMargin.columns.position', { defaultValue: 'Position' })}
-                            </th>
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          <tr>
+                            {/* R-IL — all headers center-aligned for uniform top row.
+                                Data cells keep their own alignment (numeric right, text left). */}
+                            <SortableTh align="center" active={sortField === 'positionRef'} dir={sortDir} onClick={() => handleHeaderSort('positionRef')}>
+                              {t('financial.tradeMargin.columns.position', { defaultValue: 'Contract' })}
+                            </SortableTh>
+                            <SortableTh align="center" active={sortField === 'counterparty'} dir={sortDir} onClick={() => handleHeaderSort('counterparty')}>
                               {t('financial.tradeMargin.columns.counterparty', { defaultValue: 'Counterparty' })}
-                            </th>
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            </SortableTh>
+                            <SortableTh align="center" active={sortField === 'volumeBbl'} dir={sortDir} onClick={() => handleHeaderSort('volumeBbl')}>
                               {t('financial.tradeMargin.columns.volume', { defaultValue: 'Volume' })}
-                            </th>
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            </SortableTh>
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-center font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                               {t('financial.tradeMargin.columns.contractedBandShort', { defaultValue: 'Band' })}
                             </th>
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            <SortableTh align="center" active={sortField === 'osp'} dir={sortDir} onClick={() => handleHeaderSort('osp')}>
                               {t('financial.tradeMargin.columns.ospTodayShort', { defaultValue: 'OSP' })}
-                            </th>
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            </SortableTh>
+                            <SortableTh align="center" active={sortField === 'marginPerBbl'} dir={sortDir} onClick={() => handleHeaderSort('marginPerBbl')}>
                               {t('financial.tradeMargin.columns.marginPerBblShort', { defaultValue: 'Margin' })}
-                            </th>
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            </SortableTh>
+                            <SortableTh align="center" active={sortField === 'totalMarginAed'} dir={sortDir} onClick={() => handleHeaderSort('totalMarginAed')}>
                               {t('financial.tradeMargin.columns.totalMarginAedShort', { defaultValue: 'Total (AED)' })}
-                            </th>
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            </SortableTh>
+                            <SortableTh align="center" active={sortField === 'bandStatus'} dir={sortDir} onClick={() => handleHeaderSort('bandStatus')}>
                               {t('financial.tradeMargin.columns.bandStatus', { defaultValue: 'Band status' })}
-                            </th>
+                            </SortableTh>
                             {/* E-rev-N — Actions header gets explicit width so View/Escalate
                                 buttons render fully inside the cell. */}
-                            <th scope="col" className="whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle min-w-[100px]">
+                            <th scope="col" className="whitespace-nowrap px-3 py-3 text-center font-mono text-[10px] uppercase tracking-wider text-ink-subtle min-w-[100px]">
                               <span className="sr-only">{t('common.actions')}</span>
                             </th>
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredRows.length === 0 ? (
+                          {sortedRows.length === 0 ? (
                             <tr>
                               <td
                                 colSpan={9}
@@ -492,7 +565,7 @@ function TradeMarginPortfolioView() {
                               </td>
                             </tr>
                           ) : (
-                            filteredRows.map((row) => (
+                            sortedRows.map((row) => (
                               <PositionRow
                                 key={row.id}
                                 row={row}
@@ -565,7 +638,13 @@ function TradeMarginPortfolioView() {
 //   - Latest Murban OSP (from the rows' latestBenchmarkUsdPerBbl)
 //   - Positions outside band OR with no band (escalate candidates)
 // ─────────────────────────────────────────────────────────────
-function SellSideKpiStrip({ rows }: { rows: TradePositionListItem[] }) {
+function SellSideKpiStrip({
+  rows,
+  benchmark,
+}: {
+  rows: TradePositionListItem[];
+  benchmark?: CatalogBenchmark;
+}) {
   const { t } = useTranslation();
   const totalMarginAed = rows.reduce(
     (sum, r) => sum + (r.totalMarginAed ? parseFloat(r.totalMarginAed) : 0),
@@ -591,7 +670,7 @@ function SellSideKpiStrip({ rows }: { rows: TradePositionListItem[] }) {
             open sell positions delivering in the demo horizon. */}
         <p className="text-xs text-ink-muted">
           {t('financial.tradeMargin.kpi.activeCargoes', {
-            defaultValue: 'Active term cargoes',
+            defaultValue: 'Open contracts',
           })}
         </p>
         <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
@@ -599,7 +678,7 @@ function SellSideKpiStrip({ rows }: { rows: TradePositionListItem[] }) {
         </p>
         <p className="mt-0.5 text-[10px] text-ink-subtle">
           {t('financial.tradeMargin.kpi.activeCargoesHelper', {
-            defaultValue: 'Open Murban sell positions',
+            defaultValue: 'Index-linked contracts open today',
           })}
         </p>
       </div>
@@ -615,15 +694,19 @@ function SellSideKpiStrip({ rows }: { rows: TradePositionListItem[] }) {
       </div>
       <div className="rounded-lg border border-border bg-card p-4">
         <p className="text-xs text-ink-muted">
-          {t('financial.tradeMargin.kpi.murbanOspToday', {
-            defaultValue: 'Murban OSP today',
-          })}
+          {benchmark?.displayLabelEn
+            ? `${benchmark.displayLabelEn} today`
+            : t('financial.tradeMargin.kpi.murbanOspToday', {
+                defaultValue: 'Benchmark today',
+              })}
         </p>
         <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
           {ospToday != null ? `$${parseFloat(ospToday).toFixed(2)}` : '—'}
         </p>
         <p className="mt-0.5 text-[10px] text-ink-subtle">
-          {t('financial.tradeMargin.kpi.ospUnit', { defaultValue: 'per bbl' })}
+          {benchmark?.volumeUnitLabel
+            ? `per ${benchmark.volumeUnitLabel}`
+            : t('financial.tradeMargin.kpi.ospUnit', { defaultValue: 'per unit' })}
         </p>
       </div>
       <div
@@ -675,9 +758,11 @@ function SellSideKpiStrip({ rows }: { rows: TradePositionListItem[] }) {
 function WhatIfOspPanel({
   rows,
   onEscalate,
+  benchmark,
 }: {
   rows: TradePositionListItem[];
   onEscalate: (row: TradePositionListItem) => void;
+  benchmark?: CatalogBenchmark;
 }) {
   const { t } = useTranslation();
   // Anchor the slider to today's published OSP.
@@ -688,6 +773,10 @@ function WhatIfOspPanel({
     return r ? parseFloat(r.latestBenchmarkUsdPerBbl ?? '0') : 103;
   })();
   const [whatIfOsp, setWhatIfOsp] = useState<number>(todaysOsp);
+  // R-IL — slider bounds come from the catalog row (typical_low / typical_high).
+  // Fallback to 80–130 when catalog unavailable (back-compat).
+  const sliderMin = benchmark?.typicalLow != null ? parseFloat(benchmark.typicalLow) : 80;
+  const sliderMax = benchmark?.typicalHigh != null ? parseFloat(benchmark.typicalHigh) : 130;
 
   const usdAed = 3.67;
   // For each position, compute hypothetical band status + AED compression
@@ -735,14 +824,16 @@ function WhatIfOspPanel({
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-ink">
-            {t('financial.tradeMargin.whatIf.title', {
-              defaultValue: 'What-if analysis — Murban OSP',
-            })}
+            {benchmark?.displayLabelEn
+              ? `What-if analysis — ${benchmark.displayLabelEn}`
+              : t('financial.tradeMargin.whatIf.title', {
+                  defaultValue: 'What-if analysis — benchmark',
+                })}
           </p>
           <p className="mt-0.5 text-xs text-ink-muted">
             {t('financial.tradeMargin.whatIf.intro', {
               defaultValue:
-                'Slide to a hypothetical Murban OSP. The panel recomputes which positions breach band, by how much in AED, and which need a contract amendment vs. a band re-negotiation.',
+                'Slide to a hypothetical benchmark price. The panel recomputes which contracts breach band, by how much in AED, and which need a contract amendment vs. a band re-negotiation.',
             })}
           </p>
         </div>
@@ -760,14 +851,14 @@ function WhatIfOspPanel({
       <div className="mb-4 grid items-center gap-3 sm:grid-cols-[1fr_auto]">
         <input
           type="range"
-          min={80}
-          max={130}
+          min={sliderMin}
+          max={sliderMax}
           step={0.5}
           value={whatIfOsp}
           onChange={(e) => setWhatIfOsp(parseFloat(e.target.value))}
           className="h-2 w-full cursor-pointer appearance-none rounded-full bg-muted accent-gold"
           aria-label={t('financial.tradeMargin.whatIf.sliderLabel', {
-            defaultValue: 'Hypothetical Murban OSP',
+            defaultValue: 'Hypothetical benchmark price',
           })}
         />
         <div className="flex items-center gap-2">
@@ -777,8 +868,8 @@ function WhatIfOspPanel({
           <input
             id="tm-whatif-input"
             type="number"
-            min={80}
-            max={130}
+            min={sliderMin}
+            max={sliderMax}
             step={0.25}
             value={whatIfOsp.toFixed(2)}
             onChange={(e) => setWhatIfOsp(parseFloat(e.target.value) || todaysOsp)}
@@ -1179,10 +1270,17 @@ function PositionRow({
       <td className="px-3 py-3 align-top">
         <p className="font-medium text-ink">{row.positionRef}</p>
         <p className="text-xs text-ink-muted">
+          {t('financial.tradeMargin.row.deliveryLabel', {
+            defaultValue: 'Delivery',
+          })}{' '}
           {row.deliveryMonth?.slice(0, 7)} ·{' '}
-          {t(`financial.tradeMargin.termOrSpot.${row.termOrSpot}`, {
-            defaultValue: row.termOrSpot,
-          })}
+          {row.termOrSpot === 'term'
+            ? t('financial.tradeMargin.termOrSpot.termContract', {
+                defaultValue: 'Term contract',
+              })
+            : t('financial.tradeMargin.termOrSpot.spotDeal', {
+                defaultValue: 'Spot deal',
+              })}
         </p>
       </td>
       {/* E-rev-O — Counterparty allowed to wrap; full names like
@@ -1500,5 +1598,47 @@ function AggregateView({
         </div>
       )}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// R-IL — SortableTh (mirrors Contract Spend Health pattern). Inactive
+// headers show a subtle ⇅ so first-time users see the column is sortable.
+// ─────────────────────────────────────────────────────────────
+function SortableTh({
+  children,
+  align,
+  active,
+  dir,
+  onClick,
+}: {
+  children: React.ReactNode;
+  align: 'left' | 'right' | 'center';
+  active: boolean;
+  dir: 'asc' | 'desc';
+  onClick: () => void;
+}) {
+  const textAlign =
+    align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
+  const justify =
+    align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start';
+  return (
+    <th
+      scope="col"
+      className={`whitespace-nowrap px-3 py-3 font-mono text-[10px] uppercase tracking-wider ${active ? 'text-ink' : 'text-ink-subtle'} ${textAlign}`}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className={`inline-flex w-full items-center gap-1 hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary ${justify}`}
+      >
+        {children}
+        {active ? (
+          <span aria-hidden="true" className="text-ink">{dir === 'asc' ? '▲' : '▼'}</span>
+        ) : (
+          <span aria-hidden="true" className="text-ink-subtle/60 opacity-60">⇅</span>
+        )}
+      </button>
+    </th>
   );
 }

@@ -244,6 +244,49 @@ export interface ExtractTemplateFromContractResult {
   warnings: string[];
 }
 
+// ----------------------------------------------------------------------
+// analyze-upload — fan-out of extract + similarity match (BE phase 2).
+// ----------------------------------------------------------------------
+
+export interface TemplateMatchRow {
+  templateId: number;
+  nameEn: string;
+  nameAr: string | null;
+  contractType: string;
+  descriptionEn: string | null;
+  similarity: number;
+  usageCount: number;
+}
+
+export interface ClauseCrossCheckRow {
+  // Inherited candidate fields from the AI extractor:
+  category: string;
+  titleEn: string;
+  titleAr: string | null;
+  bodyEn: string;
+  bodyAr: string | null;
+  variant: "standard" | "alternative" | "fallback";
+  legalCommentaryEn: string | null;
+  regulatoryRefs: string[];
+  // Match-side fields from fn_clause_library_match_each:
+  bestSimilarity: number;
+  bestMatchId: number | null;
+  bestMatchTitle: string | null;
+  bestMatchCategory: string | null;
+  isNewToLibrary: boolean;
+}
+
+export type MatchClassification = "exact" | "extend_candidate" | "no_match";
+
+export interface AnalyzeTemplateUploadResult {
+  template: ExtractTemplateFromContractResult;
+  templateMatches: TemplateMatchRow[];
+  topMatchClassification: MatchClassification;
+  thresholds: { exact: number; extend: number; clauseMatch: number };
+  clauseCrossCheck: ClauseCrossCheckRow[];
+  warnings: string[];
+}
+
 export const templatesService = {
   list: async (params: {
     contractType?: string;
@@ -292,6 +335,19 @@ export const templatesService = {
       "/api/v1/templates/extract-from-contract",
       input,
       { timeout: 120_000 },
+    );
+    return data;
+  },
+  // analyze-upload runs extract-template + extract-clauses + embedding match
+  // in one call. Heavier than extract-from-contract (≥3 OpenAI calls) so the
+  // timeout is generous.
+  analyzeUpload: async (
+    input: ExtractTemplateFromContractInput,
+  ): Promise<AnalyzeTemplateUploadResult> => {
+    const { data } = await apiClient.post<AnalyzeTemplateUploadResult>(
+      "/api/v1/templates/analyze-upload",
+      input,
+      { timeout: 180_000 },
     );
     return data;
   },

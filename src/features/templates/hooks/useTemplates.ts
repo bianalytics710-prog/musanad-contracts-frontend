@@ -21,6 +21,7 @@ import {
   type TemplateListItem,
   type ExtractTemplateFromContractInput,
   type ExtractTemplateFromContractResult,
+  type AnalyzeTemplateUploadResult,
   type PaginatedResult,
 } from "@/services/api/m_parity.service";
 import { ApiError } from "@/lib/api-client";
@@ -122,6 +123,25 @@ export function useExtractTemplateFromContract() {
     ExtractTemplateFromContractInput
   >({
     mutationFn: (input) => templatesService.extractFromContract(input),
+    onError: (err) => {
+      toast.error(translateApiError(err, t, "errors.template.extractFailed"));
+    },
+  });
+}
+
+/**
+ * Phase 2 — fan-out hook for New Template upload. Returns the extracted
+ * template + similarity matches + clause cross-check in one call. The page
+ * uses this in place of useExtractTemplateFromContract.
+ */
+export function useAnalyzeTemplateUpload() {
+  const { t } = useTranslation();
+  return useMutation<
+    AnalyzeTemplateUploadResult,
+    ApiError,
+    ExtractTemplateFromContractInput
+  >({
+    mutationFn: (input) => templatesService.analyzeUpload(input),
     onError: (err) => {
       toast.error(translateApiError(err, t, "errors.template.extractFailed"));
     },

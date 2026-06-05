@@ -673,8 +673,9 @@
     "adminReportTemplates": "Report templates",
     "complianceRegulatoryCASCADE": "Regulatory Cascade",
     "financialBudgetBurn": "Contract Spend Health",
-    "financialTradeMargin": "Trade Margin",
-    "adminMigration": "Migration"
+    "financialTradeMargin": "Index-Linked Contracts",
+    "adminMigration": "Migration",
+    "adminIndustryCatalogs": "Industry catalogs"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -9053,9 +9054,9 @@
     },
     "tradeMargin": {
       "portfolio": {
-        "title": "Trade Margin",
-        "subtitle": "Murban OSP × open sell positions — band-protection status and margin impact.",
-        "kicker": "Sell-side oil-trade desk",
+        "title": "Index-Linked Contracts",
+        "subtitle": "Contracts whose price floats with an external index — band-protection status and margin impact.",
+        "kicker": "Index-linked pricing exposure",
         "tabsLabel": "Trade margin views",
         "tab": {
           "positions": "Positions",
@@ -9077,7 +9078,7 @@
       },
       "columns": {
         "side": "Side",
-        "position": "Position",
+        "position": "Contract",
         "grade": "Grade",
         "counterparty": "Counterparty",
         "volume": "Volume",
@@ -9283,18 +9284,26 @@
         }
       },
       "executive": {
-        "sectionLabel": "Trade margin rollup",
-        "title": "Trade Margin",
+        "sectionLabel": "Index-linked contracts rollup",
+        "title": "Index-Linked Contracts",
         "viewAll": "View all",
-        "viewAllAriaLabel": "View all trade margin positions",
-        "openPositions": "Open positions",
+        "viewAllAriaLabel": "View all index-linked contracts",
+        "openPositions": "Open contracts",
+        "openSellPositions": "Open contracts",
         "totalMarginAed": "Total margin (AED)",
+        "totalSellMarginAed": "Total margin (AED)",
         "sellMarginAed": "Sell-side margin",
         "buyMarginAed": "Buy-side margin",
-        "positions": "positions",
+        "positions": "contracts",
         "recentChange": "{{benchmarkCode}} price change: {{delta}} as of {{asOf}}",
-        "topPositions": "Top positions by margin",
-        "viewPositionAriaLabel": "View trade margin detail for {{ref}}"
+        "recentChangeStable": "{{benchmarkLabel}} stable — no significant movement in the last 7 days",
+        "murbanOspContext": "Benchmark context",
+        "deltaLast7d": "Margin Δ from last move",
+        "exposedPositions": "At-risk contracts",
+        "allProtected": "All within band",
+        "escalateHelper": "Escalate via Index-Linked Contracts",
+        "topPositions": "Top contracts by margin",
+        "viewPositionAriaLabel": "View index-linked contract detail for {{ref}}"
       },
       "charts": {
         "murbanBenchmark": {

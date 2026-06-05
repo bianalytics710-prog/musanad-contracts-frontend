@@ -176,6 +176,35 @@ export const aiService = {
     );
     return data;
   },
+
+  // ── Title translate — EN ↔ AR for Compose Step 2 ────────────────────────
+  /**
+   * POST /api/v1/ai/translate-title (authed, JWT, contract.draft|edit).
+   * Returns { translated: string | null } — null means soft failure; caller
+   * should leave the AR field empty and let the user type manually.
+   */
+  translateTitle: async (payload: {
+    text: string;
+    source: "en" | "ar";
+    target: "en" | "ar";
+  }): Promise<{
+    translated: string | null;
+    model: string | null;
+    latencyMs: number;
+    warnings: string[];
+  }> => {
+    const { data } = await apiClient.post(
+      `${AI_BASE}/translate-title`,
+      payload,
+      { timeout: 30_000 },
+    );
+    return data as {
+      translated: string | null;
+      model: string | null;
+      latencyMs: number;
+      warnings: string[];
+    };
+  },
 };
 
 // ─── SSE URL builders (used by the streaming hooks) ───────────────────────────

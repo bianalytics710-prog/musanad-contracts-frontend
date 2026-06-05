@@ -65,6 +65,10 @@ import {
   DollarSign,
   // M21 / CR-O — Financial Intelligence Trade Margin
   BarChart2,
+  // R-IL — Industry catalogs admin
+  Layers,
+  Server,
+  BellOff,
 } from "lucide-react";
 
 export type AppRole =
@@ -190,7 +194,7 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
     key: "financial.tradeMargin",
     to: "/app/financial/trade-margin",
     labelKey: "nav.financialTradeMargin",
-    defaultLabel: "Trade Margin",
+    defaultLabel: "Index-Linked Contracts",
     icon: BarChart2,
     displayOrder: 410,
   },
@@ -412,6 +416,7 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/scoring-weights",       labelKey: "nav.adminScoringWeights",  defaultLabel: "Scoring weights",       icon: SlidersHorizontal, group: "workflow" },
   { to: "/app/admin/risk-scoring",          labelKey: "nav.adminRiskScoring",     defaultLabel: "Risk scoring formula",  icon: SlidersHorizontal, group: "workflow" },
   { to: "/app/admin/clause-taxonomy",       labelKey: "nav.adminClauseTaxonomy",  defaultLabel: "Clause taxonomy",       icon: BookOpen,          group: "workflow" },
+  { to: "/app/admin/notification-rules",    labelKey: "nav.adminNotificationRules", defaultLabel: "Notification rules",   icon: BellOff,           group: "workflow" },
 
   // ── Templates ──────────────────────────────────────────────────────────
   { to: "/app/admin/email-templates",       labelKey: "nav.adminEmailTemplates",  defaultLabel: "Email templates",       icon: Mail,              group: "templates" },
@@ -420,7 +425,8 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/notifications",         labelKey: "nav.adminNotifications",   defaultLabel: "Notifications",         icon: Bell,              group: "templates" },
 
   // ── Data sources ───────────────────────────────────────────────────────
-  { to: "/app/admin/sources",               labelKey: "nav.adminSources",         defaultLabel: "Sources",               icon: Globe,             group: "dataSources" },
+  { to: "/app/admin/sources",               labelKey: "nav.adminSources",         defaultLabel: "External sources",      icon: Globe,             group: "dataSources" },
+  { to: "/app/admin/internal-systems",      labelKey: "nav.adminInternalSystems", defaultLabel: "Internal systems",      icon: Server,            group: "dataSources" },
   { to: "/app/admin/source-health",         labelKey: "nav.adminSourceHealth",    defaultLabel: "Source health",         icon: Activity,          group: "dataSources" },
   { to: "/app/admin/internal-signal-kinds", labelKey: "nav.adminInternalSignalKinds", defaultLabel: "Internal signal kinds", icon: Radar,         group: "dataSources" },
   { to: "/app/admin/regulations",           labelKey: "nav.adminRegs",            defaultLabel: "Regulations",           icon: Scale,             group: "dataSources" },
@@ -451,6 +457,12 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   // of "how should the platform handle this incoming event" policy.
   { to: "/app/admin/risk-routing",          labelKey: "nav.adminRiskRouting",     defaultLabel: "Risk routing",          icon: SlidersHorizontal, group: "workflow" },
   { to: "/app/admin/risk-review",           labelKey: "nav.adminRiskReview",      defaultLabel: "Risk review",           icon: ShieldCheck,       group: "workflow" },
+  // R-IL — Industry catalogs (Index-Linked Contracts repositioning).
+  // Platform Admin manages pricing benchmarks + cost components per
+  // industry (and per-tenant overrides). Lives under Workflow & rules
+  // alongside Risk routing since both are policy/config that drive
+  // platform behaviour rather than identity or tenancy.
+  { to: "/app/admin/industry-catalogs",     labelKey: "nav.adminIndustryCatalogs", defaultLabel: "Industry catalogs",    icon: Layers,            group: "workflow" },
 ];
 
 /**
