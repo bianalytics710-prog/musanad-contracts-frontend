@@ -59,6 +59,70 @@ export interface NotificationRuleInput {
   description?: string | null;
 }
 
+// ── v2 multi-channel multi-recipient model ─────────────────────────────
+
+export type RecipientType = "role" | "user" | "context" | "email";
+
+export interface RuleChannelRow {
+  id?: number;
+  channel: RuleChannel;
+  templateSlug: string;
+  subjectOverride?: string | null;
+  bodyOverride?: string | null;
+}
+
+export interface RuleRecipientRow {
+  id?: number;
+  recipientType: RecipientType;
+  recipientValue: string;
+}
+
+export interface NotificationRuleDetail {
+  id: number;
+  tenantId: string | null;
+  isSystemDefault: boolean;
+  module: string;
+  name: string;
+  description: string | null;
+  eventType: string;
+  eventCategory: string;
+  eventDisplayName: string;
+  isEnabled: boolean;
+  priority: RulePriority;
+  condition: Record<string, unknown> | null;
+  cooldownMinutes: number;
+  dedupeKey: string | null;
+  ordering: number;
+  channels: RuleChannelRow[];
+  recipients: RuleRecipientRow[];
+}
+
+export interface NotificationRuleUpsertV2Input {
+  module: string;
+  name: string;
+  description?: string | null;
+  eventType: string;
+  isEnabled: boolean;
+  priority: RulePriority;
+  condition?: Record<string, unknown> | null;
+  cooldownMinutes: number;
+  dedupeKey?: string | null;
+  ordering: number;
+  channels: RuleChannelRow[];
+  recipients: RuleRecipientRow[];
+}
+
+export interface ModuleRow {
+  module: string;
+  ruleCount: number;
+  eventCount: number;
+}
+
+export interface ContextResolverRow {
+  code: string;
+  label: string;
+}
+
 interface Envelope<T> {
   data: T;
 }
@@ -113,6 +177,50 @@ export const adminNotificationRulesService = {
   deactivate: async (id: number): Promise<{ id: number; isActive: boolean }> => {
     const r = await apiClient.delete<{ id: number; isActive: boolean }>(
       `/api/v1/admin/notification-rules/${id}`,
+    );
+    return r.data;
+  },
+
+  // ── v2 endpoints ─────────────────────────────────────────────────────
+
+  modules: async (): Promise<ModuleRow[]> => {
+    const r = await apiClient.get<Envelope<ModuleRow[] | null>>(
+      "/api/v1/admin/notification-rules/modules",
+    );
+    return r.data.data ?? [];
+  },
+
+  contextResolvers: async (): Promise<ContextResolverRow[]> => {
+    const r = await apiClient.get<Envelope<ContextResolverRow[] | null>>(
+      "/api/v1/admin/notification-rules/context-resolvers",
+    );
+    return r.data.data ?? [];
+  },
+
+  getDetail: async (id: number): Promise<NotificationRuleDetail> => {
+    const r = await apiClient.get<NotificationRuleDetail>(
+      `/api/v1/admin/notification-rules/${id}/detail`,
+    );
+    return r.data;
+  },
+
+  createV2: async (
+    input: NotificationRuleUpsertV2Input,
+  ): Promise<NotificationRuleDetail> => {
+    const r = await apiClient.post<NotificationRuleDetail>(
+      "/api/v1/admin/notification-rules",
+      input,
+    );
+    return r.data;
+  },
+
+  updateV2: async (
+    id: number,
+    input: NotificationRuleUpsertV2Input,
+  ): Promise<NotificationRuleDetail> => {
+    const r = await apiClient.put<NotificationRuleDetail>(
+      `/api/v1/admin/notification-rules/${id}`,
+      input,
     );
     return r.data;
   },

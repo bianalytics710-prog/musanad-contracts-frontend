@@ -1,14 +1,20 @@
 /**
- * /app/admin/notification-rules — Platform Admin trigger-rule registry.
+ * /app/admin/notification-rules — module-first notification rule registry.
  *
- * Each row = ONE (event_type, channel, template_id) combination. Group by
- * category so the admin can scan related events together. Per-row toggle
- * flips is_enabled immediately (and the dispatch fn now short-circuits on
- * disabled rules — see mig 580 fn_notification_send refactor).
+ * Inspired by ServiceNow / Jira / Salesforce: rules are grouped by MODULE
+ * (Contracts / Approvals / Signatures / …). Each module shows its events,
+ * each event shows its rules. Editor lets admin pick the module → event →
+ * channels (multi, with per-channel template) → recipients (multi-row
+ * picker: role / user / context / email) → condition / priority / cooldown.
+ *
+ * Single source of truth: rule changes immediately affect what the
+ * fn_notification_dispatch fires across the platform. The dispatcher is wired
+ * for contract.expiry_30day + report.delivered; remaining events follow the
+ * same pattern (documented in mig 584).
  *
  * Gate: platform.notifications.manage.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -16,17 +22,29 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   Bell,
+  BellOff,
+  Briefcase,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Eye,
+  FileText,
+  FileSignature,
+  Globe2,
+  HardHat,
   Mail,
+  MessageCircle,
   MessageSquare,
   Pencil,
   Plus,
-  Search,
+  Server,
   Slack,
+  Sparkles,
   ToggleLeft,
   ToggleRight,
   Trash2,
+  Users as UsersIcon,
+  X,
 } from "lucide-react";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,10 +61,13 @@ import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import {
   adminNotificationRulesService,
   type NotificationRuleRow,
+  type NotificationRuleDetail,
+  type NotificationRuleUpsertV2Input,
   type NotificationEventTypeRow,
-  type NotificationRuleInput,
+  type ContextResolverRow,
   type RuleChannel,
   type RulePriority,
+  type RecipientType,
 } from "@/services/api/admin-notification-rules.service";
 import { cn } from "@/lib/utils";
 
@@ -58,20 +79,33 @@ export const Route = createFileRoute("/app/admin/notification-rules/")({
   ),
 });
 
-const CHANNEL_OPTIONS: RuleChannel[] = [
-  "email",
-  "in_app",
-  "teams_capture",
-  "slack_capture",
-];
+// ── Module catalogue ─────────────────────────────────────────────────────
+const MODULE_META: Record<
+  string,
+  { label: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  contract:   { label: "Contracts",        icon: FileText },
+  approval:   { label: "Approvals",        icon: CheckCircle2 },
+  signature:  { label: "Signatures",       icon: FileSignature },
+  comment:    { label: "Comments",         icon: MessageCircle },
+  advisory:   { label: "Advisory",         icon: Sparkles },
+  impact:     { label: "Impact signals",   icon: Eye },
+  regulatory: { label: "Regulatory",       icon: Globe2 },
+  import:     { label: "Imports",          icon: HardHat },
+  user:       { label: "User account",     icon: UsersIcon },
+  watch:      { label: "Watch list",       icon: Briefcase },
+  obligation: { label: "Obligations",      icon: Bell },
+  report:     { label: "Reports",          icon: Server },
+  system:     { label: "System",           icon: Server },
+};
 
+const CHANNEL_OPTIONS: RuleChannel[] = ["email", "in_app", "teams_capture", "slack_capture"];
 const CHANNEL_LABEL: Record<RuleChannel, string> = {
   email: "Email",
   in_app: "In-app",
   teams_capture: "Teams (captured)",
   slack_capture: "Slack (captured)",
 };
-
 const CHANNEL_ICON: Record<RuleChannel, React.ComponentType<{ className?: string }>> = {
   email: Mail,
   in_app: Bell,
@@ -79,18 +113,13 @@ const CHANNEL_ICON: Record<RuleChannel, React.ComponentType<{ className?: string
   slack_capture: Slack,
 };
 
-const CATEGORY_LABEL: Record<string, string> = {
-  approval: "Approval",
-  contract: "Contract lifecycle",
-  signature: "Signature",
-  comment: "Comments",
-  advisory: "Advisory",
-  impact: "Impact signals",
-  regulatory: "Regulatory",
-  import: "Imports",
-  user: "User account",
-  watch: "Watch list",
-  system: "System",
+const PRIORITY_OPTIONS: RulePriority[] = ["low", "medium", "high", "critical"];
+const RECIPIENT_TYPES: RecipientType[] = ["context", "role", "user", "email"];
+const RECIPIENT_TYPE_LABEL: Record<RecipientType, string> = {
+  context: "From context (assignee, drafter, etc.)",
+  role:    "All users in role",
+  user:    "Specific user (by ID)",
+  email:   "External email",
 };
 
 function NotificationRulesList() {
@@ -99,53 +128,57 @@ function NotificationRulesList() {
     selectHasPermission("platform.notifications.manage"),
   );
 
-  const [channel, setChannel] = useState<RuleChannel | "">("");
-  const [search, setSearch] = useState<string>("");
-  // null = closed. {row:null} = create. {row:<existing>} = edit.
+  const [activeModule, setActiveModule] = useState<string | null>(null);
+  // editorState:
+  //   { ruleId: number, ... }                     → edit existing (loads detail)
+  //   { ruleId: null, sourceRuleId: null, ... }   → blank create
+  //   { ruleId: null, sourceRuleId: number, ... } → override (clone from a system default)
   const [editorState, setEditorState] = useState<
-    { row: NotificationRuleRow | null } | null
+    {
+      ruleId: number | null;
+      sourceRuleId: number | null;
+      defaultModule: string | null;
+    } | null
   >(null);
 
-  const params = useMemo(
-    () => ({
-      channel: channel || undefined,
-      search: search.trim() || undefined,
-    }),
-    [channel, search],
-  );
-
   const { data: rules = [], isLoading, isError } = useQuery({
-    queryKey: ["admin-notification-rules", params],
-    queryFn: () => adminNotificationRulesService.list(params),
+    queryKey: ["admin-notification-rules-v2"],
+    queryFn: () => adminNotificationRulesService.list({}),
     enabled: canManage,
     staleTime: 30_000,
   });
 
-  // Group by category, then by event_type within category.
+  // Group by module → event → rules.
   const grouped = useMemo(() => {
-    const byCategory = new Map<string, Map<string, NotificationRuleRow[]>>();
+    const byModule = new Map<string, Map<string, NotificationRuleRow[]>>();
     for (const r of rules) {
-      let cat = byCategory.get(r.eventCategory);
-      if (!cat) {
-        cat = new Map<string, NotificationRuleRow[]>();
-        byCategory.set(r.eventCategory, cat);
+      const mod = (r as unknown as { module?: string }).module ?? r.eventCategory;
+      let evMap = byModule.get(mod);
+      if (!evMap) {
+        evMap = new Map();
+        byModule.set(mod, evMap);
       }
-      const list = cat.get(r.eventType) ?? [];
+      const list = evMap.get(r.eventType) ?? [];
       list.push(r);
-      cat.set(r.eventType, list);
+      evMap.set(r.eventType, list);
     }
-    return byCategory;
+    return byModule;
   }, [rules]);
 
-  const totals = useMemo(() => {
-    let enabled = 0;
-    let disabled = 0;
-    for (const r of rules) {
-      if (r.isEnabled) enabled++;
-      else disabled++;
+  const moduleOrder = useMemo(
+    () =>
+      Array.from(grouped.keys()).sort((a, b) =>
+        (MODULE_META[a]?.label ?? a).localeCompare(MODULE_META[b]?.label ?? b),
+      ),
+    [grouped],
+  );
+
+  // Default selected module = first available.
+  useEffect(() => {
+    if (activeModule === null && moduleOrder.length > 0) {
+      setActiveModule(moduleOrder[0]);
     }
-    return { enabled, disabled, total: rules.length };
-  }, [rules]);
+  }, [activeModule, moduleOrder]);
 
   if (!canManage) {
     return (
@@ -159,6 +192,8 @@ function NotificationRulesList() {
     );
   }
 
+  const activeEventMap = activeModule ? grouped.get(activeModule) : undefined;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -169,87 +204,30 @@ function NotificationRulesList() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-            {t("admin.notificationRules.kicker", {
-              defaultValue: "Workflow & rules",
-            })}
+            {t("admin.notificationRules.kicker", { defaultValue: "Workflow & rules" })}
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {t("admin.notificationRules.title", {
-              defaultValue: "Notification rules",
-            })}
+            {t("admin.notificationRules.title", { defaultValue: "Notification rules" })}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {t("admin.notificationRules.subtitle", {
+            {t("admin.notificationRules.subtitle.v2", {
               defaultValue:
-                "For each event the platform emits, decide whether to send the notification, on which channel, using which template. Toggling a rule off silences the corresponding email or in-app message immediately.",
+                "Every notification the platform sends is controlled here. Browse by module, pick an event, configure channels + recipients. Disabled rules are silenced immediately across the platform.",
             })}
           </p>
         </div>
-        <Button onClick={() => setEditorState({ row: null })}>
+        <Button
+          onClick={() =>
+            setEditorState({ ruleId: null, sourceRuleId: null, defaultModule: activeModule })
+          }
+        >
           <Plus className="me-1 h-4 w-4" />
           {t("admin.notificationRules.add", { defaultValue: "Add rule" })}
         </Button>
       </header>
 
-      {/* Totals + filters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3">
-        <div className="space-y-1">
-          <span className="block font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-            {t("admin.notificationRules.filter.channel", { defaultValue: "Channel" })}
-          </span>
-          <select
-            className="h-9 rounded-md border border-border bg-card px-2 text-sm"
-            value={channel}
-            onChange={(e) => setChannel(e.target.value as RuleChannel | "")}
-          >
-            <option value="">{t("common.all", { defaultValue: "All" })}</option>
-            {CHANNEL_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {CHANNEL_LABEL[c]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="relative min-w-[220px] flex-1 space-y-1">
-          <span className="block font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-            {t("admin.notificationRules.filter.search", { defaultValue: "Search" })}
-          </span>
-          <div className="relative">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
-            <Input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("admin.notificationRules.filter.searchPh", {
-                defaultValue: "Search by template id or event name…",
-              })}
-              className="ps-9"
-            />
-          </div>
-        </div>
-        <div className="ms-auto flex items-end gap-4">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-            {t("admin.notificationRules.enabled", { defaultValue: "Enabled" })}:{" "}
-            <span className="font-semibold text-sage">{totals.enabled}</span>
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-            {t("admin.notificationRules.disabled", { defaultValue: "Disabled" })}:{" "}
-            <span className="font-semibold text-terracotta">{totals.disabled}</span>
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-            {t("admin.notificationRules.total", { defaultValue: "Total" })}:{" "}
-            <span className="font-semibold text-ink">{totals.total}</span>
-          </span>
-        </div>
-      </div>
-
-      {/* List */}
       {isLoading ? (
-        <div className="space-y-3" aria-busy>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-surface" aria-hidden />
-          ))}
-        </div>
+        <div className="h-40 animate-pulse rounded-lg bg-surface" aria-busy />
       ) : isError ? (
         <div className="rounded-lg border border-terracotta/40 bg-terracotta/5 p-6 text-center">
           <p className="text-sm text-terracotta">
@@ -258,86 +236,128 @@ function NotificationRulesList() {
             })}
           </p>
         </div>
-      ) : rules.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-12 text-center">
-          <p className="text-sm text-ink-muted">
-            {t("admin.notificationRules.empty", {
-              defaultValue: "No rules matching the current filters.",
-            })}
-          </p>
-        </div>
       ) : (
-        <div className="space-y-4">
-          {Array.from(grouped.entries()).map(([category, eventMap]) => (
-            <CategorySection
-              key={category}
-              category={category}
-              eventMap={eventMap}
-              onEdit={(row) => setEditorState({ row })}
-            />
-          ))}
+        <div className="grid gap-4 md:grid-cols-[260px_1fr]">
+          {/* Module rail */}
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {moduleOrder.map((mod) => {
+                  const eventCount = grouped.get(mod)?.size ?? 0;
+                  const ruleCount = Array.from(grouped.get(mod)?.values() ?? []).reduce(
+                    (a, b) => a + b.length,
+                    0,
+                  );
+                  const meta = MODULE_META[mod] ?? { label: mod, icon: Bell };
+                  const Icon = meta.icon;
+                  const active = activeModule === mod;
+                  return (
+                    <li key={mod}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveModule(mod)}
+                        className={cn(
+                          "flex w-full items-center gap-3 px-3 py-3 text-start hover:bg-surface/50",
+                          active && "bg-gold/5 border-s-2 border-gold",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "rounded-md p-1.5",
+                            active ? "bg-gold/15 text-gold" : "bg-surface text-ink-muted",
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-ink">
+                            {meta.label}
+                          </p>
+                          <p className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                            {eventCount} event{eventCount === 1 ? "" : "s"} · {ruleCount} rule
+                            {ruleCount === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Detail pane */}
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              {!activeEventMap || activeEventMap.size === 0 ? (
+                <p className="text-sm text-ink-muted">
+                  {t("admin.notificationRules.noEvents", {
+                    defaultValue: "No events for this module yet.",
+                  })}
+                </p>
+              ) : (
+                Array.from(activeEventMap.entries()).map(([eventType, eventRules]) => (
+                  <EventGroup
+                    key={eventType}
+                    eventType={eventType}
+                    rows={eventRules}
+                    onEdit={(id) =>
+                      setEditorState({
+                        ruleId: id,
+                        sourceRuleId: null,
+                        defaultModule: activeModule,
+                      })
+                    }
+                    onOverride={(srcId) =>
+                      setEditorState({
+                        ruleId: null,
+                        sourceRuleId: srcId,
+                        defaultModule: activeModule,
+                      })
+                    }
+                  />
+                ))
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
       <RuleEditorDialog
         open={editorState !== null}
         onClose={() => setEditorState(null)}
-        existing={editorState?.row ?? null}
+        ruleId={editorState?.ruleId ?? null}
+        sourceRuleId={editorState?.sourceRuleId ?? null}
+        defaultModule={editorState?.defaultModule ?? null}
       />
     </motion.div>
   );
 }
 
-function CategorySection({
-  category,
-  eventMap,
-  onEdit,
-}: {
-  category: string;
-  eventMap: Map<string, NotificationRuleRow[]>;
-  onEdit: (row: NotificationRuleRow) => void;
-}) {
-  return (
-    <Card>
-      <CardContent className="space-y-3 p-4">
-        <div className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-          {CATEGORY_LABEL[category] ?? category}
-        </div>
-        <div className="divide-y divide-border rounded-md border border-border">
-          {Array.from(eventMap.entries()).map(([eventType, rows]) => (
-            <EventGroup
-              key={eventType}
-              eventType={eventType}
-              rows={rows}
-              onEdit={onEdit}
-            />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+// ── Event group (collapsible) ────────────────────────────────────────────
 
 function EventGroup({
   eventType,
   rows,
   onEdit,
+  onOverride,
 }: {
   eventType: string;
   rows: NotificationRuleRow[];
-  onEdit: (row: NotificationRuleRow) => void;
+  onEdit: (ruleId: number) => void;
+  onOverride: (sourceRuleId: number) => void;
 }) {
   const [expanded, setExpanded] = useState<boolean>(true);
-  const enabledCount = rows.filter((r) => r.isEnabled).length;
+  const enabled = rows.filter((r) => r.isEnabled).length;
   const head = rows[0];
   return (
-    <div>
+    <div className="rounded-md border border-border">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-center justify-between gap-3 px-3 py-3 text-start hover:bg-surface/50"
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
           {expanded ? (
             <ChevronDown className="h-4 w-4 shrink-0 text-ink-muted" />
           ) : (
@@ -347,19 +367,22 @@ function EventGroup({
             <p className="truncate text-sm font-semibold text-ink">
               {head.eventDisplayName}
             </p>
-            <p className="truncate font-mono text-[11px] text-ink-subtle">
-              {eventType}
-            </p>
+            <p className="truncate font-mono text-[11px] text-ink-subtle">{eventType}</p>
           </div>
         </div>
         <span className="font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-          {enabledCount}/{rows.length} enabled
+          {enabled}/{rows.length} enabled
         </span>
       </button>
       {expanded && (
         <ul className="divide-y divide-border border-t border-border bg-surface/30">
           {rows.map((row) => (
-            <RuleRow key={row.id} row={row} onEdit={() => onEdit(row)} />
+            <RuleRow
+              key={row.id}
+              row={row}
+              onEdit={() => onEdit(row.id)}
+              onOverride={() => onOverride(row.id)}
+            />
           ))}
         </ul>
       )}
@@ -370,514 +393,498 @@ function EventGroup({
 function RuleRow({
   row,
   onEdit,
+  onOverride,
 }: {
   row: NotificationRuleRow;
   onEdit: () => void;
+  onOverride: () => void;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const Icon = CHANNEL_ICON[row.channel];
 
-  const toggleMutation = useMutation({
+  const toggle = useMutation({
     mutationFn: (next: boolean) =>
       adminNotificationRulesService.setEnabled(row.id, next),
-    onSuccess: (res) => {
-      toast.success(
-        res.isEnabled
-          ? t("admin.notificationRules.toggle.on", {
-              defaultValue: "Enabled — {{name}} will fire on next event.",
-              name: row.eventDisplayName,
-            })
-          : t("admin.notificationRules.toggle.off", {
-              defaultValue: "Disabled — {{name}} will be suppressed.",
-              name: row.eventDisplayName,
-            }),
-      );
-      void qc.invalidateQueries({ queryKey: ["admin-notification-rules"] });
-    },
-    onError: () => {
-      toast.error(
-        t("admin.notificationRules.toggle.failed", {
-          defaultValue: "Failed to toggle rule.",
-        }),
-      );
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin-notification-rules-v2"] });
     },
   });
-
-  const deleteMutation = useMutation({
+  const del = useMutation({
     mutationFn: () => adminNotificationRulesService.deactivate(row.id),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["admin-notification-rules-v2"] });
       toast.success(
-        t("admin.notificationRules.deleted", {
-          defaultValue: "Rule removed.",
-        }),
-      );
-      void qc.invalidateQueries({ queryKey: ["admin-notification-rules"] });
-    },
-    onError: () => {
-      toast.error(
-        t("admin.notificationRules.deleteFailed", {
-          defaultValue: "Failed to remove rule.",
-        }),
+        t("admin.notificationRules.deleted", { defaultValue: "Rule removed." }),
       );
     },
   });
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
+    <li className="flex items-center gap-3 px-3 py-2">
       <div className="rounded-md bg-gold/10 p-1.5">
         <Icon className="h-4 w-4 text-gold" aria-hidden />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-ink-muted">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-ink-muted">
             {CHANNEL_LABEL[row.channel]}
           </span>
-          <PriorityPill priority={row.priority} />
+          <span className="rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+            {row.priority}
+          </span>
           {!row.isEnabled && (
             <span className="rounded-full bg-terracotta/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-terracotta">
-              {t("admin.notificationRules.disabledTag", { defaultValue: "Disabled" })}
+              disabled
             </span>
           )}
           {row.isSystemDefault && (
             <span className="rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-              {t("admin.notificationRules.systemDefault", { defaultValue: "System default" })}
+              system default
             </span>
           )}
         </div>
         <p className="truncate font-mono text-[11px] text-ink-subtle">
           {row.templateId}
         </p>
-        {row.description && (
-          <p className="mt-0.5 line-clamp-1 text-[11px] text-ink-muted">{row.description}</p>
-        )}
       </div>
-      <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => toggle.mutate(!row.isEnabled)}
+        disabled={toggle.isPending}
+      >
+        {row.isEnabled ? (
+          <ToggleRight className="h-5 w-5 text-sage" />
+        ) : (
+          <ToggleLeft className="h-5 w-5 text-ink-muted" />
+        )}
+      </Button>
+      <Button variant="ghost" size="icon" onClick={onEdit} title="Edit">
+        <Pencil className="h-4 w-4" />
+      </Button>
+      {row.isSystemDefault && (
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => toggleMutation.mutate(!row.isEnabled)}
-          disabled={toggleMutation.isPending}
-          title={
-            row.isEnabled
-              ? t("admin.notificationRules.disableHint", { defaultValue: "Click to disable" })
-              : t("admin.notificationRules.enableHint", { defaultValue: "Click to enable" })
+          onClick={onOverride}
+          title="Create a tenant-specific override of this system default"
+          className="text-xs"
+        >
+          Override
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => {
+          if (confirm(t("admin.notificationRules.confirmDelete", { defaultValue: "Remove this rule?" }))) {
+            del.mutate();
           }
-        >
-          {row.isEnabled ? (
-            <ToggleRight className="h-5 w-5 text-sage" />
-          ) : (
-            <ToggleLeft className="h-5 w-5 text-ink-muted" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onEdit}
-          title={t("common.edit", { defaultValue: "Edit" })}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => {
-            if (
-              confirm(
-                t("admin.notificationRules.confirmDelete", {
-                  defaultValue: "Remove this rule? You can re-add it later.",
-                }),
-              )
-            ) {
-              deleteMutation.mutate();
-            }
-          }}
-          disabled={deleteMutation.isPending}
-          title={t("common.delete", { defaultValue: "Delete" })}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+        }}
+        disabled={del.isPending}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </li>
   );
 }
 
-function PriorityPill({ priority }: { priority: NotificationRuleRow["priority"] }) {
-  const palette =
-    priority === "critical"
-      ? "bg-terracotta/15 text-terracotta"
-      : priority === "high"
-        ? "bg-amber/15 text-amber-ink"
-        : priority === "medium"
-          ? "bg-surface text-ink-muted"
-          : "bg-surface text-ink-subtle";
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
-        palette,
-      )}
-    >
-      {priority}
-    </span>
-  );
-}
-
-// ─── Editor dialog ───────────────────────────────────────────────────────
-
-const PRIORITY_OPTIONS: RulePriority[] = ["low", "medium", "high", "critical"];
-
-interface AudienceForm {
-  roles: string;            // comma-separated
-  userIds: string;          // comma-separated ints
-  additionalEmails: string; // comma-separated
-}
-
-interface EditorForm {
-  eventType: string;
-  templateId: string;
-  channel: RuleChannel;
-  isEnabled: boolean;
-  priority: RulePriority;
-  cooldownMinutes: number;
-  description: string;
-  audience: AudienceForm;
-  conditionJson: string; // raw JSON in textarea
-}
-
-function blankForm(): EditorForm {
-  return {
-    eventType: "",
-    templateId: "",
-    channel: "email",
-    isEnabled: true,
-    priority: "medium",
-    cooldownMinutes: 0,
-    description: "",
-    audience: { roles: "", userIds: "", additionalEmails: "" },
-    conditionJson: "",
-  };
-}
-
-function rowToForm(row: NotificationRuleRow): EditorForm {
-  const aud = (row.audience ?? {}) as Record<string, unknown>;
-  const arr = (k: string): string => {
-    const v = aud[k];
-    if (Array.isArray(v)) return v.map((x) => String(x)).join(", ");
-    return "";
-  };
-  return {
-    eventType: row.eventType,
-    templateId: row.templateId,
-    channel: row.channel,
-    isEnabled: row.isEnabled,
-    priority: row.priority,
-    cooldownMinutes: row.cooldownMinutes,
-    description: row.description ?? "",
-    audience: {
-      roles: arr("roles"),
-      userIds: arr("userIds"),
-      additionalEmails: arr("additionalEmails"),
-    },
-    conditionJson: row.condition ? JSON.stringify(row.condition, null, 2) : "",
-  };
-}
-
-function formToInput(f: EditorForm): NotificationRuleInput {
-  const splitCsv = (s: string): string[] =>
-    s.split(",").map((x) => x.trim()).filter((x) => x.length > 0);
-  const splitCsvInt = (s: string): number[] =>
-    splitCsv(s)
-      .map((x) => Number(x))
-      .filter((n) => Number.isInteger(n) && n > 0);
-
-  const audience: Record<string, unknown> = {};
-  const roles = splitCsv(f.audience.roles);
-  const userIds = splitCsvInt(f.audience.userIds);
-  const emails = splitCsv(f.audience.additionalEmails);
-  if (roles.length > 0) audience.roles = roles;
-  if (userIds.length > 0) audience.userIds = userIds;
-  if (emails.length > 0) audience.additionalEmails = emails;
-
-  let condition: Record<string, unknown> | null = null;
-  const raw = f.conditionJson.trim();
-  if (raw.length > 0) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        condition = parsed as Record<string, unknown>;
-      }
-    } catch {
-      // Caller validates before submit; keep null here.
-    }
-  }
-
-  return {
-    eventType: f.eventType,
-    templateId: f.templateId,
-    channel: f.channel,
-    isEnabled: f.isEnabled,
-    audience,
-    condition,
-    priority: f.priority,
-    cooldownMinutes: f.cooldownMinutes,
-    description: f.description.trim().length === 0 ? null : f.description.trim(),
-  };
-}
+// ── Editor dialog ────────────────────────────────────────────────────────
 
 function RuleEditorDialog({
   open,
   onClose,
-  existing,
+  ruleId,
+  sourceRuleId,
+  defaultModule,
 }: {
   open: boolean;
   onClose: () => void;
-  existing: NotificationRuleRow | null;
+  ruleId: number | null;
+  sourceRuleId: number | null;
+  defaultModule: string | null;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const isEdit = !!existing;
+  const isEdit = ruleId !== null;
+  const isOverride = !isEdit && sourceRuleId !== null;
+  // Load detail when editing OR when cloning a system default for override.
+  const loadId = isEdit ? ruleId : sourceRuleId;
+  const detail = useQuery({
+    queryKey: ["admin-notification-rule-detail", loadId],
+    queryFn: () => adminNotificationRulesService.getDetail(loadId!),
+    enabled: open && loadId !== null,
+    staleTime: 0,
+  });
 
-  const [form, setForm] = useState<EditorForm>(() =>
-    existing ? rowToForm(existing) : blankForm(),
-  );
-
-  // Re-seed form on open / row swap.
-  // Cheap reset; dialog mounts/unmounts on parent toggle anyway.
-  useEffectOnRowSwap(existing, open, setForm);
-
-  // Event-type catalogue for the dropdown.
-  const { data: eventTypes = [] } = useQuery({
+  // Reference catalogues.
+  const eventTypes = useQuery({
     queryKey: ["admin-notification-event-types"],
     queryFn: () => adminNotificationRulesService.eventTypes(),
     enabled: open,
     staleTime: 5 * 60_000,
   });
+  const contextResolvers = useQuery({
+    queryKey: ["admin-notification-context-resolvers"],
+    queryFn: () => adminNotificationRulesService.contextResolvers(),
+    enabled: open,
+    staleTime: 5 * 60_000,
+  });
 
-  const conditionParseError = useMemo(() => {
-    const raw = form.conditionJson.trim();
+  const [form, setForm] = useState<NotificationRuleUpsertV2Input>(() =>
+    blankForm(defaultModule),
+  );
+  const [conditionRaw, setConditionRaw] = useState<string>("");
+
+  // Re-seed form on dialog open / row swap.
+  useEffect(() => {
+    if (!open) return;
+    // Edit OR override mode → both populate from detail. Override saves as new.
+    if ((isEdit || isOverride) && detail.data) {
+      const seeded = detailToForm(detail.data);
+      // For override, mark the name so admin sees it's a clone of a system default.
+      setForm(
+        isOverride
+          ? { ...seeded, name: seeded.name + " (tenant override)" }
+          : seeded,
+      );
+      setConditionRaw(
+        detail.data.condition ? JSON.stringify(detail.data.condition, null, 2) : "",
+      );
+    } else if (!isEdit && !isOverride) {
+      setForm(blankForm(defaultModule));
+      setConditionRaw("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, isOverride, detail.data?.id]);
+
+  const conditionError = useMemo(() => {
+    const raw = conditionRaw.trim();
     if (raw.length === 0) return null;
     try {
       const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return t("admin.notificationRules.condition.objectRequired", {
-          defaultValue: "Condition must be a JSON object (e.g. { \"contract.valueAed\": { \"gte\": 1000000 } }).",
-        });
-      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        return "Condition must be a JSON object.";
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : "Invalid JSON";
     }
-  }, [form.conditionJson, t]);
+  }, [conditionRaw]);
 
-  const saveMutation = useMutation({
+  // Event types filtered by module.
+  const moduleEvents = useMemo(() => {
+    if (!eventTypes.data) return [];
+    return eventTypes.data.filter((et) => et.category === form.module);
+  }, [eventTypes.data, form.module]);
+
+  const save = useMutation({
     mutationFn: () => {
-      const input = formToInput(form);
-      return isEdit && existing
-        ? adminNotificationRulesService.update(existing.id, input)
-        : adminNotificationRulesService.create(input);
+      let condition: Record<string, unknown> | null = null;
+      const raw = conditionRaw.trim();
+      if (raw.length > 0) {
+        try { condition = JSON.parse(raw); } catch { condition = null; }
+      }
+      const payload: NotificationRuleUpsertV2Input = { ...form, condition };
+      return isEdit
+        ? adminNotificationRulesService.updateV2(ruleId!, payload)
+        : adminNotificationRulesService.createV2(payload);
     },
     onSuccess: () => {
-      toast.success(
-        isEdit
-          ? t("admin.notificationRules.updated", { defaultValue: "Rule updated." })
-          : t("admin.notificationRules.created", { defaultValue: "Rule created." }),
-      );
-      void qc.invalidateQueries({ queryKey: ["admin-notification-rules"] });
+      toast.success(isEdit ? "Rule updated." : "Rule created.");
+      void qc.invalidateQueries({ queryKey: ["admin-notification-rules-v2"] });
       onClose();
     },
     onError: (e: Error & { response?: { data?: { error?: { message?: string } } } }) => {
-      const msg =
-        e.response?.data?.error?.message ??
-        e.message ??
-        t("admin.notificationRules.saveFailed", {
-          defaultValue: "Failed to save rule.",
-        });
-      toast.error(msg);
+      toast.error(
+        e.response?.data?.error?.message ?? e.message ?? "Failed to save rule.",
+      );
     },
   });
 
   const canSubmit =
+    form.module.length > 0 &&
+    form.name.trim().length > 0 &&
     form.eventType.length > 0 &&
-    form.templateId.length > 0 &&
-    form.channel.length > 0 &&
-    !conditionParseError &&
-    !saveMutation.isPending;
+    form.channels.length > 0 &&
+    form.channels.every((c) => c.channel && c.templateSlug.length > 0) &&
+    form.recipients.length > 0 &&
+    form.recipients.every((r) => r.recipientType && r.recipientValue.length > 0) &&
+    !conditionError &&
+    !save.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[760px] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit
-              ? t("admin.notificationRules.editor.editTitle", { defaultValue: "Edit notification rule" })
-              : t("admin.notificationRules.editor.addTitle", { defaultValue: "Add notification rule" })}
+              ? "Edit notification rule"
+              : isOverride
+                ? "Create tenant-specific override"
+                : "Add notification rule"}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1 text-xs text-ink-muted">
-            <span>{t("admin.notificationRules.fields.eventType", { defaultValue: "Event type" })}</span>
-            <select
-              value={form.eventType}
-              onChange={(e) => setForm({ ...form, eventType: e.target.value })}
-              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-            >
-              <option value="">— select —</option>
-              {eventTypes.map((et: NotificationEventTypeRow) => (
-                <option key={et.code} value={et.code}>
-                  {et.displayName} ({et.code})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-xs text-ink-muted">
-            <span>{t("admin.notificationRules.fields.channel", { defaultValue: "Channel" })}</span>
-            <select
-              value={form.channel}
-              onChange={(e) => setForm({ ...form, channel: e.target.value as RuleChannel })}
-              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-            >
-              {CHANNEL_OPTIONS.map((c) => (
-                <option key={c} value={c}>
-                  {CHANNEL_LABEL[c]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-xs text-ink-muted sm:col-span-2">
-            <span>{t("admin.notificationRules.fields.templateId", { defaultValue: "Template ID" })}</span>
-            <Input
-              value={form.templateId}
-              onChange={(e) => setForm({ ...form, templateId: e.target.value })}
-              placeholder="approval.pending.in_app"
-            />
-            <span className="text-[11px] text-ink-subtle">
-              {t("admin.notificationRules.fields.templateIdHelp", {
-                defaultValue: "Must match an existing notification_template.template_id (see /admin/email-templates).",
-              })}
-            </span>
-          </label>
-          <label className="grid gap-1 text-xs text-ink-muted">
-            <span>{t("admin.notificationRules.fields.priority", { defaultValue: "Priority" })}</span>
-            <select
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: e.target.value as RulePriority })}
-              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-            >
-              {PRIORITY_OPTIONS.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-xs text-ink-muted">
-            <span>{t("admin.notificationRules.fields.cooldown", { defaultValue: "Cooldown (minutes)" })}</span>
-            <Input
-              type="number"
-              min={0}
-              value={form.cooldownMinutes}
-              onChange={(e) => setForm({ ...form, cooldownMinutes: Math.max(0, Number(e.target.value) || 0) })}
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-ink sm:col-span-2">
-            <input
-              type="checkbox"
-              checked={form.isEnabled}
-              onChange={(e) => setForm({ ...form, isEnabled: e.target.checked })}
-              className="h-4 w-4 cursor-pointer accent-gold"
-            />
-            <span>
-              {t("admin.notificationRules.fields.isEnabled", {
-                defaultValue: "Enabled — fire this notification on the event",
-              })}
-            </span>
-          </label>
-          <label className="grid gap-1 text-xs text-ink-muted sm:col-span-2">
-            <span>{t("admin.notificationRules.fields.description", { defaultValue: "Description" })}</span>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={2}
-              className="w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
-              placeholder={t("admin.notificationRules.fields.descriptionPh", {
-                defaultValue: "Why this rule exists, who asked for it, etc.",
-              })}
-            />
-          </label>
-
-          <div className="sm:col-span-2 mt-2 rounded-md border border-border bg-surface/30 p-3">
-            <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-              {t("admin.notificationRules.fields.audience", { defaultValue: "Audience (optional override)" })}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <label className="grid gap-1 text-xs text-ink-muted">
-                <span>{t("admin.notificationRules.fields.audienceRoles", { defaultValue: "Roles" })}</span>
-                <Input
-                  value={form.audience.roles}
-                  onChange={(e) =>
-                    setForm({ ...form, audience: { ...form.audience, roles: e.target.value } })
-                  }
-                  placeholder="legal_counsel, platform_admin"
-                />
-              </label>
-              <label className="grid gap-1 text-xs text-ink-muted">
-                <span>{t("admin.notificationRules.fields.audienceUserIds", { defaultValue: "User IDs" })}</span>
-                <Input
-                  value={form.audience.userIds}
-                  onChange={(e) =>
-                    setForm({ ...form, audience: { ...form.audience, userIds: e.target.value } })
-                  }
-                  placeholder="12, 34, 56"
-                />
-              </label>
-              <label className="grid gap-1 text-xs text-ink-muted">
-                <span>{t("admin.notificationRules.fields.audienceEmails", { defaultValue: "Extra emails" })}</span>
-                <Input
-                  value={form.audience.additionalEmails}
-                  onChange={(e) =>
-                    setForm({ ...form, audience: { ...form.audience, additionalEmails: e.target.value } })
-                  }
-                  placeholder="cfo@example.com"
-                />
-              </label>
-            </div>
-            <p className="mt-2 text-[11px] text-ink-subtle">
-              {t("admin.notificationRules.fields.audienceHelp", {
-                defaultValue: "Empty = use whoever the call site supplied. v1 stores audience for documentation; evaluation comes in a later iteration.",
-              })}
-            </p>
+        {isOverride && (
+          <div className="rounded-md border border-gold/30 bg-gold/5 px-3 py-2 text-[12px] text-ink">
+            You're cloning a system default. Saving creates a new rule scoped to
+            your tenant — it will take precedence over the system default for
+            this event. The original system rule remains untouched.
           </div>
+        )}
 
-          <label className="grid gap-1 text-xs text-ink-muted sm:col-span-2">
-            <span>{t("admin.notificationRules.fields.condition", { defaultValue: "Condition (JSON, optional)" })}</span>
-            <textarea
-              value={form.conditionJson}
-              onChange={(e) => setForm({ ...form, conditionJson: e.target.value })}
-              rows={4}
-              className="w-full rounded-md border border-input bg-transparent px-2 py-1 font-mono text-xs"
-              placeholder={`{ "contract.valueAed": { "gte": 1000000 } }`}
-            />
-            {conditionParseError && (
-              <span className="text-[11px] text-terracotta">{conditionParseError}</span>
-            )}
-            <span className="text-[11px] text-ink-subtle">
-              {t("admin.notificationRules.fields.conditionHelp", {
-                defaultValue: "Optional predicates against the event payload. v1 stores it for the future evaluator.",
-              })}
-            </span>
-          </label>
-        </div>
+        {(isEdit || isOverride) && detail.isLoading ? (
+          <p className="text-sm text-ink-muted">Loading…</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1 text-xs text-ink-muted">
+                <span>Module</span>
+                <select
+                  value={form.module}
+                  onChange={(e) => setForm({ ...form, module: e.target.value, eventType: "" })}
+                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                >
+                  <option value="">— select —</option>
+                  {Object.entries(MODULE_META).map(([code, meta]) => (
+                    <option key={code} value={code}>{meta.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs text-ink-muted">
+                <span>Trigger event</span>
+                <select
+                  value={form.eventType}
+                  onChange={(e) => setForm({ ...form, eventType: e.target.value })}
+                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                  disabled={!form.module}
+                >
+                  <option value="">— select —</option>
+                  {moduleEvents.map((et) => (
+                    <option key={et.code} value={et.code}>
+                      {et.displayName} ({et.code})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs text-ink-muted sm:col-span-2">
+                <span>Rule name</span>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="e.g. Notify legal counsel on high-value contracts"
+                />
+              </label>
+              <label className="grid gap-1 text-xs text-ink-muted sm:col-span-2">
+                <span>Description</span>
+                <textarea
+                  value={form.description ?? ""}
+                  onChange={(e) => setForm({ ...form, description: e.target.value || null })}
+                  rows={2}
+                  className="w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm"
+                />
+              </label>
+              <label className="grid gap-1 text-xs text-ink-muted">
+                <span>Priority</span>
+                <select
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value as RulePriority })}
+                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                >
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs text-ink-muted">
+                <span>Cooldown (minutes)</span>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.cooldownMinutes}
+                  onChange={(e) =>
+                    setForm({ ...form, cooldownMinutes: Math.max(0, Number(e.target.value) || 0) })
+                  }
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ink sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.isEnabled}
+                  onChange={(e) => setForm({ ...form, isEnabled: e.target.checked })}
+                  className="h-4 w-4 cursor-pointer accent-gold"
+                />
+                <span>Enabled</span>
+              </label>
+            </div>
+
+            {/* Channels */}
+            <div className="rounded-md border border-border bg-surface/30 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                  Channels & templates
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      channels: [...form.channels, { channel: "in_app", templateSlug: "" }],
+                    })
+                  }
+                >
+                  <Plus className="me-1 h-3.5 w-3.5" /> Add channel
+                </Button>
+              </div>
+              {form.channels.length === 0 ? (
+                <p className="text-[11px] text-ink-muted">No channels yet — add one.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {form.channels.map((c, i) => (
+                    <li key={i} className="flex flex-wrap items-end gap-2">
+                      <select
+                        value={c.channel}
+                        onChange={(e) => {
+                          const next = [...form.channels];
+                          next[i] = { ...next[i], channel: e.target.value as RuleChannel };
+                          setForm({ ...form, channels: next });
+                        }}
+                        className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                      >
+                        {CHANNEL_OPTIONS.map((ch) => (
+                          <option key={ch} value={ch}>{CHANNEL_LABEL[ch]}</option>
+                        ))}
+                      </select>
+                      <Input
+                        value={c.templateSlug}
+                        onChange={(e) => {
+                          const next = [...form.channels];
+                          next[i] = { ...next[i], templateSlug: e.target.value };
+                          setForm({ ...form, channels: next });
+                        }}
+                        placeholder="template slug (e.g. approval.pending.in_app)"
+                        className="min-w-[260px] flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            channels: form.channels.filter((_, idx) => idx !== i),
+                          })
+                        }
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Recipients */}
+            <div className="rounded-md border border-border bg-surface/30 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                  Recipients
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setForm({
+                      ...form,
+                      recipients: [
+                        ...form.recipients,
+                        { recipientType: "role", recipientValue: "" },
+                      ],
+                    })
+                  }
+                >
+                  <Plus className="me-1 h-3.5 w-3.5" /> Add recipient
+                </Button>
+              </div>
+              {form.recipients.length === 0 ? (
+                <p className="text-[11px] text-ink-muted">No recipients yet — add one.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {form.recipients.map((r, i) => (
+                    <li key={i} className="flex flex-wrap items-end gap-2">
+                      <select
+                        value={r.recipientType}
+                        onChange={(e) => {
+                          const next = [...form.recipients];
+                          next[i] = {
+                            ...next[i],
+                            recipientType: e.target.value as RecipientType,
+                            recipientValue: "",
+                          };
+                          setForm({ ...form, recipients: next });
+                        }}
+                        className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+                      >
+                        {RECIPIENT_TYPES.map((rt) => (
+                          <option key={rt} value={rt}>{RECIPIENT_TYPE_LABEL[rt]}</option>
+                        ))}
+                      </select>
+                      <RecipientValueInput
+                        recipientType={r.recipientType}
+                        value={r.recipientValue}
+                        contextResolvers={contextResolvers.data ?? []}
+                        onChange={(v) => {
+                          const next = [...form.recipients];
+                          next[i] = { ...next[i], recipientValue: v };
+                          setForm({ ...form, recipients: next });
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            recipients: form.recipients.filter((_, idx) => idx !== i),
+                          })
+                        }
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-[11px] text-ink-subtle">
+                Tip: "From context" lets the rule pick the right person dynamically based
+                on the event — e.g. the contract assignee, the approval requester, the
+                watchers list. Pick the resolver that matches what your team needs to know.
+              </p>
+            </div>
+
+            <label className="grid gap-1 text-xs text-ink-muted">
+              <span>Condition (JSON, optional)</span>
+              <textarea
+                value={conditionRaw}
+                onChange={(e) => setConditionRaw(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-input bg-transparent px-2 py-1 font-mono text-xs"
+                placeholder={`{ "contract.valueAed": { "gte": 1000000 } }`}
+              />
+              {conditionError && (
+                <span className="text-[11px] text-terracotta">{conditionError}</span>
+              )}
+            </label>
+          </div>
+        )}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={saveMutation.isPending}>
-            {t("common.cancel", { defaultValue: "Cancel" })}
+          <Button variant="ghost" onClick={onClose} disabled={save.isPending}>
+            Cancel
           </Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={!canSubmit}>
-            {saveMutation.isPending
-              ? t("common.saving", { defaultValue: "Saving…" })
-              : isEdit
-                ? t("common.save", { defaultValue: "Save" })
-                : t("admin.notificationRules.editor.create", { defaultValue: "Create rule" })}
+          <Button onClick={() => save.mutate()} disabled={!canSubmit}>
+            {save.isPending ? "Saving…" : isEdit ? "Save" : "Create rule"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -885,16 +892,86 @@ function RuleEditorDialog({
   );
 }
 
-// Re-seed editor form whenever the open state or row swaps.
-import { useEffect } from "react";
-function useEffectOnRowSwap(
-  existing: NotificationRuleRow | null,
-  open: boolean,
-  setForm: React.Dispatch<React.SetStateAction<EditorForm>>,
-) {
-  useEffect(() => {
-    if (!open) return;
-    setForm(existing ? rowToForm(existing) : blankForm());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, existing?.id]);
+function RecipientValueInput({
+  recipientType,
+  value,
+  contextResolvers,
+  onChange,
+}: {
+  recipientType: RecipientType;
+  value: string;
+  contextResolvers: ContextResolverRow[];
+  onChange: (v: string) => void;
+}) {
+  if (recipientType === "context") {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="min-w-[260px] flex-1 h-9 rounded-md border border-input bg-transparent px-2 text-sm"
+      >
+        <option value="">— pick resolver —</option>
+        {contextResolvers.map((cr) => (
+          <option key={cr.code} value={cr.code}>{cr.label}</option>
+        ))}
+      </select>
+    );
+  }
+  const placeholder =
+    recipientType === "role"
+      ? "role code (e.g. legal_counsel)"
+      : recipientType === "user"
+        ? "user id (e.g. 42)"
+        : "email address";
+  return (
+    <Input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      type={recipientType === "user" ? "number" : "text"}
+      className="min-w-[220px] flex-1"
+    />
+  );
+}
+
+function blankForm(module: string | null): NotificationRuleUpsertV2Input {
+  return {
+    module: module ?? "",
+    name: "",
+    description: null,
+    eventType: "",
+    isEnabled: true,
+    priority: "medium",
+    condition: null,
+    cooldownMinutes: 0,
+    dedupeKey: null,
+    ordering: 100,
+    channels: [{ channel: "in_app", templateSlug: "" }],
+    recipients: [{ recipientType: "context", recipientValue: "caller" }],
+  };
+}
+
+function detailToForm(d: NotificationRuleDetail): NotificationRuleUpsertV2Input {
+  return {
+    module: d.module,
+    name: d.name,
+    description: d.description,
+    eventType: d.eventType,
+    isEnabled: d.isEnabled,
+    priority: d.priority,
+    condition: d.condition,
+    cooldownMinutes: d.cooldownMinutes,
+    dedupeKey: d.dedupeKey,
+    ordering: d.ordering,
+    channels: d.channels.map((c) => ({
+      channel: c.channel,
+      templateSlug: c.templateSlug,
+      subjectOverride: c.subjectOverride,
+      bodyOverride: c.bodyOverride,
+    })),
+    recipients: d.recipients.map((r) => ({
+      recipientType: r.recipientType,
+      recipientValue: r.recipientValue,
+    })),
+  };
 }
