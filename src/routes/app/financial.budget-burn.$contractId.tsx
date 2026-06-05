@@ -27,6 +27,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowLeft,
+  CheckCircle2,
   RefreshCcw,
   FileEdit,
   TrendingUp,
@@ -1081,7 +1082,8 @@ function VarianceClausesPanel({
       );
     },
     onSuccess: (result, intent) => {
-      const stamp = { at: new Date().toISOString(), caseId: result?.id };
+      const caseId = (result as { id?: number } | undefined)?.id;
+      const stamp = { at: new Date().toISOString(), caseId };
       writeEscalation(intent, stamp);
       if (intent === 'amendment') setAmendmentEscalation(stamp);
       else setVarianceEscalation(stamp);
@@ -1130,34 +1132,26 @@ function VarianceClausesPanel({
               })}
             </p>
             {hasBreaches && (
-              <div className="mt-3 space-y-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={escalateMutation.isPending}
-                  onClick={() => escalateMutation.mutate('variance')}
-                >
-                  {escalateMutation.isPending
-                    ? t('common.submitting', { defaultValue: 'Opening case…' })
-                    : t('financial.budgetBurn.detail.varianceClauses.escalateBtn', {
-                        defaultValue: 'Escalate to drafter',
-                      })}
-                </Button>
-                {varianceEscalation && (
-                  <p className="text-[11px] text-ink-subtle">
-                    {t('financial.budgetBurn.detail.varianceClauses.escalatedOn', {
-                      defaultValue: 'Escalated to drafter on {{at}}',
-                      at: fmtEscalatedOn(varianceEscalation.at),
-                    })}
-                    {varianceEscalation.caseId && (
-                      <>
-                        {' '}· {t('financial.budgetBurn.detail.varianceClauses.caseRef', {
-                          defaultValue: 'Case #{{id}}',
-                          id: varianceEscalation.caseId,
+              <div className="mt-3">
+                {varianceEscalation ? (
+                  <EscalatedBadge
+                    escalation={varianceEscalation}
+                    fmtEscalatedOn={fmtEscalatedOn}
+                    t={t}
+                  />
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={escalateMutation.isPending}
+                    onClick={() => escalateMutation.mutate('variance')}
+                  >
+                    {escalateMutation.isPending
+                      ? t('common.submitting', { defaultValue: 'Opening case…' })
+                      : t('financial.budgetBurn.detail.varianceClauses.escalateBtn', {
+                          defaultValue: 'Escalate to drafter',
                         })}
-                      </>
-                    )}
-                  </p>
+                  </Button>
                 )}
               </div>
             )}
@@ -1176,34 +1170,26 @@ function VarianceClausesPanel({
               })}
             </p>
             {contract && (
-              <div className="mt-3 space-y-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={escalateMutation.isPending}
-                  onClick={() => escalateMutation.mutate('amendment')}
-                >
-                  {escalateMutation.isPending
-                    ? t('common.submitting', { defaultValue: 'Opening case…' })
-                    : t('financial.budgetBurn.detail.varianceClauses.escalateBtn', {
-                        defaultValue: 'Escalate to drafter',
-                      })}
-                </Button>
-                {amendmentEscalation && (
-                  <p className="text-[11px] text-ink-subtle">
-                    {t('financial.budgetBurn.detail.varianceClauses.escalatedOn', {
-                      defaultValue: 'Escalated to drafter on {{at}}',
-                      at: fmtEscalatedOn(amendmentEscalation.at),
-                    })}
-                    {amendmentEscalation.caseId && (
-                      <>
-                        {' '}· {t('financial.budgetBurn.detail.varianceClauses.caseRef', {
-                          defaultValue: 'Case #{{id}}',
-                          id: amendmentEscalation.caseId,
+              <div className="mt-3">
+                {amendmentEscalation ? (
+                  <EscalatedBadge
+                    escalation={amendmentEscalation}
+                    fmtEscalatedOn={fmtEscalatedOn}
+                    t={t}
+                  />
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={escalateMutation.isPending}
+                    onClick={() => escalateMutation.mutate('amendment')}
+                  >
+                    {escalateMutation.isPending
+                      ? t('common.submitting', { defaultValue: 'Opening case…' })
+                      : t('financial.budgetBurn.detail.varianceClauses.escalateBtn', {
+                          defaultValue: 'Escalate to drafter',
                         })}
-                      </>
-                    )}
-                  </p>
+                  </Button>
                 )}
               </div>
             )}
@@ -1867,6 +1853,49 @@ function DraftCureNoticeButton({ contractId }: { contractId: number }) {
         ? t('common.saving')
         : t('financial.budgetBurn.detail.draftCureNotice.button')}
     </Button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-rev-R — EscalatedBadge
+// One-shot escalation indicator (Expiry Cliff pattern): amber pill +
+// CheckCircle2 + timestamp + optional case ref. Shown in place of the
+// "Escalate to drafter" button after a successful escalation so the user
+// can't open duplicate risk cases for the same intent.
+// ─────────────────────────────────────────────────────────────
+function EscalatedBadge({
+  escalation,
+  fmtEscalatedOn,
+  t,
+}: {
+  escalation: { at: string; caseId?: number };
+  fmtEscalatedOn: (iso: string) => string;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  const when = fmtEscalatedOn(escalation.at);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-tint/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-ink">
+        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+        {t('financial.budgetBurn.detail.varianceClauses.badgeEscalated', {
+          defaultValue: 'Escalated',
+        })}
+      </span>
+      <span className="text-[11px] text-ink-muted">
+        {t('financial.budgetBurn.detail.varianceClauses.escalatedOn', {
+          defaultValue: 'Escalated to drafter on {{at}}',
+          at: when,
+        })}
+        {escalation.caseId && (
+          <>
+            {' '}· {t('financial.budgetBurn.detail.varianceClauses.caseRef', {
+              defaultValue: 'Case #{{id}}',
+              id: escalation.caseId,
+            })}
+          </>
+        )}
+      </span>
+    </div>
   );
 }
 

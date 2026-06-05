@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import {
   AlertTriangle,
   ArrowUpRight,
+  CheckCircle2,
   RefreshCcw,
   ChevronDown,
   ChevronRight,
@@ -233,6 +234,38 @@ function TradeMarginPortfolioView() {
   // E-rev-H — Bulk-escalate state lives at this level so the dialog can
   // reach the page's row set.
   const [escalateTarget, setEscalateTarget] = useState<TradePositionListItem | null>(null);
+  // E-rev-R — One-shot escalation gate. After EscalateBandDialog succeeds,
+  // the position id is added to this set so subsequent renders of the
+  // Escalate buttons in the table + What-If panel switch to an
+  // "Escalated" badge instead of re-opening the dialog. Persisted in
+  // localStorage so the gate survives reload (demo-grade; production
+  // should source from server-side risk_case rows).
+  const TM_ESCALATION_LS_KEY = 'tradeMargin.escalation.v1';
+  const [escalatedPositions, setEscalatedPositions] = useState<
+    Record<number, { at: string; caseId?: number }>
+  >(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem(TM_ESCALATION_LS_KEY);
+      return raw ? (JSON.parse(raw) as Record<number, { at: string; caseId?: number }>) : {};
+    } catch {
+      return {};
+    }
+  });
+  const markPositionEscalated = (
+    positionId: number,
+    payload: { at: string; caseId?: number },
+  ) => {
+    setEscalatedPositions((prev) => {
+      const next = { ...prev, [positionId]: payload };
+      try {
+        window.localStorage.setItem(TM_ESCALATION_LS_KEY, JSON.stringify(next));
+      } catch {
+        /* quota / disabled */
+      }
+      return next;
+    });
+  };
 
   // R-IL — table sort (mirrors Contract Spend Health pattern).
   type SortField =
@@ -607,6 +640,7 @@ function TradeMarginPortfolioView() {
                                 key={row.id}
                                 row={row}
                                 onEscalate={() => setEscalateTarget(row)}
+                                escalation={escalatedPositions[row.id]}
                               />
                             ))
                           )}
@@ -664,6 +698,7 @@ function TradeMarginPortfolioView() {
               rows={rows}
               onEscalate={(row) => setEscalateTarget(row)}
               benchmark={primaryBenchmark}
+              escalatedPositions={escalatedPositions}
             />
           )}
         </>
@@ -675,6 +710,7 @@ function TradeMarginPortfolioView() {
       <EscalateBandDialog
         target={escalateTarget}
         onClose={() => setEscalateTarget(null)}
+        onEscalated={(positionId, payload) => markPositionEscalated(positionId, payload)}
       />
     </motion.div>
   );
@@ -809,10 +845,12 @@ function WhatIfOspPanel({
   rows,
   onEscalate,
   benchmark,
+  escalatedPositions = {},
 }: {
   rows: TradePositionListItem[];
   onEscalate: (row: TradePositionListItem) => void;
   benchmark?: CatalogBenchmark;
+  escalatedPositions?: Record<number, { at: string; caseId?: number }>;
 }) {
   const { t } = useTranslation();
   // Anchor the slider to today's published OSP.
@@ -1074,21 +1112,29 @@ function WhatIfOspPanel({
                     <p className="font-mono text-terracotta">
                       {formatAedCompact(String(Math.round(e.compressionAed)))}
                     </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        onEscalate(e.row);
-                      }}
-                      className="h-8"
-                    >
-                      <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
-                      {t('financial.tradeMargin.actions.escalate', {
-                        defaultValue: 'Escalate',
-                      })}
-                    </Button>
+                    {escalatedPositions[e.row.id] ? (
+                      <EscalatedPill
+                        when={escalatedPositions[e.row.id]!.at}
+                        caseId={escalatedPositions[e.row.id]!.caseId}
+                        t={t}
+                      />
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          onEscalate(e.row);
+                        }}
+                        className="h-8"
+                      >
+                        <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
+                        {t('financial.tradeMargin.actions.escalate', {
+                          defaultValue: 'Escalate',
+                        })}
+                      </Button>
+                    )}
                   </div>
                   {expanded && (
                     <WhatIfBreakdown
@@ -1330,9 +1376,11 @@ function BandStatusBadge({ status }: { status: BandStatus }) {
 function EscalateBandDialog({
   target,
   onClose,
+  onEscalated,
 }: {
   target: TradePositionListItem | null;
   onClose: () => void;
+  onEscalated?: (positionId: number, payload: { at: string; caseId?: number }) => void;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -1397,7 +1445,16 @@ function EscalateBandDialog({
         },
       });
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // E-rev-R — Tell the parent that THIS position has been escalated so
+      // subsequent renders of the Escalate button switch to an "Escalated"
+      // badge instead of re-opening the dialog.
+      if (target && onEscalated) {
+        onEscalated(target.id, {
+          at: new Date().toISOString(),
+          caseId: (result as { id?: number } | undefined)?.id,
+        });
+      }
       toast.success(
         t('financial.tradeMargin.actions.escalateSuccess', {
           defaultValue: 'Risk case opened — drafter will be notified.',
@@ -1513,14 +1570,63 @@ function EscalateBandDialog({
 }
 
 // ─────────────────────────────────────────────────────────────
+// E-rev-R — EscalatedPill
+// One-shot escalation indicator (Expiry Cliff pattern) used by both the
+// affected-positions list in the What-If panel and the row in the
+// portfolio table. After a successful escalation this replaces the
+// "Escalate" button so the same position can't be re-escalated.
+// ─────────────────────────────────────────────────────────────
+function EscalatedPill({
+  when,
+  caseId,
+  t,
+}: {
+  when: string;
+  caseId?: number;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  const fmt = (() => {
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(when));
+    } catch {
+      return when;
+    }
+  })();
+  const tip = t('financial.tradeMargin.actions.escalatedTooltip', {
+    defaultValue: 'Escalated on {{when}}{{ref}}',
+    when: fmt,
+    ref: caseId ? ` · Case #${caseId}` : '',
+  });
+  return (
+    <span
+      title={tip}
+      className="inline-flex h-7 w-[88px] items-center justify-center gap-1 rounded-full bg-amber-tint/70 px-2 text-[10px] font-semibold uppercase tracking-wider text-amber-ink"
+    >
+      <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+      {t('financial.tradeMargin.actions.escalated', {
+        defaultValue: 'Escalated',
+      })}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
 // PositionRow
 // ─────────────────────────────────────────────────────────────
 function PositionRow({
   row,
   onEscalate,
+  escalation,
 }: {
   row: TradePositionListItem;
   onEscalate: () => void;
+  escalation?: { at: string; caseId?: number };
 }) {
   const { t } = useTranslation();
   const marginN = row.marginPerBbl ? parseFloat(row.marginPerBbl) : null;
@@ -1609,20 +1715,23 @@ function PositionRow({
           >
             {t('common.view', { defaultValue: 'View' })}
           </Link>
-          {needsEscalate && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={onEscalate}
-              className="h-7 w-[88px] justify-center px-2"
-            >
-              <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
-              {t('financial.tradeMargin.actions.escalate', {
-                defaultValue: 'Escalate',
-              })}
-            </Button>
-          )}
+          {needsEscalate &&
+            (escalation ? (
+              <EscalatedPill when={escalation.at} caseId={escalation.caseId} t={t} />
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onEscalate}
+                className="h-7 w-[88px] justify-center px-2"
+              >
+                <ArrowUpRight className="me-1 h-3 w-3" aria-hidden="true" />
+                {t('financial.tradeMargin.actions.escalate', {
+                  defaultValue: 'Escalate',
+                })}
+              </Button>
+            ))}
         </div>
       </td>
     </tr>
