@@ -88,7 +88,7 @@ export const Route = createFileRoute(
 // ─────────────────────────────────────────────────────────────
 // Tab identifiers
 // ─────────────────────────────────────────────────────────────
-type TabId = 'overview' | 'periodCategory' | 'varianceClauses' | 'projection' | 'trends';
+type TabId = 'overview' | 'periodCategory' | 'milestones' | 'varianceClauses' | 'projection' | 'trends';
 
 // ─────────────────────────────────────────────────────────────
 // AED formatter — parse string→float, full and compact (C13: no raw hex)
@@ -226,12 +226,14 @@ function BudgetBurnDetailView() {
   }
 
   // Tab definitions
-  const TABS: { id: TabId; labelKey: string }[] = [
-    { id: 'overview',        labelKey: 'budgetBurn.detail.tabs.overview' },
-    { id: 'periodCategory',  labelKey: 'budgetBurn.detail.tabs.periodCategory' },
-    { id: 'varianceClauses', labelKey: 'budgetBurn.detail.tabs.varianceClauses' },
-    { id: 'projection',      labelKey: 'budgetBurn.detail.tabs.projection' },
-    { id: 'trends',          labelKey: 'budgetBurn.detail.tabs.trends' },
+  const TABS: { id: TabId; labelKey: string; defaultLabel: string }[] = [
+    { id: 'overview',        labelKey: 'budgetBurn.detail.tabs.overview',        defaultLabel: 'Overview' },
+    { id: 'periodCategory',  labelKey: 'budgetBurn.detail.tabs.periodCategory',  defaultLabel: 'Period × Category' },
+    // mig 594 — milestones (event-based, separate from per-period burn)
+    { id: 'milestones',      labelKey: 'budgetBurn.detail.tabs.milestones',      defaultLabel: 'Milestones' },
+    { id: 'varianceClauses', labelKey: 'budgetBurn.detail.tabs.varianceClauses', defaultLabel: 'Variance & Clauses' },
+    { id: 'projection',      labelKey: 'budgetBurn.detail.tabs.projection',      defaultLabel: 'Projection' },
+    { id: 'trends',          labelKey: 'budgetBurn.detail.tabs.trends',          defaultLabel: 'Trends' },
   ];
 
   return (
@@ -351,7 +353,7 @@ function BudgetBurnDetailView() {
                     : 'border-transparent bg-transparent text-ink-muted hover:text-ink',
                 )}
               >
-                {t(tab.labelKey)}
+                {t(tab.labelKey, { defaultValue: tab.defaultLabel })}
               </button>
             ))}
           </div>
@@ -473,7 +475,19 @@ function BudgetBurnDetailView() {
             </div>
           )}
 
-          {/* ─── TAB 3: Variance & Clauses ───────────────────────────── */}
+          {/* ─── TAB 3: Milestones (mig 594) ────────────────────────── */}
+          {activeTab === 'milestones' && (
+            <div
+              id="tab-panel-milestones"
+              role="tabpanel"
+              aria-labelledby="tab-milestones"
+              className="space-y-5"
+            >
+              <MilestonesPanel contractId={Number(contractId)} />
+            </div>
+          )}
+
+          {/* ─── TAB 4: Variance & Clauses ───────────────────────────── */}
           {activeTab === 'varianceClauses' && (
             <div
               id="tab-panel-varianceClauses"
@@ -746,7 +760,8 @@ function PeriodCategoryStackedBar({
     { key: 'day_rate',  color: C1, labelKey: 'financial.budgetBurn.costCategory.day_rate' },
     { key: 'manpower',  color: C2, labelKey: 'financial.budgetBurn.costCategory.manpower' },
     { key: 'equipment', color: C3, labelKey: 'financial.budgetBurn.costCategory.equipment' },
-    { key: 'milestone', color: C4, labelKey: 'financial.budgetBurn.costCategory.milestone' },
+    // mig 594 — milestone dropped from the per-period chart. Event-based
+    // lump-sum payments live in the dedicated Milestones tab now.
   ];
 
   return (
@@ -785,14 +800,14 @@ function PeriodCategoryStackedBar({
               </span>
             )}
           />
-          {BARS.map((b) => (
+          {BARS.map((b, i) => (
             <Bar
               key={b.key}
               dataKey={b.key}
               stackId="actual"
               fill={b.color}
               name={b.key}
-              radius={b.key === 'milestone' ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+              radius={i === BARS.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
             />
           ))}
         </BarChart>
@@ -1732,5 +1747,222 @@ function DraftCureNoticeButton({ contractId }: { contractId: number }) {
         ? t('common.saving')
         : t('financial.budgetBurn.detail.draftCureNotice.button')}
     </Button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// mig 594 — MilestonesPanel
+// Event-based milestone list. Each card shows one contractual event:
+// rig acceptance, first well TD, safety bonus, etc. with planned vs
+// actual amount and status pill. NOT participating in per-period burn.
+// ─────────────────────────────────────────────────────────────
+function MilestonesPanel({ contractId }: { contractId: number }) {
+  const { t } = useTranslation();
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['contract-milestones', contractId],
+    queryFn: () => financialBudgetBurnService.listMilestones(contractId),
+    staleTime: 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2" aria-busy="true">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 animate-pulse rounded-lg bg-surface" aria-hidden="true" />
+        ))}
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <div className="rounded-md border border-error/30 bg-error/5 p-4 text-xs text-error">
+        <p>{t('common.errorLoading', { defaultValue: 'Failed to load.' })}</p>
+        <Button variant="ghost" size="sm" className="mt-2" onClick={() => void refetch()}>
+          {t('common.retry', { defaultValue: 'Retry' })}
+        </Button>
+      </div>
+    );
+  }
+  const rows = data?.data ?? [];
+  const totals = data?.totals;
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-md border border-border bg-card p-6 text-center">
+        <p className="text-sm font-medium text-ink">
+          {t('financial.budgetBurn.detail.milestones.emptyTitle', {
+            defaultValue: 'No milestone events recorded',
+          })}
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">
+          {t('financial.budgetBurn.detail.milestones.emptyBody', {
+            defaultValue:
+              'This contract has no event-based milestone payments. Day-rate / equipment / manpower costs are tracked in the Period × Category tab.',
+          })}
+        </p>
+      </div>
+    );
+  }
+
+  const fmtAed = (raw: string | null | undefined): string => {
+    if (raw === null || raw === undefined) return '—';
+    const n = parseFloat(raw);
+    if (isNaN(n)) return '—';
+    try {
+      return new Intl.NumberFormat('en-AE', {
+        style: 'currency',
+        currency: 'AED',
+        maximumFractionDigits: 0,
+      }).format(n);
+    } catch {
+      return `AED ${n.toFixed(0)}`;
+    }
+  };
+  const fmtDate = (d: string | null | undefined): string =>
+    d
+      ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(
+          new Date(d),
+        )
+      : '—';
+
+  const statusPill = (s: typeof rows[number]['status']) => {
+    const map = {
+      achieved:    { cls: 'bg-sage-tint text-sage-ink',         label: 'Achieved' },
+      in_progress: { cls: 'bg-amber-tint/70 text-amber-ink',    label: 'In progress' },
+      planned:     { cls: 'bg-surface text-ink-muted border border-border', label: 'Planned' },
+      missed:      { cls: 'bg-terracotta/15 text-terracotta',   label: 'Missed' },
+      forfeited:   { cls: 'bg-terracotta/15 text-terracotta',   label: 'Forfeited' },
+    } as const;
+    const cfg = map[s];
+    return (
+      <span
+        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${cfg.cls}`}
+      >
+        {t(`financial.budgetBurn.detail.milestones.status.${s}`, { defaultValue: cfg.label })}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Summary strip */}
+      {totals && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <SummaryTile
+            label={t('financial.budgetBurn.detail.milestones.plannedTotal', {
+              defaultValue: 'Planned total',
+            })}
+            value={fmtAed(totals.plannedTotalAed)}
+          />
+          <SummaryTile
+            label={t('financial.budgetBurn.detail.milestones.actualTotal', {
+              defaultValue: 'Actual to date',
+            })}
+            value={fmtAed(totals.actualTotalAed)}
+            valueClass="text-gold"
+          />
+          <SummaryTile
+            label={t('financial.budgetBurn.detail.milestones.achievedCount', {
+              defaultValue: 'Achieved',
+            })}
+            value={`${totals.achievedCount}`}
+            valueClass="text-sage-ink"
+          />
+          <SummaryTile
+            label={t('financial.budgetBurn.detail.milestones.upcomingCount', {
+              defaultValue: 'In progress / planned',
+            })}
+            value={`${totals.inProgressCount + totals.plannedCount}`}
+            valueClass="text-amber-ink"
+          />
+        </div>
+      )}
+
+      {/* Event cards */}
+      <div className="space-y-2">
+        {rows.map((m) => {
+          const isAchieved = m.status === 'achieved';
+          const isMissed = m.status === 'missed' || m.status === 'forfeited';
+          const borderCls = isMissed
+            ? 'border-terracotta/30 bg-terracotta/5'
+            : isAchieved
+              ? 'border-sage/30 bg-sage/5'
+              : m.status === 'in_progress'
+                ? 'border-amber-ink/30 bg-amber-tint/30'
+                : 'border-border bg-surface';
+          return (
+            <div
+              key={m.id}
+              className={`flex items-start justify-between gap-3 rounded-md border ${borderCls} px-3 py-2`}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-xs font-medium text-ink">{m.labelEn}</p>
+                  {statusPill(m.status)}
+                </div>
+                <p className="mt-0.5 text-[11px] text-ink-muted">
+                  {t('financial.budgetBurn.detail.milestones.plannedDate', {
+                    defaultValue: 'Planned',
+                  })}
+                  : {fmtDate(m.plannedEventDate)}
+                  {m.actualEventDate && (
+                    <>
+                      {' · '}
+                      {t('financial.budgetBurn.detail.milestones.actualDate', {
+                        defaultValue: 'Achieved',
+                      })}
+                      : {fmtDate(m.actualEventDate)}
+                    </>
+                  )}
+                </p>
+                {m.notes && (
+                  <p className="mt-1 text-[11px] italic text-ink-subtle">{m.notes}</p>
+                )}
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-mono text-xs font-semibold text-ink">
+                  {fmtAed(m.plannedAmountAed)}
+                </p>
+                {m.actualAmountAed !== null && (
+                  <p
+                    className={`mt-0.5 font-mono text-[11px] ${
+                      isAchieved ? 'text-sage-ink' : 'text-ink-muted'
+                    }`}
+                  >
+                    {t('financial.budgetBurn.detail.milestones.paid', { defaultValue: 'Paid' })}
+                    : {fmtAed(m.actualAmountAed)}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footnote — explain the separation from per-period burn */}
+      <p className="text-[11px] italic text-ink-subtle">
+        {t('financial.budgetBurn.detail.milestones.footnote', {
+          defaultValue:
+            'Milestones are event-based lump-sum payments tied to specific contractual events. They are tracked separately from day-rate, equipment and manpower costs in the Period × Category tab.',
+        })}
+      </p>
+    </div>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-surface p-3">
+      <p className="text-[10px] uppercase tracking-wider text-ink-subtle">{label}</p>
+      <p className={`mt-1 font-mono text-lg tabular-nums text-ink ${valueClass ?? ''}`}>{value}</p>
+    </div>
   );
 }

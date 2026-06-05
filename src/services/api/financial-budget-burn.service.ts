@@ -99,6 +99,41 @@ export const financialBudgetBurnService = {
   },
 
   /**
+   * GET /api/v1/financial/budget-burn/:contractId/milestones
+   * mig 594 — event-based milestone list (rig acceptance, first well TD, etc.)
+   * Permission: finance.budget.read
+   */
+  listMilestones: async (
+    contractId: number,
+  ): Promise<{
+    data: Array<{
+      id: number;
+      milestoneCode: string;
+      labelEn: string;
+      labelAr: string | null;
+      plannedEventDate: string;
+      plannedAmountAed: string;
+      actualEventDate: string | null;
+      actualAmountAed: string | null;
+      status: 'planned' | 'in_progress' | 'achieved' | 'missed' | 'forfeited';
+      notes: string | null;
+    }>;
+    totals: {
+      plannedTotalAed: string;
+      actualTotalAed: string;
+      achievedCount: number;
+      inProgressCount: number;
+      plannedCount: number;
+      missedCount: number;
+    };
+  }> => {
+    const { data } = await apiClient.get(
+      `/api/v1/financial/budget-burn/${contractId}/milestones`,
+    );
+    return data as Awaited<ReturnType<typeof financialBudgetBurnService.listMilestones>>;
+  },
+
+  /**
    * GET /api/v1/financial/budget-burn/budgets
    * Paginated budget lines.
    * Permission: finance.budget.read
