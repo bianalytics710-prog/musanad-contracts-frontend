@@ -1,29 +1,29 @@
 /**
- * ExecutiveTradeMarginSection — CR-O M21 Financial Intelligence (Trade Margin).
+ * ExecutiveTradeMarginSection — Index-Linked Contracts rollup on the
+ * Executive Dashboard.
  *
- * Additive "Trade Margin" rollup section for the Executive Dashboard.
- * Consumes the `tradeMarginSummary` key (11th top-level key added to
- * fn_dashboard_executive output by CR-O DB migration).
+ * mig 592 revamp: the section now leads with the action-oriented "outside
+ * band / unprotected" view instead of the misleading "top 3 by margin".
+ * Data source: tradeMarginSummary.outsideBand (sidecar fn merged in by the
+ * BE service). The component still renders when only the legacy keys are
+ * present (graceful degradation for older BE deploys).
  *
- * Pattern mirrors ExecutiveBudgetBurnSection (CR-N):
- *   - Receives data as prop (caller casts the intersection type)
- *   - Renders nothing (null) when data is absent or openPositionCount === 0
- *     (defensive: no trade data yet — MUST NOT break executive dashboard)
- *   - C13: no raw hex — semantic tokens only
- *   - T3:  all strings via t()
- *   - C14: Router Link for internal nav
- *   - D7:  scope="col" on <th> (topPositionsByMargin3 table)
- * AC#7: tradeMarginSummary rollup + all prior executive keys preserved.
+ * Patterns:
+ *   - C13: semantic tokens only; no raw hex
+ *   - C14: TanStack Router Link for internal nav
+ *   - T3:  all strings via t() with defaultValue
+ *   - D7:  scope="col" on table headers
  */
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
-import { TrendingDown, TrendingUp, ChevronRight, Minus } from 'lucide-react';
-import type { TradeMarginSummary } from '@/types/entities/trade-margin.types';
-// E14 fix — humanize benchmarkCode display.
-import { humanizeLabel } from './dashboard-primitives';
+import { AlertTriangle, ChevronRight, ShieldCheck, TrendingUp } from 'lucide-react';
+import type {
+  TradeMarginSummary,
+  TradeMarginSummaryOutsideBandRow,
+} from '@/types/entities/trade-margin.types';
 
 // ─────────────────────────────────────────────────────────────
-// AED compact formatter (C13: no raw hex)
+// AED compact formatter
 // ─────────────────────────────────────────────────────────────
 function formatAedCompact(raw: string | null | undefined): string {
   if (raw === null || raw === undefined) return '—';
@@ -43,35 +43,39 @@ function formatAedCompact(raw: string | null | undefined): string {
   }
 }
 
+function bandStatusLabel(
+  s: TradeMarginSummaryOutsideBandRow['bandStatus'],
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
+  switch (s) {
+    case 'above_ceiling':
+      return t('financial.tradeMargin.bandStatus.aboveCeiling', { defaultValue: 'Above Ceiling' });
+    case 'below_floor':
+      return t('financial.tradeMargin.bandStatus.belowFloor', { defaultValue: 'Below Floor' });
+    case 'no_band':
+      return t('financial.tradeMargin.bandStatus.noBand', { defaultValue: 'No Band' });
+  }
+}
+
 interface Props {
   tradeMarginSummary: TradeMarginSummary | null | undefined;
 }
 
-export function ExecutiveTradeMarginSection({
-  tradeMarginSummary,
-}: Props) {
+export function ExecutiveTradeMarginSection({ tradeMarginSummary }: Props) {
   const { t } = useTranslation();
 
-  // Defensive: render nothing when key absent (pre-migration or no trade data).
-  // MUST NOT crash the executive dashboard.
   if (!tradeMarginSummary) return null;
   if (tradeMarginSummary.openPositionCount === 0) return null;
 
-  const {
-    bySide,
-    recentMarginChange,
-    topPositionsByMargin3,
-  } = tradeMarginSummary;
-
-  // E-rev-H — Story 5a is sell-side only. Use bySide.sell as the source of
-  // truth for the tile; drop the buy column and the buy KPI.
+  const { bySide, outsideBand } = tradeMarginSummary;
   const sellPositionCount = bySide.sell.positionCount;
   const sellMarginAed = bySide.sell.marginAed;
 
-  const hasCompression =
-    recentMarginChange && parseFloat(recentMarginChange.deltaAed) < 0;
-  // Filter top positions to sell-side rows only.
-  const sellTopPositions = topPositionsByMargin3.filter((r) => r.side === 'sell');
+  const outsideCount = outsideBand?.count ?? 0;
+  const marginAtRiskAed = outsideBand?.marginAtRiskAed ?? '0';
+  const needsAmendmentCount = outsideBand?.needsAmendmentCount ?? 0;
+  const flaggedContracts = outsideBand?.contracts ?? [];
+  const hasRisk = outsideCount > 0;
 
   return (
     <section
@@ -88,7 +92,6 @@ export function ExecutiveTradeMarginSection({
             })}
           </h3>
         </div>
-        {/* C14: Router Link */}
         <Link
           to="/app/financial/trade-margin"
           className="inline-flex items-center gap-1 rounded text-xs text-ink-muted hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary"
@@ -99,8 +102,9 @@ export function ExecutiveTradeMarginSection({
         </Link>
       </div>
 
-      {/* E-rev-H — Sell-side KPI strip. Buy tile dropped; new tile tracks
-          the Murban OSP context that drives the demo narrative. */}
+      {/* KPI strip — Open / Total / Margin at risk / Outside band.
+          mig 592: replaces the "Benchmark context" + the fake "0 at-risk"
+          tiles with the real action-oriented numbers. */}
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-border bg-surface p-3">
           <p className="text-xs text-ink-muted">
@@ -122,170 +126,212 @@ export function ExecutiveTradeMarginSection({
             {formatAedCompact(sellMarginAed)}
           </p>
         </div>
-        <div className="rounded-lg border border-border bg-surface p-3">
-          <p className="text-xs text-ink-muted">
-            {t('financial.tradeMargin.executive.murbanOspContext', {
-              defaultValue: 'Benchmark context',
-            })}
-          </p>
-          <p className="mt-1 text-xl font-semibold tabular-nums text-ink">
-            {recentMarginChange?.benchmarkCode === 'murban_osp'
-              ? formatAedCompact(recentMarginChange.deltaAed)
-              : '—'}
-          </p>
-          <p className="text-[10px] text-ink-subtle">
-            {t('financial.tradeMargin.executive.deltaLast7d', {
-              defaultValue: 'Margin Δ from last move',
-            })}
-          </p>
-        </div>
         <div
           className={
             'rounded-lg border p-3 ' +
-            (hasCompression
+            (hasRisk
               ? 'border-terracotta/30 bg-terracotta/5'
               : 'border-sage/30 bg-sage/5')
           }
         >
           <p className="text-xs text-ink-muted">
-            {t('financial.tradeMargin.executive.exposedPositions', {
-              defaultValue: 'At-risk contracts',
+            {t('financial.tradeMargin.executive.marginAtRisk', {
+              defaultValue: 'Margin at risk',
             })}
           </p>
           <p
             className={
               'mt-1 text-xl font-semibold tabular-nums ' +
-              (hasCompression ? 'text-terracotta' : 'text-sage-ink')
+              (hasRisk ? 'text-terracotta' : 'text-sage-ink')
             }
           >
-            {hasCompression ? sellTopPositions.length : 0}
+            {formatAedCompact(marginAtRiskAed)}
           </p>
           <p className="text-[10px] text-ink-subtle">
-            {hasCompression
-              ? t('financial.tradeMargin.executive.escalateHelper', {
-                  defaultValue: 'Escalate via Trade Margin',
+            {hasRisk
+              ? t('financial.tradeMargin.executive.atOspContext', {
+                  defaultValue: `At ${outsideBand?.benchmarkPriceUsd ? '$' + outsideBand.benchmarkPriceUsd + '/bbl' : 'current benchmark'}`,
+                  price: outsideBand?.benchmarkPriceUsd ?? '—',
                 })
-              : t('financial.tradeMargin.executive.allProtected', {
-                  defaultValue: 'All within band',
+              : t('financial.tradeMargin.executive.protectedHelper', {
+                  defaultValue: 'All positions within band',
                 })}
+          </p>
+        </div>
+        <div
+          className={
+            'rounded-lg border p-3 ' +
+            (hasRisk
+              ? 'border-terracotta/30 bg-terracotta/5'
+              : 'border-sage/30 bg-sage/5')
+          }
+        >
+          <p className="text-xs text-ink-muted">
+            {t('financial.tradeMargin.executive.outsideBandTile', {
+              defaultValue: 'Outside band / unprotected',
+            })}
+          </p>
+          <p
+            className={
+              'mt-1 text-xl font-semibold tabular-nums ' +
+              (hasRisk ? 'text-terracotta' : 'text-sage-ink')
+            }
+          >
+            {outsideCount}
+          </p>
+          <p className="text-[10px] text-ink-subtle">
+            {needsAmendmentCount > 0
+              ? t('financial.tradeMargin.executive.needsAmendmentHelper', {
+                  defaultValue: `${needsAmendmentCount} need contract amendment`,
+                  count: needsAmendmentCount,
+                })
+              : hasRisk
+                ? t('financial.tradeMargin.executive.escalateHelper', {
+                    defaultValue: 'Escalate via Index-Linked',
+                  })
+                : t('financial.tradeMargin.executive.allProtected', {
+                    defaultValue: 'All within band',
+                  })}
           </p>
         </div>
       </div>
 
-      {/* Recent margin change alert (OSP-drop compression) */}
-      {/* E14 fix: humanize benchmarkCode ("murban_osp" → "Murban OSP")
-          and show a "stable" message instead of "AED 0" when delta is zero. */}
-      {recentMarginChange && (() => {
-        const deltaAedNum = parseFloat(recentMarginChange.deltaAed);
-        const benchmarkLabel = humanizeLabel(recentMarginChange.benchmarkCode);
-        const isStable = Math.abs(deltaAedNum) < 100_000; // < AED 100k is effectively no movement
-        return (
-          <div
-            className={`mb-4 flex items-center gap-2 rounded-md border px-3 py-2 ${
-              isStable
-                ? 'border-sage/30 bg-sage/5'
-                : hasCompression
-                  ? 'border-terracotta/30 bg-terracotta/5'
-                  : 'border-success/30 bg-success/5'
-            }`}
-          >
-            {isStable ? (
-              <Minus className="h-4 w-4 shrink-0 text-sage" aria-hidden="true" />
-            ) : hasCompression ? (
-              <TrendingDown className="h-4 w-4 shrink-0 text-terracotta" aria-hidden="true" />
-            ) : (
-              <TrendingUp className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-            )}
-            <p
-              className={`text-xs ${
-                isStable
-                  ? 'text-sage'
-                  : hasCompression
-                    ? 'text-terracotta'
-                    : 'text-success'
-              }`}
-            >
-              {isStable
-                ? t('financial.tradeMargin.executive.recentChangeStable', {
-                    defaultValue: `${benchmarkLabel} stable — no significant movement in the last 7 days`,
-                    benchmarkLabel,
-                  })
-                : t('financial.tradeMargin.executive.recentChange', {
-                    benchmarkCode: benchmarkLabel,
-                    delta: formatAedCompact(recentMarginChange.deltaAed),
-                    asOf: recentMarginChange.asOf,
-                  })}
-            </p>
-          </div>
-        );
-      })()}
+      {/* Benchmark status caption — keep the "why" for the executive. */}
+      {outsideBand?.benchmarkCode && outsideBand.benchmarkPriceUsd && outsideBand.asOf && (
+        <div
+          className={
+            'mb-4 flex items-center gap-2 rounded-md border px-3 py-2 ' +
+            (hasRisk
+              ? 'border-terracotta/30 bg-terracotta/5'
+              : 'border-sage/30 bg-sage/5')
+          }
+        >
+          {hasRisk ? (
+            <AlertTriangle className="h-4 w-4 shrink-0 text-terracotta" aria-hidden="true" />
+          ) : (
+            <ShieldCheck className="h-4 w-4 shrink-0 text-sage" aria-hidden="true" />
+          )}
+          <p className={'text-xs ' + (hasRisk ? 'text-terracotta' : 'text-sage')}>
+            {hasRisk
+              ? t('financial.tradeMargin.executive.benchmarkCaptionRisk', {
+                  defaultValue: `${outsideBand.benchmarkCode.replace(/_/g, ' ').toUpperCase()} at $${outsideBand.benchmarkPriceUsd}/bbl as of ${outsideBand.asOf} — ${outsideCount} contracts outside band`,
+                })
+              : t('financial.tradeMargin.executive.benchmarkCaptionSafe', {
+                  defaultValue: `${outsideBand.benchmarkCode.replace(/_/g, ' ').toUpperCase()} at $${outsideBand.benchmarkPriceUsd}/bbl as of ${outsideBand.asOf} — all positions protected`,
+                })}
+          </p>
+        </div>
+      )}
 
-      {/* Top positions by margin — sell-side only */}
-      {sellTopPositions.length > 0 && (
+      {/* Outside-band contracts list (or empty state). */}
+      {hasRisk && flaggedContracts.length > 0 ? (
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            {t('financial.tradeMargin.executive.topPositions')}
+            {t('financial.tradeMargin.executive.outsideBandListTitle', {
+              defaultValue: 'Outside band or unprotected',
+            })}
           </p>
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs">
               <thead className="sr-only">
                 <tr>
                   <th scope="col">
-                    {t('financial.tradeMargin.columns.position')}
+                    {t('financial.tradeMargin.columns.position', { defaultValue: 'Position' })}
                   </th>
                   <th scope="col">
-                    {t('financial.tradeMargin.columns.side')}
+                    {t('financial.tradeMargin.columns.counterparty', { defaultValue: 'Counterparty' })}
                   </th>
                   <th scope="col">
-                    {t('financial.tradeMargin.columns.counterparty')}
+                    {t('financial.tradeMargin.columns.bandStatus', { defaultValue: 'Band status' })}
                   </th>
                   <th scope="col">
-                    {t('financial.tradeMargin.columns.totalMarginAed')}
+                    {t('financial.tradeMargin.executive.marginImpactCol', {
+                      defaultValue: 'Margin impact',
+                    })}
                   </th>
                   <th scope="col">
-                    <span className="sr-only">{t('common.actions')}</span>
+                    <span className="sr-only">{t('common.actions', { defaultValue: 'Actions' })}</span>
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {sellTopPositions.map((row) => (
-                  <tr
-                    key={row.tradePositionId}
-                    className="flex items-center justify-between gap-3 py-2"
-                  >
-                    <td className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">
-                        {row.positionRef}
-                      </p>
-                      <p className="truncate text-[11px] text-ink-muted">
-                        {row.counterpartyName}
-                      </p>
-                    </td>
-                    {/* E-rev-H — Side cell removed; sell-side only. */}
-                    <td className="shrink-0 text-right">
-                      <p className="font-semibold tabular-nums text-ink">
-                        {formatAedCompact(row.totalMarginAed)}
-                      </p>
-                    </td>
-                    <td>
-                      {/* C14: Router Link */}
-                      <Link
-                        to="/app/financial/trade-margin/$positionId"
-                        params={{ positionId: String(row.tradePositionId) }}
-                        className="shrink-0 rounded p-1 text-ink-muted hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-                        aria-label={t(
-                          'financial.tradeMargin.executive.viewPositionAriaLabel',
-                          { ref: row.positionRef },
-                        )}
-                      >
-                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {flaggedContracts.map((row) => {
+                  const impact = parseFloat(row.marginImpactAed);
+                  const isNoBand = row.bandStatus === 'no_band';
+                  return (
+                    <tr
+                      key={row.tradePositionId}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2"
+                    >
+                      <td className="min-w-0 flex-1 basis-[40%]">
+                        <p className="truncate font-medium text-ink">
+                          {row.positionRef}
+                        </p>
+                        <p className="truncate text-[11px] text-ink-muted">
+                          {row.counterpartyName}
+                        </p>
+                      </td>
+                      <td className="shrink-0">
+                        <span
+                          className={
+                            'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ' +
+                            (isNoBand
+                              ? 'border-terracotta/40 bg-terracotta/10 text-terracotta'
+                              : 'border-gold/40 bg-gold/10 text-gold')
+                          }
+                        >
+                          {bandStatusLabel(row.bandStatus, t)}
+                          {!row.hasClause && (
+                            <span className="opacity-80">
+                              {' '}· {t('financial.tradeMargin.executive.needsClause', {
+                                defaultValue: 'needs amendment',
+                              })}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="shrink-0 text-right">
+                        <p
+                          className={
+                            'font-semibold tabular-nums ' +
+                            (impact > 0 ? 'text-terracotta' : 'text-ink-muted')
+                          }
+                        >
+                          {impact > 0 ? formatAedCompact(row.marginImpactAed) : '—'}
+                        </p>
+                        <p className="text-[10px] text-ink-subtle">
+                          {row.thresholdLabel}
+                        </p>
+                      </td>
+                      <td>
+                        <Link
+                          to="/app/financial/trade-margin/$positionId"
+                          params={{ positionId: String(row.tradePositionId) }}
+                          className="shrink-0 rounded p-1 text-ink-muted hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+                          aria-label={t(
+                            'financial.tradeMargin.executive.viewPositionAriaLabel',
+                            { ref: row.positionRef },
+                          )}
+                        >
+                          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-md border border-sage/20 bg-sage/5 px-3 py-3">
+          <ShieldCheck className="h-4 w-4 shrink-0 text-sage" aria-hidden="true" />
+          <p className="text-xs text-sage">
+            {t('financial.tradeMargin.executive.emptyStateProtected', {
+              defaultValue: `All ${sellPositionCount} contracts within protection band${outsideBand?.benchmarkPriceUsd ? ` at $${outsideBand.benchmarkPriceUsd}/bbl` : ''}.`,
+              count: sellPositionCount,
+            })}
+          </p>
         </div>
       )}
     </section>

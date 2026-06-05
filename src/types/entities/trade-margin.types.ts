@@ -467,6 +467,48 @@ export interface TradeMarginSummaryTopRow {
 }
 
 /**
+ * mig 592 — One outside-band contract for the executive rollup. Sourced
+ * from fn_executive_index_linked_outside_band; appended onto
+ * tradeMarginSummary.outsideBand by the dashboards service.
+ */
+export interface TradeMarginSummaryOutsideBandRow {
+  tradePositionId: number;
+  positionRef: string;
+  counterpartyName: string;
+  /** Same enum as fn_trade_position_list (mig 491). */
+  bandStatus: 'above_ceiling' | 'below_floor' | 'no_band';
+  /** MONEY — string. 0 for no_band (no current breach, but flagged for amendment). */
+  marginImpactAed: string;
+  /** False ⇒ requires contract amendment to add a price-protection clause. */
+  hasClause: boolean;
+  /** Pre-rendered "Ceiling $102 vs benchmark $103" / "No clause" label. */
+  thresholdLabel: string;
+}
+
+/**
+ * mig 592 — Outside-band / unprotected aggregate. Drives the new KPI tiles
+ * and bottom list in ExecutiveTradeMarginSection. Always present on a fresh
+ * payload; legacy clients that haven't refreshed types should treat it as
+ * optional (BE returns it under tradeMarginSummary).
+ */
+export interface TradeMarginSummaryOutsideBand {
+  /** Total positions in above_ceiling | below_floor | no_band. */
+  count: number;
+  /** MONEY — string. Sum of marginImpactAed across flagged positions. */
+  marginAtRiskAed: string;
+  /** Subset of count: positions with no clause (need contract amendment). */
+  needsAmendmentCount: number;
+  /** Headline benchmark; same code used in recentMarginChange (e.g. murban_osp). */
+  benchmarkCode: string | null;
+  /** Benchmark spot price the impact is computed against (USD/bbl). */
+  benchmarkPriceUsd: string | null;
+  /** Date of the benchmark price (YYYY-MM-DD). */
+  asOf: string | null;
+  /** Top 3 contracts ordered by marginImpactAed DESC. */
+  contracts: TradeMarginSummaryOutsideBandRow[];
+}
+
+/**
  * TradeMarginSummary — 11th additive key on fn_dashboard_executive output.
  * JSONB key mapping validated 1-to-1 against §D-11 (6 top-level keys).
  *
@@ -486,6 +528,11 @@ export interface TradeMarginSummary {
   /** null when no price_change-triggered snapshots exist yet */
   recentMarginChange: TradeMarginSummaryRecentChange | null;
   topPositionsByMargin3: TradeMarginSummaryTopRow[];
+  /**
+   * mig 592 — outside-band rollup merged in by the BE dashboards service.
+   * Optional because older BE deploys may not return it; FE guards.
+   */
+  outsideBand?: TradeMarginSummaryOutsideBand;
 }
 
 // -----------------------------------------------------------
