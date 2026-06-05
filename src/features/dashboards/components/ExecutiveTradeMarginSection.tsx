@@ -16,7 +16,15 @@
  */
 import { useTranslation } from 'react-i18next';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, ChevronRight, ShieldCheck, TrendingUp } from 'lucide-react';
+import { AlertTriangle, ChevronRight, HelpCircle, ShieldCheck, TrendingUp } from 'lucide-react';
+// mig 593 — Tooltip on "Margin impact" so viewers understand it's forward-
+// only exposure, not a deduction from the realised "Current margin" column.
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type {
   TradeMarginSummary,
   TradeMarginSummaryOutsideBandRow,
@@ -226,10 +234,36 @@ export function ExecutiveTradeMarginSection({ tradeMarginSummary }: Props) {
       {/* Outside-band contracts list (or empty state). */}
       {hasRisk && flaggedContracts.length > 0 ? (
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+          <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
             {t('financial.tradeMargin.executive.outsideBandListTitle', {
               defaultValue: 'Outside band or unprotected',
             })}
+            <span className="ms-1 normal-case font-normal text-ink-subtle">
+              · {t('financial.tradeMargin.executive.marginImpactCol', {
+                defaultValue: 'Margin impact',
+              })}
+            </span>
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t('financial.tradeMargin.executive.marginImpactTooltipAria', {
+                      defaultValue: 'How is margin impact calculated?',
+                    })}
+                    className="text-ink-subtle hover:text-ink"
+                  >
+                    <HelpCircle className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[300px] text-xs leading-relaxed">
+                  {t('financial.tradeMargin.executive.marginImpactTooltip', {
+                    defaultValue:
+                      'Forward-only exposure if the buyer invokes the price-review clause. Per-position: (benchmark OSP − contracted ceiling) × volume × USD→AED rate. The "Current margin" earned on already-lifted barrels is not affected.',
+                  })}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </p>
           <div className="overflow-x-auto">
             <table className="min-w-full text-xs">

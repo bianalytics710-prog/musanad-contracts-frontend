@@ -63,7 +63,15 @@ import { translateApiError } from '@/lib/translate-api-error';
 // E-rev-O — Search input restored for the positions filter row.
 import { Input } from '@/components/ui/input';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Search } from 'lucide-react';
+import { HelpCircle, Search } from 'lucide-react';
+// mig 593 — Tooltip on the "Margin impact" labels to explain what the
+// number actually means (forward-only exposure if buyer invokes clause).
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type {
   TradePositionListItem,
   TradePositionListQuery,
@@ -567,7 +575,7 @@ function TradeMarginPortfolioView() {
                               {t('financial.tradeMargin.columns.marginPerBblShort', { defaultValue: 'Margin' })}
                             </SortableTh>
                             <SortableTh align="center" active={sortField === 'totalMarginAed'} dir={sortDir} onClick={() => handleHeaderSort('totalMarginAed')}>
-                              {t('financial.tradeMargin.columns.totalMarginAedShort', { defaultValue: 'Total (AED)' })}
+                              {t('financial.tradeMargin.columns.currentMarginAedShort', { defaultValue: 'Current margin (AED)' })}
                             </SortableTh>
                             <SortableTh align="center" active={sortField === 'bandStatus'} dir={sortDir} onClick={() => handleHeaderSort('bandStatus')}>
                               {t('financial.tradeMargin.columns.bandStatus', { defaultValue: 'Band status' })}
@@ -939,10 +947,33 @@ function WhatIfOspPanel({
           </p>
         </div>
         <div className="rounded-md border border-border bg-surface p-3">
-          <p className="text-[10px] uppercase tracking-wider text-ink-subtle">
+          <p className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-ink-subtle">
             {t('financial.tradeMargin.whatIf.compressionLabel', {
               defaultValue: 'Total margin impact',
             })}
+            {/* mig 593 — explain the formula so viewers don't confuse this
+                with the realised "current margin" column in the table. */}
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t('financial.tradeMargin.whatIf.compressionTooltipAria', {
+                      defaultValue: 'How is margin impact calculated?',
+                    })}
+                    className="text-ink-subtle hover:text-ink"
+                  >
+                    <HelpCircle className="h-3 w-3" aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
+                  {t('financial.tradeMargin.whatIf.compressionTooltip', {
+                    defaultValue:
+                      'Forward-only exposure if the buyer invokes the price-review clause. Per-position: (benchmark OSP − contracted ceiling) × volume × USD→AED rate. Earned margin to date is unaffected.',
+                  })}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </p>
           <p className={`mt-0.5 font-mono text-xl tabular-nums ${affected.length > 0 ? 'text-terracotta' : 'text-sage-ink'}`}>
             {affected.length > 0 ? formatAedCompact(String(Math.round(totalCompression))) : 'AED 0'}
