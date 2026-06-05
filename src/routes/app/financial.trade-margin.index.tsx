@@ -60,7 +60,10 @@ import {
   type CatalogBenchmark,
 } from '@/services/api/index-linked-catalog.service';
 import { translateApiError } from '@/lib/translate-api-error';
-// E-rev-J — useDebounce import dropped along with the Search input.
+// E-rev-O — Search input restored for the positions filter row.
+import { Input } from '@/components/ui/input';
+import { useDebounce } from '@/hooks/useDebounce';
+import { Search } from 'lucide-react';
 import type {
   TradePositionListItem,
   TradePositionListQuery,
@@ -208,8 +211,10 @@ function TradeMarginPortfolioView() {
   const canRead = useAuthStore(selectHasPermission('finance.margin.read'));
 
   const [page, setPage] = useState(1);
-  // E-rev-J — Search input dropped; band-status chips below handle filtering.
-  // Filter state for the new band-status chip row.
+  // E-rev-O — Search input restored alongside the band-status filter so
+  // users can type-to-find a contract or counterparty without scrolling.
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [bandFilter, setBandFilter] = useState<
     'all' | 'within' | 'edge' | 'outside' | 'no_band'
   >('all');
@@ -329,21 +334,30 @@ function TradeMarginPortfolioView() {
   // E-rev-J — Apply band-status filter to the displayed rows. The KPI strip
   // and scenario panel keep using the unfiltered rows (those describe the
   // entire portfolio, not the current view).
+  // E-rev-O — Search term is debounced (300 ms) and matches case-insensitively
+  // against position_ref, counterparty name, grade.
+  const searchLower = debouncedSearch.trim().toLowerCase();
   const filteredRows = rows.filter((r) => {
     const b: BandStatus = r.bandStatus ?? 'no_band';
-    switch (bandFilter) {
-      case 'within':
-        return b === 'within_band';
-      case 'edge':
-        return b === 'at_floor' || b === 'at_ceiling';
-      case 'outside':
-        return b === 'below_floor' || b === 'above_ceiling';
-      case 'no_band':
-        return b === 'no_band';
-      case 'all':
-      default:
-        return true;
-    }
+    const bandOk = (() => {
+      switch (bandFilter) {
+        case 'within':  return b === 'within_band';
+        case 'edge':    return b === 'at_floor' || b === 'at_ceiling';
+        case 'outside': return b === 'below_floor' || b === 'above_ceiling';
+        case 'no_band': return b === 'no_band';
+        case 'all':
+        default:        return true;
+      }
+    })();
+    if (!bandOk) return false;
+    if (searchLower.length === 0) return true;
+    const hay = (
+      (r.positionRef ?? '') +
+      ' ' + (r.counterparty?.nameEn ?? '') +
+      ' ' + (r.counterparty?.nameAr ?? '') +
+      ' ' + (r.grade ?? '')
+    ).toLowerCase();
+    return hay.includes(searchLower);
   });
   const sortedRows = sortRows(filteredRows);
 
@@ -392,25 +406,39 @@ function TradeMarginPortfolioView() {
           {!positionsLoading && rows.length > 0 && (
             <SellSideKpiStrip rows={rows} benchmark={primaryBenchmark} />
           )}
-          {/* E-rev-L — What-If OSP analysis. Replaces the fixed Today + "If $1
-              more" boxes. Slider/input lets the user simulate any Murban OSP
-              level and the panel recomputes affected positions, AED margin
-              compression, and which of those positions need a band-amendment
-              vs. just a band-renegotiation. */}
-          {!positionsLoading && rows.length > 0 && (
-            <WhatIfOspPanel
-              rows={rows}
-              onEscalate={(row) => setEscalateTarget(row)}
-              benchmark={primaryBenchmark}
-            />
-          )}
-
-          {/* E-rev-J — Filter row above the table. Matches the
-              ContractListView FilterSelect idiom (font-mono [10px] label +
-              h-8 select). Single filter is enough for the 7-row dataset. */}
+          {/* E-rev-O — Filter row above the table. The Band-status select and
+              Search input live side-by-side. The What-If panel now sits BELOW
+              the table so users see their actual portfolio first and run
+              scenarios after they've explored it. */}
           {!positionsLoading && rows.length > 0 && (
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+                <label
+                  htmlFor="tm-search"
+                  className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+                >
+                  {t('financial.tradeMargin.filters.search', {
+                    defaultValue: 'Search',
+                  })}
+                </label>
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-subtle"
+                    aria-hidden="true"
+                  />
+                  <Input
+                    id="tm-search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t('financial.tradeMargin.filters.searchPlaceholder', {
+                      defaultValue: 'Position ref, counterparty…',
+                    })}
+                    className="h-8 ps-7 text-xs"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1 lg:col-span-2">
                 <label
                   htmlFor="tm-band-filter"
                   className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
@@ -615,6 +643,19 @@ function TradeMarginPortfolioView() {
                 </div>
               )}
             </>
+          )}
+
+          {/* E-rev-O — What-If OSP panel now sits BELOW the table. The
+              user reviews their actual positions + applies filters first;
+              the scenario simulator is a follow-up tool, not the headline.
+              Uses the unfiltered `rows` so the simulation always reflects
+              the full portfolio regardless of the table filter state. */}
+          {!positionsLoading && rows.length > 0 && (
+            <WhatIfOspPanel
+              rows={rows}
+              onEscalate={(row) => setEscalateTarget(row)}
+              benchmark={primaryBenchmark}
+            />
           )}
         </>
       )}
