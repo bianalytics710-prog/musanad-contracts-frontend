@@ -231,18 +231,19 @@ export function ExecutiveTradeMarginSection({ tradeMarginSummary }: Props) {
         </div>
       )}
 
-      {/* Outside-band contracts list (or empty state). */}
+      {/* Outside-band contracts list (or empty state).
+          Layout mirrors ExecutiveBudgetBurnSection's "Top projected overruns":
+            - Header: inline icon + uppercase tracking-wider label
+            - Each row: rounded-md card with tinted border + bg, contract
+              number + secondary line, AED pill, caption, chevron link
+          Visual consistency with Contract Spend Health (E-rev-Q). */}
       {hasRisk && flaggedContracts.length > 0 ? (
         <div>
-          <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+          <p className="mb-2 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+            <AlertTriangle className="h-3 w-3" aria-hidden="true" />
             {t('financial.tradeMargin.executive.outsideBandListTitle', {
               defaultValue: 'Outside band or unprotected',
             })}
-            <span className="ms-1 normal-case font-normal text-ink-subtle">
-              · {t('financial.tradeMargin.executive.marginImpactCol', {
-                defaultValue: 'Margin impact',
-              })}
-            </span>
             <TooltipProvider delayDuration={150}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -251,7 +252,7 @@ export function ExecutiveTradeMarginSection({ tradeMarginSummary }: Props) {
                     aria-label={t('financial.tradeMargin.executive.marginImpactTooltipAria', {
                       defaultValue: 'How is margin impact calculated?',
                     })}
-                    className="text-ink-subtle hover:text-ink"
+                    className="ms-0.5 text-ink-subtle hover:text-ink"
                   >
                     <HelpCircle className="h-3 w-3" aria-hidden="true" />
                   </button>
@@ -265,96 +266,73 @@ export function ExecutiveTradeMarginSection({ tradeMarginSummary }: Props) {
               </Tooltip>
             </TooltipProvider>
           </p>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-xs">
-              <thead className="sr-only">
-                <tr>
-                  <th scope="col">
-                    {t('financial.tradeMargin.columns.position', { defaultValue: 'Position' })}
-                  </th>
-                  <th scope="col">
-                    {t('financial.tradeMargin.columns.counterparty', { defaultValue: 'Counterparty' })}
-                  </th>
-                  <th scope="col">
-                    {t('financial.tradeMargin.columns.bandStatus', { defaultValue: 'Band status' })}
-                  </th>
-                  <th scope="col">
-                    {t('financial.tradeMargin.executive.marginImpactCol', {
-                      defaultValue: 'Margin impact',
-                    })}
-                  </th>
-                  <th scope="col">
-                    <span className="sr-only">{t('common.actions', { defaultValue: 'Actions' })}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {flaggedContracts.map((row) => {
-                  const impact = parseFloat(row.marginImpactAed);
-                  const isNoBand = row.bandStatus === 'no_band';
-                  return (
-                    <tr
-                      key={row.tradePositionId}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2"
+          <div className="space-y-2">
+            {flaggedContracts.map((row) => {
+              const impact = parseFloat(row.marginImpactAed);
+              const isNoBand = row.bandStatus === 'no_band';
+              // no_band has no current impact but flags an amendment need —
+              // use the amber palette to differentiate from the breach
+              // cases (terracotta).
+              const cardCls = isNoBand
+                ? 'border-amber-ink/30 bg-amber-tint/30'
+                : 'border-terracotta/30 bg-terracotta/5';
+              const pillCls = isNoBand
+                ? 'bg-amber-tint/70 text-amber-ink'
+                : 'bg-terracotta/15 text-terracotta';
+              const linkHoverCls = isNoBand
+                ? 'hover:text-amber-ink'
+                : 'hover:text-terracotta';
+              return (
+                <div
+                  key={row.tradePositionId}
+                  className={`flex items-center justify-between gap-3 rounded-md border ${cardCls} px-3 py-2`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-ink">
+                      {row.positionRef}
+                    </p>
+                    <p className="truncate text-[11px] text-ink-muted">
+                      {row.counterpartyName}
+                      <span className="text-ink-subtle">
+                        {' '}· {bandStatusLabel(row.bandStatus, t)}
+                        {!row.hasClause && (
+                          <>
+                            {' '}· {t('financial.tradeMargin.executive.needsClause', {
+                              defaultValue: 'needs amendment',
+                            })}
+                          </>
+                        )}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span
+                      className={`inline-flex items-center rounded-md ${pillCls} px-2 py-0.5 font-mono text-xs font-semibold`}
                     >
-                      <td className="min-w-0 flex-1 basis-[40%]">
-                        <p className="truncate font-medium text-ink">
-                          {row.positionRef}
-                        </p>
-                        <p className="truncate text-[11px] text-ink-muted">
-                          {row.counterpartyName}
-                        </p>
-                      </td>
-                      <td className="shrink-0">
-                        <span
-                          className={
-                            'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ' +
-                            (isNoBand
-                              ? 'border-terracotta/40 bg-terracotta/10 text-terracotta'
-                              : 'border-gold/40 bg-gold/10 text-gold')
-                          }
-                        >
-                          {bandStatusLabel(row.bandStatus, t)}
-                          {!row.hasClause && (
-                            <span className="opacity-80">
-                              {' '}· {t('financial.tradeMargin.executive.needsClause', {
-                                defaultValue: 'needs amendment',
-                              })}
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="shrink-0 text-right">
-                        <p
-                          className={
-                            'font-semibold tabular-nums ' +
-                            (impact > 0 ? 'text-terracotta' : 'text-ink-muted')
-                          }
-                        >
-                          {impact > 0 ? formatAedCompact(row.marginImpactAed) : '—'}
-                        </p>
-                        <p className="text-[10px] text-ink-subtle">
-                          {row.thresholdLabel}
-                        </p>
-                      </td>
-                      <td>
-                        <Link
-                          to="/app/financial/trade-margin/$positionId"
-                          params={{ positionId: String(row.tradePositionId) }}
-                          className="shrink-0 rounded p-1 text-ink-muted hover:text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-                          aria-label={t(
-                            'financial.tradeMargin.executive.viewPositionAriaLabel',
-                            { ref: row.positionRef },
-                          )}
-                        >
-                          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      {isNoBand || impact <= 0
+                        ? t('financial.tradeMargin.executive.amendmentPillLabel', {
+                            defaultValue: 'No clause',
+                          })
+                        : formatAedCompact(row.marginImpactAed)}
+                    </span>
+                    <p className="mt-0.5 text-[11px] tabular-nums text-ink-subtle">
+                      {row.thresholdLabel}
+                    </p>
+                  </div>
+                  <Link
+                    to="/app/financial/trade-margin/$positionId"
+                    params={{ positionId: String(row.tradePositionId) }}
+                    className={`shrink-0 rounded p-1 text-ink-muted ${linkHoverCls} focus:outline-none focus:ring-2 focus:ring-primary`}
+                    aria-label={t(
+                      'financial.tradeMargin.executive.viewPositionAriaLabel',
+                      { ref: row.positionRef },
+                    )}
+                  >
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
