@@ -972,48 +972,131 @@ function VarianceClausesPanel({
   const hasAnyClause = hasCure || hasLd;
   const hasBreaches = variance.breachCount > 0;
 
+  // E-rev-Q — Persist the "escalated on <date>" state per contract so the
+  // unprotected-contract amendment escalation, and the variance escalation,
+  // both show their history after a reload. Keyed by contract id + intent
+  // (so amendment vs variance histories are tracked independently). Demo-
+  // grade storage in localStorage; production should add a contractId
+  // filter to the risk-case list endpoint and source from there.
+  const escalationKey = (intent: 'variance' | 'amendment') =>
+    contract ? `budgetBurn.escalation.${intent}.${contract.id}` : null;
+
+  const readEscalation = (intent: 'variance' | 'amendment'): { at: string; caseId?: number } | null => {
+    const key = escalationKey(intent);
+    if (!key || typeof window === 'undefined') return null;
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as { at: string; caseId?: number }) : null;
+    } catch {
+      return null;
+    }
+  };
+  const writeEscalation = (intent: 'variance' | 'amendment', payload: { at: string; caseId?: number }) => {
+    const key = escalationKey(intent);
+    if (!key || typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(key, JSON.stringify(payload));
+    } catch {
+      /* quota / disabled */
+    }
+  };
+
+  const [varianceEscalation, setVarianceEscalation] = useState<{ at: string; caseId?: number } | null>(
+    () => readEscalation('variance'),
+  );
+  const [amendmentEscalation, setAmendmentEscalation] = useState<{ at: string; caseId?: number } | null>(
+    () => readEscalation('amendment'),
+  );
+
+  const fmtEscalatedOn = (iso: string) => {
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(new Date(iso));
+    } catch {
+      return iso;
+    }
+  };
+
   const escalateMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (intent: 'variance' | 'amendment') => {
       const drafterId = contract?.draftedBy?.id ?? null;
       const drafterName = contract
         ? [contract.draftedBy?.firstName, contract.draftedBy?.lastName].filter(Boolean).join(' ')
         : '';
-      const body = [
-        `Budget variance breach detected on contract ${contract?.contractNumber ?? ''}`,
-        '',
-        `Breach count: ${variance.breachCount}`,
-        `Max variance: ${variance.maxVariancePct.toFixed(1)}%`,
-        '',
-        hasCure ? `Cure-period clause(s) present — review remediation window.` : '',
-        hasLd ? `Liquidated-damages clause(s) present — assess LD exposure.` : '',
-        '',
-        `Requested action: review variance, decide whether to invoke cure notice or LD claim.`,
-      ]
-        .filter(Boolean)
-        .join('\n');
+      const isAmendment = intent === 'amendment';
+      const body = isAmendment
+        ? [
+            `Budget-protection clause amendment needed on contract ${contract?.contractNumber ?? ''}`,
+            '',
+            `Findings: no cure-period or liquidated-damages clauses were extracted from this contract.`,
+            `Risk: there is no contractual remedy if the counterparty overruns budget.`,
+            '',
+            `Requested action: draft an amendment that adds:`,
+            `  • A cure period (e.g. 30 days) for the counterparty to remedy a variance before LDs accrue.`,
+            `  • A liquidated-damages ceiling capped at a percentage of the budget breach (e.g. 5%).`,
+            '',
+            `Escalated from Contract Spend Health → Variance & Clauses.`,
+          ]
+            .filter(Boolean)
+            .join('\n')
+        : [
+            `Budget variance breach detected on contract ${contract?.contractNumber ?? ''}`,
+            '',
+            `Breach count: ${variance.breachCount}`,
+            `Max variance: ${variance.maxVariancePct.toFixed(1)}%`,
+            '',
+            hasCure ? `Cure-period clause(s) present — review remediation window.` : '',
+            hasLd ? `Liquidated-damages clause(s) present — assess LD exposure.` : '',
+            '',
+            `Requested action: review variance, decide whether to invoke cure notice or LD claim.`,
+          ]
+            .filter(Boolean)
+            .join('\n');
+
+      const title = isAmendment
+        ? `Budget-protection amendment — ${contract?.contractNumber ?? 'contract'} — drafter review`
+        : `Budget variance — ${contract?.contractNumber ?? 'contract'} — review by drafter`;
 
       return import('@/services/api/risk-case.service').then(({ riskCaseService }) =>
         riskCaseService.create({
           contractId: contract?.id ?? null,
           priority: 'high',
-          title: `Budget variance — ${contract?.contractNumber ?? 'contract'} — review by drafter`,
+          title,
           body,
           assignedUserId: drafterId,
           assignedRole: drafterId ? null : 'contract_drafter',
-          slaHours: 48,
+          slaHours: isAmendment ? 72 : 48,
           metadata: {
-            source: 'budget-burn-variance',
+            source: isAmendment ? 'budget-burn-amendment' : 'budget-burn-variance',
+            intent,
             contractId: contract?.id,
             drafterName,
           },
         }),
       );
     },
-    onSuccess: () => {
+    onSuccess: (result, intent) => {
+      const stamp = { at: new Date().toISOString(), caseId: result?.id };
+      writeEscalation(intent, stamp);
+      if (intent === 'amendment') setAmendmentEscalation(stamp);
+      else setVarianceEscalation(stamp);
       toast.success(
-        t('financial.budgetBurn.detail.varianceClauses.escalateSuccess', {
-          defaultValue: 'Risk case opened — drafter will be notified.',
-        }),
+        t(
+          intent === 'amendment'
+            ? 'financial.budgetBurn.detail.varianceClauses.amendEscalateSuccess'
+            : 'financial.budgetBurn.detail.varianceClauses.escalateSuccess',
+          {
+            defaultValue:
+              intent === 'amendment'
+                ? 'Risk case opened — drafter will draft the amendment.'
+                : 'Risk case opened — drafter will be notified.',
+          },
+        ),
       );
       void qc.invalidateQueries({ queryKey: ['riskCases'] });
     },
@@ -1047,12 +1130,12 @@ function VarianceClausesPanel({
               })}
             </p>
             {hasBreaches && (
-              <div className="mt-3">
+              <div className="mt-3 space-y-2">
                 <Button
                   type="button"
                   size="sm"
                   disabled={escalateMutation.isPending}
-                  onClick={() => escalateMutation.mutate()}
+                  onClick={() => escalateMutation.mutate('variance')}
                 >
                   {escalateMutation.isPending
                     ? t('common.submitting', { defaultValue: 'Opening case…' })
@@ -1060,6 +1143,22 @@ function VarianceClausesPanel({
                         defaultValue: 'Escalate to drafter',
                       })}
                 </Button>
+                {varianceEscalation && (
+                  <p className="text-[11px] text-ink-subtle">
+                    {t('financial.budgetBurn.detail.varianceClauses.escalatedOn', {
+                      defaultValue: 'Escalated to drafter on {{at}}',
+                      at: fmtEscalatedOn(varianceEscalation.at),
+                    })}
+                    {varianceEscalation.caseId && (
+                      <>
+                        {' '}· {t('financial.budgetBurn.detail.varianceClauses.caseRef', {
+                          defaultValue: 'Case #{{id}}',
+                          id: varianceEscalation.caseId,
+                        })}
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
             )}
           </>
@@ -1071,20 +1170,41 @@ function VarianceClausesPanel({
               })}
             </p>
             <p className="mt-1 text-xs text-ink">
-              {t('financial.budgetBurn.detail.varianceClauses.guidedBodyUnprotected', {
+              {t('financial.budgetBurn.detail.varianceClauses.guidedBodyUnprotectedV2', {
                 defaultValue:
-                  'No cure-period or liquidated-damages clauses were extracted — meaning you have no contractual remedy if the counterparty overruns budget. Recommend amending the contract before the next milestone: add a cure period (e.g. 30 days) and an LD ceiling. Open the contract to draft an amendment.',
+                  'No cure-period or liquidated-damages clauses were extracted — meaning you have no contractual remedy if the counterparty overruns budget. Escalate to the contract drafter so they can amend the contract to add a cure period (e.g. 30 days) and an LD ceiling.',
               })}
             </p>
             {contract && (
-              <div className="mt-3">
-                <Button asChild type="button" variant="outline" size="sm">
-                  <Link to="/app/contracts/$id" params={{ id: String(contract.id) }}>
-                    {t('financial.budgetBurn.detail.varianceClauses.openContract', {
-                      defaultValue: 'Open contract → Amend',
-                    })}
-                  </Link>
+              <div className="mt-3 space-y-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={escalateMutation.isPending}
+                  onClick={() => escalateMutation.mutate('amendment')}
+                >
+                  {escalateMutation.isPending
+                    ? t('common.submitting', { defaultValue: 'Opening case…' })
+                    : t('financial.budgetBurn.detail.varianceClauses.escalateBtn', {
+                        defaultValue: 'Escalate to drafter',
+                      })}
                 </Button>
+                {amendmentEscalation && (
+                  <p className="text-[11px] text-ink-subtle">
+                    {t('financial.budgetBurn.detail.varianceClauses.escalatedOn', {
+                      defaultValue: 'Escalated to drafter on {{at}}',
+                      at: fmtEscalatedOn(amendmentEscalation.at),
+                    })}
+                    {amendmentEscalation.caseId && (
+                      <>
+                        {' '}· {t('financial.budgetBurn.detail.varianceClauses.caseRef', {
+                          defaultValue: 'Case #{{id}}',
+                          id: amendmentEscalation.caseId,
+                        })}
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
             )}
           </>
