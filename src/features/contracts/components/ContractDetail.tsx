@@ -174,6 +174,14 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const userRole = useAuthStore((s) => s.user?.role.name ?? null);
   const isLegalCounselOnly = userRole === "legal_counsel";
   const isRecipientOnly = userRole === "contract_recipient";
+  const isApproverOnly = userRole === "contract_approver";
+  // Demo-gap fix 2026-06-08 — Grounded summary is the static metadata-bound
+  // blurb shown above the streaming AI panel. For legal_counsel + approver
+  // the richer 5-tab AI Insights panel below already covers Summary + Key
+  // terms + Risk flags + Obligations + Regulatory, so the Grounded card
+  // is duplicate noise. Hide it for those two personas; everyone else
+  // (drafter / executive / platform admin) still sees it as a baseline.
+  const hideGroundedSummary = isLegalCounselOnly || isApproverOnly;
   // D57 — canSeePaymentsTab + canSeeSignaturesTab depend on canEdit, which
   // is finalised below once `contract` is loaded. These two derived flags
   // are likewise computed after the `const contract = data` line.
@@ -827,7 +835,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           panel. This prevents the streaming LLM from fabricating financial
           values (e.g. "AED 500,000" on a AED 4.22B contract) and keeps
           credible content on screen for the demo audience. */}
-      {!isRecipientOnly && (contract.aiSummaryEn || contract.aiSummaryAr) && (
+      {!isRecipientOnly && !hideGroundedSummary && (contract.aiSummaryEn || contract.aiSummaryAr) && (
         <div className="mt-6 rounded-xl border border-border bg-card p-6 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />

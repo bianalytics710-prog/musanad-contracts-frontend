@@ -494,6 +494,7 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
             ourPartyName={state.step1.ourPartyName ?? null}
             counterpartyName={state.step1.counterpartyName ?? null}
             contractLanguage={state.step1.language}
+            contractType={state.step1.contractType ?? null}
           />
         )}
         {currentStep === 3 && (

@@ -127,6 +127,13 @@ interface Step2PartiesProps {
    * (no point translating for an EN-only contract).
    */
   contractLanguage?: "en" | "ar" | "bilingual";
+  /**
+   * Step 1's chosen contract type. Used to suppress the Value + Currency
+   * inputs for contract types that have no meaningful monetary value
+   * (NDAs are the canonical case). Optional — when absent, all fields
+   * render as before.
+   */
+  contractType?: string | null;
 }
 
 export function Step2Parties({
@@ -137,7 +144,12 @@ export function Step2Parties({
   ourPartyName = null,
   counterpartyName = null,
   contractLanguage = "en",
+  contractType = null,
 }: Step2PartiesProps) {
+  // Demo-gap fix 2026-06-08 — NDAs are zero-monetary instruments; the
+  // Value + Currency inputs read as noise to drafters and customers
+  // wondering why an NDA needs an AED figure. Suppress both for nda type.
+  const suppressValueAndCurrency = contractType === "nda";
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
   // Whether AR auto-translation is in play — only when the contract needs
@@ -555,6 +567,7 @@ export function Step2Parties({
               )}
             </div>
 
+            {!suppressValueAndCurrency && (
             <div>
               <label
                 htmlFor="compose-valueAed"
@@ -578,10 +591,12 @@ export function Step2Parties({
                 </p>
               )}
             </div>
+            )}
 
             {/* D26 — currency is now a <select> over ISO-4217 codes
                 relevant to UAE contracting. Was a free-text input that
                 accepted any 3-character string. */}
+            {!suppressValueAndCurrency && (
             <div>
               <label
                 htmlFor="compose-currency"
@@ -616,6 +631,7 @@ export function Step2Parties({
                 ))}
               </select>
             </div>
+            )}
 
             {!suppressStartDate && (
               <div>

@@ -204,32 +204,11 @@ export function ExecutiveTradeMarginSection({ tradeMarginSummary }: Props) {
         </div>
       </div>
 
-      {/* Benchmark status caption — keep the "why" for the executive. */}
-      {outsideBand?.benchmarkCode && outsideBand.benchmarkPriceUsd && outsideBand.asOf && (
-        <div
-          className={
-            'mb-4 flex items-center gap-2 rounded-md border px-3 py-2 ' +
-            (hasRisk
-              ? 'border-terracotta/30 bg-terracotta/5'
-              : 'border-sage/30 bg-sage/5')
-          }
-        >
-          {hasRisk ? (
-            <AlertTriangle className="h-4 w-4 shrink-0 text-terracotta" aria-hidden="true" />
-          ) : (
-            <ShieldCheck className="h-4 w-4 shrink-0 text-sage" aria-hidden="true" />
-          )}
-          <p className={'text-xs ' + (hasRisk ? 'text-terracotta' : 'text-sage')}>
-            {hasRisk
-              ? t('financial.tradeMargin.executive.benchmarkCaptionRisk', {
-                  defaultValue: `${outsideBand.benchmarkCode.replace(/_/g, ' ').toUpperCase()} at $${outsideBand.benchmarkPriceUsd}/bbl as of ${outsideBand.asOf} — ${outsideCount} contracts outside band`,
-                })
-              : t('financial.tradeMargin.executive.benchmarkCaptionSafe', {
-                  defaultValue: `${outsideBand.benchmarkCode.replace(/_/g, ' ').toUpperCase()} at $${outsideBand.benchmarkPriceUsd}/bbl as of ${outsideBand.asOf} — all positions protected`,
-                })}
-          </p>
-        </div>
-      )}
+      {/* Demo-gap fix 2026-06-08 — benchmark caption removed.
+          Was rendering "MURBAN OSP at $103/bbl as of 2026-12-01" — the
+          asOf date is months out from today's demo clock, which read as
+          stale to the audience. Headline KPIs + the per-row contracts
+          list below already convey the same story. */}
 
       {/* Outside-band contracts list (or empty state).
           Layout mirrors ExecutiveBudgetBurnSection's "Top projected overruns":
