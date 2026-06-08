@@ -213,7 +213,7 @@ export function LoginForm() {
     { key: "executive",  name: "Eman Al Mazrouei",   role: "Executive",          initials: "EM", email: "executive@musanad.local"  },
     { key: "drafter",   name: "Hala Al Suwaidi",   role: "Contract Drafter",   initials: "HS", email: "drafter@musanad.local"   },
     { key: "legal",     name: "Layla Al Hashemi",  role: "Legal Counsel",      initials: "LH", email: "legal@musanad.local"     },
-    { key: "approver",  name: "Aisha Al Nahyan",   role: "Contract Approver",  initials: "AN", email: "approver@musanad.local"  },
+    { key: "approver",  name: "Aisha Al Marri",    role: "Contract Approver",  initials: "AM", email: "approver@musanad.local"  },
     { key: "recipient", name: "Rashid Al Awadi",   role: "Contract Recipient", initials: "RA", email: "recipient@musanad.local" },
     { key: "platform",  name: "Omar Al Mansoori",  role: "Platform Admin",     initials: "OM", email: "platform@musanad.local"  },
     { key: "super",     name: "System Admin",      role: "Super Admin",        initials: "SA", email: "admin@musanad.local"     },

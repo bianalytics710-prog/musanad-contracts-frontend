@@ -41,7 +41,7 @@ const ALL_PERSONAS = [
   { key: "platform",   name: "Omar Al Mansoori",  role: "Platform Admin",     initials: "OM" },
   { key: "legal",      name: "Layla Al Hashemi",  role: "Legal Counsel",      initials: "LH" },
   { key: "drafter",    name: "Hala Al Suwaidi",   role: "Contract Drafter",   initials: "HS" },
-  { key: "approver",   name: "Aisha Al Nahyan",   role: "Contract Approver",  initials: "AN" },
+  { key: "approver",   name: "Aisha Al Marri",    role: "Contract Approver",  initials: "AM" },
   { key: "recipient",  name: "Rashid Al Awadi",   role: "Contract Recipient", initials: "RA" },
   { key: "executive",  name: "Eman Al Mazrouei",  role: "Executive",          initials: "EM" },
   { key: "operations", name: "Yusuf Al Falasi",   role: "Operations",         initials: "YF" },

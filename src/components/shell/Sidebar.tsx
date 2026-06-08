@@ -35,7 +35,7 @@ function getInitials(firstName: string | undefined, lastName: string | undefined
   const first = firstName?.[0] ?? "";
   // OqoodAI rebrand 2026-06-01 — Emirati family names typically use "Al X"
   // patterns. Take the X letter (after "Al ") rather than the redundant
-  // leading A, so "Aisha Al Nahyan" reads "AN" not "AA".
+  // leading A, so "Aisha Al Marri" reads "AM" not "AA".
   let last = lastName?.[0] ?? "";
   const ln = (lastName ?? "").trim();
   if (/^Al\s+\S/i.test(ln)) {
