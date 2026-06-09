@@ -7455,7 +7455,17 @@
         "colTitle": "Title",
         "colValue": "Value",
         "colStatus": "Status",
-        "colUpdated": "Updated"
+        "colUpdated": "Updated",
+        "empty": "No drafts yet — start a new contract from Compose.",
+        "col": {
+          "contract": "Contract",
+          "type": "Type",
+          "value": "Value",
+          "updated": "Updated"
+        },
+        "action": {
+          "open": "Open"
+        }
       },
       "tts": {
         "title": "Time to signature",

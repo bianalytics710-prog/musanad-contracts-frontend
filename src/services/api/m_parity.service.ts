@@ -254,7 +254,20 @@ export interface TemplateMatchRow {
   nameAr: string | null;
   contractType: string;
   descriptionEn: string | null;
+  /** Structure-only cosine similarity (0..1). */
   similarity: number;
+  /**
+   * v607 — composite score = 0.4×structure + 0.6×clauseCoverage. Only
+   * populated on the TOP match row returned by /analyze-upload. FE
+   * pill should render this when present, falling back to `similarity`.
+   */
+  compositeScore?: number | null;
+  /** v607 — share of extracted clauses found in the library (0..1). */
+  clauseCoverage?: number | null;
+  /** v607 — total clauses extracted from the upload. Top row only. */
+  clauseTotal?: number | null;
+  /** v607 — number of those clauses found in the library. Top row only. */
+  clauseKnown?: number | null;
   usageCount: number;
 }
 

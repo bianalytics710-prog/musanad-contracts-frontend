@@ -34,6 +34,7 @@ import {
   PieChart as PieIcon,
   Radar as RadarIcon,
   FileStack,
+  ArrowRight,
 } from "lucide-react";
 import {
   Bar,
@@ -65,7 +66,7 @@ import type {
   DrafterAwaitingActionRow,
 } from "@/types/entities/dashboards.types";
 import type { ContractStatus } from "@/types/entities/contract.types";
-import { formatDateTime, formatHijriDate } from "@/utils/datetime";
+import { formatDate, formatDateTime, formatHijriDate } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
 import { impactSignalService } from "@/services/api/impact-signal.service";
@@ -105,13 +106,18 @@ export function DrafterDashboard() {
   );
   const todayHijri = useMemo(() => formatHijriDate(new Date().toISOString()), [lng]);
 
-  // Derive a richer pipeline view from the 4 KPI counts. Sums approximate
-  // the Lovable "drafting pipeline" total tile.
+  // Donut input. v607 fix: the "Signed" wedge now uses the all-time
+  // count (mySignedAllTimeCount) rather than the 30-day windowed
+  // myRecentlyApprovedCount, so the donut total reconciles with the
+  // Contracts list total. Falls back to the windowed count when the BE
+  // hasn't been deployed yet.
+  const signedForDonut =
+    data?.kpis.mySignedAllTimeCount ?? data?.kpis.myRecentlyApprovedCount ?? 0;
   const pipelineTotal =
     (data?.kpis.myDraftsCount ?? 0) +
     (data?.kpis.awaitingMyActionCount ?? 0) +
     (data?.kpis.readyToSendCount ?? 0) +
-    (data?.kpis.myRecentlyApprovedCount ?? 0);
+    signedForDonut;
 
   // Each pill deep-links to /app/contracts?status=<x>. Mapping mirrors the
   // bucket each KPI counts in fn_dashboard_drafter:
@@ -184,11 +190,12 @@ export function DrafterDashboard() {
       },
       {
         key: "signed",
-        count: data?.kpis.myRecentlyApprovedCount ?? 0,
+        // v607: all-time signed (matches Contracts list total).
+        count: signedForDonut,
         fill: STAGE_COLORS.signed,
       },
     ],
-    [data],
+    [data, signedForDonut],
   );
 
   // Demo-grade line chart (time-to-signature). Backend doesn't expose this
@@ -401,7 +408,7 @@ export function DrafterDashboard() {
                   {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
                 </Link>
               </div>
-              <ContractRowList rows={data.lists.myDrafts5} showHeader />
+              <RecentDraftsTable rows={data.lists.myDrafts5} />
             </section>
 
             {/* Time-to-signature charts — 40% */}
@@ -733,6 +740,135 @@ function DrafterImpactWatchSection() {
         </ul>
       )}
     </section>
+  );
+}
+
+// v607 — humanize contract_type slug. Mirrors LegalCounselDashboard's
+// helper so the Recent drafts Type chip reads "Services", "EPC", etc.
+function humanizeContractType(slug: string | null | undefined): string {
+  if (!slug) return "—";
+  const map: Record<string, string> = {
+    services: "Services",
+    epc: "EPC",
+    gas_spa: "Gas SPA",
+    concession: "Concession",
+    employment: "Employment",
+    consultancy: "Consultancy",
+    advisory: "Advisory",
+    nda: "Non-disclosure",
+    master_services: "Master Services",
+    vendor_services: "Vendor Services",
+    sow: "SOW",
+    supply: "Supply",
+  };
+  return map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+/**
+ * v607 — Recent drafts table.
+ *
+ * Replaces the cramped ContractRowList (which rendered the same 5-column
+ * grid with no proper <table> semantics, no Open CTA, and a redundant
+ * Status column showing the same "Draft" chip for every row). Modeled on
+ * Legal Counsel's ApprovalQueueTable so the two surfaces feel consistent.
+ *
+ * Columns: Contract (number + title, two-line) · Type · Value · Updated · Open →
+ */
+function RecentDraftsTable({ rows }: { rows: DashboardContractRow[] }) {
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language?.startsWith("ar");
+  if (rows.length === 0) {
+    return (
+      <DashboardEmptyState
+        description={t("dashboards.drafter.recentDrafts.empty", {
+          defaultValue: "No drafts yet — start a new contract from Compose.",
+        })}
+      />
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-[10px] font-medium tracking-wider text-ink-subtle">
+          <tr className="border-b border-border/60">
+            <th className="py-1.5 text-start">
+              {t("dashboards.drafter.recentDrafts.col.contract", {
+                defaultValue: "Contract",
+              })}
+            </th>
+            <th className="py-1.5 text-start">
+              {t("dashboards.drafter.recentDrafts.col.type", {
+                defaultValue: "Type",
+              })}
+            </th>
+            <th className="py-1.5 text-end">
+              {t("dashboards.drafter.recentDrafts.col.value", {
+                defaultValue: "Value",
+              })}
+            </th>
+            <th className="py-1.5 text-start">
+              {t("dashboards.drafter.recentDrafts.col.updated", {
+                defaultValue: "Updated",
+              })}
+            </th>
+            <th className="py-1.5 text-end" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const title = isAr && r.titleAr ? r.titleAr : r.titleEn;
+            return (
+              <tr key={r.id} className="border-b border-border/40">
+                <td className="py-2">
+                  <Link
+                    to="/app/contracts/$id"
+                    params={{ id: String(r.id) }}
+                    className="block transition-colors hover:bg-surface/50"
+                    aria-label={t("dashboards.common.openContractAria", {
+                      number: r.contractNumber,
+                      title: r.titleEn,
+                    })}
+                  >
+                    <div className="font-mono text-xs text-ink-muted">
+                      {r.contractNumber}
+                    </div>
+                    <div
+                      className="truncate text-sm text-ink"
+                      dir={isAr && r.titleAr ? "rtl" : "ltr"}
+                    >
+                      {title}
+                    </div>
+                  </Link>
+                </td>
+                <td className="py-2 text-xs text-ink-muted">
+                  {t(`contractType.${r.contractType}`, {
+                    defaultValue: humanizeContractType(r.contractType),
+                  })}
+                </td>
+                <td className="py-2 text-end font-mono text-xs text-ink-muted">
+                  {r.valueAed ? `${(r.valueAed / 1000).toFixed(0)}k` : "—"}
+                </td>
+                <td className="py-2 font-mono text-xs text-ink-muted">
+                  {formatDate(r.updatedAt)}
+                </td>
+                <td className="py-2 text-end">
+                  <Link
+                    to="/app/contracts/$id"
+                    params={{ id: String(r.id) }}
+                    className="inline-flex items-center gap-1 rounded-md bg-gold px-2.5 py-1 text-[11px] font-medium text-ink transition-colors hover:bg-gold/90"
+                  >
+                    {t("dashboards.drafter.recentDrafts.action.open", {
+                      defaultValue: "Open",
+                    })}
+                    <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+                  </Link>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

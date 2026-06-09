@@ -342,6 +342,12 @@ function MatchDecision({ analysis, onProceedAsNew, isSaving }: MatchDecisionProp
   const top = analysis.templateMatches[0];
   const classification = analysis.topMatchClassification;
   const formatPct = (s: number) => Math.round(s * 100) + "%";
+  // v607 — prefer the composite score (structure × 0.4 + clauses × 0.6)
+  // for the headline pill; fall back to raw structure similarity when
+  // composite isn't populated (BE older than v607, or zero clauses).
+  const headlineScore = top
+    ? typeof top.compositeScore === "number" ? top.compositeScore : top.similarity
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -374,15 +380,15 @@ function MatchDecision({ analysis, onProceedAsNew, isSaving }: MatchDecisionProp
       {classification === "exact" && top ? (
         <ExactMatchPanel
           match={top}
-          pct={formatPct(top.similarity)}
-          pctNum={Math.round(top.similarity * 100)}
+          pct={formatPct(headlineScore)}
+          pctNum={Math.round(headlineScore * 100)}
           onProceedAsNew={onProceedAsNew}
         />
       ) : classification === "extend_candidate" && top ? (
         <ExtendCandidatePanel
           match={top}
-          pct={formatPct(top.similarity)}
-          pctNum={Math.round(top.similarity * 100)}
+          pct={formatPct(headlineScore)}
+          pctNum={Math.round(headlineScore * 100)}
           onProceedAsNew={onProceedAsNew}
         />
       ) : (
@@ -439,6 +445,7 @@ function ExactMatchPanel({
                 {t("templates.match.usedTimes", { defaultValue: "Used {{n}} time(s)", n: match.usageCount })}
               </span>
             </div>
+            <div className="mt-2"><ScoreBreakdown match={match} /></div>
           </div>
           <MatchPercentPill pct={pct} pctNum={pctNum} tone="exact" />
         </div>
@@ -457,6 +464,46 @@ function ExactMatchPanel({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * v607 — Composite-score breakdown caption.
+ *
+ * Renders under the template-match panel so the user understands what
+ * the headline % is made of. Example: "Structure 85% · Clauses 0%
+ * (0 of 12 known)". Hidden when the BE didn't return the composite
+ * fields (older BE deploys).
+ */
+function ScoreBreakdown({ match }: { match: TemplateMatchRow }) {
+  const { t } = useTranslation();
+  if (typeof match.compositeScore !== "number") return null;
+  const structurePct = Math.round(match.similarity * 100);
+  const cov = match.clauseCoverage ?? null;
+  const total = match.clauseTotal ?? 0;
+  const known = match.clauseKnown ?? 0;
+  return (
+    <div className="-mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
+      <span>
+        {t("templates.match.scoreBreakdown.structure", {
+          defaultValue: "Structure {{pct}}%",
+          pct: structurePct,
+        })}
+      </span>
+      <span aria-hidden>·</span>
+      <span>
+        {cov === null
+          ? t("templates.match.scoreBreakdown.clausesNa", {
+              defaultValue: "Clauses N/A (no clauses extracted)",
+            })
+          : t("templates.match.scoreBreakdown.clauses", {
+              defaultValue: "Clauses {{pct}}% ({{known}} of {{total}} known)",
+              pct: Math.round(cov * 100),
+              known,
+              total,
+            })}
+      </span>
+    </div>
   );
 }
 
@@ -533,6 +580,7 @@ function ExtendCandidatePanel({
                   "Looks similar to a template you already have. You can store this as a new template, or open the existing one and add the new clauses there.",
               })}
             </p>
+            <div className="mt-2"><ScoreBreakdown match={match} /></div>
           </div>
           <MatchPercentPill pct={pct} pctNum={pctNum} tone="extend" />
         </div>

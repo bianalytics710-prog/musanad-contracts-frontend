@@ -85,6 +85,9 @@ export interface DashboardContractRow {
   contractNumber: string;
   titleEn: string;
   titleAr: string | null;
+  /** contractType is populated by fn_dashboard_drafter.myDrafts5 (v607+).
+   *  Optional because older fn outputs (other dashboards / pre-607) omit it. */
+  contractType?: string | null;
   status: string;
   valueAed: number | null;
   updatedAt: string;
@@ -309,6 +312,10 @@ export interface DrafterDashboardKpis {
   awaitingMyActionCount: number;
   readyToSendCount: number;
   myRecentlyApprovedCount: number;
+  /** All-time count of my contracts in fully_signed / active / expired /
+   *  terminated / amended. Donut input; reconciles donut total with the
+   *  Contracts list total. Optional for older BE deploys (v607+). */
+  mySignedAllTimeCount?: number;
 }
 
 export interface DrafterDashboardLists {
