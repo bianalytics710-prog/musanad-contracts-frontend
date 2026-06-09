@@ -96,7 +96,8 @@ import { documentIngestionService } from "@/services/api/document-ingestion.serv
 import { ContractRiskTab } from "./ContractRiskTab";
 import { useContractVersions } from "@/features/contracts/hooks/useContracts";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
-import { useApprovalChainByContract } from "@/features/approvals/hooks/useApprovals";
+import { approvalKeys, useApprovalChainByContract } from "@/features/approvals/hooks/useApprovals";
+import { contractsKeys } from "@/features/contracts/hooks/useContracts";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
 import { SubmitForApprovalDialog } from "@/features/approvals/components/SubmitForApprovalDialog";
 import { approvalService } from "@/services/api/approval.service";
@@ -1079,6 +1080,26 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           valueAed={contract.valueAed ?? 0}
           open={submitOpen}
           onClose={() => setSubmitOpen(false)}
+          onSuccess={() => {
+            // v611.5 — Force-refetch this contract's detail + chain so
+            // the status badge + Edit/Resubmit buttons + banner update
+            // immediately. invalidateQueries with refetchType:'active'
+            // beats the default behavior (which marks stale but waits
+            // for next observer subscribe). Drafter noticed the page
+            // was stuck on "Draft" until a hard refresh.
+            void qc.invalidateQueries({
+              queryKey: contractsKeys.detail(contract.id),
+              refetchType: "active",
+            });
+            void qc.invalidateQueries({
+              queryKey: approvalKeys.chainByContract(contract.id),
+              refetchType: "active",
+            });
+            void qc.invalidateQueries({
+              queryKey: ["comments", contract.id],
+              refetchType: "active",
+            });
+          }}
         />
       )}
 
