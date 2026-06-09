@@ -392,7 +392,12 @@ function MatchDecision({ analysis, onProceedAsNew, isSaving }: MatchDecisionProp
           onProceedAsNew={onProceedAsNew}
         />
       ) : (
-        <NoMatchPanel onProceedAsNew={onProceedAsNew} />
+        <NoMatchPanel
+          top={top}
+          pct={top ? formatPct(headlineScore) : null}
+          pctNum={top ? Math.round(headlineScore * 100) : null}
+          onProceedAsNew={onProceedAsNew}
+        />
       )}
 
       {/* Clause cross-check */}
@@ -518,13 +523,17 @@ function MatchPercentPill({
 }: {
   pct: string;
   pctNum: number;
-  tone: "exact" | "extend";
+  tone: "exact" | "extend" | "no_match";
 }) {
   const { t } = useTranslation();
+  // v607.3 — sage tone for no_match so the pill reads "informational,
+  // safe" instead of the alarming amber/gold of an exact/extend match.
   const palette =
     tone === "exact"
       ? "border-amber/40 bg-amber/15 text-amber-ink"
-      : "border-gold/40 bg-gold/15 text-gold";
+      : tone === "extend"
+      ? "border-gold/40 bg-gold/15 text-gold"
+      : "border-sage/40 bg-sage/15 text-sage";
   return (
     <div
       className={cn(
@@ -603,20 +612,85 @@ function ExtendCandidatePanel({
   );
 }
 
-function NoMatchPanel({ onProceedAsNew }: { onProceedAsNew: () => void }) {
+/**
+ * v607.3 — even on a no-match classification, surface the composite %
+ * and the closest existing template. Previously the panel rendered just
+ * a one-line "no close match" note with no number, which left the user
+ * wondering whether the score was 0% or 49%. Now: same Card + percent
+ * pill as the other two panels, with a sage tone so it still reads as
+ * "brand-new, safe to save fresh".
+ */
+function NoMatchPanel({
+  top,
+  pct,
+  pctNum,
+  onProceedAsNew,
+}: {
+  top: TemplateMatchRow | undefined;
+  pct: string | null;
+  pctNum: number | null;
+  onProceedAsNew: () => void;
+}) {
   const { t } = useTranslation();
-  // Keep this quiet — small info pill, autoreveal the editor link.
+
+  // Genuinely zero matches (no templateMatches at all, e.g. embedding
+  // failed / OPENAI key missing) — keep the original quiet info pill.
+  if (!top || pct === null || pctNum === null) {
+    return (
+      <div className="rounded-md border border-border bg-surface/60 px-3 py-2 text-xs text-ink-muted">
+        <CheckCircle2 className="me-1 inline-block h-3 w-3 text-sage" />
+        {t("templates.match.noMatchCopy", {
+          defaultValue:
+            "No close match found — this looks like a brand-new template. Continue to review the redacted body.",
+        })}
+        <Button variant="link" size="sm" className="px-1 text-xs" onClick={onProceedAsNew}>
+          {t("templates.match.continueLink", { defaultValue: "Continue →" })}
+        </Button>
+      </div>
+    );
+  }
+
+  // Low composite — show the % + breakdown so the user sees the math.
   return (
-    <div className="rounded-md border border-border bg-surface/60 px-3 py-2 text-xs text-ink-muted">
-      <CheckCircle2 className="me-1 inline-block h-3 w-3 text-sage" />
-      {t("templates.match.noMatchCopy", {
-        defaultValue:
-          "No close match found — this looks like a brand-new template. Continue to review the redacted body.",
-      })}
-      <Button variant="link" size="sm" className="px-1 text-xs" onClick={onProceedAsNew}>
-        {t("templates.match.continueLink", { defaultValue: "Continue →" })}
-      </Button>
-    </div>
+    <Card>
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-start gap-4">
+          <div className="rounded-full bg-sage/15 p-2">
+            <CheckCircle2 className="h-5 w-5 text-sage" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-sage">
+              {t("templates.match.noMatchKicker", {
+                defaultValue: "Looks like a brand-new template",
+              })}
+            </div>
+            <p className="text-sm text-ink">
+              {t("templates.match.noMatchExplain", {
+                defaultValue:
+                  "Closest existing template is {{name}}, but the blended match score is below our reuse threshold — the clauses are different enough that this is best saved as a new template.",
+                name: top.nameEn,
+              })}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span className="rounded-full bg-surface px-2 py-0.5 font-mono uppercase tracking-wider text-ink-muted">
+                {top.contractType}
+              </span>
+              <span className="rounded-full bg-surface px-2 py-0.5 text-ink-muted">
+                {t("templates.match.usedTimes", { defaultValue: "Used {{n}} time(s)", n: top.usageCount })}
+              </span>
+            </div>
+            <div className="mt-2"><ScoreBreakdown match={top} /></div>
+          </div>
+          <MatchPercentPill pct={pct} pctNum={pctNum} tone="no_match" />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={onProceedAsNew}>
+            <Sparkles className="h-4 w-4" />
+            {t("templates.match.saveAsNew", { defaultValue: "Save as a new template" })}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
