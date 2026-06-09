@@ -32,7 +32,13 @@ import {
   useSubmitForApproval,
 } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalChainPreview } from "@/features/approvals/components/ApprovalChainPreview";
+import { contractCommentService } from "@/services/api/contract-comment.service";
 import type { RouteInitPreviewResponse } from "@/types/entities/approval.types";
+
+// v615 — minimum length for the mandatory submission note. Mirrors the
+// BE schema (approval.schemas.ts SubmitForApprovalSchema.submissionNote).
+const NOTE_MIN_CHARS = 10;
+const NOTE_MAX_CHARS = 2000;
 
 interface Props {
   contractId: number;
@@ -62,8 +68,29 @@ export function SubmitForApprovalDialog({
   });
 
   const lock = useDoubleSubmitLock();
+
+  // v615 — mandatory submission note. Drafter must explain what changed
+  // before re-submitting. After submit succeeds we also fire it as a
+  // contract_comment so mig 613 fan-out pings the first approver and
+  // the note becomes the opening message in the Comments thread.
+  const [note, setNote] = useState("");
+  const noteId = useId();
+  const trimmedNoteLen = note.trim().length;
+  const noteValid =
+    trimmedNoteLen >= NOTE_MIN_CHARS && trimmedNoteLen <= NOTE_MAX_CHARS;
+
   const submitMutation = useSubmitForApproval({
     onSuccess: () => {
+      // Post the note as a contract comment so the now-pending approver
+      // sees it in their Comments tab + gets a notification via mig 613.
+      // Wrapped in catch — the comment is a nice-to-have, the submit is
+      // already done by this point so a comment failure shouldn't block.
+      contractCommentService
+        .create(contractId, { body: note.trim() })
+        .catch(() => {
+          /* swallow — submission succeeded; comment is best-effort */
+        });
+      setNote("");
       onSuccess?.();
       onClose();
     },
@@ -76,6 +103,7 @@ export function SubmitForApprovalDialog({
   useEffect(() => {
     if (!open) {
       setPreview(null);
+      setNote("");
       return;
     }
     previewMutation.mutate({
@@ -107,13 +135,17 @@ export function SubmitForApprovalDialog({
     !!preview &&
     !hasNoMatchingRule &&
     !submitMutation.isPending &&
-    !lock.isLocked();
+    !lock.isLocked() &&
+    noteValid;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
     if (!lock.acquire()) return;
-    submitMutation.mutate({ contractId });
+    submitMutation.mutate({
+      contractId,
+      data: { submissionNote: note.trim() },
+    });
   };
 
   return (
@@ -173,6 +205,60 @@ export function SubmitForApprovalDialog({
               <ApprovalChainPreview mode="preview" data={preview} />
             )}
           </section>
+
+          {/* v615 — mandatory submission note. Disabled state shows the
+              min-char requirement; once typing, switches to "X chars" hint. */}
+          <div>
+            <label
+              htmlFor={noteId}
+              className="mb-1 block text-xs font-medium text-ink"
+            >
+              {t("approval.submit.note.label", {
+                defaultValue: "Note to approvers",
+              })}
+              <span className="ms-1 text-destructive">*</span>
+            </label>
+            <textarea
+              id={noteId}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              disabled={submitMutation.isPending}
+              rows={4}
+              maxLength={NOTE_MAX_CHARS}
+              placeholder={t("approval.submit.note.placeholder", {
+                defaultValue:
+                  "Explain what changed and what you want the approvers to look at…",
+              })}
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              required
+              minLength={NOTE_MIN_CHARS}
+              aria-describedby={`${noteId}-hint`}
+            />
+            <p
+              id={`${noteId}-hint`}
+              className={`mt-1 text-[11px] ${
+                trimmedNoteLen > 0 && !noteValid
+                  ? "text-destructive"
+                  : "text-ink-muted"
+              }`}
+            >
+              {trimmedNoteLen === 0
+                ? t("approval.submit.note.minHint", {
+                    defaultValue: "Required — min {{n}} characters",
+                    n: NOTE_MIN_CHARS,
+                  })
+                : trimmedNoteLen < NOTE_MIN_CHARS
+                ? t("approval.submit.note.tooShort", {
+                    defaultValue: "{{used}} / {{min}} characters",
+                    used: trimmedNoteLen,
+                    min: NOTE_MIN_CHARS,
+                  })
+                : t("approval.submit.note.ok", {
+                    defaultValue: "{{used}} characters",
+                    used: trimmedNoteLen,
+                  })}
+            </p>
+          </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button
