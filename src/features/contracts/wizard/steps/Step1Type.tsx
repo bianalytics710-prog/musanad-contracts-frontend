@@ -142,9 +142,12 @@ export function Step1Type({ value, onChange, disabled = false }: Step1TypeProps)
     }
     form.setValue("templateId", tpl.id, { shouldValidate: true, shouldDirty: true });
     form.setValue("contractType", tpl.contractType, { shouldValidate: true, shouldDirty: true });
-    // Templates that ship 'bilingual' content default the wizard editor to EN.
-    const lang = tpl.language === "bilingual" ? "en" : tpl.language;
-    form.setValue("language", lang, { shouldValidate: true, shouldDirty: true });
+    // 2026-06-09 — honor the template's bilingual language so AR-title
+    // auto-translate fires on Step 2. Previously bilingual was coerced to
+    // 'en', which silently disabled the EN→AR translate-on-blur feature
+    // even though the template (e.g. Mutual NDA Bilingual) is explicitly
+    // designed for parallel EN+AR drafting.
+    form.setValue("language", tpl.language, { shouldValidate: true, shouldDirty: true });
   };
 
   // Subscribe to RHF values and pipe them up to the parent.

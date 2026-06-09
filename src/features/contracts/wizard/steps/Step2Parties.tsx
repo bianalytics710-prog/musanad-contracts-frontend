@@ -214,6 +214,55 @@ export function Step2Parties({
   // drafter switched templates) — that's handled upstream when step1.templateId
   // changes (parent resets placeholderValues if the catalog is empty).
 
+  // 2026-06-09 — auto-derive Step 2 head fields from Step 1 / Step 2
+  // template placeholders. Fill-if-empty so the drafter can still
+  // override; the derivation re-fires whenever the underlying
+  // placeholder values change. Mappings:
+  //   effective_date              → startDate
+  //   effective_date + term_years → endDate (start + N years)
+  //   governing_emirate           → emirate + governingLaw='uae_federal'
+  //   arbitration_seat            → jurisdictionCourt
+  // Keeps the drafter from typing the same data twice. Add new mappings
+  // to the inline rule block as templates grow.
+  useEffect(() => {
+    const ph = placeholderValues;
+    const get = (k: string): string => (typeof ph[k] === "string" ? ph[k].trim() : "");
+    const effDate = get("effective_date") || get("start_date");
+    const termYearsStr = get("term_years");
+    const termYears = termYearsStr ? parseInt(termYearsStr, 10) : 0;
+    const emirate = get("governing_emirate") || get("emirate");
+    const arbitrationSeat = get("arbitration_seat");
+
+    if (effDate && !(form.getValues("startDate") ?? "")) {
+      form.setValue("startDate", effDate, { shouldDirty: true });
+    }
+    if (effDate && termYears > 0 && !(form.getValues("endDate") ?? "")) {
+      const start = new Date(effDate);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date(start);
+        end.setFullYear(end.getFullYear() + termYears);
+        form.setValue("endDate", end.toISOString().slice(0, 10), { shouldDirty: true });
+      }
+    }
+    if (emirate && !(form.getValues("emirate") ?? "")) {
+      form.setValue("emirate", emirate, { shouldDirty: true });
+    }
+    if (emirate && !(form.getValues("governingLaw") ?? "")) {
+      form.setValue("governingLaw", "uae_federal" as GoverningLaw, { shouldDirty: true });
+    }
+    if (arbitrationSeat && !(form.getValues("jurisdictionCourt") ?? "")) {
+      form.setValue("jurisdictionCourt", arbitrationSeat, { shouldDirty: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    placeholderValues.effective_date,
+    placeholderValues.start_date,
+    placeholderValues.term_years,
+    placeholderValues.governing_emirate,
+    placeholderValues.emirate,
+    placeholderValues.arbitration_seat,
+  ]);
+
   const form = useForm<ComposeStep2FormData>({
     resolver: zodResolver(composeStep2Schema) as never,
     mode: "onBlur",
@@ -257,7 +306,11 @@ export function Step2Parties({
   const [arHelperVisible, setArHelperVisible] = useState<boolean>(false);
 
   const tryAutoTranslate = async (opts: { force?: boolean } = {}) => {
-    if (!wantsArTranslation) return;
+    // 2026-06-09 — dropped the wantsArTranslation gate. The AR title input
+    // is always rendered, so auto-translate should fire whenever the
+    // drafter blurs an EN title with AR empty, regardless of whether the
+    // contract language is en / ar / bilingual. The fill-if-empty +
+    // manualArEdited guards below still protect the drafter's typing.
     const en = (form.getValues("titleEn") ?? "").trim();
     if (en.length === 0) return;
     const ar = (form.getValues("titleAr") ?? "")?.trim() ?? "";
@@ -811,6 +864,7 @@ export function Step2Parties({
       </Card>
 
       {/* Payment schedule sub-table */}
+      {!suppressValueAndCurrency && (
       <Card>
         <CardContent className="space-y-3 p-6">
           <header className="flex items-end justify-between gap-3">
@@ -1034,6 +1088,7 @@ export function Step2Parties({
           )}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

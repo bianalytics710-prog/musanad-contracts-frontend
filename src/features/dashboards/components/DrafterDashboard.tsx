@@ -356,8 +356,10 @@ export function DrafterDashboard() {
               className="grid gap-3 grid-cols-2 md:grid-cols-4"
             >
             <KpiTile
-              label={t("dashboards.drafter.kpis.myDraftsCount")}
-              value={formatNumber(data.kpis.myDraftsCount)}
+              label={t("dashboards.drafter.kpis.inProgressCount", {
+                defaultValue: "In progress",
+              })}
+              value={formatNumber(data.kpis.inProgressCount ?? data.kpis.myDraftsCount)}
             />
             <KpiTile
               label={t("dashboards.drafter.kpis.awaitingMyActionCount")}

@@ -299,6 +299,13 @@ export interface AdminDashboardSnapshot {
 
 export interface DrafterDashboardKpis {
   myDraftsCount: number;
+  /**
+   * 2026-06-09 — broader pipeline counter than myDraftsCount: counts
+   * everything Hala originated that is still in flight (draft +
+   * in_approval + resubmission_requested + awaiting_signature_*).
+   * Optional for backward compatibility with older BE deploys.
+   */
+  inProgressCount?: number;
   awaitingMyActionCount: number;
   readyToSendCount: number;
   myRecentlyApprovedCount: number;
