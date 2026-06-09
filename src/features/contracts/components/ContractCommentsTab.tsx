@@ -21,7 +21,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCircle2, MessageCircle, Reply, Trash2 } from "lucide-react";
+import { MessageCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -54,7 +54,7 @@ export function ContractCommentsTab({ contractId }: Props) {
   const isRecipientOnly = user?.role?.name === "contract_recipient";
   const [filter, setFilter] = useState<ContractCommentFilter>("all");
   const [body, setBody] = useState("");
-  const [replyTo, setReplyTo] = useState<{ id: number; author: string } | null>(null);
+  // v611.4 — replyTo / composerRef removed with the Reply affordance.
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   const queryKey = useMemo(() => ["comments", contractId, filter] as const, [contractId, filter]);
@@ -71,7 +71,6 @@ export function ContractCommentsTab({ contractId }: Props) {
       contractCommentService.create(contractId, payload),
     onSuccess: () => {
       setBody("");
-      setReplyTo(null);
       void qc.invalidateQueries({ queryKey: ["comments", contractId] });
     },
     onError: (err: ApiError) => {
@@ -79,18 +78,7 @@ export function ContractCommentsTab({ contractId }: Props) {
     },
   });
 
-  const resolveMutation = useMutation({
-    mutationFn: (commentId: number) => contractCommentService.resolve(contractId, commentId),
-    onSuccess: () => {
-      toast.success(
-        t("contracts.comments.toastResolved", { defaultValue: "Comment resolved" }),
-      );
-      void qc.invalidateQueries({ queryKey: ["comments", contractId] });
-    },
-    onError: (err: ApiError) => {
-      toast.error(translateApiError(err, t, "errors.comment.resolveFailed"));
-    },
-  });
+  // v611.4 — resolveMutation removed with the Resolve button.
 
   const deleteMutation = useMutation({
     mutationFn: (commentId: number) => contractCommentService.remove(contractId, commentId),
@@ -106,8 +94,8 @@ export function ContractCommentsTab({ contractId }: Props) {
   const submit = useCallback(() => {
     const trimmed = body.trim();
     if (!trimmed) return;
-    createMutation.mutate({ body: trimmed, parentId: replyTo?.id ?? null });
-  }, [body, replyTo, createMutation]);
+    createMutation.mutate({ body: trimmed, parentId: null });
+  }, [body, createMutation]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -203,13 +191,10 @@ export function ContractCommentsTab({ contractId }: Props) {
                 ? `${(c.createdBy.firstName?.[0] ?? "").toUpperCase()}${(c.createdBy.lastName?.[0] ?? "").toUpperCase()}`
                 : "??";
               const isMine = user?.id === c.createdBy?.id;
-              const isResolved = c.resolvedAt !== null;
               return (
                 <li
                   key={c.id}
-                  className={`rounded-md border p-3 ${
-                    isResolved ? "border-border bg-surface/50 opacity-75" : "border-border bg-card"
-                  }`}
+                  className="rounded-md border border-border bg-card p-3"
                 >
                   <div className="flex items-start gap-3">
                     <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gold/20 font-mono text-[10px] font-medium text-gold-ink">
@@ -220,40 +205,14 @@ export function ContractCommentsTab({ contractId }: Props) {
                         <span className="font-medium text-ink">{authorName}</span>
                         <span>·</span>
                         <span>{formatDateTime(c.createdAt)}</span>
-                        {isResolved && (
-                          <span className="ms-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                            <CheckCircle2 className="h-2.5 w-2.5" />
-                            {t("contracts.comments.resolvedBadge", { defaultValue: "Resolved" })}
-                          </span>
-                        )}
                       </div>
                       <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{c.body}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        {!isResolved && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyTo({ id: c.id, author: authorName });
-                              composerRef.current?.focus();
-                            }}
-                            className="inline-flex items-center gap-1 text-xs text-ink-muted transition-colors hover:text-ink"
-                          >
-                            <Reply className="h-3 w-3" />
-                            {t("contracts.comments.reply", { defaultValue: "Reply" })}
-                          </button>
-                        )}
-                        {!isResolved && (
-                          <button
-                            type="button"
-                            onClick={() => resolveMutation.mutate(c.id)}
-                            disabled={resolveMutation.isPending}
-                            className="inline-flex items-center gap-1 text-xs text-primary transition-colors hover:underline"
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                            {t("contracts.comments.resolve", { defaultValue: "Resolve" })}
-                          </button>
-                        )}
-                        {isMine && (
+                      {/* v611.4 — Reply + Resolve removed per drafter feedback;
+                          the Comments tab is now a pure read-only thread. Own
+                          comments keep the Delete affordance for self-cleanup
+                          (lightweight; doesn't introduce thread state). */}
+                      {isMine && (
+                        <div className="mt-2 flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => deleteMutation.mutate(c.id)}
@@ -263,30 +222,7 @@ export function ContractCommentsTab({ contractId }: Props) {
                             <Trash2 className="h-3 w-3" />
                             {t("common.delete")}
                           </button>
-                        )}
-                      </div>
-
-                      {/* Replies */}
-                      {c.replies.length > 0 && (
-                        <ul className="mt-3 space-y-2 border-s-2 border-border ps-3">
-                          {c.replies.map((r) => {
-                            const replyAuthor = r.createdBy
-                              ? `${r.createdBy.firstName} ${r.createdBy.lastName}`
-                              : t("contracts.comments.unknownAuthor", { defaultValue: "Unknown" });
-                            return (
-                              <li key={r.id} className="rounded-sm bg-surface/40 px-2 py-1.5">
-                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-ink-muted">
-                                  <span className="font-medium text-ink">{replyAuthor}</span>
-                                  <span>·</span>
-                                  <span>{formatDateTime(r.createdAt)}</span>
-                                </div>
-                                <p className="mt-0.5 whitespace-pre-wrap text-xs text-ink">
-                                  {r.body}
-                                </p>
-                              </li>
-                            );
-                          })}
-                        </ul>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -301,23 +237,6 @@ export function ContractCommentsTab({ contractId }: Props) {
             sees the read-only feed only. */}
         {canWriteComment && (
           <div className="rounded-md border border-border bg-card p-3">
-            {replyTo && (
-              <div className="mb-2 flex items-center justify-between rounded-sm bg-surface/40 px-2 py-1 text-[11px] text-ink-muted">
-                <span>
-                  {t("contracts.comments.replyingTo", {
-                    author: replyTo.author,
-                    defaultValue: `Replying to ${replyTo.author}`,
-                  })}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setReplyTo(null)}
-                  className="text-ink-subtle transition-colors hover:text-ink"
-                >
-                  {t("common.cancel")}
-                </button>
-              </div>
-            )}
             <textarea
               ref={composerRef}
               value={body}

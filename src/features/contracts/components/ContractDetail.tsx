@@ -25,7 +25,7 @@
  *   AC-S2-04 — bodyEn/bodyAr displayed but never console.logged (T13).
  *   AC-S2-05 — drafted_by/reviewed_by/approved_by null when user soft-deleted.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -273,6 +273,18 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   // v611 — drafter-facing Submit for approval dialog state.
   const [submitOpen, setSubmitOpen] = useState(false);
 
+  // v611.3 — Inline Edit panel state. Edit is no longer a tab; the
+  // header "Edit" button opens this panel above the tabs and the page
+  // smooth-scrolls to it via editPanelRef so the drafter lands on the
+  // form. Save / Cancel collapse it back.
+  const [editOpen, setEditOpen] = useState(false);
+  const editPanelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (editOpen && editPanelRef.current) {
+      editPanelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [editOpen]);
+
   // R5 audit — Watch toggle. Local state for UX; we don't have a GET-watch
   // endpoint so we start unset and let the user toggle. The watch tab on
   // /app/approvals reflects the actual server state.
@@ -476,17 +488,32 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               existing SubmitForApprovalDialog which previews the chain
               and POSTs to /submit-for-approval. */}
           {isOwnDraft && currentRoleName === "contract_drafter" && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setSubmitOpen(true)}
-              className="hidden sm:inline-flex"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {lastResubmissionNote
-                ? t("contracts.detail.actions.resubmit", { defaultValue: "Resubmit for approval" })
-                : t("contracts.detail.actions.submit", { defaultValue: "Submit for approval" })}
-            </Button>
+            <>
+              {/* v611.3 — Inline Edit button. Opens the edit panel above
+                  the tabs and smooth-scrolls to it so the drafter can
+                  amend the body, save, then click Resubmit. */}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditOpen(true)}
+                className="hidden sm:inline-flex"
+              >
+                <PencilLine className="h-3.5 w-3.5" />
+                {t("contracts.detail.actions.edit", { defaultValue: "Edit" })}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setSubmitOpen(true)}
+                className="hidden sm:inline-flex"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {lastResubmissionNote
+                  ? t("contracts.detail.actions.resubmit", { defaultValue: "Resubmit for approval" })
+                  : t("contracts.detail.actions.submit", { defaultValue: "Submit for approval" })}
+              </Button>
+            </>
           )}
           {/* R-RC1 — recipient-perspective top-level Sign CTA. Visible when
               the user is a contract_recipient AND the contract is in a
@@ -749,6 +776,19 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         contract.status as never,
       ) && <ContractApprovalChainCard contractId={contract.id} />}
 
+      {/* v611.3 — Inline edit panel. Opens above the tabs when the drafter
+          clicks the header "Edit" button. Mount unconditionally + toggle
+          render so the smooth-scroll target exists across re-renders. */}
+      {editOpen && canEdit && !isRecipientOnly && (
+        <div ref={editPanelRef} role="region" aria-label="Edit contract">
+          <ContractEditForm
+            contract={contract}
+            onSaved={() => setEditOpen(false)}
+            onCancel={() => setEditOpen(false)}
+          />
+        </div>
+      )}
+
       {/* Tabs */}
       <div
         role="tablist"
@@ -773,14 +813,9 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
         <TabButton active={tab === "comments"} onClick={() => setTab("comments")}>
           {t("contracts.detail.tabs.comments", { defaultValue: "Comments" })}
         </TabButton>
-        {/* R1 audit 8.2.2: Edit / Payments / Signatures are drafter-context
-            tabs. Lovable doesn't surface them to approvers. Gate by canEdit
-            (proxy for "can mutate this contract"). */}
-        {!isRecipientOnly && canEdit && (
-          <TabButton active={tab === "edit"} onClick={() => setTab("edit")}>
-            {t("contracts.detail.tabs.edit")}
-          </TabButton>
-        )}
+        {/* v611.3 — Edit tab removed. Per drafter feedback, editing now
+            lives in an inline panel triggered by the "Edit" button in
+            the header. Keeps the tab bar focused on read-only views. */}
         {canSeePaymentsTab && (
           <TabButton active={tab === "payments"} onClick={() => setTab("payments")}>
             <Wallet className="h-3.5 w-3.5" />
