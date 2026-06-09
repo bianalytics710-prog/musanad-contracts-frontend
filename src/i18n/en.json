@@ -7461,6 +7461,7 @@
           "contract": "Contract",
           "type": "Type",
           "value": "Value",
+          "stage": "Stage",
           "updated": "Updated"
         },
         "action": {

@@ -32,7 +32,6 @@ import {
   Plus,
   TrendingUp,
   PieChart as PieIcon,
-  Radar as RadarIcon,
   FileStack,
   ArrowRight,
 } from "lucide-react";
@@ -69,7 +68,6 @@ import type { ContractStatus } from "@/types/entities/contract.types";
 import { formatDateTime, formatHijriDate } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
-import { impactSignalService } from "@/services/api/impact-signal.service";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
@@ -655,93 +653,18 @@ export function DrafterDashboard() {
             <TemplateUsageWidget />
           </div>
 
-          {/* D12 — Impact Watch section previously rendered a single
-              sentence + a link. Now populated with the top 3 most-recent
-              impact signals (regulator / commodity / supply-chain etc.)
-              affecting Dana's contract types. View all → /app/regulations. */}
-          <DrafterImpactWatchSection />
+          {/* v607.2 — Impact Watch section removed for the drafter persona
+              (matches the sidebar suppression in PER_ROLE_SUPPRESSED). The
+              DrafterImpactWatchSection component is kept below in case the
+              decision is reversed, but it is no longer rendered. */}
         </>
       )}
     </motion.div>
   );
 }
 
-function DrafterImpactWatchSection() {
-  const { t, i18n } = useTranslation();
-  const isAr = i18n.language?.startsWith("ar");
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["drafter-impact-watch-top3"],
-    queryFn: () => impactSignalService.list({}),
-    staleTime: 5 * 60_000,
-  });
-
-  const top3 = useMemo(() => (data?.data ?? []).slice(0, 3), [data]);
-
-  return (
-    <section className="rounded-lg border border-border bg-card p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <RadarIcon className="h-4 w-4 text-gold" />
-          {t("dashboards.drafter.regWatch.title", {
-            defaultValue: "Impact watch",
-          })}
-        </h3>
-        <Link
-          to="/app/regulations"
-          className="text-xs text-ink-muted hover:text-gold"
-        >
-          {t("dashboards.common.viewAll", { defaultValue: "View all" })} →
-        </Link>
-      </div>
-      {isLoading ? (
-        <div className="space-y-1.5" aria-hidden>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-10 animate-pulse rounded-md bg-surface" />
-          ))}
-        </div>
-      ) : isError || top3.length === 0 ? (
-        <p className="text-xs text-ink-subtle">
-          {t("dashboards.drafter.regWatch.empty", {
-            defaultValue:
-              "No active regulator / commodity signals affecting your contract types in the last 7 days.",
-          })}
-        </p>
-      ) : (
-        <ul role="list" className="divide-y divide-border">
-          {top3.map((s) => (
-            <li key={s.id} role="listitem" className="py-2">
-              <Link
-                to="/app/regulations"
-                className="block rounded-md px-2 py-1 transition hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {String(s.category || "").replace(/_/g, " ")}
-                  </span>
-                  <span className="font-mono text-[10px] text-ink-subtle">
-                    {s.severity}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-ink">
-                  {isAr && s.titleAr ? s.titleAr : s.titleEn}
-                </p>
-                {s.impactedContractCount > 0 && (
-                  <p className="mt-0.5 text-[10px] text-amber-ink">
-                    {t("dashboards.drafter.regWatch.impactedN", {
-                      defaultValue:
-                        "{{count}} impacted contracts in your scope",
-                      count: s.impactedContractCount,
-                    })}
-                  </p>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
+// v607.2 — DrafterImpactWatchSection removed; the section is no longer
+// rendered for the drafter persona (matches sidebar suppression).
 
 // v607 — humanize contract_type slug. Mirrors LegalCounselDashboard's
 // helper so the Recent drafts Type chip reads "Services", "EPC", etc.
@@ -806,9 +729,12 @@ function RecentDraftsTable({ rows }: { rows: DashboardContractRow[] }) {
               defaultValue: "Type",
             })}
           </th>
-          <th className="w-[80px] py-1.5 text-end">
-            {t("dashboards.drafter.recentDrafts.col.value", {
-              defaultValue: "Value",
+          {/* v609 — Stage replaces Value. Drafters care about where each
+              contract sits in the pipeline (draft → in approval →
+              awaiting signature), not the AED amount. */}
+          <th className="w-[110px] py-1.5 text-start">
+            {t("dashboards.drafter.recentDrafts.col.stage", {
+              defaultValue: "Stage",
             })}
           </th>
           <th className="w-[78px] py-1.5 text-end" />
@@ -845,8 +771,12 @@ function RecentDraftsTable({ rows }: { rows: DashboardContractRow[] }) {
                   defaultValue: humanizeContractType(r.contractType),
                 })}
               </td>
-              <td className="py-2 text-end font-mono text-xs text-ink-muted">
-                {r.valueAed ? `${(r.valueAed / 1000).toFixed(0)}k` : "—"}
+              {/* v609 — Stage chip. Uses the existing contractStatus.*
+                  translations (same source as the chip in /app/contracts). */}
+              <td className="py-2">
+                <span className="inline-block rounded-md bg-surface px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+                  {t(`contractStatus.${r.status}`, { defaultValue: r.status.replace(/_/g, " ") })}
+                </span>
               </td>
               <td className="py-2 text-end">
                 <Link
