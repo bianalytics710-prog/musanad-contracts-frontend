@@ -66,7 +66,7 @@ import type {
   DrafterAwaitingActionRow,
 } from "@/types/entities/dashboards.types";
 import type { ContractStatus } from "@/types/entities/contract.types";
-import { formatDate, formatDateTime, formatHijriDate } from "@/utils/datetime";
+import { formatDateTime, formatHijriDate } from "@/utils/datetime";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { templatesService, type TemplateListItem } from "@/services/api/m_parity.service";
 import { impactSignalService } from "@/services/api/impact-signal.service";
@@ -767,12 +767,16 @@ function humanizeContractType(slug: string | null | undefined): string {
 /**
  * v607 — Recent drafts table.
  *
- * Replaces the cramped ContractRowList (which rendered the same 5-column
- * grid with no proper <table> semantics, no Open CTA, and a redundant
- * Status column showing the same "Draft" chip for every row). Modeled on
- * Legal Counsel's ApprovalQueueTable so the two surfaces feel consistent.
+ * Replaces the cramped ContractRowList. Modeled on Legal Counsel's
+ * ApprovalQueueTable so the two surfaces feel consistent.
  *
- * Columns: Contract (number + title, two-line) · Type · Value · Updated · Open →
+ * Columns: Contract (number + title, two-line, wraps) · Type · Value · Open →
+ *
+ * v607.1 — Drop the Updated column + drop overflow-x-auto + drop truncate.
+ * The widget sits in a 60%-of-row card and the long ADNOC titles were
+ * pushing past the right edge, forcing a horizontal scroll. Now: title
+ * wraps onto a second line if it's long, no horizontal scroll, and the
+ * Open button stays visible at-a-glance.
  */
 function RecentDraftsTable({ rows }: { rows: DashboardContractRow[] }) {
   const { t, i18n } = useTranslation();
@@ -787,88 +791,80 @@ function RecentDraftsTable({ rows }: { rows: DashboardContractRow[] }) {
     );
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="text-[10px] font-medium tracking-wider text-ink-subtle">
-          <tr className="border-b border-border/60">
-            <th className="py-1.5 text-start">
-              {t("dashboards.drafter.recentDrafts.col.contract", {
-                defaultValue: "Contract",
-              })}
-            </th>
-            <th className="py-1.5 text-start">
-              {t("dashboards.drafter.recentDrafts.col.type", {
-                defaultValue: "Type",
-              })}
-            </th>
-            <th className="py-1.5 text-end">
-              {t("dashboards.drafter.recentDrafts.col.value", {
-                defaultValue: "Value",
-              })}
-            </th>
-            <th className="py-1.5 text-start">
-              {t("dashboards.drafter.recentDrafts.col.updated", {
-                defaultValue: "Updated",
-              })}
-            </th>
-            <th className="py-1.5 text-end" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const title = isAr && r.titleAr ? r.titleAr : r.titleEn;
-            return (
-              <tr key={r.id} className="border-b border-border/40">
-                <td className="py-2">
-                  <Link
-                    to="/app/contracts/$id"
-                    params={{ id: String(r.id) }}
-                    className="block transition-colors hover:bg-surface/50"
-                    aria-label={t("dashboards.common.openContractAria", {
-                      number: r.contractNumber,
-                      title: r.titleEn,
-                    })}
-                  >
-                    <div className="font-mono text-xs text-ink-muted">
-                      {r.contractNumber}
-                    </div>
-                    <div
-                      className="truncate text-sm text-ink"
-                      dir={isAr && r.titleAr ? "rtl" : "ltr"}
-                    >
-                      {title}
-                    </div>
-                  </Link>
-                </td>
-                <td className="py-2 text-xs text-ink-muted">
-                  {t(`contractType.${r.contractType}`, {
-                    defaultValue: humanizeContractType(r.contractType),
+    <table className="w-full table-fixed text-sm">
+      <thead className="text-[10px] font-medium tracking-wider text-ink-subtle">
+        <tr className="border-b border-border/60">
+          {/* Contract column gets the bulk of the width because it carries
+              the two-line number + wrapping title. */}
+          <th className="py-1.5 text-start">
+            {t("dashboards.drafter.recentDrafts.col.contract", {
+              defaultValue: "Contract",
+            })}
+          </th>
+          <th className="w-[110px] py-1.5 text-start">
+            {t("dashboards.drafter.recentDrafts.col.type", {
+              defaultValue: "Type",
+            })}
+          </th>
+          <th className="w-[80px] py-1.5 text-end">
+            {t("dashboards.drafter.recentDrafts.col.value", {
+              defaultValue: "Value",
+            })}
+          </th>
+          <th className="w-[78px] py-1.5 text-end" />
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => {
+          const title = isAr && r.titleAr ? r.titleAr : r.titleEn;
+          return (
+            <tr key={r.id} className="border-b border-border/40 align-top">
+              <td className="py-2 pe-3">
+                <Link
+                  to="/app/contracts/$id"
+                  params={{ id: String(r.id) }}
+                  className="block transition-colors hover:bg-surface/50"
+                  aria-label={t("dashboards.common.openContractAria", {
+                    number: r.contractNumber,
+                    title: r.titleEn,
                   })}
-                </td>
-                <td className="py-2 text-end font-mono text-xs text-ink-muted">
-                  {r.valueAed ? `${(r.valueAed / 1000).toFixed(0)}k` : "—"}
-                </td>
-                <td className="py-2 font-mono text-xs text-ink-muted">
-                  {formatDate(r.updatedAt)}
-                </td>
-                <td className="py-2 text-end">
-                  <Link
-                    to="/app/contracts/$id"
-                    params={{ id: String(r.id) }}
-                    className="inline-flex items-center gap-1 rounded-md bg-gold px-2.5 py-1 text-[11px] font-medium text-ink transition-colors hover:bg-gold/90"
+                >
+                  <div className="font-mono text-xs text-ink-muted">
+                    {r.contractNumber}
+                  </div>
+                  <div
+                    className="break-words text-sm leading-snug text-ink"
+                    dir={isAr && r.titleAr ? "rtl" : "ltr"}
                   >
-                    {t("dashboards.drafter.recentDrafts.action.open", {
-                      defaultValue: "Open",
-                    })}
-                    <ArrowRight className="h-3 w-3 rtl:rotate-180" />
-                  </Link>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                    {title}
+                  </div>
+                </Link>
+              </td>
+              <td className="py-2 text-xs text-ink-muted">
+                {t(`contractType.${r.contractType}`, {
+                  defaultValue: humanizeContractType(r.contractType),
+                })}
+              </td>
+              <td className="py-2 text-end font-mono text-xs text-ink-muted">
+                {r.valueAed ? `${(r.valueAed / 1000).toFixed(0)}k` : "—"}
+              </td>
+              <td className="py-2 text-end">
+                <Link
+                  to="/app/contracts/$id"
+                  params={{ id: String(r.id) }}
+                  className="inline-flex items-center gap-1 rounded-md bg-gold px-2.5 py-1 text-[11px] font-medium text-ink transition-colors hover:bg-gold/90"
+                >
+                  {t("dashboards.drafter.recentDrafts.action.open", {
+                    defaultValue: "Open",
+                  })}
+                  <ArrowRight className="h-3 w-3 rtl:rotate-180" />
+                </Link>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
