@@ -279,10 +279,17 @@ export function ContractFormFields({
         >
           <textarea
             id={ids.bodyEn}
-            rows={6}
+            rows={28}
             disabled={disabled}
             {...register("bodyEn")}
-            className={textareaClass}
+            className={cn(
+              textareaClass,
+              // v611 — contract bodies are ~10–20k chars of markdown;
+              // the previous 6-row textarea was unusable for finding
+              // and editing a single clause. Tall monospace editor
+              // with resize handle so drafters can work inline.
+              "min-h-[480px] max-h-[80vh] resize-y font-mono leading-relaxed",
+            )}
           />
         </Field>
       </div>
@@ -295,11 +302,16 @@ export function ContractFormFields({
         >
           <textarea
             id={ids.bodyAr}
-            rows={6}
+            rows={28}
             dir="rtl"
             disabled={disabled}
             {...register("bodyAr")}
-            className={textareaClass}
+            className={cn(
+              textareaClass,
+              // v611 — see bodyEn comment above. Same treatment for the
+              // Arabic body; RTL preserved.
+              "min-h-[480px] max-h-[80vh] resize-y font-mono leading-relaxed",
+            )}
           />
         </Field>
       </div>
