@@ -211,12 +211,12 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "templates",
     "clauses",
     "parties",
-    "obligations",
-    // D61 — Impact Watch added to the drafter's ROLE_MODULES so the
-    // ⌘K command palette (which reads modulesForRole) lists it alongside
-    // the sidebar (which reads effectiveModules). Both surfaces stay in
-    // sync; the BE perm gate for impact_signals was unlocked in mig 425.
-    "regulations",
+    // Demo prep 2026-06-09 — Obligations + Impact Watch hidden from
+    // drafter sidebar. They remain accessible via direct URL + ⌘K for
+    // power users; the routes + permissions stay live so deep links
+    // don't break.
+    // (removed) "obligations",
+    // (removed) "regulations",
     // D48 — "dashboards.procurement" (M15 / CR-G) removed from the
     // drafter's sidebar. Procurement supplier-risk is Pari's persona
     // surface; surfacing the same dashboard to the contract drafter
@@ -234,9 +234,12 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "approvals",
     "templates",
     "clauses",
-    "regulations",
+    // Demo prep 2026-06-09 — Obligations + Impact Watch hidden from
+    // legal counsel sidebar (Impact Radar kept — it's the regulatory-
+    // cascade telemetry Layla actively works in).
+    // (removed) "regulations",
     "radar",
-    "obligations",
+    // (removed) "obligations",
     "parties",
     // M16 / CR-H — advisory queue for legal counsel
     "legal.advisoryQueue",
@@ -531,6 +534,7 @@ export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
 export function modulesForEffectiveSet(
   effectiveModules: string[] | null | undefined,
   orderOverride?: string[] | null,
+  roleName?: string | null,
 ): SidebarModule[] {
   if (!effectiveModules || effectiveModules.length === 0) {
     // Fallback: show only insights hub so the user can navigate somewhere.
@@ -547,11 +551,24 @@ export function modulesForEffectiveSet(
     "compliance.regulatoryCascade",
   ]);
 
+  // Demo prep 2026-06-09 — per-role suppression. Sidebar is driven by the
+  // BE's effectiveModules, so trimming ROLE_MODULES alone has no effect
+  // at runtime. Hide Obligations + Impact Watch from the drafter + legal
+  // counsel sidebars while leaving the routes + permissions live (deep
+  // links still work; only the nav entries disappear).
+  const PER_ROLE_SUPPRESSED: Record<string, ReadonlySet<ModuleKey>> = {
+    contract_drafter: new Set<ModuleKey>(["obligations", "regulations"]),
+    legal_counsel:    new Set<ModuleKey>(["obligations", "regulations"]),
+  };
+  const roleSuppressed: ReadonlySet<ModuleKey> | undefined =
+    roleName ? PER_ROLE_SUPPRESSED[roleName] : undefined;
+
   for (const beKey of effectiveModules) {
     // Normalise BE key → FE ModuleKey
     const feKey: ModuleKey | undefined = (BE_TO_FE_KEY[beKey] as ModuleKey | undefined) ?? (beKey as ModuleKey);
     // Skip if the FE key has no display entry, is suppressed, or already added
     if (!MODULES[feKey] || SUPPRESSED_MODULES.has(feKey) || seen.has(feKey)) continue;
+    if (roleSuppressed && roleSuppressed.has(feKey)) continue;
     seen.add(feKey);
     result.push(MODULES[feKey]);
   }

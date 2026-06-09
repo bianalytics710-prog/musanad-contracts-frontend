@@ -132,7 +132,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const items = roleName === "platform_admin"
     ? modulesForRole("platform_admin")
     : user?.effectiveModules?.length
-      ? modulesForEffectiveSet(user.effectiveModules, orderOverride)
+      ? modulesForEffectiveSet(user.effectiveModules, orderOverride, roleName)
       : modulesForRole(roleName);
 
   const initials = getInitials(user?.firstName, user?.lastName);
