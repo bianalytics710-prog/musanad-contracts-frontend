@@ -98,6 +98,7 @@ import { useContractVersions } from "@/features/contracts/hooks/useContracts";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import { useApprovalChainByContract } from "@/features/approvals/hooks/useApprovals";
 import { ApprovalDecisionDialog } from "@/features/approvals/components/ApprovalDecisionDialog";
+import { SubmitForApprovalDialog } from "@/features/approvals/components/SubmitForApprovalDialog";
 import { approvalService } from "@/services/api/approval.service";
 import { signatureService } from "@/services/api/signature.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -221,7 +222,12 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   // canApprove gate is FE-only; even if the chain loads for a non-approver
   // the derivation below returns null (no role match) and the trigger button
   // stays hidden — so we don't need to disable the query separately.
-  const chainQuery = useApprovalChainByContract(canApprove ? contractId : null);
+  // v611 — also enable the chain query for drafters so the resubmission
+  // banner + Submit-for-approval button can read the latest decision
+  // note. Cheap scoped query; covered by the same endpoint cache.
+  const chainQuery = useApprovalChainByContract(
+    canApprove || currentRoleName === "contract_drafter" ? contractId : null,
+  );
   const myPendingStep = useMemo(() => {
     const steps = chainQuery.data?.steps ?? [];
     const match = steps.find((s) => {
@@ -241,6 +247,31 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
     return match ? { stepId: match.id } : null;
   }, [chainQuery.data?.steps, currentUserId, currentRoleName]);
   const [approveOpen, setApproveOpen] = useState(false);
+
+  // v611 — find the latest request_resubmission decision across the chain
+  // so the drafter sees a clear callout of what the approver asked for.
+  // Decisions inside each step are ASC by decided_at (per BE contract).
+  const lastResubmissionNote = useMemo(() => {
+    const steps = chainQuery.data?.steps ?? [];
+    let best: { note: string; decidedBy: string; decidedAt: string } | null = null;
+    for (const s of steps) {
+      for (const d of s.decisions ?? []) {
+        if (d.decision !== "request_resubmission") continue;
+        if (!d.decisionNote) continue;
+        if (!best || d.decidedAt > best.decidedAt) {
+          best = {
+            note: d.decisionNote,
+            decidedBy: [d.decidedBy?.firstName, d.decidedBy?.lastName].filter(Boolean).join(" ") || "Approver",
+            decidedAt: d.decidedAt,
+          };
+        }
+      }
+    }
+    return best;
+  }, [chainQuery.data?.steps]);
+
+  // v611 — drafter-facing Submit for approval dialog state.
+  const [submitOpen, setSubmitOpen] = useState(false);
 
   // R5 audit — Watch toggle. Local state for UX; we don't have a GET-watch
   // endpoint so we start unset and let the user toggle. The watch tab on
@@ -325,6 +356,30 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   return (
     <div className="mx-auto w-full max-w-[1280px] space-y-4 p-6">
       <Breadcrumb contractNumber={contract.contractNumber} />
+
+      {/* v611 — Resubmission banner. Only shows when the drafter owns
+          this contract AND there is a request_resubmission note on the
+          chain (set by an approver). Mirrors the Legal-Counsel approval
+          feedback so the drafter knows WHY the contract came back. */}
+      {isOwnDraft &&
+        currentRoleName === "contract_drafter" &&
+        lastResubmissionNote && (
+          <div
+            role="status"
+            className="rounded-md border border-amber/40 bg-amber-tint/40 px-4 py-3 text-sm text-amber-ink"
+          >
+            <div className="mb-1 font-mono text-[10px] uppercase tracking-wider">
+              {t("contracts.detail.resubmission.kicker", {
+                defaultValue: "Changes requested by {{name}}",
+                name: lastResubmissionNote.decidedBy,
+              })}
+            </div>
+            <p className="whitespace-pre-line">{lastResubmissionNote.note}</p>
+            <p className="mt-1 font-mono text-[10px] text-amber-ink/80">
+              {formatDateTime(lastResubmissionNote.decidedAt)}
+            </p>
+          </div>
+        )}
 
       {/* Compact header — matches Lovable's title + chips + ... menu */}
       <div className="flex items-start justify-between gap-3">
@@ -412,6 +467,25 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               {t("contracts.detail.actions.action", { defaultValue: "Action" })}
+            </Button>
+          )}
+          {/* v611 — drafter Submit-for-approval CTA. Shows when the
+              actor is the drafter of this contract AND the contract is
+              currently a draft (initial submission OR resubmission after
+              a request_resubmission decision sent it back). Opens the
+              existing SubmitForApprovalDialog which previews the chain
+              and POSTs to /submit-for-approval. */}
+          {isOwnDraft && currentRoleName === "contract_drafter" && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setSubmitOpen(true)}
+              className="hidden sm:inline-flex"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {lastResubmissionNote
+                ? t("contracts.detail.actions.resubmit", { defaultValue: "Resubmit for approval" })
+                : t("contracts.detail.actions.submit", { defaultValue: "Submit for approval" })}
             </Button>
           )}
           {/* R-RC1 — recipient-perspective top-level Sign CTA. Visible when
@@ -957,6 +1031,19 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           currentUserId={currentUserId}
           open={approveOpen}
           onClose={() => setApproveOpen(false)}
+        />
+      )}
+
+      {/* v611 — drafter Submit-for-approval dialog. Previews the chain
+          + POSTs to /contracts/:id/submit-for-approval. Triggered from
+          the new Submit/Resubmit button in the header. */}
+      {submitOpen && (
+        <SubmitForApprovalDialog
+          contractId={contract.id}
+          contractType={contract.contractType}
+          valueAed={contract.valueAed ?? 0}
+          open={submitOpen}
+          onClose={() => setSubmitOpen(false)}
         />
       )}
 
