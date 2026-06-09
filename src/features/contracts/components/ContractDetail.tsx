@@ -104,7 +104,7 @@ import { approvalService } from "@/services/api/approval.service";
 import { signatureService } from "@/services/api/signature.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Eye, EyeOff } from "lucide-react";
-import type { Contract, ContractStatus, UserRef } from "@/types/entities/contract.types";
+import type { Contract, ContractStatus, ContractVersion, UserRef } from "@/types/entities/contract.types";
 
 type Tab =
   | "overview"
@@ -132,6 +132,10 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   // approval stages on landing, not the legal body text. Default to overview
   // again; the Document tab is one click away.
   const [tab, setTab] = useState<Tab>("overview");
+  // v616 — when the drafter clicks "View this version" on the Versions
+  // tab, store the chosen historical version and switch to Document.
+  // Cleared when the user clicks Back-to-current or navigates away.
+  const [historicalVersion, setHistoricalVersion] = useState<ContractVersion | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusPreset, setStatusPreset] = useState<ContractStatus | undefined>(undefined);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -877,7 +881,11 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             pageCount={ingestionQuery.data?.pageCount}
             lowConfidencePageCount={ingestionQuery.data?.lowConfidencePageCount}
           >
-            <ContractDocumentTab contract={contract} />
+            <ContractDocumentTab
+              contract={contract}
+              historicalVersion={historicalVersion}
+              onBackToCurrent={() => setHistoricalVersion(null)}
+            />
           </DocumentTabExtension>
         </div>
       )}
@@ -906,7 +914,16 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       )}
       {tab === "versions" && (
         <div role="tabpanel" aria-labelledby="tab-versions">
-          <ContractVersionList contractId={contract.id} canCreate={canEdit} />
+          <ContractVersionList
+            contractId={contract.id}
+            onViewVersion={(v) => {
+              // If they pick the current version, treat it as Back-to-current
+              // rather than mounting an immutable snapshot of the same body.
+              const isLatest = v.versionNumber === contract.currentVersion;
+              setHistoricalVersion(isLatest ? null : v);
+              setTab("document");
+            }}
+          />
         </div>
       )}
       {tab === "activity" && (

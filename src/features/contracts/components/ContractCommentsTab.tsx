@@ -43,7 +43,11 @@ interface Props {
 // caller can't post. The list-mode rendering stays the same so signers can
 // still READ comments their counterparty left.
 
-const FILTERS: ContractCommentFilter[] = ["all", "unresolved", "mine", "mentions_me"];
+// v616 — drop "unresolved" + "mentions_me" filters per drafter feedback.
+// Resolve is gone (since v611.4 turned Comments into a pure thread), so an
+// Unresolved filter is meaningless. Mention-routing isn't wired end-to-end
+// either, so Mentions me was a dead toggle. Leave All + Mine.
+const FILTERS: ContractCommentFilter[] = ["all", "mine"];
 
 export function ContractCommentsTab({ contractId }: Props) {
   const { t } = useTranslation();
@@ -126,14 +130,7 @@ export function ContractCommentsTab({ contractId }: Props) {
               }`}
             >
               {t(`contracts.comments.filter.${f}`, {
-                defaultValue:
-                  f === "all"
-                    ? "All"
-                    : f === "unresolved"
-                      ? "Unresolved"
-                      : f === "mine"
-                        ? "Mine"
-                        : "Mentions me",
+                defaultValue: f === "all" ? "All" : "Mine",
               })}
             </button>
           ))}

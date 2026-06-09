@@ -13,14 +13,21 @@
  */
 import React, { useMemo, useState, useId } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Hash } from "lucide-react";
+import { Search, Hash, History, ArrowLeft } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/useDebounce";
-import type { Contract } from "@/types/entities/contract.types";
+import { formatDateTime } from "@/utils/datetime";
+import type { Contract, ContractVersion } from "@/types/entities/contract.types";
 
 interface ContractDocumentTabProps {
   contract: Contract;
+  /** v616 — when present, render this historical version's body instead
+   *  of the live contract body. Shows a banner + Back-to-current. */
+  historicalVersion?: ContractVersion | null;
+  /** Caller-supplied handler for the Back-to-current link. */
+  onBackToCurrent?: () => void;
 }
 
 interface ClauseSegment {
@@ -158,28 +165,38 @@ function highlightNodes(nodes: React.ReactNode[], query: string): React.ReactNod
   });
 }
 
-export function ContractDocumentTab({ contract }: ContractDocumentTabProps) {
+export function ContractDocumentTab({
+  contract,
+  historicalVersion,
+  onBackToCurrent,
+}: ContractDocumentTabProps) {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 300);
   const searchId = useId();
 
-  const enClauses = useMemo(() => parseClauses(contract.bodyEn ?? null), [contract.bodyEn]);
-  const arClauses = useMemo(() => parseClauses(contract.bodyAr ?? null), [contract.bodyAr]);
+  // v616 — when a historical version is selected, swap in its body. Live
+  // edits to `contract.bodyEn/Ar` do not affect this view because we read
+  // from the immutable contract_version row.
+  const effectiveBodyEn = historicalVersion ? historicalVersion.bodyEn : contract.bodyEn;
+  const effectiveBodyAr = historicalVersion ? historicalVersion.bodyAr : contract.bodyAr;
+
+  const enClauses = useMemo(() => parseClauses(effectiveBodyEn ?? null), [effectiveBodyEn]);
+  const arClauses = useMemo(() => parseClauses(effectiveBodyAr ?? null), [effectiveBodyAr]);
 
   // P29: default to active-locale only when both EN+AR exist (was always-both → duplication).
   const isAr = i18n.language?.startsWith('ar');
-  const hasBoth = !!contract.bodyEn && !!contract.bodyAr;
+  const hasBoth = !!effectiveBodyEn && !!effectiveBodyAr;
   const [showBoth, setShowBoth] = useState(false);
-  const showEn = (showBoth ? true : !isAr) && !!contract.bodyEn;
-  const showAr = (showBoth ? true : isAr) && !!contract.bodyAr;
+  const showEn = (showBoth ? true : !isAr) && !!effectiveBodyEn;
+  const showAr = (showBoth ? true : isAr) && !!effectiveBodyAr;
 
   const tocEn = useMemo(
     () => enClauses.filter((c) => c.heading.length > 0),
     [enClauses],
   );
 
-  if (!contract.bodyEn && !contract.bodyAr) {
+  if (!effectiveBodyEn && !effectiveBodyAr) {
     return (
       <Card>
         <CardContent className="p-6 text-center text-sm text-ink-subtle">
@@ -193,6 +210,42 @@ export function ContractDocumentTab({ contract }: ContractDocumentTabProps) {
 
   return (
     <div className="space-y-4">
+      {/* v616 — historical-version banner. Shown only when the parent
+          renders this tab with a historicalVersion override (i.e. the
+          drafter clicked "View this version" on the Versions tab). */}
+      {historicalVersion && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gold/40 bg-gold/10 p-3">
+          <div className="flex items-start gap-2 text-sm text-ink">
+            <History className="mt-0.5 h-4 w-4 shrink-0 text-gold-ink" aria-hidden="true" />
+            <div>
+              <p className="font-medium">
+                {t("contracts.detail.document.historicalBanner.title", {
+                  defaultValue: "Viewing version {{n}}",
+                  n: historicalVersion.versionNumber,
+                })}
+              </p>
+              <p className="text-xs text-ink-muted">
+                {t("contracts.detail.document.historicalBanner.subtitle", {
+                  defaultValue: "Created {{when}}{{by}}. Read-only snapshot.",
+                  when: formatDateTime(historicalVersion.createdAt),
+                  by: historicalVersion.changedBy
+                    ? ` · ${historicalVersion.changedBy.firstName} ${historicalVersion.changedBy.lastName}`
+                    : "",
+                })}
+              </p>
+            </div>
+          </div>
+          {onBackToCurrent && (
+            <Button type="button" size="sm" variant="outline" onClick={onBackToCurrent}>
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {t("contracts.detail.document.historicalBanner.back", {
+                defaultValue: "Back to current",
+              })}
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card p-3">
         <div className="relative min-w-[260px] flex-1">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
