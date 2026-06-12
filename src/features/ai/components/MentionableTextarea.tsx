@@ -213,11 +213,18 @@ export const MentionableTextarea = forwardRef<MentionableTextareaHandle, Props>(
       const refIdStr = isProspect ? '_' : String(row.id);
       const kindForMarkup: MentionKind = isProspect ? 'prospect' : trig.kind;
       const labelForChip = isProspect && row.prospectName ? row.prospectName : row.label;
-      const markup = `${triggerChar}[${labelForChip}](${kindForMarkup}:${refIdStr})`;
+
+      // 2026-06-12 — Display-clean tokens. The textarea now holds plain
+      // "@Hala Al Suwaidi" / "#CT-2026-000028" / "~ABB Power and Automation"
+      // instead of "@[Label](kind:id)" markup. The structured mentions[]
+      // array (built below) is the canonical source of (kind, refId, label)
+      // for the BE — text is just the user-facing message. Result: no raw
+      // (user:5)/(party:N)/(contract:N) leaks into the input field.
+      const tokenText = `${triggerChar}${labelForChip}`;
 
       const before = text.slice(0, trig.start);
       const after = text.slice(trig.start + 1 + trig.query.length);
-      const newText = `${before}${markup} ${after}`;
+      const newText = `${before}${tokenText} ${after}`;
       setText(newText);
       onChange?.(newText);
 
@@ -237,8 +244,8 @@ export const MentionableTextarea = forwardRef<MentionableTextareaHandle, Props>(
       setResults([]);
       setActiveIdx(0);
 
-      // Restore focus + caret after inserted markup + space.
-      const caretPos = (before + markup + ' ').length;
+      // Restore focus + caret after inserted token + space.
+      const caretPos = (before + tokenText + ' ').length;
       setTimeout(() => {
         const t = taRef.current;
         if (t) {
@@ -300,17 +307,18 @@ export const MentionableTextarea = forwardRef<MentionableTextareaHandle, Props>(
     };
   }, [active, recomputePosition]);
 
-  // Trim stale mentions whenever the markup is removed manually.
+  // Trim stale mentions when the user deletes the visible token. With the
+  // display-clean tokens (`@Hala Al Suwaidi`) we match by label substring
+  // rather than by markup. The triggerChar for the mention's kind must
+  // precede the label, so we look for `{prefix}{label}` in the text. If
+  // the token is gone, the mention is dropped from the canonical array.
   useEffect(() => {
-    const present = new Set<string>();
-    const re = /([@#~])\[([^\]]+)\]\((user|contract|party|prospect):([^)]+)\)/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      const k = m[3] as MentionKind;
-      const id = m[4];
-      present.add(`${k}:${id}`);
-    }
-    setMentions((prev) => prev.filter((mn) => present.has(mn.id)));
+    setMentions((prev) =>
+      prev.filter((mn) => {
+        const prefix = Object.entries(TRIGGER_TO_KIND).find(([, k]) => k === mn.kind)?.[0] ?? '@';
+        return text.includes(`${prefix}${mn.label}`);
+      }),
+    );
   }, [text]);
 
   // Char count for the small footer.

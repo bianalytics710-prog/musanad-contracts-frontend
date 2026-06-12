@@ -8,9 +8,8 @@
  */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from '@tanstack/react-router';
 import { motion } from 'framer-motion';
-import { Check, X, Loader2, ExternalLink } from 'lucide-react';
+import { Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { chatActionsService } from '@/services/api/chat-orchestrator.service';
 import { MentionChip } from './MentionChip';
@@ -66,15 +65,6 @@ export function ProposalCard({ proposalId, actionCode, actionLabel, previewParam
           <Check className="mt-0.5 h-4 w-4 shrink-0 text-sage" aria-hidden />
           <div className="flex-1">
             <div className="font-medium">{state.receipt.message}</div>
-            {state.receipt.link && (
-              <Link
-                to={state.receipt.link}
-                className="mt-1 inline-flex items-center gap-1 text-xs text-gold underline-offset-2 hover:underline"
-              >
-                {t('chatActions.receipt.viewWork', { defaultValue: 'Open My Work' })}
-                <ExternalLink className="h-3 w-3" aria-hidden />
-              </Link>
-            )}
           </div>
         </div>
       </motion.div>
