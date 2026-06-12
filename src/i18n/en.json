@@ -6490,6 +6490,7 @@
       "panelAriaLabel": "AI Risk Assistant panel",
       "title": "Risk Assistant",
       "close": "Close Risk Assistant",
+      "clear": "Clear conversation",
       "aborted": " [cancelled]",
       "emptyState": {
         "title": "Ask about your portfolio",

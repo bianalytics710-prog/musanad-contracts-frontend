@@ -32,7 +32,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, StopCircle, Bot, User, Send } from 'lucide-react';
+import { MessageCircle, X, StopCircle, Bot, User, Send, Eraser } from 'lucide-react';
 import { askRiskAssistant } from '@/services/api/risk-assistant.service';
 import { askChat } from '@/services/api/chat-orchestrator.service';
 import { useAuthStore, selectUser, selectHasPermission } from '@/store/auth.store';
@@ -371,6 +371,67 @@ export function RiskAssistantPanel() {
     return ACTION_RE.test(text);
   }
 
+  // Convert @[Label](kind:id) / #[…] / ~[…] markup to a clean string the
+  // LLM sees: "@Hala Al Suwaidi create a contract for ~KBR Inc.".
+  // We need this for two reasons:
+  //   • IDs in chat surfaces look like internal leakage to the user.
+  //     Even if we render the user's bubble as chips, the model would
+  //     happily echo "(user:5)" back in its reply.
+  //   • The orchestrator already gets a structured mentions[] array
+  //     alongside, so the model doesn't need the IDs in the prose.
+  function stripMentionMarkup(input: string): string {
+    return input.replace(
+      /([@#~])\[([^\]]+)\]\((?:user|contract|party|prospect):[^)]+\)/g,
+      (_full, prefix: string, label: string) => `${prefix}${label}`,
+    );
+  }
+
+  // Build a {role, content}[] history for the orchestrator from the
+  // current panel state. We strip mention markup so the model doesn't
+  // see internal IDs; the structured mentions[] array still travels
+  // alongside the latest user turn. Cap at the last 8 turns to keep the
+  // prompt tight.
+  function buildOrchestratorHistory(latestUserText: string): Array<{ role: 'user' | 'assistant'; content: string }> {
+    const HISTORY_LIMIT = 8;
+    const prior = messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .filter((m) => m.content && m.content.trim().length > 0)
+      .slice(-HISTORY_LIMIT)
+      .map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: stripMentionMarkup(m.content),
+      }));
+    prior.push({ role: 'user', content: stripMentionMarkup(latestUserText) });
+    return prior;
+  }
+
+  // Risk-assistant accepts a single query string. To give it multi-turn
+  // awareness, prepend the last few exchanges as a labelled preamble so
+  // a follow-up like "show me the next 5" knows what "next" refers to.
+  function buildRiskAssistantQuery(latestUserText: string): string {
+    const HISTORY_LIMIT = 6;
+    const prior = messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .filter((m) => m.content && m.content.trim().length > 0)
+      .slice(-HISTORY_LIMIT);
+    if (prior.length === 0) return stripMentionMarkup(latestUserText);
+    const preamble = prior
+      .map((m) => {
+        const speaker = m.role === 'user' ? 'User' : 'Assistant';
+        return `${speaker}: ${stripMentionMarkup(m.content)}`;
+      })
+      .join('\n');
+    return `Conversation so far:\n${preamble}\n\nUser's latest question: ${stripMentionMarkup(latestUserText)}`;
+  }
+
+  function handleClearChat() {
+    setMessages([]);
+    mentionTaRef.current?.clear();
+    setDraftLen(0);
+    setIsStreaming(false);
+    abortRef.current?.abort();
+  }
+
   async function handleSubmit(payload: { text: string; mentions: ChatMention[] }) {
     const trimmed = payload.text.trim();
     if (!trimmed || isStreaming) return;
@@ -405,7 +466,7 @@ export function RiskAssistantPanel() {
 
     try {
       if (useOrchestrator) {
-        const chatMessages = [{ role: 'user' as const, content: trimmed }];
+        const chatMessages = buildOrchestratorHistory(trimmed);
         await askChat({
           messages: chatMessages,
           mentions: payload.mentions,
@@ -456,8 +517,10 @@ export function RiskAssistantPanel() {
         // in context. Without this branch the orchestrator (which has
         // no RAG layer) would tell the user "I can't access real-time
         // data" for any question that isn't an action request.
+        // Query carries the recent conversation as a preamble so
+        // follow-up questions ("show me the next 5") remember context.
         await askRiskAssistant({
-          query: trimmed,
+          query: buildRiskAssistantQuery(trimmed),
           ...(persona !== undefined && { persona }),
           abortSignal: abortRef.current.signal,
           onToken: (token) => {
@@ -577,14 +640,26 @@ export function RiskAssistantPanel() {
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  aria-label={t('ai.riskAssistant.close')}
-                  className="rounded p-1 text-ink-muted transition hover:bg-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleClearChat}
+                    disabled={messages.length === 0 && !isStreaming}
+                    aria-label={t('ai.riskAssistant.clear', { defaultValue: 'Clear conversation' })}
+                    title={t('ai.riskAssistant.clear', { defaultValue: 'Clear conversation' })}
+                    className="rounded p-1 text-ink-muted transition hover:bg-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Eraser className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    aria-label={t('ai.riskAssistant.close')}
+                    className="rounded p-1 text-ink-muted transition hover:bg-muted hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold"
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
               </div>
 
               {/* Chat history */}
@@ -640,6 +715,7 @@ export function RiskAssistantPanel() {
                       })}
                       ariaLabel={t('ai.riskAssistant.input.ariaLabel')}
                       disabled={isStreaming}
+                      rows={4}
                       maxLength={2000}
                       onSubmit={handleSubmit}
                       onChange={(text) => setDraftLen(text.length)}
