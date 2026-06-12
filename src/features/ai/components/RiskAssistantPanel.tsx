@@ -351,6 +351,26 @@ export function RiskAssistantPanel() {
     setIsOpen(false);
   }
 
+  // ─── Intent classifier ──────────────────────────────────────────────
+  // Two routes coexist behind the same input:
+  //   • Action request — mention chips OR action keywords → orchestrator
+  //     (/ai/chat/ask) which can call write_actions and emit a proposal.
+  //   • Plain Q&A — neither chips nor action keywords → risk-assistant
+  //     (/ai/risk-assistant/ask) which loads the user's read-allowed
+  //     contracts + clauses + risk signals into the LLM context so the
+  //     model can answer grounded questions like "highest-risk contracts".
+  // The orchestrator deliberately has no data RAG layer (it's a write-
+  // action surface), so routing every message through it strips Q&A of
+  // its data context. Detecting intent up front keeps both paths alive.
+  function looksLikeActionRequest(text: string, mentions: ChatMention[]): boolean {
+    if (mentions.length > 0) return true;
+    // Anchored at word boundaries so a question like "what's the active
+    // risk score" doesn't get mis-routed by stray substrings.
+    const ACTION_RE =
+      /\b(draft|assign(?:ed)?|request|create|add\s+to|escalate|reassign|cancel|nudge|prepare)\b/i;
+    return ACTION_RE.test(text);
+  }
+
   async function handleSubmit(payload: { text: string; mentions: ChatMention[] }) {
     const trimmed = payload.text.trim();
     if (!trimmed || isStreaming) return;
@@ -381,54 +401,105 @@ export function RiskAssistantPanel() {
 
     abortRef.current = new AbortController();
 
-    // Build the chat history for the orchestrator. v1: just this turn.
-    const chatMessages = [{ role: 'user' as const, content: trimmed }];
+    const useOrchestrator = looksLikeActionRequest(trimmed, payload.mentions);
 
     try {
-      await askChat({
-        messages: chatMessages,
-        mentions: payload.mentions,
-        abortSignal: abortRef.current.signal,
-        onEvent: (evt) => {
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantMsgId) return m;
-              if (evt.type === 'token') {
-                return { ...m, content: m.content + evt.token };
-              }
-              if (evt.type === 'resolverUsed') {
-                const notes = m.resolverNotes ?? [];
-                return { ...m, resolverNotes: [...notes, evt.label] };
-              }
-              if (evt.type === 'proposal') {
-                return {
-                  ...m,
-                  proposal: {
-                    proposalId: evt.proposalId,
-                    actionCode: evt.actionCode,
-                    actionLabel: evt.actionLabel,
-                    previewParams: evt.previewParams as ProposalPreviewParam[],
-                  },
-                };
-              }
-              if (evt.type === 'done') {
-                return { ...m, isStreaming: false };
-              }
-              if (evt.type === 'error') {
-                return {
-                  ...m,
-                  content: m.content || t('ai.riskAssistant.error.generic'),
-                  isStreaming: false,
-                };
-              }
-              return m;
-            }),
-          );
-          if (evt.type === 'done' || evt.type === 'error') {
+      if (useOrchestrator) {
+        const chatMessages = [{ role: 'user' as const, content: trimmed }];
+        await askChat({
+          messages: chatMessages,
+          mentions: payload.mentions,
+          abortSignal: abortRef.current.signal,
+          onEvent: (evt) => {
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== assistantMsgId) return m;
+                if (evt.type === 'token') {
+                  return { ...m, content: m.content + evt.token };
+                }
+                if (evt.type === 'resolverUsed') {
+                  const notes = m.resolverNotes ?? [];
+                  return { ...m, resolverNotes: [...notes, evt.label] };
+                }
+                if (evt.type === 'proposal') {
+                  return {
+                    ...m,
+                    proposal: {
+                      proposalId: evt.proposalId,
+                      actionCode: evt.actionCode,
+                      actionLabel: evt.actionLabel,
+                      previewParams: evt.previewParams as ProposalPreviewParam[],
+                    },
+                  };
+                }
+                if (evt.type === 'done') {
+                  return { ...m, isStreaming: false };
+                }
+                if (evt.type === 'error') {
+                  return {
+                    ...m,
+                    content: m.content || t('ai.riskAssistant.error.generic'),
+                    isStreaming: false,
+                  };
+                }
+                return m;
+              }),
+            );
+            if (evt.type === 'done' || evt.type === 'error') {
+              setIsStreaming(false);
+            }
+          },
+        });
+      } else {
+        // Plain Q&A — route to the data-grounded risk-assistant so the
+        // LLM has the user's read-allowed contracts + clauses + signals
+        // in context. Without this branch the orchestrator (which has
+        // no RAG layer) would tell the user "I can't access real-time
+        // data" for any question that isn't an action request.
+        await askRiskAssistant({
+          query: trimmed,
+          ...(persona !== undefined && { persona }),
+          abortSignal: abortRef.current.signal,
+          onToken: (token) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId ? { ...m, content: m.content + token } : m,
+              ),
+            );
+          },
+          onCitation: (citation) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId
+                  ? { ...m, citations: [...m.citations, citation] }
+                  : m,
+              ),
+            );
+          },
+          onDone: () => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId ? { ...m, isStreaming: false } : m,
+              ),
+            );
             setIsStreaming(false);
-          }
-        },
-      });
+          },
+          onError: (message) => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId
+                  ? {
+                      ...m,
+                      content: m.content || message || t('ai.riskAssistant.error.generic'),
+                      isStreaming: false,
+                    }
+                  : m,
+              ),
+            );
+            setIsStreaming(false);
+          },
+        });
+      }
     } catch {
       setMessages((prev) =>
         prev.map((m) =>
