@@ -34,16 +34,17 @@
  * the FE-C1 fix from M1a's ContractCreateForm. localStorage retention is
  * acknowledged in the useComposeDraft.ts header.
  */
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Send, RotateCcw, AlertTriangle, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Send, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore, selectHasPermission, selectUser } from "@/store/auth.store";
 import { templatesService } from "@/services/api/m_parity.service";
+import { workOrdersService, workOrderKeys } from "@/services/api/work-orders.service";
 import { parseTemplateBodyBilingual } from "./template-body-parser";
 import { translateApiError } from "@/lib/translate-api-error";
 import { Step1Type } from "./steps/Step1Type";
@@ -114,11 +115,20 @@ interface ComposeWizardProps {
   composeDraftId?: string;
   /** Optional template id from `?template_id=N` to seed the wizard with. */
   prefillTemplateId?: number | null;
+  /** M21 — Optional work-order id from `?fromWorkOrder=N`. Wizard skips the
+   *  template picker and seeds Step1/2/3 from an AI extraction of the source
+   *  contract referenced by the work order. */
+  fromWorkOrderId?: number | null;
 }
 
-export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: ComposeWizardProps) {
+export function ComposeWizard({
+  composeDraftId,
+  prefillTemplateId = null,
+  fromWorkOrderId = null,
+}: ComposeWizardProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const user = useAuthStore(selectUser);
   const canDraft = useAuthStore(selectHasPermission("contract.draft"));
 
@@ -255,10 +265,112 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
 
   const { submit, retryStep2, isSubmitting, phase, error: submitError } = useComposeSubmit();
 
+  // M21 — work-order seeding path. When fromWorkOrderId is set, fetch the
+  // work order, then call extract-from-source for the AI-redacted body +
+  // placeholders. The wizard skips Step 1 (template picker) and lands
+  // straight on Step 2.
+  const workOrderQuery = useQuery({
+    queryKey: ["workOrders", "detail", fromWorkOrderId],
+    queryFn: () => workOrdersService.getById(fromWorkOrderId!),
+    enabled: fromWorkOrderId != null,
+    staleTime: 60_000,
+  });
+  const sourceContractId = workOrderQuery.data?.sourceContractId ?? null;
+  const extractQuery = useQuery({
+    queryKey: ["workOrders", "extract", sourceContractId],
+    queryFn: () => workOrdersService.extractFromSource(sourceContractId!),
+    enabled: sourceContractId != null,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  const wantsWorkOrderSeed = fromWorkOrderId != null;
+  const workOrderSeedReady = !!extractQuery.data && !!workOrderQuery.data;
+
+  // Build a virtual activeTemplate-like object for Step2's placeholder UI.
+  const virtualTemplate = useMemo(() => {
+    if (!extractQuery.data) return null;
+    return {
+      placeholders: extractQuery.data.placeholders.map((p) => ({
+        key: p.key,
+        labelEn: p.labelEn,
+        labelAr: p.labelAr ?? null,
+        kind: p.kind,
+        required: p.required ?? false,
+        defaultValue: p.defaultValue ?? null,
+      })),
+    };
+  }, [extractQuery.data]);
+
+  // Apply the work-order seed exactly once into wizard state.
+  const workOrderSeededRef = useRef(false);
+  useEffect(() => {
+    if (!wantsWorkOrderSeed || !workOrderSeedReady) return;
+    if (workOrderSeededRef.current) return;
+    workOrderSeededRef.current = true;
+    const wo = workOrderQuery.data!;
+    const ex = extractQuery.data!;
+    const counterpartyName = (wo.payload?.counterpartyName as string | undefined) ?? wo.counterpartyName ?? "";
+    const valueAed = (wo.payload?.valueAed as number | string | null | undefined);
+    const valueNum = typeof valueAed === "number" ? valueAed : valueAed != null ? Number(valueAed) || null : null;
+    const parsedSections = parseTemplateBodyBilingual(ex.bodyEnRedacted, null);
+    // Derive a fresh title from NEW counterparty + contract type so titleEn
+    // (required) isn't silently empty when Step 1 is skipped. We deliberately
+    // don't mirror the source title (drafter complained that was confusing).
+    const humanType =
+      ex.contractType
+        ? ex.contractType.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+        : "Contract";
+    const derivedTitle = counterpartyName
+      ? `${counterpartyName} — ${humanType} (Draft)`
+      : `${humanType} (Draft)`;
+    // Pre-fill placeholder values: counterparty name + sane defaults from
+    // the work order payload. The drafter still fills the rest in Step 2.
+    const preFilledPlaceholders: Record<string, string> = {};
+    for (const p of ex.placeholders) {
+      if (p.kind === "party" && counterpartyName && /counter|second_party|client|customer/i.test(p.key)) {
+        preFilledPlaceholders[p.key] = counterpartyName;
+      }
+      if (p.kind === "currency" && /value|amount|total/i.test(p.key) && valueNum != null) {
+        preFilledPlaceholders[p.key] = String(valueNum);
+      }
+    }
+    setState((s) => ({
+      ...s,
+      step1: {
+        ...s.step1,
+        contractType: ex.contractType,
+        language: ex.language === "bilingual" ? s.step1.language : (ex.language as "en" | "ar"),
+        // The drafter never sees Step 1 when seeded from a work order, but
+        // Step 1 schema requires ourPartyName + counterpartyName. Set sensible
+        // defaults from the tenant + the exec's counterparty pick.
+        ourPartyName: s.step1.ourPartyName || "ADNOC",
+        counterpartyName: counterpartyName || s.step1.counterpartyName,
+        templateId: null,
+      },
+      step2: {
+        ...s.step2,
+        // Title derived from NEW counterparty + contract type (not source).
+        // Fill-if-empty so a drafter who already typed a title isn't clobbered.
+        titleEn: s.step2.titleEn && s.step2.titleEn.trim().length > 0 ? s.step2.titleEn : derivedTitle,
+        valueAed: valueNum ?? s.step2.valueAed,
+        placeholderValues: { ...(s.step2.placeholderValues ?? {}), ...preFilledPlaceholders },
+      },
+      step3: { ...s.step3, sections: parsedSections },
+      // Skip Step 1 — drafter lands on Key Terms.
+      currentStep: 2,
+    }));
+  }, [wantsWorkOrderSeed, workOrderSeedReady, workOrderQuery.data, extractQuery.data, setState]);
+
+  // M21 — when seeded from a work order, drop Step 1 (template picker) from
+  // the visible flow. The drafter lands on Step 2 (Key Terms).
+  const stepOrder: readonly ComposeWizardStep[] = wantsWorkOrderSeed
+    ? ([2, 3, 5] as const)
+    : STEP_ORDER;
+
   const currentStep = state.currentStep;
-  const stepIndex = STEP_ORDER.indexOf(currentStep);
+  const stepIndex = stepOrder.indexOf(currentStep);
   const isFirstStep = stepIndex === 0;
-  const isLastStep = stepIndex === STEP_ORDER.length - 1;
+  const isLastStep = stepIndex === stepOrder.length - 1;
 
   // Per-step validity — used to disable "Next" until the current step is
   // valid. Re-evaluates on every render against the canonical schema; this
@@ -267,14 +379,15 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
   // Compose-revamp 2026-06-03: Step 2 additionally requires that every
   // template placeholder marked `required` has a non-empty value typed.
   const placeholdersOk = useMemo(() => {
-    const required = (activeTemplate?.placeholders ?? []).filter((p) => p.required);
+    const placeholders = activeTemplate?.placeholders ?? virtualTemplate?.placeholders ?? [];
+    const required = placeholders.filter((p) => p.required);
     if (required.length === 0) return true;
     const vals = state.step2.placeholderValues ?? {};
     return required.every((p) => {
       const v = vals[p.key];
       return typeof v === "string" && v.trim().length > 0;
     });
-  }, [activeTemplate, state.step2.placeholderValues]);
+  }, [activeTemplate, virtualTemplate, state.step2.placeholderValues]);
 
   const stepValidity = useMemo(() => {
     const v1 = composeStep1Schema.safeParse(state.step1);
@@ -307,18 +420,33 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
 
   const handleNext = () => {
     if (!stepValidity[currentStep]) return;
-    const next = STEP_ORDER[stepIndex + 1];
+    const next = stepOrder[stepIndex + 1];
     if (next) goToStep(next);
   };
 
   const handleBack = () => {
-    const prev = STEP_ORDER[stepIndex - 1];
+    const prev = stepOrder[stepIndex - 1];
     if (prev) goToStep(prev);
   };
 
   const handleSubmit = async () => {
     if (!stepValidity[5]) return;
-    await submit(state, user?.id ?? null);
+    const result = await submit(state, user?.id ?? null);
+    // M21 — when seeded from a work order, link the new contract to it so
+    // the existing status-change trigger auto-completes the work order on
+    // submit-for-approval.
+    if (result?.contractId && fromWorkOrderId) {
+      try {
+        await workOrdersService.linkTarget(fromWorkOrderId, result.contractId);
+        // 2026-06-12 — bust My Work queries a second time so the Stage column
+        // reflects the target link + the just-created approval chain. The
+        // first bust happens inside useComposeSubmit before linkTarget runs,
+        // which is too early to capture target_contract_id / approver names.
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.all });
+      } catch {
+        // Non-fatal — the contract was created successfully.
+      }
+    }
   };
 
   const handleRetryStep2 = async () => {
@@ -344,6 +472,25 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // M21 — when entered from a work order, block until the AI extraction is
+  // done. Without it, the placeholder catalog + redacted body aren't ready
+  // and Step 2/3 would mount with empty state.
+  if (wantsWorkOrderSeed && !workOrderSeededRef.current) {
+    return (
+      <WorkOrderSeedLoading
+        workOrderLoaded={!!workOrderQuery.data}
+        extractLoaded={!!extractQuery.data}
+        extractError={extractQuery.isError}
+        onRetry={() => {
+          // Refire both queries — work-order fetch is cheap and ensures we
+          // pick up any backend-side changes before re-running the AI extract.
+          void workOrderQuery.refetch();
+          void extractQuery.refetch();
+        }}
+      />
+    );
+  }
 
   // Block wizard render until template prefill has been applied to draft
   // state — Step1Type's RHF form snapshots its defaultValues at mount, so
@@ -428,6 +575,20 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
         </div>
       )}
 
+      {wantsWorkOrderSeed && workOrderQuery.data && (
+        <div className="flex items-start gap-2 rounded-md border border-gold/30 bg-gold/10 px-3 py-2 text-xs text-ink">
+          <Sparkles className="h-4 w-4 text-gold mt-0.5" aria-hidden="true" />
+          <span>
+            {t("contracts.compose.workOrderSeed.banner", {
+              defaultValue:
+                "Drafting from {{number}}. AI extracted {{count}} placeholders + redacted the body — fill in Key Terms below.",
+              number: workOrderQuery.data.sourceContractNumber ?? "—",
+              count: extractQuery.data?.placeholders.length ?? 0,
+            })}
+          </span>
+        </div>
+      )}
+
       {prefillError && (
         <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
           <AlertTriangle className="h-4 w-4" aria-hidden="true" />
@@ -446,9 +607,9 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
             aria-label={t("contracts.compose.progressLabel")}
             className="flex flex-wrap items-center gap-2 text-xs text-ink-muted"
           >
-            {STEP_ORDER.map((s, i) => {
+            {stepOrder.map((s, i) => {
               const isCurrent = s === currentStep;
-              const isComplete = STEP_ORDER.indexOf(s) < stepIndex && stepValidity[s];
+              const isComplete = stepOrder.indexOf(s) < stepIndex && stepValidity[s];
               return (
                 <li key={s} className="flex items-center gap-1">
                   <button
@@ -464,11 +625,11 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
                     )}
                   >
                     <span className="font-mono">
-                      {t("contracts.compose.stepIndex", { n: i + 1, total: STEP_ORDER.length })}
+                      {t("contracts.compose.stepIndex", { n: i + 1, total: stepOrder.length })}
                     </span>
                     <span>{t(`contracts.compose.steps.step${s}.tabLabel`)}</span>
                   </button>
-                  {i < STEP_ORDER.length - 1 && (
+                  {i < stepOrder.length - 1 && (
                     <span aria-hidden="true" className="text-ink-subtle">
                       ›
                     </span>
@@ -490,7 +651,7 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
             value={state.step2}
             onChange={updateStep2}
             disabled={isSubmitting}
-            templatePlaceholders={activeTemplate?.placeholders ?? []}
+            templatePlaceholders={activeTemplate?.placeholders ?? virtualTemplate?.placeholders ?? []}
             ourPartyName={state.step1.ourPartyName ?? null}
             counterpartyName={state.step1.counterpartyName ?? null}
             contractLanguage={state.step1.language}
@@ -544,6 +705,46 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
         </Card>
       )}
 
+      {/* 2026-06-11 — approval-routing failure surface. The contract row was
+          created but submit-for-approval failed; let the drafter retry from
+          here so they don't have to leave the wizard and find the contract. */}
+      {submitError && submitError.phase === "sending-for-approval" && (
+        <Card>
+          <CardContent className="flex items-start gap-3 p-4">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+            <div className="flex-1 text-sm">
+              <p className="font-medium text-destructive">
+                {t("contracts.compose.errors.approvalRoutingFailedTitle", {
+                  defaultValue: "Approval routing failed",
+                })}
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">
+                {t("contracts.compose.errors.approvalRoutingFailedDescription", {
+                  defaultValue:
+                    "Contract {{number}} was created as a draft but the approval chain wasn't started. Try again, or open the contract and submit from there.",
+                  number: submitError.contractNumber ?? "",
+                })}
+              </p>
+              <p className="mt-1 text-[11px] text-ink-subtle">
+                {translateApiError(submitError.error, t)}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleRetryStep2}
+              disabled={isSubmitting}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {t("contracts.compose.errors.retryApprovalRouting", {
+                defaultValue: "Retry routing",
+              })}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Footer nav */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         <Button
@@ -582,3 +783,208 @@ export function ComposeWizard({ composeDraftId, prefillTemplateId = null }: Comp
 }
 
 export default ComposeWizard;
+
+// ============================================================
+// Work-order seed loading screen — REAL percentage progress bar.
+// ============================================================
+// The BE doesn't stream extract progress, so the percentage is a
+// time-based estimate using the standard ramp-and-asymptote technique:
+// fast at first, slows as it approaches 95%, then jumps to 100% the
+// moment the actual extract query resolves. Feels honest and avoids
+// the "blackhole" issue of indeterminate spinners.
+interface WorkOrderSeedLoadingProps {
+  workOrderLoaded: boolean;
+  extractLoaded: boolean;
+  extractError: boolean;
+  /** 2026-06-11 — fired when the drafter clicks Try again on the error UI. */
+  onRetry: () => void;
+}
+
+// Empirically the gpt-4o-mini extract takes ~30–45s on a full MSA. We
+// hit 90% at ~30s and asymptote toward 95% — this leaves headroom so we
+// don't sit at "99%" for ages if the call is slow.
+const EXPECTED_DURATION_MS = 32_000;
+
+// 2026-06-11 — client-side ceiling. If the extract hasn't returned in this
+// long, treat the wizard as effectively errored so the Try again button
+// renders. Without this the drafter sits on the loading screen indefinitely
+// when the upstream call hangs (no client timeout was firing previously).
+const EXTRACT_TIMEOUT_MS = 90_000;
+
+function WorkOrderSeedLoading({
+  workOrderLoaded,
+  extractLoaded,
+  extractError,
+  onRetry,
+}: WorkOrderSeedLoadingProps): JSX.Element {
+  const { t } = useTranslation();
+  const [progress, setProgress] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  const startedAtRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (extractLoaded) {
+      setProgress(100);
+      setTimedOut(false);
+      return;
+    }
+    const tick = () => {
+      const elapsed = Date.now() - startedAtRef.current;
+      // Asymptote to 95% over EXPECTED_DURATION_MS:
+      //   p = 95 * (1 - e^(-t/τ))   where τ = duration/3 so we're at ~95%
+      //   when t == duration.
+      const tau = EXPECTED_DURATION_MS / 3;
+      const p = 95 * (1 - Math.exp(-elapsed / tau));
+      setProgress(Math.min(95, p));
+      if (elapsed >= EXTRACT_TIMEOUT_MS) setTimedOut(true);
+    };
+    tick();
+    const id = window.setInterval(tick, 500);
+    return () => window.clearInterval(id);
+  }, [extractLoaded]);
+
+  // 2026-06-11 — surface error UI when the BE actually errored OR when the
+  // client-side ceiling was hit without a response.
+  const showError = extractError || timedOut;
+
+  const handleRetry = () => {
+    // Reset the local timer + progress so the new attempt starts fresh.
+    startedAtRef.current = Date.now();
+    setProgress(0);
+    setTimedOut(false);
+    onRetry();
+  };
+
+  const phaseSteps: Array<{ key: string; labelKey: string; done: boolean; active: boolean }> = [
+    {
+      key: "load",
+      labelKey: "contracts.compose.workOrderSeed.phase.loadWorkOrder",
+      done: workOrderLoaded,
+      active: !workOrderLoaded,
+    },
+    {
+      key: "extract",
+      labelKey: "contracts.compose.workOrderSeed.phase.aiExtract",
+      done: extractLoaded,
+      active: workOrderLoaded && !extractLoaded,
+    },
+    {
+      key: "build",
+      labelKey: "contracts.compose.workOrderSeed.phase.buildWizard",
+      done: false,
+      active: extractLoaded,
+    },
+  ];
+
+  const pct = Math.round(progress);
+
+  return (
+    <div
+      className="mx-auto w-full max-w-2xl px-4 py-12"
+      role="status"
+      aria-live="polite"
+      aria-busy
+    >
+      <div className="rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/5 to-transparent p-8 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/10">
+            <Sparkles className="h-5 w-5 text-gold animate-pulse" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-lg font-semibold text-ink">
+              {t("contracts.compose.workOrderSeed.loadingTitle", {
+                defaultValue: "Composing your draft…",
+              })}
+            </h1>
+            <p className="text-xs text-ink-muted">
+              {t("contracts.compose.workOrderSeed.loadingSubtitle", {
+                defaultValue:
+                  "AI is reading the source contract and detecting placeholders.",
+              })}
+            </p>
+          </div>
+          <div className="text-2xl font-semibold tabular-nums text-gold">
+            {pct}%
+          </div>
+        </div>
+
+        {/* Determinate progress bar */}
+        <div
+          className="mt-6 h-2 w-full overflow-hidden rounded-full bg-gold/10"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div
+            className="h-full bg-gradient-to-r from-gold/80 to-gold rounded-full transition-[width] duration-300 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+
+        {/* Phase checklist for context */}
+        <ol className="mt-6 space-y-2.5 text-sm">
+          {phaseSteps.map((step) => (
+            <li
+              key={step.key}
+              className={cn(
+                "flex items-start gap-2.5 transition-opacity",
+                step.done ? "opacity-90" : step.active ? "opacity-100" : "opacity-40",
+              )}
+            >
+              {step.done ? (
+                <CheckCircle2 className="h-4 w-4 text-sage mt-0.5 shrink-0" />
+              ) : step.active ? (
+                <Sparkles className="h-4 w-4 text-gold mt-0.5 shrink-0 animate-pulse" />
+              ) : (
+                <Circle className="h-4 w-4 text-ink-subtle/40 mt-0.5 shrink-0" />
+              )}
+              <span className={step.done ? "text-ink" : step.active ? "text-ink font-medium" : "text-ink-muted"}>
+                {t(step.labelKey, {
+                  defaultValue:
+                    step.key === "load"
+                      ? "Reading the work order"
+                      : step.key === "extract"
+                        ? "Extracting structure + placeholders (this can take up to a minute)"
+                        : "Setting up your wizard",
+                })}
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        {showError && (
+          <div className="mt-5 flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-3 text-xs text-destructive">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <p>
+                {extractError
+                  ? t("contracts.compose.workOrderSeed.extractError", {
+                      defaultValue:
+                        "Couldn't read the source contract. The AI extract failed.",
+                    })
+                  : t("contracts.compose.workOrderSeed.extractTimeout", {
+                      defaultValue:
+                        "The AI extract is taking longer than expected. The upstream call may be stuck.",
+                    })}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleRetry}
+                className="border-destructive/40 text-destructive hover:bg-destructive/10"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                {t("contracts.compose.workOrderSeed.tryAgain", {
+                  defaultValue: "Try again",
+                })}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+

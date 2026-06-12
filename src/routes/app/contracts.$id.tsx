@@ -13,8 +13,15 @@ import { useTranslation } from "react-i18next";
 import { ErrorBoundary } from "@/components/common";
 import { ContractDetail } from "@/features/contracts/components/ContractDetail";
 
+interface ContractDetailSearch {
+  tab?: string;
+}
+
 export const Route = createFileRoute("/app/contracts/$id")({
   component: ContractDetailRoute,
+  validateSearch: (s: Record<string, unknown>): ContractDetailSearch => ({
+    tab: typeof s.tab === "string" ? s.tab : undefined,
+  }),
 });
 
 // Strict positive integer with no leading zero, no sign, no whitespace,

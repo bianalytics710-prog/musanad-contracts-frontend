@@ -651,6 +651,7 @@
     "adminAiCost": "AI cost",
     "adminAiPrompts": "AI prompts",
     "adminAiReqs": "AI requests",
+    "adminAiActions": "AI chat actions",
     "adminHealth": "Health",
     "admin.ingestionQueue": "Ingestion queue",
     "adminClauseTaxonomy": "Clause taxonomy",
@@ -675,7 +676,9 @@
     "financialBudgetBurn": "Contract Spend Health",
     "financialTradeMargin": "Index-Linked Contracts",
     "adminMigration": "Migration",
-    "adminIndustryCatalogs": "Industry catalogs"
+    "adminIndustryCatalogs": "Industry catalogs",
+    "myWork": "My Work",
+    "assignedWork": "Assigned Work"
   },
   "landing": {
     "kicker": "UAE-first contract intelligence",
@@ -1071,6 +1074,9 @@
       "overviewCard": {
         "title": "Quick stats",
         "healthScore": "Health score"
+      },
+      "actions": {
+        "requestSimilar": "Request similar contract"
       }
     },
     "delete": {
@@ -1226,6 +1232,17 @@
         "scheduleFailedTitle": "Contract created — milestones did not save",
         "scheduleFailedDescription": "Contract {{number}} was created. The payment schedule could not be saved. Retry just the milestones, or visit the contract and use the Payments tab.",
         "retrySchedule": "Retry milestones"
+      },
+      "workOrderSeed": {
+        "loadingTitle": "Composing your draft…",
+        "loadingSubtitle": "AI is reading the source contract and detecting placeholders.",
+        "banner": "Drafting from {{number}}. AI extracted {{count}} placeholders + redacted the body — fill in Key Terms below.",
+        "extractError": "Couldn't read the source contract. Try again, or start a blank draft.",
+        "phase": {
+          "loadWorkOrder": "Reading the work order",
+          "aiExtract": "Extracting structure + placeholders (this can take up to a minute)",
+          "buildWizard": "Setting up your wizard"
+        }
       }
     },
     "paymentSchedule": {
@@ -5167,7 +5184,8 @@
         "approvals": "Approvals",
         "queue": "Approval queue",
         "signatures": "Signatures",
-        "imports": "Bulk imports"
+        "imports": "Bulk imports",
+        "my_work": "My Work"
       },
       "ecip": {
         "insights_hub": "Insights hub",
@@ -7705,7 +7723,8 @@
         "windowDays": "Window (days)",
         "windowDaysHelper": "Default 90 days; up to 365.",
         "deltaVsPrev": "{{pct}} vs prev",
-        "deltaCountVsPrev": "{{n}} vs prev"
+        "deltaCountVsPrev": "{{n}} vs prev",
+        "avgCycleTimeHelper": "Drafting → counterparty signature, end-to-end"
       },
       "criticalImpactsFrame": {
         "title": "Critical impact",
@@ -7839,6 +7858,45 @@
       },
       "errors": {
         "loadFailed": "Could not load the executive dashboard."
+      },
+      "charts": {
+        "spendByCategory": {
+          "title": "Spend by category"
+        },
+        "totalSpend": "Total spend",
+        "topSuppliers": {
+          "title": "Top suppliers by spend",
+          "supplier": "Supplier",
+          "contracts": "Contracts",
+          "totalValue": "Total value",
+          "pctOfSpend": "% of spend",
+          "trend12m": "12m trend"
+        },
+        "revenueUnderContract": {
+          "title": "Revenue under contract · 12 months",
+          "active": "Active contract revenue",
+          "pipeline": "Pipeline revenue"
+        },
+        "cycleTime": {
+          "title": "Cycle time funnel",
+          "subtitle": "Average days per stage",
+          "totalLabel": "Total cycle",
+          "daysSuffix": "days",
+          "daySuffix": "day",
+          "drafting": "Drafting",
+          "legalReview": "Legal review",
+          "approvalChain": "Approval chain",
+          "signature": "Counterparty signature"
+        },
+        "throughput": {
+          "title": "Contract throughput (12m)",
+          "initiated": "Initiated",
+          "signed": "Signed"
+        },
+        "expiryCliff": {
+          "title": "Expiry cliff — value distribution",
+          "atRisk": "AED at risk"
+        }
       }
     },
     "executiveAnomalies": {
@@ -9393,6 +9451,226 @@
         "market": "Market",
         "mock": "Mock"
       }
+    }
+  },
+  "assignedWork": {
+    "title": "Assigned Work",
+    "subtitle": "Track everything you've routed to your team — from request through signature.",
+    "searchPlaceholder": "Search counterparty, contract number, owner…",
+    "loadError": "Couldn't load your assignments. Try again.",
+    "emptyFiltered": "No work orders match these filters.",
+    "stale": "Stale",
+    "staleHint": "Not started for {{days}}+ days — consider nudging the owner.",
+    "columns": {
+      "owner": "Owner"
+    },
+    "filters": {
+      "allTypes": "All types",
+      "allStages": "All stages",
+      "allOwners": "All owners",
+      "typeLabel": "Filter by type",
+      "stageLabel": "Filter by stage",
+      "ownerLabel": "Filter by owner"
+    },
+    "actions": {
+      "view": "View contract",
+      "nudge": "Nudge owner",
+      "reassign": "Reassign",
+      "cancel": "Cancel work order"
+    },
+    "empty": {
+      "title": "You haven't assigned any work yet.",
+      "hint": "Open a contract and click \"Request similar contract\", or ask the chatbot: \"Draft a similar contract for Vibrant Energy based on CT-2026-000028 and assign to Hala.\""
+    },
+    "nudge": {
+      "title": "Nudge {{name}}",
+      "description": "An in-app reminder will be sent to the owner. You can nudge again after 6 hours.",
+      "messageLabel": "Add a short note (optional)",
+      "placeholder": "Any extra context? e.g. 'Customer is asking — can you push this?'",
+      "send": "Send nudge",
+      "sentToast": "Nudge sent to {{name}}.",
+      "throttledToast": "Already nudged recently. You can nudge {{name}} again at {{when}}.",
+      "errorToast": "Couldn't send the nudge."
+    },
+    "reassign": {
+      "title": "Reassign work order",
+      "description": "The new owner will get an in-app notification. The previous owner ({{prev}}) stays silent.",
+      "newOwnerLabel": "New owner",
+      "pickOwner": "Pick a drafter…",
+      "reasonLabel": "Reason (optional)",
+      "submit": "Reassign",
+      "successToast": "Moved to {{name}}.",
+      "errorToast": "Couldn't reassign."
+    },
+    "cancel": {
+      "title": "Cancel work order",
+      "description": "Cancels the assignment for {{name}}. They will no longer see it in their queue.",
+      "reasonLabel": "Reason (optional)",
+      "submit": "Cancel work order",
+      "successToast": "Work order cancelled.",
+      "errorToast": "Couldn't cancel."
+    }
+  },
+  "myWork": {
+    "title": "My Work",
+    "subtitle": "Drafts requested of you, returned contracts, and comments awaiting response.",
+    "empty": "Your queue is clear. New tasks will appear here.",
+    "loadError": "Couldn't load your work queue. Please try again.",
+    "untitled": "Untitled contract",
+    "basedOn": "Based on",
+    "fromName": "from {{name}}",
+    "clausesInherited_one": "{{count}} clause inherited",
+    "clausesInherited_other": "{{count}} clauses inherited",
+    "clausesInherited": "{{count}} clauses inherited",
+    "age": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo_one": "{{count}} day ago",
+      "daysAgo_other": "{{count}} days ago",
+      "daysAgo": "{{count}} days ago"
+    },
+    "types": {
+      "contract_draft_request": "Draft request",
+      "contract_returned": "Returned",
+      "comment_response": "Comment"
+    },
+    "filters": {
+      "all": "All",
+      "draftRequest": "Draft requests",
+      "returned": "Returned",
+      "comment": "Comments",
+      "statusOpen": "Open",
+      "statusCompleted": "Completed",
+      "allTypes": "All types",
+      "allStages": "All stages",
+      "allSenders": "All senders",
+      "typeLabel": "Filter by type",
+      "stageLabel": "Filter by stage",
+      "fromLabel": "Filter by sender"
+    },
+    "columns": {
+      "request": "Request",
+      "type": "Type",
+      "from": "From",
+      "stage": "Stage",
+      "created": "Created",
+      "action": "Action"
+    },
+    "stages": {
+      "not_started": "Not started",
+      "draft_in_progress": "Drafting",
+      "awaiting_approval": "Approval",
+      "awaitingNamed": "Awaiting {{names}}",
+      "returned": "Returned",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "notStarted": "Not started",
+      "draftInProgress": "Drafting",
+      "awaitingApproval": "Approval"
+    },
+    "actions": {
+      "composeDraft": "Compose draft",
+      "continueEditing": "Continue editing",
+      "viewProgress": "View progress",
+      "editDraft": "Edit draft",
+      "viewContract": "View contract",
+      "open": "Open"
+    },
+    "searchPlaceholder": "Search counterparty, contract number…",
+    "emptyFiltered": "No work orders match these filters.",
+    "rowCount": "{{shown}} of {{total}}",
+    "pagination": {
+      "range": "{{from}}–{{to}} of {{total}}",
+      "localMatch": "({{visible}} match local filters)",
+      "pageOf": "{{page}} / {{total}}"
+    },
+    "addManual": {
+      "openButton": "Add to my queue",
+      "title": "Add to my queue",
+      "subtitle": "Track a request that arrived outside the system (email, chat, in person).",
+      "requestType": "Request type",
+      "requestDetails": "Request details",
+      "requestor": "Requestor",
+      "chooseRequestor": "Choose…",
+      "stage": "Stage",
+      "notePlaceholder": "e.g. Need MSA for ABB Power & Automation UAE, 24-month term, AED 50M.",
+      "similarContract": "Similar contract (optional)",
+      "similarPlaceholder": "e.g. CT-2026-000033",
+      "similarConfirmPrompt": "Is this the contract you want to replicate?",
+      "similarConfirmed": "Locked in. The wizard will start from this contract.",
+      "similarNotFound": "No contract found with that number.",
+      "similarError": "Couldn't look up the contract. Try again.",
+      "similarUntitled": "Untitled contract",
+      "submit": "Add to queue",
+      "success": "Added to your queue.",
+      "error": "Couldn't add to your queue. Try again."
+    },
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal",
+      "low": "Low"
+    },
+    "composeDraftButton": "Compose draft",
+    "openButton": "Open",
+    "draftRequestTitle": "Draft for {{counterparty}}"
+  },
+  "requestSimilar": {
+    "title": "Request a similar contract",
+    "subtitle": "Create a draft based on {{number}} for a drafter to refine.",
+    "assignTo": "Assign to drafter",
+    "pickDrafter": "Choose a drafter…",
+    "loadingDrafters": "Loading drafters…",
+    "noDrafters": "No available drafters in your tenant.",
+    "openCount_one": "{{count}} open",
+    "openCount_other": "{{count}} open",
+    "openCount": "{{count}} open",
+    "freeNow": "free now",
+    "instructionLabel": "Instructions (optional)",
+    "instructionPlaceholder": "e.g. Same terms as the source contract, but with FM Logistics as counterparty.",
+    "aiHint": "We'll copy the body, clauses, and structure into a fresh draft. The drafter fills in counterparty terms and key dates before submitting for approval.",
+    "submit": "Send to drafter",
+    "successToast": "Draft request sent to {{name}}.",
+    "counterparty": "Counterparty",
+    "modeExisting": "Existing customer",
+    "modeProspect": "New prospect",
+    "partyPlaceholder": "Search by name…",
+    "searching": "Searching…",
+    "noPartyMatch": "No matches. Try a different spelling or use New prospect.",
+    "prospectPlaceholder": "e.g. Saudi Public Investment Fund",
+    "pickCounterparty": "Choose a customer…",
+    "addProspect": "Add as a new prospect…",
+    "existingCustomers": "Existing customers"
+  },
+  "workOrders": {
+    "seededBanner": {
+      "kicker": "Drafted from another contract",
+      "body": "This draft was seeded from {{number}}. Body and {{count}} clauses were copied across. Review key terms, refine the body, then Submit for approval."
+    }
+  },
+  "chatActions": {
+    "input": {
+      "placeholder": "Ask a question, or tag with @ (people), # (contracts), ~ (counterparties) to fire an action."
+    },
+    "proposal": {
+      "title": "Action proposal",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "dismissed": "Dismissed — nothing was done."
+    },
+    "receipt": {
+      "viewWork": "Open My Work"
+    },
+    "error": {
+      "expired": "This proposal has expired. Please ask again.",
+      "permission": "Your role isn't allowed to run this action.",
+      "executeFailed": "Action failed to run."
+    },
+    "mention": {
+      "userHint": "people",
+      "contractHint": "contracts",
+      "partyHint": "counterparties",
+      "createProspect": "Create new prospect"
     }
   }
 }

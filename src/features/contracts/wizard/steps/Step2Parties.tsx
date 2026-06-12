@@ -36,6 +36,7 @@ import {
 } from "@/types/entities/contract.types";
 import { contractsService } from "@/services/api/contracts.service";
 import { aiService } from "@/services/api/ai.service";
+import { workOrdersService } from "@/services/api/work-orders.service";
 
 // D25 — UAE emirates enum mirrors the Parties page filter values + Parties
 // form so any contract recorded here lines up with the rest of the app.
@@ -149,7 +150,21 @@ export function Step2Parties({
   // Demo-gap fix 2026-06-08 — NDAs are zero-monetary instruments; the
   // Value + Currency inputs read as noise to drafters and customers
   // wondering why an NDA needs an AED figure. Suppress both for nda type.
-  const suppressValueAndCurrency = contractType === "nda";
+  //
+  // 2026-06-11 — also suppress Value + Currency when the template's
+  // placeholder catalog already captures a fee/value field. Drafters were
+  // typing the fee twice (once in the placeholder, once in Key Terms).
+  // Payment schedule still renders because milestones are independent of
+  // headline value. NDA still hides BOTH (no payment schedule either).
+  const placeholderKeySet = new Set(templatePlaceholders.map((p) => p.key));
+  const hasFeeOrValuePlaceholder =
+    placeholderKeySet.has("fee_amount") ||
+    placeholderKeySet.has("contract_value") ||
+    placeholderKeySet.has("total_value") ||
+    placeholderKeySet.has("value_aed");
+  const isNda = contractType === "nda";
+  const suppressValueAndCurrency = isNda || hasFeeOrValuePlaceholder;
+  const suppressPaymentSchedule = isNda;
   const { t, i18n } = useTranslation();
   const isAr = i18n.language?.startsWith("ar");
   // Whether AR auto-translation is in play — only when the contract needs
@@ -166,17 +181,15 @@ export function Step2Parties({
 
   // Compose-revamp v2 2026-06-03 — when a template placeholder already
   // captures a head-field's value, hide the duplicate input below to keep
-  // the form tight. The map below routes placeholder keys to the matching
-  // step2 field name; add new pairs here as templates grow.
-  const placeholderKeys = new Set(templatePlaceholders.map((p) => p.key));
+  // the form tight. Uses placeholderKeySet declared above.
   const suppressStartDate =
-    placeholderKeys.has("effective_date") || placeholderKeys.has("start_date");
-  const suppressEndDate = placeholderKeys.has("end_date");
+    placeholderKeySet.has("effective_date") || placeholderKeySet.has("start_date");
+  const suppressEndDate = placeholderKeySet.has("end_date");
   const suppressEmirate =
-    placeholderKeys.has("emirate") || placeholderKeys.has("governing_emirate");
+    placeholderKeySet.has("emirate") || placeholderKeySet.has("governing_emirate");
   const suppressJurisdiction =
-    placeholderKeys.has("jurisdiction_court") || placeholderKeys.has("arbitration_seat");
-  const suppressGoverningLaw = placeholderKeys.has("governing_law");
+    placeholderKeySet.has("jurisdiction_court") || placeholderKeySet.has("arbitration_seat");
+  const suppressGoverningLaw = placeholderKeySet.has("governing_law");
 
   const handlePlaceholderChange = (key: string, next: string) => {
     setPlaceholderValues((prev) => ({ ...prev, [key]: next }));
@@ -228,21 +241,38 @@ export function Step2Parties({
     const ph = placeholderValues;
     const get = (k: string): string => (typeof ph[k] === "string" ? ph[k].trim() : "");
     const effDate = get("effective_date") || get("start_date");
+    const endDateDirect = get("end_date") || get("expiry_date") || get("termination_date");
     const termYearsStr = get("term_years");
     const termYears = termYearsStr ? parseInt(termYearsStr, 10) : 0;
     const emirate = get("governing_emirate") || get("emirate");
     const arbitrationSeat = get("arbitration_seat");
+    // Fee / value placeholder — usual keys vary by template.
+    const feeAmountStr =
+      get("fee_amount") ||
+      get("contract_value") ||
+      get("total_value") ||
+      get("value_aed");
+    const feeAmount = feeAmountStr ? Number(feeAmountStr) : NaN;
 
     if (effDate && !(form.getValues("startDate") ?? "")) {
       form.setValue("startDate", effDate, { shouldDirty: true });
     }
-    if (effDate && termYears > 0 && !(form.getValues("endDate") ?? "")) {
+    // Prefer explicit end_date placeholder; fall back to start+term computation.
+    if (endDateDirect && !(form.getValues("endDate") ?? "")) {
+      form.setValue("endDate", endDateDirect, { shouldDirty: true });
+    } else if (effDate && termYears > 0 && !(form.getValues("endDate") ?? "")) {
       const start = new Date(effDate);
       if (!Number.isNaN(start.getTime())) {
         const end = new Date(start);
         end.setFullYear(end.getFullYear() + termYears);
         form.setValue("endDate", end.toISOString().slice(0, 10), { shouldDirty: true });
       }
+    }
+    // Fee Amount placeholder → Value field. Fill-if-empty so the drafter can
+    // still override; bidirectional mapping isn't needed here because the
+    // placeholder is the source of truth (it's what ends up in the body).
+    if (!Number.isNaN(feeAmount) && feeAmount > 0 && form.getValues("valueAed") == null) {
+      form.setValue("valueAed", feeAmount, { shouldDirty: true });
     }
     if (emirate && !(form.getValues("emirate") ?? "")) {
       form.setValue("emirate", emirate, { shouldDirty: true });
@@ -257,7 +287,14 @@ export function Step2Parties({
   }, [
     placeholderValues.effective_date,
     placeholderValues.start_date,
+    placeholderValues.end_date,
+    placeholderValues.expiry_date,
+    placeholderValues.termination_date,
     placeholderValues.term_years,
+    placeholderValues.fee_amount,
+    placeholderValues.contract_value,
+    placeholderValues.total_value,
+    placeholderValues.value_aed,
     placeholderValues.governing_emirate,
     placeholderValues.emirate,
     placeholderValues.arbitration_seat,
@@ -446,6 +483,14 @@ export function Step2Parties({
                 const empty = ph.required && v.trim() === "";
                 const label = (isAr && ph.labelAr) || ph.labelEn;
                 const dropdownOptions = PLACEHOLDER_DROPDOWNS[ph.key];
+                // gpt-4o-mini sometimes returns kind="text" for obvious party
+                // fields (service_provider_name, client_name, counterparty_name).
+                // Backstop the kind check with a key-name heuristic so the
+                // dropdown still kicks in.
+                const isPartyDropdown =
+                  ph.kind === "party" ||
+                  /^(service_provider|client|counterparty|first_party|second_party|provider|customer|vendor|supplier|buyer|seller|licensee|licensor)(_name|_party)?$/i
+                    .test(ph.key);
                 const inputType =
                   ph.kind === "date"
                     ? "date"
@@ -465,7 +510,15 @@ export function Step2Parties({
                         </span>
                       )}
                     </label>
-                    {dropdownOptions ? (
+                    {isPartyDropdown ? (
+                      <PartyPlaceholderSelect
+                        id={`ph-${ph.key}`}
+                        value={v}
+                        onChange={(next) => handlePlaceholderChange(ph.key, next)}
+                        disabled={disabled}
+                        empty={empty}
+                      />
+                    ) : dropdownOptions ? (
                       <select
                         id={`ph-${ph.key}`}
                         value={v}
@@ -864,7 +917,7 @@ export function Step2Parties({
       </Card>
 
       {/* Payment schedule sub-table */}
-      {!suppressValueAndCurrency && (
+      {!suppressPaymentSchedule && (
       <Card>
         <CardContent className="space-y-3 p-6">
           <header className="flex items-end justify-between gap-3">
@@ -1193,3 +1246,58 @@ function ParentContractSearch({
 }
 
 export default Step2Parties;
+
+// ─── Party-kind placeholder dropdown ─────────────────────────────────────────
+// Fetches all counterparty options once + renders them as a <select>.
+// Uses the work-orders endpoint so drafters don't need party.read.all.
+interface PartyPlaceholderSelectProps {
+  id: string;
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  empty?: boolean;
+}
+
+function PartyPlaceholderSelect({ id, value, onChange, disabled, empty }: PartyPlaceholderSelectProps): JSX.Element {
+  const { t } = useTranslation();
+  const partiesQuery = useQuery({
+    queryKey: ["work-orders", "counterparty-options"],
+    queryFn: () => workOrdersService.counterpartyOptions(),
+    staleTime: 5 * 60_000,
+  });
+  const parties = partiesQuery.data ?? [];
+  // The placeholder value is a name string, not an id. Match incoming values
+  // against the catalog; if not found, leave a placeholder option so we don't
+  // strip a manually-typed value just because it doesn't match.
+  const isInCatalog = parties.some((p) => p.nameEn === value);
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled || partiesQuery.isLoading}
+      aria-invalid={empty}
+      className={cn(
+        "mt-1 h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm",
+        "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        empty && "border-destructive/40",
+      )}
+    >
+      <option value="">
+        {partiesQuery.isLoading
+          ? t("contracts.fields.loading", { defaultValue: "Loading…" })
+          : t("contracts.fields.notSet", { defaultValue: "Select…" })}
+      </option>
+      {value && !isInCatalog && (
+        <option value={value}>{value}</option>
+      )}
+      {parties.map((p) => (
+        <option key={p.id} value={p.nameEn}>
+          {p.nameEn}
+        </option>
+      ))}
+    </select>
+  );
+}
+

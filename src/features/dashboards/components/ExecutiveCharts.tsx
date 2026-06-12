@@ -40,7 +40,14 @@ import type {
   ExecutiveThroughputMonthRow,
   ExecutiveTopSupplierRow,
 } from "@/types/entities/dashboards.types";
-import { formatAedAxis, formatAedCompact, formatNumber, humanizeLabel } from "./dashboard-primitives";
+import {
+  formatAedAxis,
+  formatAedCompact,
+  formatMonthAxisLocalized,
+  formatNumber,
+  humanizeLabel,
+  humanizeLabelLocalized,
+} from "./dashboard-primitives";
 
 const PIE_COLORS = [
   "#bb945a",
@@ -53,11 +60,8 @@ const PIE_COLORS = [
   "#8b7a5a",
 ];
 
-const formatMonthAxis = (yyyy_mm: string): string => {
-  const [, mm] = yyyy_mm.split("-");
-  const idx = Math.max(1, Math.min(12, Number.parseInt(mm ?? "1", 10))) - 1;
-  return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][idx];
-};
+// v617 - moved to dashboard-primitives.formatMonthAxisLocalized so the same
+// helper serves multiple charts and respects EN/AR locale.
 
 // ─── 1. Spend by category ────────────────────────────────────────────────────
 
@@ -68,7 +72,7 @@ export function SpendByCategoryCard({
   rows: ExecutiveSpendByCategoryRow[];
   totalValueAed: number;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (rows.length === 0) return null;
   // E-rev-1b redesign: legend column on the LEFT (sorted descending), pie on
   // the RIGHT (no internal labels — they overlap on small slices). Each
@@ -103,7 +107,7 @@ export function SpendByCategoryCard({
                   style={{ backgroundColor: PIE_COLORS[originalIdx % PIE_COLORS.length] }}
                   aria-hidden
                 />
-                <span className="truncate text-sm text-ink">{humanizeLabel(r.category)}</span>
+                <span className="truncate text-sm text-ink">{humanizeLabelLocalized(r.category, i18n.language)}</span>
                 <span className="font-mono text-xs text-ink-muted">
                   {formatAedCompact(r.valueAed)}
                 </span>
@@ -137,7 +141,7 @@ export function SpendByCategoryCard({
               <Tooltip
                 formatter={(v: number, _key: string, item) => [
                   `${formatAedCompact(v)} · ${item?.payload?.pct?.toFixed?.(1) ?? "0.0"}%`,
-                  humanizeLabel(String(item?.payload?.category ?? "")),
+                  humanizeLabelLocalized(String(item?.payload?.category ?? ""), i18n.language),
                 ]}
               />
             </PieChart>
@@ -261,9 +265,9 @@ export function RevenueUnderContract12mCard({
 }: {
   rows: ExecutiveRevenueMonthRow[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (rows.length === 0) return null;
-  const data = rows.map((r) => ({ ...r, monthShort: formatMonthAxis(r.month) }));
+  const data = rows.map((r) => ({ ...r, monthShort: formatMonthAxisLocalized(r.month, i18n.language) }));
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <h3 className="mb-3 text-sm font-semibold text-ink">
@@ -425,9 +429,9 @@ export function ContractThroughput12mCard({
 }: {
   rows: ExecutiveThroughputMonthRow[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   if (rows.length === 0) return null;
-  const data = rows.map((r) => ({ ...r, monthShort: formatMonthAxis(r.month) }));
+  const data = rows.map((r) => ({ ...r, monthShort: formatMonthAxisLocalized(r.month, i18n.language) }));
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <h3 className="mb-3 text-sm font-semibold text-ink">

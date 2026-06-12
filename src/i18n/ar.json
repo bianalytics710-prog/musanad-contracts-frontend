@@ -651,6 +651,7 @@
     "adminAiCost": "تكلفة الذكاء الاصطناعي",
     "adminAiPrompts": "موجّهات الذكاء الاصطناعي",
     "adminAiReqs": "طلبات الذكاء الاصطناعي",
+    "adminAiActions": "إجراءات الدردشة الذكية",
     "adminHealth": "الحالة الصحية",
     "admin.ingestionQueue": "قائمة انتظار الاستيعاب",
     "adminClauseTaxonomy": "تصنيف البنود",
@@ -675,7 +676,9 @@
     "financialBudgetBurn": "صحة إنفاق العقود",
     "financialTradeMargin": "العقود المرتبطة بمؤشر",
     "adminMigration": "ترحيل",
-    "adminIndustryCatalogs": "كتالوجات الصناعات"
+    "adminIndustryCatalogs": "كتالوجات الصناعات",
+    "myWork": "مهامي",
+    "assignedWork": "العمل الموكل"
   },
   "landing": {
     "kicker": "ذكاء العقود الإماراتي أولاً",
@@ -1071,6 +1074,9 @@
       "overviewCard": {
         "title": "إحصاءات سريعة",
         "healthScore": "درجة الصحة"
+      },
+      "actions": {
+        "requestSimilar": "طلب عقد مشابه"
       }
     },
     "delete": {
@@ -1226,6 +1232,17 @@
         "scheduleFailedTitle": "تم إنشاء العقد — تعذر حفظ المعالم",
         "scheduleFailedDescription": "تم إنشاء العقد {{number}}. تعذر حفظ جدول المدفوعات. أعد محاولة المعالم فقط، أو افتح العقد واستخدم تبويب المدفوعات.",
         "retrySchedule": "إعادة محاولة المعالم"
+      },
+      "workOrderSeed": {
+        "loadingTitle": "جاري تجهيز المسودة…",
+        "loadingSubtitle": "يقرأ الذكاء الاصطناعي العقد المصدر ويكتشف العناصر النائبة.",
+        "banner": "الصياغة من {{number}}. استخرج الذكاء الاصطناعي {{count}} عنصراً نائباً وحجب النص — املأ الشروط الرئيسية أدناه.",
+        "extractError": "تعذّرت قراءة العقد المصدر. حاول مرة أخرى أو ابدأ مسودة فارغة.",
+        "phase": {
+          "loadWorkOrder": "قراءة طلب العمل",
+          "aiExtract": "استخراج الهيكل والعناصر النائبة (قد يستغرق دقيقة)",
+          "buildWizard": "تجهيز الواجهة"
+        }
       }
     },
     "paymentSchedule": {
@@ -5167,7 +5184,8 @@
         "approvals": "الموافقات",
         "queue": "قائمة انتظار الموافقات",
         "signatures": "التوقيعات",
-        "imports": "الاستيراد المجمع"
+        "imports": "الاستيراد المجمع",
+        "my_work": "مهامي"
       },
       "ecip": {
         "insights_hub": "مركز الرؤى",
@@ -7705,7 +7723,8 @@
         "windowDays": "النطاق (أيام)",
         "windowDaysHelper": "افتراضيًا 90 يومًا؛ حتى 365.",
         "deltaVsPrev": "{{pct}} مقارنة بالسابق",
-        "deltaCountVsPrev": "{{n}} مقارنة بالسابق"
+        "deltaCountVsPrev": "{{n}} مقارنة بالسابق",
+        "avgCycleTimeHelper": "من الصياغة إلى توقيع الطرف المقابل، من البداية إلى النهاية"
       },
       "criticalImpactsFrame": {
         "title": "تأثير حرج",
@@ -7839,6 +7858,45 @@
       },
       "errors": {
         "loadFailed": "تعذر تحميل اللوحة التنفيذية."
+      },
+      "charts": {
+        "spendByCategory": {
+          "title": "الإنفاق حسب الفئة"
+        },
+        "totalSpend": "إجمالي الإنفاق",
+        "topSuppliers": {
+          "title": "كبار الموردين حسب الإنفاق",
+          "supplier": "المورد",
+          "contracts": "العقود",
+          "totalValue": "إجمالي القيمة",
+          "pctOfSpend": "% من الإنفاق",
+          "trend12m": "اتجاه 12 شهرًا"
+        },
+        "revenueUnderContract": {
+          "title": "الإيرادات المتعاقد عليها · 12 شهرًا",
+          "active": "إيرادات العقود النشطة",
+          "pipeline": "إيرادات قيد الإبرام"
+        },
+        "cycleTime": {
+          "title": "قمع زمن الدورة",
+          "subtitle": "متوسط الأيام لكل مرحلة",
+          "totalLabel": "إجمالي الدورة",
+          "daysSuffix": "يومًا",
+          "daySuffix": "يوم",
+          "drafting": "الصياغة",
+          "legalReview": "المراجعة القانونية",
+          "approvalChain": "سلسلة الاعتماد",
+          "signature": "توقيع الطرف المقابل"
+        },
+        "throughput": {
+          "title": "إنتاجية العقود (12 شهرًا)",
+          "initiated": "تم بدؤها",
+          "signed": "تم توقيعها"
+        },
+        "expiryCliff": {
+          "title": "موجة انتهاء العقود — توزيع القيمة",
+          "atRisk": "الدرهم المعرض للخطر"
+        }
       }
     },
     "executiveAnomalies": {
@@ -9067,7 +9125,7 @@
       "portfolio": {
         "title": "العقود المرتبطة بمؤشر",
         "subtitle": "العقود التي يتغير سعرها وفقاً لمؤشر خارجي — حالة حماية النطاق وأثر الهامش.",
-        "kicker": "تعرض الأسعار المرتبطة بمؤشر",
+        "kicker": "مكتب تداول النفط — جانب البيع",
         "tabsLabel": "عروض العقود المرتبطة بمؤشر",
         "tab": {
           "positions": "المراكز",
@@ -9079,8 +9137,7 @@
         },
         "showing": "عرض {{from}}–{{to}} من {{total}}",
         "viewDetails": "عرض التفاصيل",
-        "viewDetail": "عرض تفاصيل {{ref}}",
-        "kicker": "مكتب تداول النفط — جانب البيع"
+        "viewDetail": "عرض تفاصيل {{ref}}"
       },
       "filters": {
         "searchLabel": "بحث",
@@ -9394,6 +9451,226 @@
         "market": "سوق",
         "mock": "محاكاة"
       }
+    }
+  },
+  "assignedWork": {
+    "title": "العمل الموكل",
+    "subtitle": "تتبع كل ما أوكلته إلى فريقك — من الطلب حتى التوقيع.",
+    "searchPlaceholder": "بحث في الطرف المقابل أو رقم العقد أو المالك…",
+    "loadError": "تعذّر تحميل المهام الموكلة. حاول مجدداً.",
+    "emptyFiltered": "لا توجد أوامر عمل مطابقة لهذه المرشحات.",
+    "stale": "ركود",
+    "staleHint": "لم يبدأ منذ {{days}}+ يوماً — يُنصح بتنبيه المالك.",
+    "columns": {
+      "owner": "المالك"
+    },
+    "filters": {
+      "allTypes": "كل الأنواع",
+      "allStages": "كل المراحل",
+      "allOwners": "كل المالكين",
+      "typeLabel": "تصفية حسب النوع",
+      "stageLabel": "تصفية حسب المرحلة",
+      "ownerLabel": "تصفية حسب المالك"
+    },
+    "actions": {
+      "view": "عرض العقد",
+      "nudge": "تنبيه المالك",
+      "reassign": "إعادة التعيين",
+      "cancel": "إلغاء أمر العمل"
+    },
+    "empty": {
+      "title": "لم توكل أي عمل بعد.",
+      "hint": "افتح عقداً واضغط \"اطلب عقداً مشابهاً\"، أو اطلب من المساعد: \"اصِغ عقداً مشابهاً لشركة فايبرنت إنرجي مبني على CT-2026-000028 ووكّله إلى هلا.\""
+    },
+    "nudge": {
+      "title": "تنبيه {{name}}",
+      "description": "سيُرسل تذكير داخل التطبيق إلى المالك. يمكنك التنبيه مجدداً بعد 6 ساعات.",
+      "messageLabel": "أضف ملاحظة قصيرة (اختياري)",
+      "placeholder": "أي سياق إضافي؟ مثلاً 'العميل يسأل — هل يمكنك تسريع الأمر؟'",
+      "send": "إرسال التنبيه",
+      "sentToast": "تم إرسال التنبيه إلى {{name}}.",
+      "throttledToast": "تم التنبيه مؤخراً. يمكنك تنبيه {{name}} مجدداً في {{when}}.",
+      "errorToast": "تعذّر إرسال التنبيه."
+    },
+    "reassign": {
+      "title": "إعادة تعيين أمر العمل",
+      "description": "سيحصل المالك الجديد على إشعار داخل التطبيق. لن يُعلَم المالك السابق ({{prev}}).",
+      "newOwnerLabel": "المالك الجديد",
+      "pickOwner": "اختر صائغاً…",
+      "reasonLabel": "السبب (اختياري)",
+      "submit": "إعادة التعيين",
+      "successToast": "تم النقل إلى {{name}}.",
+      "errorToast": "تعذّرت إعادة التعيين."
+    },
+    "cancel": {
+      "title": "إلغاء أمر العمل",
+      "description": "يُلغى التكليف لـ {{name}}، ولن يظهر بعدها في قائمته.",
+      "reasonLabel": "السبب (اختياري)",
+      "submit": "إلغاء أمر العمل",
+      "successToast": "تم إلغاء أمر العمل.",
+      "errorToast": "تعذّر الإلغاء."
+    }
+  },
+  "myWork": {
+    "title": "مهامي",
+    "subtitle": "المسودات المطلوبة منك، والعقود المعادة، والتعليقات بانتظار الرد.",
+    "empty": "قائمتك فارغة. ستظهر المهام الجديدة هنا.",
+    "loadError": "تعذّر تحميل قائمة المهام. يرجى المحاولة مرة أخرى.",
+    "untitled": "عقد بدون عنوان",
+    "basedOn": "استناداً إلى",
+    "fromName": "من {{name}}",
+    "clausesInherited_one": "بند واحد منقول",
+    "clausesInherited_other": "{{count}} بند منقول",
+    "clausesInherited": "{{count}} بند منقول",
+    "age": {
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "daysAgo_one": "منذ يوم",
+      "daysAgo_other": "منذ {{count}} أيام",
+      "daysAgo": "منذ {{count}} أيام"
+    },
+    "types": {
+      "contract_draft_request": "طلب مسودة",
+      "contract_returned": "معاد",
+      "comment_response": "تعليق"
+    },
+    "filters": {
+      "all": "الكل",
+      "draftRequest": "طلبات الصياغة",
+      "returned": "معاد",
+      "comment": "تعليقات",
+      "statusOpen": "مفتوحة",
+      "statusCompleted": "مكتملة",
+      "allTypes": "كل الأنواع",
+      "allStages": "كل المراحل",
+      "allSenders": "كل المرسلين",
+      "typeLabel": "تصفية حسب النوع",
+      "stageLabel": "تصفية حسب المرحلة",
+      "fromLabel": "تصفية حسب المرسل"
+    },
+    "columns": {
+      "request": "الطلب",
+      "type": "النوع",
+      "from": "من",
+      "stage": "المرحلة",
+      "created": "تاريخ الإنشاء",
+      "action": "الإجراء"
+    },
+    "stages": {
+      "not_started": "لم تبدأ",
+      "draft_in_progress": "قيد الصياغة",
+      "awaiting_approval": "موافقة",
+      "awaitingNamed": "بانتظار {{names}}",
+      "returned": "معاد",
+      "completed": "مكتمل",
+      "cancelled": "ملغى",
+      "notStarted": "لم تبدأ",
+      "draftInProgress": "قيد الصياغة",
+      "awaitingApproval": "موافقة"
+    },
+    "actions": {
+      "composeDraft": "صياغة المسودة",
+      "continueEditing": "متابعة التحرير",
+      "viewProgress": "عرض التقدم",
+      "editDraft": "تعديل المسودة",
+      "viewContract": "عرض العقد",
+      "open": "فتح"
+    },
+    "searchPlaceholder": "ابحث عن الطرف المقابل أو رقم العقد…",
+    "emptyFiltered": "لا توجد مهام تطابق هذه الفلاتر.",
+    "rowCount": "{{shown}} من {{total}}",
+    "pagination": {
+      "range": "{{from}}–{{to}} من {{total}}",
+      "localMatch": "({{visible}} تطابق الفلاتر المحلية)",
+      "pageOf": "{{page}} / {{total}}"
+    },
+    "addManual": {
+      "openButton": "إضافة إلى قائمتي",
+      "title": "إضافة إلى قائمتي",
+      "subtitle": "تتبع طلباً وصل خارج النظام (بريد إلكتروني، محادثة، شخصياً).",
+      "requestType": "نوع الطلب",
+      "requestDetails": "تفاصيل الطلب",
+      "requestor": "مقدم الطلب",
+      "chooseRequestor": "اختر…",
+      "stage": "المرحلة",
+      "notePlaceholder": "مثال: نحتاج عقد خدمات رئيسي مع ABB لمدة 24 شهراً، 50 مليون درهم.",
+      "similarContract": "عقد مشابه (اختياري)",
+      "similarPlaceholder": "مثال: CT-2026-000033",
+      "similarConfirmPrompt": "هل هذا هو العقد الذي تريد تكراره؟",
+      "similarConfirmed": "تم التثبيت. سيبدأ المعالج من هذا العقد.",
+      "similarNotFound": "لم يتم العثور على عقد بهذا الرقم.",
+      "similarError": "تعذّر البحث عن العقد. حاول مرة أخرى.",
+      "similarUntitled": "عقد بدون عنوان",
+      "submit": "إضافة إلى القائمة",
+      "success": "تمت الإضافة إلى قائمتك.",
+      "error": "تعذّر الإضافة إلى قائمتك. حاول مرة أخرى."
+    },
+    "priority": {
+      "urgent": "عاجل",
+      "high": "مرتفع",
+      "normal": "عادي",
+      "low": "منخفض"
+    },
+    "composeDraftButton": "صياغة المسودة",
+    "openButton": "فتح",
+    "draftRequestTitle": "مسودة لـ {{counterparty}}"
+  },
+  "requestSimilar": {
+    "title": "طلب عقد مشابه",
+    "subtitle": "إنشاء مسودة استناداً إلى {{number}} لتعديلها من قبل أحد المسوّدين.",
+    "assignTo": "تعيين إلى مسوّد",
+    "pickDrafter": "اختر مسوّداً…",
+    "loadingDrafters": "تحميل المسوّدين…",
+    "noDrafters": "لا يوجد مسوّدون متاحون.",
+    "openCount_one": "مهمة مفتوحة",
+    "openCount_other": "{{count}} مهام مفتوحة",
+    "openCount": "{{count}} مفتوحة",
+    "freeNow": "متاح الآن",
+    "instructionLabel": "تعليمات (اختياري)",
+    "instructionPlaceholder": "مثال: نفس بنود العقد المصدر، ولكن مع شركة FM Logistics كطرف مقابل.",
+    "aiHint": "سنقوم بنسخ النص والبنود والهيكل إلى مسودة جديدة. سيقوم المسوّد بتعبئة شروط الطرف المقابل والتواريخ الرئيسية قبل تقديمه للموافقة.",
+    "submit": "إرسال إلى المسوّد",
+    "successToast": "تم إرسال طلب الصياغة إلى {{name}}.",
+    "counterparty": "الطرف المقابل",
+    "modeExisting": "عميل حالي",
+    "modeProspect": "عميل محتمل",
+    "partyPlaceholder": "ابحث بالاسم…",
+    "searching": "جاري البحث…",
+    "noPartyMatch": "لا توجد نتائج. جرّب صياغة مختلفة أو استخدم 'عميل محتمل'.",
+    "prospectPlaceholder": "مثال: صندوق الاستثمارات العامة",
+    "pickCounterparty": "اختر عميلاً…",
+    "addProspect": "إضافة كعميل محتمل…",
+    "existingCustomers": "العملاء الحاليون"
+  },
+  "workOrders": {
+    "seededBanner": {
+      "kicker": "مسودة من عقد آخر",
+      "body": "تم إنشاء هذه المسودة من العقد {{number}}. تم نسخ النص و{{count}} من البنود. راجع الشروط الرئيسية، عدّل النص، ثم اضغط على إرسال للموافقة."
+    }
+  },
+  "chatActions": {
+    "input": {
+      "placeholder": "اطرح سؤالاً، أو استخدم @ (الأشخاص) و# (العقود) و~ (الأطراف) لتشغيل إجراء."
+    },
+    "proposal": {
+      "title": "اقتراح إجراء",
+      "confirm": "تأكيد",
+      "cancel": "إلغاء",
+      "dismissed": "تم التجاهل — لم يتم تنفيذ أي إجراء."
+    },
+    "receipt": {
+      "viewWork": "فتح قائمة عملي"
+    },
+    "error": {
+      "expired": "انتهت صلاحية هذا الاقتراح. يرجى إعادة المحاولة.",
+      "permission": "دورك لا يسمح بتنفيذ هذا الإجراء.",
+      "executeFailed": "فشل تنفيذ الإجراء."
+    },
+    "mention": {
+      "userHint": "أشخاص",
+      "contractHint": "عقود",
+      "partyHint": "أطراف مقابلة",
+      "createProspect": "إنشاء عميل محتمل جديد"
     }
   }
 }

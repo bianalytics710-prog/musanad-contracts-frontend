@@ -42,6 +42,7 @@ import { ApiError } from "@/lib/api-client";
 import { translateApiError } from "@/lib/translate-api-error";
 import { contractsKeys } from "@/features/contracts/hooks/useContracts";
 import { paymentScheduleKeys } from "@/features/contracts/hooks/usePaymentSchedule";
+import { workOrderKeys } from "@/services/api/work-orders.service";
 import { clearComposeDraft } from "./useComposeDraft";
 import { GOVERNING_LAW_VALUES } from "@/types/entities/contract.types";
 import type { CreateContractDto, CreateContractResponse, GoverningLaw } from "@/types/entities/contract.types";
@@ -358,34 +359,54 @@ export function useComposeSubmit(): UseComposeSubmitReturn {
         // contracts sat in `status='draft'` with no approval_chain. We now hit
         // POST /contracts/:id/submit-for-approval (S7) which routes the
         // contract through the approval matrix and creates the chain + steps.
-        // Failure here is NON-fatal — the contract still exists as a draft; the
-        // user can resubmit manually from the detail page.
+        //
+        // 2026-06-11 — promoted approval-routing failure from soft toast.warning
+        // (which auto-dismissed and let the success toast claim "sent for
+        // approval" when nothing was sent) to a hard error that surfaces in the
+        // wizard's error panel with a Retry button. Drafters saw "saved as
+        // draft" success toasts while the contract sat in `draft` status with
+        // no approval_chain. The contract row + payment schedule still persist
+        // — Retry only re-fires the routing call.
         setPhase("sending-for-approval");
-        let approvalRouted = false;
         try {
           await approvalService.submitForApproval(contractId);
-          approvalRouted = true;
         } catch (approvalErr) {
           const apiErr = approvalErr instanceof ApiError ? approvalErr : (approvalErr as Error);
-          toast.warning(
+          setPhase("idle");
+          setError({
+            phase: "sending-for-approval",
+            error: apiErr,
+            contractId,
+            contractNumber,
+          });
+          toast.error(
             translateApiError(apiErr, t, "contracts.compose.toasts.approvalRoutingFailed"),
           );
+          // Stash the contract so retry can reuse it.
+          lastContractRef.current = { id: contractId, number: contractNumber };
+          // Tag the error so the outer catch knows we've already handled it
+          // and shouldn't overwrite the error state with a "schedule failed"
+          // message. The outer catch is wired for paymentSchedule failures.
+          (apiErr as Error & { __composeHandled?: boolean }).__composeHandled = true;
+          throw apiErr;
         }
         setPhase("done");
         // Success — clear draft + show toast + navigate.
         clearComposeDraft(userId, state.composeDraftId);
         toast.success(
           t(
-            approvalRouted
-              ? "contracts.compose.toasts.submitSuccessRouted"
-              : "contracts.compose.toasts.submitSuccess",
-            { number: contractNumber, defaultValue: approvalRouted
-              ? `${contractNumber} sent for approval.`
-              : `${contractNumber} saved as draft.` },
+            "contracts.compose.toasts.submitSuccessRouted",
+            { number: contractNumber, defaultValue: `${contractNumber} sent for approval.` },
           ),
         );
         // Bust contract list so the new contract appears.
         queryClient.invalidateQueries({ queryKey: contractsKeys.lists() });
+        // 2026-06-12 — also bust the My Work queries so the table reflects the
+        // stage transition (e.g. Not started → Awaiting approval) without
+        // requiring a manual refresh or a stale-cache wait. Covers both the
+        // list (status/types change after linkTarget) and the sidecar progress
+        // (currentApproverNames newly populated for the just-created chain).
+        queryClient.invalidateQueries({ queryKey: workOrderKeys.all });
         // Defer navigation to next microtask so the toast registers in the
         // current TanStack Router render cycle before the route swap.
         void navigate({
@@ -397,6 +418,12 @@ export function useComposeSubmit(): UseComposeSubmitReturn {
         return { contractId, contractNumber };
       } catch (err) {
         const apiErr = err instanceof ApiError ? err : (err as Error);
+        // Approval-routing failure already populated `error` + toast — don't
+        // clobber with a "schedule failed" message just because the inner
+        // catch rethrew.
+        if ((apiErr as Error & { __composeHandled?: boolean }).__composeHandled) {
+          throw apiErr;
+        }
         setPhase("idle");
         setError({
           phase: "saving-schedule",

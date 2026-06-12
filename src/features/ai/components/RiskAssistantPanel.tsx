@@ -29,19 +29,29 @@ import {
   useId,
   useRef,
   useState,
-  type KeyboardEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, StopCircle, Bot, User } from 'lucide-react';
+import { MessageCircle, X, StopCircle, Bot, User, Send } from 'lucide-react';
 import { askRiskAssistant } from '@/services/api/risk-assistant.service';
+import { askChat } from '@/services/api/chat-orchestrator.service';
 import { useAuthStore, selectUser, selectHasPermission } from '@/store/auth.store';
 import { formatDateTime } from '@/utils/datetime';
+import {
+  MentionableTextarea,
+  type MentionableTextareaHandle,
+} from './MentionableTextarea';
+import { ProposalCard } from './ProposalCard';
+import { RenderedMentionText } from './MentionChip';
 import type {
   ChatMessage,
   RiskAssistantCitation,
   RiskAssistantPersona,
 } from '@/types/entities/risk-assistant.types';
+import type {
+  ChatMention,
+  ProposalPreviewParam,
+} from '@/types/entities/chat-orchestrator.types';
 
 // ─── Role → persona mapping ───────────────────────────────────────────────────
 
@@ -183,11 +193,34 @@ function MessageBubble({ message }: { message: ChatMessage }) {
         <div
           className={`space-y-1 rounded-xl px-3 py-2 text-sm ${isUser ? 'bg-gold/15 text-ink' : 'bg-surface text-ink'}`}
         >
-          {isUser ? message.content : renderStructuredMessage(message.content)}
+          {isUser ? (
+            <span><RenderedMentionText text={message.content} /></span>
+          ) : (
+            <>
+              {message.content && renderStructuredMessage(message.content)}
+              {message.proposal && (
+                <div className="mt-2">
+                  <ProposalCard
+                    proposalId={message.proposal.proposalId}
+                    actionCode={message.proposal.actionCode}
+                    actionLabel={message.proposal.actionLabel}
+                    previewParams={message.proposal.previewParams}
+                  />
+                </div>
+              )}
+            </>
+          )}
           {message.isStreaming && (
             <span className="ms-1 inline-block h-2.5 w-1.5 animate-pulse rounded-sm bg-ink-muted" aria-hidden />
           )}
         </div>
+        {message.resolverNotes && message.resolverNotes.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-1 text-[10px] text-ink-subtle">
+            {message.resolverNotes.map((n, i) => (
+              <span key={i} className="rounded bg-muted px-1.5 py-0.5">↳ {n}</span>
+            ))}
+          </div>
+        )}
         {message.citations.length > 0 && (
           <div className="flex flex-wrap gap-1 px-1">
             {message.citations.map((c, idx) => (
@@ -256,14 +289,13 @@ export function RiskAssistantPanel() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [query, setQuery] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [draftLen, setDraftLen] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const mentionTaRef = useRef<MentionableTextareaHandle | null>(null);
 
-  const textareaId = useId();
   const panelId = useId();
 
   const persona = derivePersona(user?.role?.name);
@@ -279,7 +311,7 @@ export function RiskAssistantPanel() {
   // Focus textarea when panel opens
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => textareaRef.current?.focus(), 100);
+      setTimeout(() => mentionTaRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
@@ -319,8 +351,8 @@ export function RiskAssistantPanel() {
     setIsOpen(false);
   }
 
-  async function handleSubmit() {
-    const trimmed = query.trim();
+  async function handleSubmit(payload: { text: string; mentions: ChatMention[] }) {
+    const trimmed = payload.text.trim();
     if (!trimmed || isStreaming) return;
 
     const userMsg: ChatMessage = {
@@ -339,62 +371,61 @@ export function RiskAssistantPanel() {
       citations: [],
       timestamp: new Date().toISOString(),
       isStreaming: true,
+      resolverNotes: [],
     };
 
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
-    setQuery('');
+    mentionTaRef.current?.clear();
+    setDraftLen(0);
     setIsStreaming(true);
 
     abortRef.current = new AbortController();
 
+    // Build the chat history for the orchestrator. v1: just this turn.
+    const chatMessages = [{ role: 'user' as const, content: trimmed }];
+
     try {
-      await askRiskAssistant({
-        query: trimmed,
-        persona,
+      await askChat({
+        messages: chatMessages,
+        mentions: payload.mentions,
         abortSignal: abortRef.current.signal,
-        onToken: (token) => {
+        onEvent: (evt) => {
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? { ...m, content: m.content + token }
-                : m,
-            ),
+            prev.map((m) => {
+              if (m.id !== assistantMsgId) return m;
+              if (evt.type === 'token') {
+                return { ...m, content: m.content + evt.token };
+              }
+              if (evt.type === 'resolverUsed') {
+                const notes = m.resolverNotes ?? [];
+                return { ...m, resolverNotes: [...notes, evt.label] };
+              }
+              if (evt.type === 'proposal') {
+                return {
+                  ...m,
+                  proposal: {
+                    proposalId: evt.proposalId,
+                    actionCode: evt.actionCode,
+                    actionLabel: evt.actionLabel,
+                    previewParams: evt.previewParams as ProposalPreviewParam[],
+                  },
+                };
+              }
+              if (evt.type === 'done') {
+                return { ...m, isStreaming: false };
+              }
+              if (evt.type === 'error') {
+                return {
+                  ...m,
+                  content: m.content || t('ai.riskAssistant.error.generic'),
+                  isStreaming: false,
+                };
+              }
+              return m;
+            }),
           );
-        },
-        onCitation: (citation) => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? { ...m, citations: [...m.citations, citation] }
-                : m,
-            ),
-          );
-        },
-        onDone: () => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId ? { ...m, isStreaming: false } : m,
-            ),
-          );
-          setIsStreaming(false);
-        },
-        onError: (errorMsg) => {
-          // T13: do not leak query content in error; surface generic message
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? {
-                    ...m,
-                    content: t('ai.riskAssistant.error.generic'),
-                    isStreaming: false,
-                  }
-                : m,
-            ),
-          );
-          setIsStreaming(false);
-          // Log non-sensitive portion for debugging (errorMsg may contain HTTP status only)
-          if (import.meta.env.DEV) {
-            console.error('[RiskAssistant] stream error:', errorMsg);
+          if (evt.type === 'done' || evt.type === 'error') {
+            setIsStreaming(false);
           }
         },
       });
@@ -407,13 +438,6 @@ export function RiskAssistantPanel() {
         ),
       );
       setIsStreaming(false);
-    }
-  }
-
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit();
     }
   }
 
@@ -515,7 +539,10 @@ export function RiskAssistantPanel() {
                         <button
                           key={key}
                           type="button"
-                          onClick={() => setQuery(t(key))}
+                          onClick={() => {
+                            mentionTaRef.current?.setText(t(key));
+                            mentionTaRef.current?.focus();
+                          }}
                           className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-left text-xs text-ink-muted transition hover:border-gold/50 hover:text-ink"
                         >
                           {t(key)}
@@ -533,54 +560,47 @@ export function RiskAssistantPanel() {
 
               {/* Input area */}
               <div className="border-t border-border p-4">
-                <form
-                  noValidate
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void handleSubmit();
-                  }}
-                >
-                  <label htmlFor={textareaId} className="sr-only">
-                    {t('ai.riskAssistant.input.label')}
-                  </label>
-                  <div className="flex gap-2">
-                    <textarea
-                      ref={textareaRef}
-                      id={textareaId}
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder={t('ai.riskAssistant.input.placeholder')}
-                      rows={2}
-                      maxLength={2000}
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <MentionableTextarea
+                      ref={mentionTaRef}
+                      placeholder={t('chatActions.input.placeholder', {
+                        defaultValue: 'Ask a question, or tag with @ (people), # (contracts), ~ (counterparties) to fire an action.',
+                      })}
+                      ariaLabel={t('ai.riskAssistant.input.ariaLabel')}
                       disabled={isStreaming}
-                      aria-label={t('ai.riskAssistant.input.ariaLabel')}
-                      className="flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus-visible:border-gold focus-visible:outline-none disabled:opacity-50"
+                      maxLength={2000}
+                      onSubmit={handleSubmit}
+                      onChange={(text) => setDraftLen(text.length)}
                     />
-                    {isStreaming ? (
-                      <button
-                        type="button"
-                        onClick={handleAbort}
-                        aria-label={t('ai.riskAssistant.input.abort')}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-lg border border-terracotta/50 bg-terracotta/10 text-terracotta transition hover:bg-terracotta/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-terracotta"
-                      >
-                        <StopCircle className="h-4 w-4" aria-hidden />
-                      </button>
-                    ) : (
-                      <button
-                        type="submit"
-                        disabled={!query.trim() || isStreaming}
-                        aria-label={t('ai.riskAssistant.input.send')}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-lg bg-gold text-white transition hover:bg-gold/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <Send className="h-4 w-4" aria-hidden />
-                      </button>
-                    )}
                   </div>
-                  <p className="mt-1 text-right font-mono text-[10px] text-ink-subtle">
-                    {query.length}/2000
-                  </p>
-                </form>
+                  {isStreaming ? (
+                    <button
+                      type="button"
+                      onClick={handleAbort}
+                      aria-label={t('ai.riskAssistant.input.abort')}
+                      className="mb-6 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-terracotta/50 bg-terracotta/10 text-terracotta transition hover:bg-terracotta/20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-terracotta"
+                    >
+                      <StopCircle className="h-4 w-4" aria-hidden />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const payload = mentionTaRef.current?.getPayload();
+                        if (payload && payload.text.trim()) {
+                          void handleSubmit(payload);
+                        }
+                      }}
+                      disabled={draftLen === 0 || isStreaming}
+                      aria-label={t('ai.riskAssistant.input.send')}
+                      data-testid="chat-send"
+                      className="mb-6 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold text-white transition hover:bg-gold/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Send className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.aside>
           </>

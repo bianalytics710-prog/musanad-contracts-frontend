@@ -13,6 +13,9 @@ import { ComposeWizard } from "@/features/contracts/wizard/ComposeWizard";
 const composeSearchSchema = z
   .object({
     template_id: z.coerce.number().int().positive().optional(),
+    // M21 — entry from a draft-request work order. Wizard skips Step 1
+    // and seeds from the source contract via AI extraction.
+    fromWorkOrder: z.coerce.number().int().positive().optional(),
   })
   .partial();
 
@@ -22,10 +25,13 @@ export const Route = createFileRoute("/app/contracts/compose")({
 });
 
 function ContractsComposeRoute() {
-  const { template_id } = Route.useSearch();
+  const { template_id, fromWorkOrder } = Route.useSearch();
   return (
     <ErrorBoundary>
-      <ComposeWizard prefillTemplateId={template_id ?? null} />
+      <ComposeWizard
+        prefillTemplateId={template_id ?? null}
+        fromWorkOrderId={fromWorkOrder ?? null}
+      />
     </ErrorBoundary>
   );
 }

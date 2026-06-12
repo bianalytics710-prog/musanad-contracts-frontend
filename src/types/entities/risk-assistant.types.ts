@@ -51,6 +51,13 @@ export interface RiskAssistantSSEEvent {
 
 // ─── Chat message shapes (local FE state) ────────────────────────────────────
 
+export interface ChatProposalDescriptor {
+  proposalId: string;
+  actionCode: string;
+  actionLabel: string;
+  previewParams: import('./chat-orchestrator.types').ProposalPreviewParam[];
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -58,6 +65,10 @@ export interface ChatMessage {
   citations: RiskAssistantCitation[];
   timestamp: string;
   isStreaming?: boolean;
+  /** Set when the assistant emitted a chat-orchestrator `proposal` event. Renders a ProposalCard. */
+  proposal?: ChatProposalDescriptor;
+  /** Set when the user message was sent via the chat orchestrator path (mention chips). */
+  resolverNotes?: string[];
 }
 
 // ─── Non-streaming fallback ───────────────────────────────────────────────────

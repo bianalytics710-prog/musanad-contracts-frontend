@@ -88,6 +88,8 @@ export type AppRole =
   | "procurement_supplier_risk";
 
 export type ModuleKey =
+  // M21 — My Work cross-cutting inbox
+  | "myWork"
   | "insights"
   | "contracts"
   | "compose"
@@ -137,6 +139,8 @@ export interface SidebarModule {
 }
 
 export const MODULES: Record<ModuleKey, SidebarModule> = {
+  // ── M21 — My Work cross-cutting inbox (drafter landing page) ──────────────
+  myWork:      { key: "myWork",      to: "/app/work",                labelKey: "nav.myWork",      defaultLabel: "My Work",     icon: Inbox,        displayOrder: 90  },
   // ── CLM bundle (display_order 100–220) ────────────────────────────────────
   insights:    { key: "insights",    to: "/app/dashboards/insights", labelKey: "nav.insights",    defaultLabel: "Insights",    icon: LayoutGrid,   displayOrder: 100 },
   contracts:   { key: "contracts",   to: "/app/contracts",           labelKey: "nav.contracts",   defaultLabel: "Contracts",   icon: FileText,     displayOrder: 110 },
@@ -205,6 +209,8 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
 
 export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   contract_drafter: [
+    // M21 — My Work first; landing surface for assigned tasks.
+    "myWork",
     "insights",
     "contracts",
     "compose",
@@ -303,7 +309,10 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // CR-M — Regulatory Cascade (read)
   // M21 / CR-N — Budget Burn (read)
   // M21 / CR-O — Trade Margin (read)
-  executive: ["insights", "contracts", "regulations", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "reports"],
+  // M21 mig 638 — exec gets "Assigned Work" (label override at render time)
+  // as the FIRST entry. The route still resolves to /app/work; the page
+  // dispatches to AssignedByMeView when the role is "executive".
+  executive: ["myWork", "insights", "contracts", "regulations", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "reports"],
   // CR-M — procurement_supplier_risk seeded in migration 292
   procurement_supplier_risk: [
     "insights",
@@ -420,6 +429,9 @@ export const ADMIN_SUB_NAV: AdminSubItem[] = [
   { to: "/app/admin/risk-scoring",          labelKey: "nav.adminRiskScoring",     defaultLabel: "Risk scoring formula",  icon: SlidersHorizontal, group: "workflow" },
   { to: "/app/admin/clause-taxonomy",       labelKey: "nav.adminClauseTaxonomy",  defaultLabel: "Clause taxonomy",       icon: BookOpen,          group: "workflow" },
   { to: "/app/admin/notification-rules",    labelKey: "nav.adminNotificationRules", defaultLabel: "Notification rules",   icon: BellOff,           group: "workflow" },
+  // AI Chat Actions (mig 633/634/635) — catalog of prompt-driven actions
+  // the floating chatbot can fire. Platform admin toggles per tenant.
+  { to: "/app/admin/ai-actions",            labelKey: "nav.adminAiActions",       defaultLabel: "AI chat actions",       icon: SlidersHorizontal, group: "ai" },
 
   // ── Templates ──────────────────────────────────────────────────────────
   { to: "/app/admin/email-templates",       labelKey: "nav.adminEmailTemplates",  defaultLabel: "Message templates",     icon: Mail,              group: "templates" },
@@ -495,6 +507,8 @@ export const CLAUSES_SUB_NAV: ClausesSubItem[] = [
 
 export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
   // BE key                         FE ModuleKey
+  // M21 — Work Order Queue
+  "my_work":                        "myWork",
   "dashboards.finance_treasury":    "dashboards.financeTreasury",
   "dashboards.compliance_esg":      "dashboards.complianceEsg",
   "financial.budget_burn":          "financial.budgetBurn",

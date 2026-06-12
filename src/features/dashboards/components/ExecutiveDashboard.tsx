@@ -59,6 +59,7 @@ import {
   formatNumber,
   formatUsd,
   humanizeLabel,
+  humanizeLabelLocalized,
   rangeFromWindowDays,
 } from "./dashboard-primitives";
 import { useAuthStore, selectUser } from "@/store/auth.store";
@@ -801,7 +802,7 @@ function TopCounterpartiesBlockWithNames({
                         </span>
                         {row.counterpartyEmirate && (
                           <span className="ms-2 inline-flex items-center rounded-full bg-surface px-2 py-0.5 font-mono text-[10px] tracking-wider text-ink-subtle">
-                            {humanizeLabel(row.counterpartyEmirate)}
+                            {humanizeLabelLocalized(row.counterpartyEmirate, i18n.language)}
                           </span>
                         )}
                       </>

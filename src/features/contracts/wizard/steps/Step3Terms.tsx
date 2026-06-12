@@ -32,6 +32,8 @@ import {
   Eye,
   Plus,
   Lock,
+  Pencil,
+  Check,
 } from "lucide-react";
 import {
   DndContext,
@@ -178,6 +180,14 @@ export function Step3Terms({
   }
   function removeSection(id: string) {
     setSections((prev) => prev.filter((s) => s.id !== id));
+  }
+  // 2026-06-11 — drafter can edit each section's title + body inline. A
+  // template is just a starting point; the drafter still needs the room to
+  // negotiate wording. Saved edits flow into bodyEn/bodyAr at submit via
+  // assembleBodyFromSections, so the BE persists exactly what the drafter
+  // sees in the preview.
+  function updateSection(id: string, patch: Partial<ComposeBodySection>) {
+    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
   // ── Drag reorder (clauses only) ──────────────────────────────────────────
@@ -404,9 +414,9 @@ export function Step3Terms({
                   })}
                 </h3>
                 <p className="mt-1 text-xs text-ink-muted">
-                  {t("contracts.compose.steps.step3.previewHelpV2", {
+                  {t("contracts.compose.steps.step3.previewHelpV3", {
                     defaultValue:
-                      "Preamble + every section + signature. Drag the numbered clauses to reorder. Placeholders are substituted live from Step 2.",
+                      "Preamble + every section + signature. Drag the numbered clauses to reorder, or click the pencil to edit any section's wording. Placeholders are substituted live from Step 2.",
                   })}
                 </p>
               </div>
@@ -458,15 +468,17 @@ export function Step3Terms({
 
           {previewOpen && sections.length > 0 && (
             <div className="space-y-3">
-              {/* Preamble (locked) */}
+              {/* Preamble (editable) */}
               {sections
                 .filter((s) => s.kind === "preamble")
                 .map((s) => (
-                  <LockedSection
+                  <EditableHeaderSection
                     key={s.id}
                     section={s}
                     language={bodyLanguage}
                     placeholderValues={placeholderValues}
+                    onChange={(patch) => updateSection(s.id, patch)}
+                    disabled={disabled}
                     labelKey="contracts.compose.steps.step3.preambleLabel"
                     labelDefault="Preamble"
                   />
@@ -498,6 +510,7 @@ export function Step3Terms({
                           language={bodyLanguage}
                           placeholderValues={placeholderValues}
                           onRemove={() => removeSection(s.id)}
+                          onChange={(patch) => updateSection(s.id, patch)}
                           disabled={disabled}
                         />
                       ))}
@@ -506,15 +519,17 @@ export function Step3Terms({
                 </DndContext>
               )}
 
-              {/* Signature (locked) */}
+              {/* Signature (editable) */}
               {sections
                 .filter((s) => s.kind === "signature")
                 .map((s) => (
-                  <LockedSection
+                  <EditableHeaderSection
                     key={s.id}
                     section={s}
                     language={bodyLanguage}
                     placeholderValues={placeholderValues}
+                    onChange={(patch) => updateSection(s.id, patch)}
+                    disabled={disabled}
                     labelKey="contracts.compose.steps.step3.signatureLabel"
                     labelDefault="Signature"
                   />
@@ -527,33 +542,121 @@ export function Step3Terms({
   );
 }
 
-// ─── LockedSection (preamble / signature) ────────────────────────────────────
+// ─── EditableHeaderSection (preamble / signature) ────────────────────────────
+//
+// 2026-06-11 — preamble + signature now editable inline. Drafters need the
+// room to negotiate wording on every part of a contract, not just clauses.
+// Same Edit/Save/Cancel UX as SortableClauseSection — the only difference is
+// no title input (preamble/signature don't carry titles).
 
-function LockedSection({
+function EditableHeaderSection({
   section,
   language,
   placeholderValues,
+  onChange,
+  disabled,
   labelKey,
   labelDefault,
 }: {
   section: ComposeBodySection;
   language: "en" | "ar";
   placeholderValues: Record<string, string>;
+  onChange: (patch: Partial<ComposeBodySection>) => void;
+  disabled?: boolean;
   labelKey: string;
   labelDefault: string;
 }) {
   const { t } = useTranslation();
-  const body = (language === "ar" ? section.bodyAr : section.bodyEn) ?? "";
   const dir = language === "ar" ? "rtl" : "ltr";
+  const body = (language === "ar" ? section.bodyAr : section.bodyEn) ?? "";
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftBody, setDraftBody] = useState(body);
+  useEffect(() => {
+    // When language toggles while not editing, refresh the textarea seed so
+    // entering edit mode shows the right language's body.
+    if (!isEditing) setDraftBody(body);
+  }, [body, isEditing]);
+
+  const save = () => {
+    if (language === "ar") onChange({ bodyAr: draftBody });
+    else onChange({ bodyEn: draftBody });
+    setIsEditing(false);
+  };
+  const cancel = () => {
+    setDraftBody(body);
+    setIsEditing(false);
+  };
+
   return (
     <div className="rounded-md border border-border bg-surface/40 p-3" dir={dir}>
-      <div className="mb-1 flex items-center gap-1.5">
-        <Lock className="h-3 w-3 text-ink-subtle" aria-hidden="true" />
-        <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-          {t(labelKey, { defaultValue: labelDefault })}
-        </span>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          {isEditing ? (
+            <Pencil className="h-3 w-3 text-gold" aria-hidden="true" />
+          ) : (
+            <Lock className="h-3 w-3 text-ink-subtle" aria-hidden="true" />
+          )}
+          <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+            {t(labelKey, { defaultValue: labelDefault })}
+          </span>
+        </div>
+        {!isEditing ? (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            disabled={disabled}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-ink-subtle hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+            aria-label={t("contracts.compose.steps.step3.editSection", {
+              defaultValue: "Edit",
+            })}
+          >
+            <Pencil className="h-3 w-3" />
+            {t("contracts.compose.steps.step3.editSection", { defaultValue: "Edit" })}
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={save}
+              disabled={disabled}
+              className="inline-flex items-center gap-1 rounded-md bg-gold/15 px-1.5 py-0.5 text-[10px] font-medium text-ink hover:bg-gold/25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+            >
+              <Check className="h-3 w-3" />
+              {t("common.save", { defaultValue: "Save" })}
+            </button>
+            <button
+              type="button"
+              onClick={cancel}
+              disabled={disabled}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-ink-subtle hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+            >
+              <XIcon className="h-3 w-3" />
+              {t("common.cancel", { defaultValue: "Cancel" })}
+            </button>
+          </div>
+        )}
       </div>
-      <PlaceholderRenderedBody body={body} placeholderValues={placeholderValues} dir={dir} />
+      {isEditing ? (
+        <textarea
+          value={draftBody}
+          onChange={(e) => setDraftBody(e.target.value)}
+          dir={dir}
+          rows={Math.min(20, Math.max(6, draftBody.split("\n").length + 1))}
+          className={cn(
+            "mt-2 w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm leading-relaxed text-ink shadow-sm",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            "font-mono",
+          )}
+          placeholder={t("contracts.compose.steps.step3.editPlaceholder", {
+            defaultValue:
+              "Edit the wording. {{token}} placeholders will be substituted in the preview.",
+          })}
+          disabled={disabled}
+        />
+      ) : (
+        <PlaceholderRenderedBody body={body} placeholderValues={placeholderValues} dir={dir} />
+      )}
     </div>
   );
 }
@@ -566,6 +669,7 @@ function SortableClauseSection({
   language,
   placeholderValues,
   onRemove,
+  onChange,
   disabled,
 }: {
   section: ComposeBodySection;
@@ -573,6 +677,7 @@ function SortableClauseSection({
   language: "en" | "ar";
   placeholderValues: Record<string, string>;
   onRemove: () => void;
+  onChange: (patch: Partial<ComposeBodySection>) => void;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -588,6 +693,31 @@ function SortableClauseSection({
   const body = (language === "ar" ? section.bodyAr : section.bodyEn) ?? "";
   const dir = language === "ar" ? "rtl" : "ltr";
 
+  // 2026-06-11 — inline edit mode for clause title + body. Drafter needs to
+  // negotiate wording; drag-reorder + remove alone weren't enough.
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title);
+  const [draftBody, setDraftBody] = useState(body);
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftTitle(title);
+      setDraftBody(body);
+    }
+  }, [title, body, isEditing]);
+
+  const save = () => {
+    const patch: Partial<ComposeBodySection> = { title: draftTitle };
+    if (language === "ar") patch.bodyAr = draftBody;
+    else patch.bodyEn = draftBody;
+    onChange(patch);
+    setIsEditing(false);
+  };
+  const cancel = () => {
+    setDraftTitle(title);
+    setDraftBody(body);
+    setIsEditing(false);
+  };
+
   return (
     <li
       ref={setNodeRef}
@@ -595,6 +725,7 @@ function SortableClauseSection({
       className={cn(
         "rounded-md border bg-card p-3 transition-colors",
         isDragging ? "border-gold ring-1 ring-gold/30" : "border-border",
+        isEditing && "ring-1 ring-gold/40",
       )}
       dir={dir}
     >
@@ -607,7 +738,8 @@ function SortableClauseSection({
             defaultValue: "Drag clause {{n}} to reorder",
             n: index,
           })}
-          className="mt-0.5 cursor-grab rounded-md p-1 text-ink-subtle hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing"
+          className="mt-0.5 cursor-grab rounded-md p-1 text-ink-subtle hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing disabled:opacity-40"
+          disabled={isEditing}
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -616,7 +748,21 @@ function SortableClauseSection({
             <span className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
               {index}.
             </span>
-            <h4 className="text-sm font-semibold text-ink">{title}</h4>
+            {isEditing ? (
+              <input
+                type="text"
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                disabled={disabled}
+                dir={dir}
+                className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1 text-sm font-semibold text-ink shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                placeholder={t("contracts.compose.steps.step3.editTitlePlaceholder", {
+                  defaultValue: "Clause title",
+                })}
+              />
+            ) : (
+              <h4 className="text-sm font-semibold text-ink">{title}</h4>
+            )}
             {section.source === "library" && (
               <span className="rounded-full bg-gold/15 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-ink">
                 {t("contracts.compose.steps.step3.fromLibrary", {
@@ -632,20 +778,81 @@ function SortableClauseSection({
               </span>
             )}
           </div>
-          <PlaceholderRenderedBody body={body} placeholderValues={placeholderValues} dir={dir} />
+          {isEditing ? (
+            <textarea
+              value={draftBody}
+              onChange={(e) => setDraftBody(e.target.value)}
+              dir={dir}
+              rows={Math.min(20, Math.max(6, draftBody.split("\n").length + 1))}
+              className={cn(
+                "mt-2 w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm leading-relaxed text-ink shadow-sm",
+                "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                "font-mono",
+              )}
+              placeholder={t("contracts.compose.steps.step3.editPlaceholder", {
+                defaultValue:
+                  "Edit the wording. {{token}} placeholders will be substituted in the preview.",
+              })}
+              disabled={disabled}
+            />
+          ) : (
+            <PlaceholderRenderedBody body={body} placeholderValues={placeholderValues} dir={dir} />
+          )}
         </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          disabled={disabled}
-          className="rounded-md p-1 text-ink-subtle hover:bg-terracotta/10 hover:text-terracotta focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          aria-label={t("contracts.compose.steps.step3.removeClauseAria", {
-            defaultValue: "Remove clause {{n}}",
-            n: index,
-          })}
-        >
-          <XIcon className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          {!isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                disabled={disabled}
+                className="rounded-md p-1 text-ink-subtle hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+                aria-label={t("contracts.compose.steps.step3.editClauseAria", {
+                  defaultValue: "Edit clause {{n}}",
+                  n: index,
+                })}
+                title={t("contracts.compose.steps.step3.editSection", {
+                  defaultValue: "Edit",
+                })}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onRemove}
+                disabled={disabled}
+                className="rounded-md p-1 text-ink-subtle hover:bg-terracotta/10 hover:text-terracotta focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                aria-label={t("contracts.compose.steps.step3.removeClauseAria", {
+                  defaultValue: "Remove clause {{n}}",
+                  n: index,
+                })}
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={save}
+                disabled={disabled}
+                className="inline-flex items-center gap-1 rounded-md bg-gold/15 px-1.5 py-1 text-[10px] font-medium text-ink hover:bg-gold/25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              >
+                <Check className="h-3 w-3" />
+                {t("common.save", { defaultValue: "Save" })}
+              </button>
+              <button
+                type="button"
+                onClick={cancel}
+                disabled={disabled}
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium text-ink-subtle hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
+              >
+                <XIcon className="h-3 w-3" />
+                {t("common.cancel", { defaultValue: "Cancel" })}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </li>
   );

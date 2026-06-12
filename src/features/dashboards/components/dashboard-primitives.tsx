@@ -563,6 +563,7 @@ export function humanizeLabel(slug: string | null | undefined): string {
 // chart-axis-displayed slugs) appear in Arabic when the actor's UI is AR.
 // Falls back to humanizeLabel for slugs without an AR translation.
 const HUMANIZE_OVERRIDES_AR: Record<string, string> = {
+  // Emirates
   abu_dhabi: "أبوظبي",
   dubai: "دبي",
   sharjah: "الشارقة",
@@ -571,7 +572,47 @@ const HUMANIZE_OVERRIDES_AR: Record<string, string> = {
   ras_al_khaimah: "رأس الخيمة",
   umm_al_quwain: "أم القيوين",
   unknown: "غير معروف",
+  // v617 — contract-type / spend-category slugs surfaced in Executive
+  // Spend-by-category and other category-grouped charts.
+  gas_spa: "اتفاقية بيع وشراء الغاز",
+  services: "خدمات",
+  service: "خدمات",
+  concession: "امتياز",
+  term_sale: "بيع لمدة محددة",
+  master_services: "خدمات إطارية",
+  vessel_charter: "تأجير سفن",
+  employment: "توظيف",
+  vendor: "موردون",
+  nda: "اتفاقية سرية",
+  consultancy: "استشارات",
+  msa: "اتفاقية رئيسية",
+  epc: "هندسة وتوريد وإنشاء",
+  // Currency / common units
+  aed: "درهم",
 };
+
+// v617 — locale-aware month-axis labels for 12-month charts. Falls back to
+// English short month if the locale lacks Intl support for the requested code.
+const AR_MONTHS_SHORT = [
+  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+];
+const EN_MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+/** Format "YYYY-MM" (or "YYYY-MM-DD") as a short month label, locale-aware. */
+export function formatMonthAxisLocalized(
+  yyyy_mm: string | null | undefined,
+  locale: string | undefined,
+): string {
+  if (!yyyy_mm) return "";
+  const parts = yyyy_mm.split("-");
+  const mm = Number.parseInt(parts[1] ?? "1", 10);
+  const idx = Math.max(1, Math.min(12, isFinite(mm) ? mm : 1)) - 1;
+  const isAr = !!locale && locale.toLowerCase().startsWith("ar");
+  return (isAr ? AR_MONTHS_SHORT : EN_MONTHS_SHORT)[idx];
+}
 
 export function humanizeLabelLocalized(
   slug: string | null | undefined,

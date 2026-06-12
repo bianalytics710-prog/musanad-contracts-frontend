@@ -30,6 +30,7 @@ import { ADMIN_GROUPS, ADMIN_SUB_NAV, CLAUSES_SUB_NAV, modulesForEffectiveSet, m
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { sidebarOrderService } from "@/services/api/sidebar-order.service";
+import { useOpenWorkOrderCount } from "@/features/work-orders/hooks/useWorkOrders";
 
 function getInitials(firstName: string | undefined, lastName: string | undefined): string {
   const first = firstName?.[0] ?? "";
@@ -135,6 +136,14 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       ? modulesForEffectiveSet(user.effectiveModules, orderOverride, roleName)
       : modulesForRole(roleName);
 
+  // M21 — My Work badge counter. Polled every 30s. Gated by sidebar presence
+  // of myWork so we don't query for roles that don't see it.
+  const showsMyWork = items.some((i) => i.key === "myWork");
+  const { data: openWorkOrderCount } = useOpenWorkOrderCount();
+  const myWorkBadge = showsMyWork && typeof openWorkOrderCount === "number" && openWorkOrderCount > 0
+    ? openWorkOrderCount
+    : 0;
+
   const initials = getInitials(user?.firstName, user?.lastName);
   const fullName = user ? `${user.firstName} ${user.lastName}` : "";
 
@@ -201,7 +210,23 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                 <Icon className="h-5 w-5 shrink-0" />
                 {!collapsed && (
                   <span className="font-medium">
-                    {t(item.labelKey, { defaultValue: item.defaultLabel })}
+                    {/* M21 mig 638 — Executive's My Work page is actually "Assigned
+                        Work" (inverse view). Swap the label without rewiring the
+                        ROLE_MODULES catalog so badging + sort order still work. */}
+                    {item.key === "myWork" && roleName === "executive"
+                      ? t("nav.assignedWork", { defaultValue: "Assigned Work" })
+                      : t(item.labelKey, { defaultValue: item.defaultLabel })}
+                  </span>
+                )}
+                {item.key === "myWork" && myWorkBadge > 0 && (
+                  <span
+                    className={cn(
+                      "ms-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--gold)] px-1.5 text-[10px] font-semibold text-white",
+                      collapsed && "absolute end-1 top-1 h-4 min-w-[16px] px-1 text-[9px]",
+                    )}
+                    aria-label={`${myWorkBadge} open work orders`}
+                  >
+                    {myWorkBadge > 99 ? "99+" : myWorkBadge}
                   </span>
                 )}
               </Link>

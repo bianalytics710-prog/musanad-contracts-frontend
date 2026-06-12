@@ -103,7 +103,8 @@ import { SubmitForApprovalDialog } from "@/features/approvals/components/SubmitF
 import { approvalService } from "@/services/api/approval.service";
 import { signatureService } from "@/services/api/signature.service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Wand2 } from "lucide-react";
+import { RequestSimilarContractDialog } from "@/features/work-orders/components/RequestSimilarContractDialog";
 import type { Contract, ContractStatus, ContractVersion, UserRef } from "@/types/entities/contract.types";
 
 type Tab =
@@ -252,6 +253,7 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
     return match ? { stepId: match.id } : null;
   }, [chainQuery.data?.steps, currentUserId, currentRoleName]);
   const [approveOpen, setApproveOpen] = useState(false);
+  const [requestSimilarOpen, setRequestSimilarOpen] = useState(false);
 
   // v611 — find the latest request_resubmission decision across the chain
   // so the drafter sees a clear callout of what the approver asked for.
@@ -470,6 +472,21 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
                   {t("contracts.detail.actions.watch", { defaultValue: "Watch" })}
                 </>
               )}
+            </Button>
+          )}
+          {/* M21 — Executive "Request similar contract". Spawns a seeded
+              draft for a chosen drafter; lands in their My Work queue. */}
+          {currentRoleName === "executive" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRequestSimilarOpen(true)}
+              className="hidden sm:inline-flex"
+              data-testid="request-similar-button"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              {t("contracts.detail.actions.requestSimilar", { defaultValue: "Request similar contract" })}
             </Button>
           )}
           {/* 2026-06-04 — single "Action" CTA. The decision (approve / reject /
@@ -1086,6 +1103,20 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
           onClose={() => setApproveOpen(false)}
         />
       )}
+
+      {/* M21 — executive Request similar dialog */}
+      <RequestSimilarContractDialog
+        open={requestSimilarOpen}
+        onOpenChange={setRequestSimilarOpen}
+        sourceContract={{
+          id: contract.id,
+          contractNumber: contract.contractNumber,
+          titleEn: contract.titleEn ?? null,
+          titleAr: contract.titleAr ?? null,
+          counterpartyName: contract.counterparty?.nameEn ?? null,
+        }}
+      />
+
 
       {/* v611 — drafter Submit-for-approval dialog. Previews the chain
           + POSTs to /contracts/:id/submit-for-approval. Triggered from
