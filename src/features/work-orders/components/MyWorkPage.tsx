@@ -31,6 +31,8 @@ import { ArrowRight, ChevronLeft, ChevronRight, Plus, Search, Wand2, Eye, Edit3 
 import { AddManualWorkOrderDialog } from "./AddManualWorkOrderDialog";
 // M21 mig 638/639 — executive variant of the page is the inverse of MyWork.
 import { AssignedByMeView } from "./AssignedByMeView";
+// Phase A (mig 640) — Legal Counsel + Approver get the unified inbox.
+import { MyWorkUnifiedInbox } from "./MyWorkUnifiedInbox";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import {
   useMyWorkOrders,
@@ -253,6 +255,13 @@ export function MyWorkPage() {
   const roleName = user?.role?.name;
   if (roleName === "executive") {
     return <AssignedByMeView />;
+  }
+  // Phase A (mig 640, 2026-06-13) — Legal Counsel + Contract Approver get the
+  // unified inbox that UNIONs approvals + risk cases + tpa reviews + advisory
+  // drafts. Drafter keeps the original work_order-only inbox below so the
+  // Compose-draft wizard + manual-stage dropdown stay intact.
+  if (roleName === "legal_counsel" || roleName === "contract_approver") {
+    return <MyWorkUnifiedInbox />;
   }
   return <MyWorkInbox />;
 }

@@ -1,0 +1,69 @@
+/**
+ * Phase A (mig 640) — My Work unified inbox API service.
+ *
+ * Wraps GET /api/v1/my-work. Returns the same envelope shape as
+ * /api/v1/work-orders so the existing MyWorkInbox table can render rows from
+ * either source. The only new field is `actionUrl` — for synthesized rows
+ * (approvals, risk cases, advisory, tpa) the inbox uses this to navigate
+ * directly to the source page rather than the work-order-detail view.
+ */
+
+import { apiClient } from "@/lib/api-client";
+import type { WorkOrderRow, WorkOrderListResponse } from "./work-orders.service";
+
+const BASE = "/api/v1/my-work";
+
+export const MY_WORK_TYPES = [
+  "contract_draft_request",
+  "contract_returned",
+  "comment_response",
+  "approval_awaiting",
+  "risk_case_assigned",
+  "third_party_review",
+  "advisory_draft",
+] as const;
+
+export type MyWorkType = (typeof MY_WORK_TYPES)[number];
+
+/**
+ * Same shape as WorkOrderRow plus actionUrl, but with a widened workOrderType
+ * union so the four new synthesized types (approval_awaiting / risk_case_
+ * assigned / third_party_review / advisory_draft) are first-class. For
+ * synthesized rows the row.id is a negative integer (per source offset, see
+ * mig 640) — the FE uses it only as a React key; navigation goes via
+ * actionUrl.
+ */
+export interface MyWorkRow extends Omit<WorkOrderRow, "workOrderType"> {
+  workOrderType: MyWorkType;
+  actionUrl: string;
+}
+
+export interface MyWorkListResponse extends Omit<WorkOrderListResponse, "data"> {
+  data: MyWorkRow[];
+}
+
+export interface ListMyWorkQuery {
+  status?: Array<"open" | "in_progress" | "completed" | "cancelled">;
+  type?: MyWorkType[];
+  search?: string;
+  limit?: number;
+  page?: number;
+}
+
+export const myWorkKeys = {
+  all: ["myWork"] as const,
+  list: (q: ListMyWorkQuery) => ["myWork", "list", q] as const,
+};
+
+export const myWorkService = {
+  list: async (q: ListMyWorkQuery = {}): Promise<MyWorkListResponse> => {
+    const params: Record<string, string> = {};
+    if (q.status?.length) params.status = q.status.join(",");
+    if (q.type?.length) params.type = q.type.join(",");
+    if (q.search) params.search = q.search;
+    if (q.limit != null) params.limit = String(q.limit);
+    if (q.page != null) params.page = String(q.page);
+    const { data } = await apiClient.get<MyWorkListResponse>(BASE, { params });
+    return data;
+  },
+};

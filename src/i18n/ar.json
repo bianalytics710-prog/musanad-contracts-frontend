@@ -9533,8 +9533,19 @@
     "types": {
       "contract_draft_request": "طلب مسودة",
       "contract_returned": "معاد",
-      "comment_response": "تعليق"
+      "comment_response": "تعليق",
+      "approval_awaiting": "موافقة معلّقة",
+      "risk_case_assigned": "حالة مخاطر",
+      "third_party_review": "مراجعة طرف ثالث",
+      "advisory_draft": "مسودة استشارية"
     },
+    "priorities": {
+      "low": "منخفض",
+      "normal": "عادي",
+      "high": "مرتفع",
+      "urgent": "عاجل"
+    },
+    "unifiedSubtitle": "كل ما هو موجّه إليك — الموافقات وحالات المخاطر ومراجعات الأطراف الثالثة والمسودات الاستشارية.",
     "filters": {
       "all": "الكل",
       "draftRequest": "طلبات الصياغة",
@@ -9552,6 +9563,7 @@
     "columns": {
       "request": "الطلب",
       "type": "النوع",
+      "priority": "الأولوية",
       "from": "من",
       "stage": "المرحلة",
       "created": "تاريخ الإنشاء",
@@ -9575,7 +9587,11 @@
       "viewProgress": "عرض التقدم",
       "editDraft": "تعديل المسودة",
       "viewContract": "عرض العقد",
-      "open": "فتح"
+      "open": "فتح",
+      "decide": "قرر",
+      "review": "راجع",
+      "openTpa": "فتح المراجعة",
+      "openAdvisory": "فتح المسودة"
     },
     "searchPlaceholder": "ابحث عن الطرف المقابل أو رقم العقد…",
     "emptyFiltered": "لا توجد مهام تطابق هذه الفلاتر.",

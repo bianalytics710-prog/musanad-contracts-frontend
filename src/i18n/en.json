@@ -9533,7 +9533,21 @@
     "types": {
       "contract_draft_request": "Draft request",
       "contract_returned": "Returned",
-      "comment_response": "Comment"
+      "comment_response": "Comment",
+      "approval_awaiting": "Approval awaiting",
+      "risk_case_assigned": "Risk case",
+      "third_party_review": "Third-party review",
+      "advisory_draft": "Advisory draft"
+    },
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "unifiedSubtitle": "Everything routed to you — approvals, risk cases, third-party reviews and advisory drafts.",
+    "columnsExtras": {
+      "priority": "Priority"
     },
     "filters": {
       "all": "All",
@@ -9552,6 +9566,7 @@
     "columns": {
       "request": "Request",
       "type": "Type",
+      "priority": "Priority",
       "from": "From",
       "stage": "Stage",
       "created": "Created",
@@ -9575,7 +9590,11 @@
       "viewProgress": "View progress",
       "editDraft": "Edit draft",
       "viewContract": "View contract",
-      "open": "Open"
+      "open": "Open",
+      "decide": "Decide",
+      "review": "Review",
+      "openTpa": "Open review",
+      "openAdvisory": "Open draft"
     },
     "searchPlaceholder": "Search counterparty, contract number…",
     "emptyFiltered": "No work orders match these filters.",

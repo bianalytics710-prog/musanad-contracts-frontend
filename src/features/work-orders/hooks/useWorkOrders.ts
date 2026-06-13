@@ -184,6 +184,29 @@ export function useCancelWorkOrder() {
   });
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Phase A (mig 640, 2026-06-13) — unified My Work inbox.
+// useMyWorkUnified returns the actor's UNION across work_order + approvals +
+// risk cases + tpa reviews + advisory drafts. Persona-aware: the BE filters
+// branches by the actor's role. Drafter's existing useMyWorkOrders hook stays
+// as-is (it powers their work_order-specific actions like Compose draft).
+// ────────────────────────────────────────────────────────────────────────────
+import {
+  myWorkService,
+  myWorkKeys,
+  type ListMyWorkQuery,
+  type MyWorkListResponse,
+} from "@/services/api/my-work.service";
+
+export function useMyWorkUnified(query: ListMyWorkQuery = {}) {
+  return useQuery<MyWorkListResponse, ApiError>({
+    queryKey: myWorkKeys.list(query),
+    queryFn: () => myWorkService.list(query),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+}
+
 export function useExtractFromSource(sourceContractId: number | null) {
   return useQuery<ExtractFromSourceResponse, ApiError>({
     queryKey: ["workOrders", "extract", sourceContractId],
