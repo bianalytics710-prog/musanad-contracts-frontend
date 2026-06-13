@@ -115,6 +115,10 @@ export type ModuleKey =
   | "legal.thirdPartyReview"
   // M19 / CR-K — Risk Cases (visible to all 7 dashboard personas)
   | "riskCases"
+  // Phase B (mig 643, 2026-06-13) — Executive Risk Triage. Tier-2 borderline
+  // alerts the engine wasn't confident enough to auto-route. Same component
+  // as /app/admin/risk-review; executive surface only.
+  | "riskTriage"
   // M20 / CR-L — Reports (visible to all)
   | "reports"
   // CR-M — Labor-Law Cascade (regulatory.cascade.read)
@@ -170,6 +174,9 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   "legal.thirdPartyReview": { key: "legal.thirdPartyReview", to: "/app/legal/third-party-review", labelKey: "nav.tpaReview", defaultLabel: "Third-Party Review", icon: ScrollText, displayOrder: 358 },
   // M19 / CR-K — Risk Cases
   riskCases: { key: "riskCases", to: "/app/risk-cases", labelKey: "nav.riskCases", defaultLabel: "Risk Cases", icon: ShieldX,      displayOrder: 360 },
+  // Phase B (mig 643, 2026-06-13) — Risk Triage sits directly after Risk
+  // Cases on the executive sidebar (per Phase B locked decision Q1).
+  riskTriage: { key: "riskTriage", to: "/app/exec/risk-triage", labelKey: "nav.riskTriage", defaultLabel: "Risk Triage", icon: ShieldCheck, displayOrder: 365 },
   // M20 / CR-L — Reports
   // Reports bumped to displayOrder 490 (2026-06-04) so it always renders
   // as the last CLM-bundle entry — sits after Budget Burn (400) and Trade
@@ -312,7 +319,7 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // M21 mig 638 — exec gets "Assigned Work" (label override at render time)
   // as the FIRST entry. The route still resolves to /app/work; the page
   // dispatches to AssignedByMeView when the role is "executive".
-  executive: ["myWork", "insights", "contracts", "regulations", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "reports"],
+  executive: ["myWork", "insights", "contracts", "regulations", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "riskTriage", "reports"],
   // CR-M — procurement_supplier_risk seeded in migration 292
   procurement_supplier_risk: [
     "insights",
@@ -515,6 +522,8 @@ export const BE_TO_FE_KEY: Readonly<Record<string, ModuleKey>> = {
   "financial.trade_margin":         "financial.tradeMargin",
   "regulatory_cascade":             "compliance.regulatoryCascade",
   "risk_cases":                     "riskCases",
+  // Phase B (mig 644) — Executive Risk Triage maps to the riskTriage FE key.
+  "risk_triage":                    "riskTriage",
   "regulatory_radar":               "radar",
   "advisory_queue":                 "legal.advisoryQueue",
   // L49 — Advisory templates BE key → FE ModuleKey
