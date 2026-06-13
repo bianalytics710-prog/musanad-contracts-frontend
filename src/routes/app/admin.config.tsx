@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Settings, ShieldCheck, Palette, Lock, Mail, Calendar, Archive } from "lucide-react";
+import { Settings, ShieldCheck, Palette, Lock, Mail, Calendar, Archive, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -32,7 +32,9 @@ type ExtendedSettingCategory =
   | 'security'
   | 'email'
   | 'calendar'
-  | 'audit_retention';
+  | 'audit_retention'
+  // Phase D (mig 646, 2026-06-13) — Risk Triage SLA thresholds.
+  | 'risk_triage';
 
 export const Route = createFileRoute("/app/admin/config")({
   component: () => (
@@ -81,6 +83,11 @@ const TAB_META: Record<
     defaultLabel: "Audit Retention",
     icon: Archive,
   },
+  risk_triage: {
+    labelKey: "admin.systemSettings.tabs.riskTriage",
+    defaultLabel: "Risk Triage",
+    icon: ShieldAlert,
+  },
 };
 
 function AdminConfigView() {
@@ -103,6 +110,7 @@ function AdminConfigView() {
       email: [],
       calendar: [],
       audit_retention: [],
+      risk_triage: [],
     };
     for (const s of settings) {
       const cat = s.category as ExtendedSettingCategory;
@@ -119,6 +127,7 @@ function AdminConfigView() {
     "email",
     "calendar",
     "audit_retention",
+    "risk_triage",
   ];
 
   return (

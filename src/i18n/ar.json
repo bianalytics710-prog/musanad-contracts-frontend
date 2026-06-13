@@ -4552,7 +4552,8 @@
         "security": "الأمان",
         "email": "البريد الإلكتروني",
         "calendar": "التقويم",
-        "auditRetention": "الاحتفاظ بسجل المراجعة"
+        "auditRetention": "الاحتفاظ بسجل المراجعة",
+        "riskTriage": "فرز المخاطر"
       }
     },
     "auditVerify": {

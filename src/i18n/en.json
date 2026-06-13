@@ -4552,7 +4552,8 @@
         "security": "Security",
         "email": "Email",
         "calendar": "Calendar",
-        "auditRetention": "Audit Retention"
+        "auditRetention": "Audit Retention",
+        "riskTriage": "Risk Triage"
       }
     },
     "auditVerify": {

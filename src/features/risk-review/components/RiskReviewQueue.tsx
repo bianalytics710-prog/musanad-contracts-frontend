@@ -28,6 +28,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Eye, ShieldCheck, ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { adminSettingsService } from '@/services/api/admin-settings.service';
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,33 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
     staleTime: 30_000,
     enabled: canManage,
   });
+
+  // Phase D (mig 646) — pull the 3 Risk Triage SLA thresholds. Per-row badge
+  // turns amber past tier2AmberHours and red past tier2RedHours. The settings
+  // call is cheap (one /admin/settings GET, shared with the admin config page).
+  // If the call fails the badges fall back to the spec defaults so the queue
+  // still renders.
+  const settingsQuery = useQuery({
+    queryKey: ['admin-settings'],
+    queryFn: () => adminSettingsService.list(),
+    staleTime: 5 * 60_000,
+    enabled: canManage,
+  });
+  const thresholds = useMemo(() => {
+    const lookup = new Map<string, unknown>();
+    for (const s of settingsQuery.data?.settings ?? []) {
+      lookup.set(s.key, s.value);
+    }
+    const parseInt = (v: unknown, fallback: number): number => {
+      const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+    };
+    return {
+      amberHours: parseInt(lookup.get('tier2AmberHours'), 72),
+      redHours: parseInt(lookup.get('tier2RedHours'), 168),
+      autoEscalateDays: parseInt(lookup.get('tier2AutoEscalateDays'), 14),
+    };
+  }, [settingsQuery.data]);
 
   const rows: RiskReviewRow[] = useMemo(() => data?.rows ?? [], [data]);
 
@@ -325,6 +353,25 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
           {rows.map((row) => {
             const id = Number(row.id);
             const isSelected = selected.has(id);
+            // Phase D — compute aging tone vs configured thresholds.
+            const createdMs = Date.parse(row.created_at);
+            const ageHours = Number.isFinite(createdMs)
+              ? Math.max(0, Math.floor((Date.now() - createdMs) / 3_600_000))
+              : null;
+            const ageDays = ageHours != null ? Math.floor(ageHours / 24) : null;
+            const isAuto = ageDays != null && ageDays >= thresholds.autoEscalateDays;
+            const isRed   = ageHours != null && ageHours >= thresholds.redHours;
+            const isAmber = !isRed && ageHours != null && ageHours >= thresholds.amberHours;
+            const ageBadgeClass = isRed
+              ? 'bg-[var(--terracotta)]/15 text-[var(--terracotta)] border-[var(--terracotta)]/40'
+              : isAmber
+              ? 'bg-[var(--gold)]/15 text-foreground border-[var(--gold)]/40'
+              : 'bg-muted text-muted-foreground border-transparent';
+            const ageLabel = ageHours == null
+              ? null
+              : ageHours < 24
+              ? t('riskReview.ageHours', { defaultValue: 'Age {{h}}h', h: ageHours })
+              : t('riskReview.ageDays', { defaultValue: 'Age {{d}}d', d: ageDays });
             return (
               <li
                 key={row.id}
@@ -347,6 +394,19 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
                     <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber">
                       {t('riskReview.tier2Badge', { defaultValue: 'Tier 2 · Review' })}
                     </span>
+                    {ageLabel && (
+                      <span className={cn(
+                        'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                        ageBadgeClass,
+                      )}>
+                        {ageLabel}
+                      </span>
+                    )}
+                    {isAuto && (
+                      <span className="rounded-full bg-[var(--terracotta)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--terracotta)]">
+                        {t('riskReview.autoEscalated', { defaultValue: 'Auto-escalated' })}
+                      </span>
+                    )}
                   </div>
                   {row.description && <p className="mb-2 text-sm text-ink-muted">{row.description}</p>}
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-subtle">
