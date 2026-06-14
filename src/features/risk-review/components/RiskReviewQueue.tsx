@@ -297,16 +297,6 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
           aria-labelledby="risk-triage-tier2-tab"
           className="space-y-4"
         >
-          <div className="rounded-lg border border-amber/30 bg-amber/5 p-3 text-xs text-ink">
-            <p>
-              <strong>{t('riskReview.howItWorks', { defaultValue: 'How this queue is populated' })}:</strong>{' '}
-              {t('riskReview.howItWorksBody', {
-                defaultValue:
-                  'Correlations with confidence ≥ 0.85 AND a matching rule auto-route directly to specialist queues (Tier 1). Anything with confidence 0.60–0.85 OR no matching rule lands here for review (Tier 2). Below 0.60 confidence is suppressed entirely (Tier 3) — see Risk routing for the rule list.',
-              })}
-            </p>
-          </div>
-
           {tier2Rows.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <button
@@ -391,16 +381,6 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
           aria-labelledby="risk-triage-tier1-tab"
           className="space-y-4"
         >
-          <div className="rounded-lg border border-sage/30 bg-sage/5 p-3 text-xs text-ink">
-            <p>
-              <strong>{t('riskTriage.tier1.howItWorks', { defaultValue: 'Tier-1 oversight' })}:</strong>{' '}
-              {t('riskTriage.tier1.howItWorksBody', {
-                defaultValue:
-                  'These cases were auto-routed by the engine — confidence ≥ 0.85 AND a matching rule. They\'re shown here so you can override the receiver (reassign), or close a row as noise if the signal turned out to be wrong. Reassign locks once the receiver has started.',
-              })}
-            </p>
-          </div>
-
           {tier1Query.isLoading && (
             <div className="space-y-2">
               {[...Array(3)].map((_, i) => (
