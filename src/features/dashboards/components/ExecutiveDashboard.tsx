@@ -303,10 +303,6 @@ export function ExecutiveDashboard() {
               open={criticalImpactOpen}
               onToggle={() => setCriticalImpactOpen((prev) => !prev)}
             />
-            {/* Phase B (mig 643, 2026-06-13) — Risk Triage tile.
-                Counts borderline risk-case alerts (Tier-2) waiting for the
-                executive's judgement. Click navigates to /app/exec/risk-triage. */}
-            <RiskTriageTile />
           </section>
 
           {/* Inline Critical Impact frame — collapses below the KPI strip
@@ -1082,68 +1078,6 @@ function formatCountDelta(
     defaultValue: `${display} vs prev`,
     n: display,
   });
-}
-
-// ─── RiskTriageTile (Phase B) ─────────────────────────────────────────
-/**
- * Counter tile for borderline risk-case alerts (Tier-2) that the engine
- * routed to the executive for manual judgement. Reuses the same list
- * endpoint the /app/exec/risk-triage page consumes — derives openCount +
- * oldestAgeDays client-side so we don't add a new BE endpoint. Click
- * navigates to the queue itself. Stays a neutral tile when zero so it
- * doesn't compete with Critical Impact for attention.
- */
-function RiskTriageTile() {
-  const { t } = useTranslation();
-  const { data } = useQuery({
-    queryKey: ["riskTriageSummary"],
-    queryFn: () =>
-      import("@/services/api/risk-review.service").then((m) =>
-        m.riskReviewService.list(50),
-      ),
-    staleTime: 60_000,
-  });
-  const rows = data?.rows ?? [];
-  const openCount = rows.length;
-  const oldestAgeDays = useMemo(() => {
-    if (rows.length === 0) return null;
-    const now = Date.now();
-    let max = 0;
-    for (const r of rows) {
-      const ts = Date.parse(r.created_at);
-      if (!Number.isFinite(ts)) continue;
-      const ageDays = Math.floor((now - ts) / 86400000);
-      if (ageDays > max) max = ageDays;
-    }
-    return max;
-  }, [rows]);
-  const helper =
-    oldestAgeDays != null && openCount > 0
-      ? t("dashboards.executive.kpis.riskTriageOldest", {
-          defaultValue: "Oldest {{n}}d",
-          n: oldestAgeDays,
-        })
-      : undefined;
-  return (
-    <Link
-      to="/app/exec/risk-triage"
-      aria-label={t("dashboards.executive.kpis.openRiskTriageAria", {
-        defaultValue: "Open Risk Triage ({{count}} pending)",
-        count: openCount,
-      })}
-      className="block h-full w-full text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-lg"
-    >
-      <KpiTile
-        label={t("dashboards.executive.kpis.riskTriage", {
-          defaultValue: "Risk Triage",
-        })}
-        value={formatNumber(openCount)}
-        helper={helper}
-        variant={openCount > 0 ? "risk" : "default"}
-        className="h-full"
-      />
-    </Link>
-  );
 }
 
 // ─── CriticalImpactTile ────────────────────────────────────────────────
