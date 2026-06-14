@@ -256,11 +256,22 @@ export function MyWorkPage() {
   if (roleName === "executive") {
     return <AssignedByMeView />;
   }
-  // Phase A (mig 640, 2026-06-13) — Legal Counsel + Contract Approver get the
-  // unified inbox that UNIONs approvals + risk cases + tpa reviews + advisory
-  // drafts. Drafter keeps the original work_order-only inbox below so the
-  // Compose-draft wizard + manual-stage dropdown stay intact.
-  if (roleName === "legal_counsel" || roleName === "contract_approver") {
+  // Phase A (mig 640) — Legal Counsel + Contract Approver get the unified
+  // inbox that UNIONs approvals + risk cases + tpa reviews + advisory drafts.
+  // Phase E.7 (mig 654, 2026-06-13) widens to operations / compliance_esg /
+  // finance_treasury / procurement_supplier_risk so noise-dismiss + reassign
+  // notifications land somewhere the receiver actually sees. Drafter keeps
+  // the original work_order-only inbox below so the Compose-draft wizard +
+  // manual-stage dropdown stay intact.
+  const UNIFIED_INBOX_ROLES = new Set([
+    "legal_counsel",
+    "contract_approver",
+    "operations",
+    "compliance_esg",
+    "finance_treasury",
+    "procurement_supplier_risk",
+  ]);
+  if (roleName && UNIFIED_INBOX_ROLES.has(roleName)) {
     return <MyWorkUnifiedInbox />;
   }
   return <MyWorkInbox />;
