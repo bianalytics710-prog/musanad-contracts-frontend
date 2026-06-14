@@ -46,6 +46,10 @@ import type {
   AssignedByMeRow,
   WorkOrderType,
 } from "@/services/api/work-orders.service";
+import {
+  riskReviewService,
+  type RiskAssignedByMeRow,
+} from "@/services/api/risk-review.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -168,6 +172,32 @@ function FilterSelect<T extends string | number>({
 
 const PAGE_SIZE = 20;
 
+// ─── Merged row model — risk cases + work orders in one table ────────────
+// Discriminated union; kind picks which side the row comes from. The
+// `stage` field is normalised so the existing STAGE_TONE / humaniseStage
+// helpers work for both. The Type column reads from kind directly for
+// risk rows (Risk Assigned / Risk Reassigned) and from wo.workOrderType
+// for work-order rows. `createdAt` is the unified sort key — wo.createdAt
+// for work-orders, risk row.action_at (timestamp of promote/reassign).
+type MergedRow =
+  | { kind: "work_order"; id: string; createdAt: string; wo: AssignedByMeRow; stage: Stage; stale: boolean }
+  | { kind: "risk_promoted" | "risk_reassigned"; id: string; createdAt: string; rc: RiskAssignedByMeRow; stage: Stage };
+
+/** Map risk_case.status → the existing AssignedByMeView Stage taxonomy. */
+function riskStatusToStage(status: string): Stage {
+  switch (status) {
+    case "open":         return "not_started";
+    case "in_review":    return "draft_in_progress";
+    case "snoozed":      return "returned";
+    case "closed":
+    case "accept_risk":  return "completed";
+    default:             return "not_started";
+  }
+}
+
+/** Extended type-filter union: work-order types + the two risk kinds. */
+type AssignedTypeFilter = "all" | WorkOrderType | "risk_assigned" | "risk_reassigned";
+
 // ─── Main view ───────────────────────────────────────────────────────────
 export function AssignedByMeView() {
   const { t, i18n } = useTranslation();
@@ -175,23 +205,35 @@ export function AssignedByMeView() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | WorkOrderType>("all");
+  const [typeFilter, setTypeFilter] = useState<AssignedTypeFilter>("all");
   const [stageFilter, setStageFilter] = useState<"all" | Stage>("all");
   const [ownerFilter, setOwnerFilter] = useState<"all" | string>("all");
   const [sort, setSort] = useState<"createdDesc" | "createdAsc">("createdDesc");
   const [page, setPage] = useState(1);
 
-  // Reset to page 1 whenever a server-side filter changes.
+  // Reset to page 1 whenever any filter changes.
   useEffect(() => {
     setPage(1);
-  }, [typeFilter, ownerFilter]);
+  }, [typeFilter, ownerFilter, stageFilter, search]);
 
+  // Fetch work-orders without server-side type/owner filtering — both now
+  // happen client-side after the merge, so the query stays stable and just
+  // re-paginates instead of refetching per dropdown change. Eman has ~16
+  // work-orders today; limit=200 is generous headroom.
   const listQuery = useAssignedByMeWorkOrders({
     status: ["open", "in_progress", "completed"],
-    type: typeFilter === "all" ? undefined : [typeFilter],
-    ownerId: ownerFilter === "all" ? undefined : Number(ownerFilter),
-    limit: PAGE_SIZE,
-    page,
+    type: undefined,
+    ownerId: undefined,
+    limit: 200,
+    page: 1,
+  });
+  // Risk-cases the actor promoted / reassigned / created. Same envelope shape
+  // as risk-review list endpoints; this is the data that powered the old
+  // standalone section that lived below the table.
+  const riskQuery = useQuery({
+    queryKey: ["riskCasesAssignedByMe", 50],
+    queryFn: () => riskReviewService.assignedByMe(50),
+    staleTime: 30_000,
   });
   const ownerOptionsQuery = useOwnerOptions();
 
@@ -201,52 +243,101 @@ export function AssignedByMeView() {
   const [reassignTarget, setReassignTarget] = useState<AssignedByMeRow | null>(null);
   const [cancelTarget, setCancelTarget] = useState<AssignedByMeRow | null>(null);
 
-  const rows = listQuery.data?.data ?? [];
-  const totalPages = Math.max(1, listQuery.data?.totalPages ?? 1);
-  const totalCount = listQuery.data?.totalCount ?? rows.length;
-  const pageSize = listQuery.data?.pageSize ?? PAGE_SIZE;
+  const woRows = listQuery.data?.data ?? [];
+  const rcRows = riskQuery.data?.rows ?? [];
 
-  const enriched = useMemo(
-    () =>
-      rows.map((wo) => ({
-        wo,
-        stage: deriveStage(wo),
-        stale: isStale(wo),
-      })),
-    [rows],
-  );
+  // Merge both sources into a discriminated union. Risk rows use action_at
+  // as their createdAt so freshly-routed cases sit alongside fresh
+  // work-orders in the sort order.
+  const merged: MergedRow[] = useMemo(() => {
+    const wo: MergedRow[] = woRows.map((row) => ({
+      kind: "work_order",
+      id: `wo-${row.id}`,
+      createdAt: row.createdAt,
+      wo: row,
+      stage: deriveStage(row),
+      stale: isStale(row),
+    }));
+    const rc: MergedRow[] = rcRows.map((row) => ({
+      kind: row.action_kind === "reassigned" ? "risk_reassigned" : "risk_promoted",
+      id: `rc-${row.id}`,
+      createdAt: row.action_at,
+      rc: row,
+      stage: riskStatusToStage(row.status),
+    }));
+    return [...wo, ...rc];
+  }, [woRows, rcRows]);
 
-  // Apply client-side filters (search + stage)
+  // Apply all four filters client-side.
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    return enriched.filter(({ wo, stage }) => {
-      if (stageFilter !== "all" && stage !== stageFilter) return false;
-      if (!needle) return true;
-      const hay = [
-        wo.counterpartyName,
-        wo.sourceContractNumber,
-        wo.targetContractNumber,
-        wo.sourceContractTitleEn,
-        wo.targetContractTitleEn,
-        wo.assignedToName,
-        (wo.payload?.instructionNote as string | undefined) ?? null,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(needle);
+    return merged.filter((row) => {
+      // ── Type filter
+      if (typeFilter !== "all") {
+        if (typeFilter === "risk_assigned") {
+          if (row.kind !== "risk_promoted") return false;
+        } else if (typeFilter === "risk_reassigned") {
+          if (row.kind !== "risk_reassigned") return false;
+        } else {
+          // work_order type
+          if (row.kind !== "work_order") return false;
+          if (row.wo.workOrderType !== typeFilter) return false;
+        }
+      }
+      // ── Stage filter (normalised on both sides via the Stage union)
+      if (stageFilter !== "all" && row.stage !== stageFilter) return false;
+      // ── Owner filter (drafter id; risk rows compare via assigned_user_id)
+      if (ownerFilter !== "all") {
+        const ownerId = Number(ownerFilter);
+        if (row.kind === "work_order") {
+          if (Number((row.wo as unknown as { assignedToUserId?: number }).assignedToUserId) !== ownerId) return false;
+        } else {
+          if (Number(row.rc.assigned_user_id) !== ownerId) return false;
+        }
+      }
+      // ── Search
+      if (needle) {
+        const hay = row.kind === "work_order"
+          ? [
+              row.wo.counterpartyName,
+              row.wo.sourceContractNumber,
+              row.wo.targetContractNumber,
+              row.wo.sourceContractTitleEn,
+              row.wo.targetContractTitleEn,
+              row.wo.assignedToName,
+              (row.wo.payload?.instructionNote as string | undefined) ?? null,
+            ].filter(Boolean).join(" ").toLowerCase()
+          : [
+              row.rc.title,
+              row.rc.contract_number,
+              row.rc.counterparty_name,
+              row.rc.assigned_user_name,
+              row.rc.assigned_role,
+            ].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      return true;
     });
-  }, [enriched, search, stageFilter]);
+  }, [merged, search, typeFilter, stageFilter, ownerFilter]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
     copy.sort((a, b) => {
-      const aMs = Date.parse(a.wo.createdAt);
-      const bMs = Date.parse(b.wo.createdAt);
+      const aMs = Date.parse(a.createdAt);
+      const bMs = Date.parse(b.createdAt);
       return sort === "createdDesc" ? bMs - aMs : aMs - bMs;
     });
     return copy;
   }, [filtered, sort]);
+
+  // ── Client-side pagination on the merged + filtered + sorted list.
+  const pageSize = PAGE_SIZE;
+  const totalCount = sorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pageRows = useMemo(
+    () => sorted.slice((page - 1) * pageSize, page * pageSize),
+    [sorted, page, pageSize],
+  );
 
   // ─── Dropdown options ─────────────────────────────────────────────────
   const stageOptions: Array<{ value: "all" | Stage; label: string }> = [
@@ -258,8 +349,10 @@ export function AssignedByMeView() {
     { value: "completed", label: t("myWork.stages.completed", { defaultValue: "Completed" }) },
   ];
 
-  const typeOptions: Array<{ value: "all" | WorkOrderType; label: string }> = [
+  const typeOptions: Array<{ value: AssignedTypeFilter; label: string }> = [
     { value: "all", label: t("assignedWork.filters.allTypes", { defaultValue: "All types" }) },
+    { value: "risk_assigned", label: t("assignedWork.types.risk_assigned", { defaultValue: "Risk Assigned" }) },
+    { value: "risk_reassigned", label: t("assignedWork.types.risk_reassigned", { defaultValue: "Risk Reassigned" }) },
     { value: "contract_draft_request", label: t("myWork.types.contract_draft_request", { defaultValue: "Draft request" }) },
     { value: "contract_returned", label: t("myWork.types.contract_returned", { defaultValue: "Returned" }) },
     { value: "comment_response", label: t("myWork.types.comment_response", { defaultValue: "Comment" }) },
@@ -274,7 +367,7 @@ export function AssignedByMeView() {
   ];
 
   // ─── Empty state ──────────────────────────────────────────────────────
-  const isEmptyTotal = !listQuery.isLoading && rows.length === 0;
+  const isEmptyTotal = !listQuery.isLoading && !riskQuery.isLoading && merged.length === 0;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -338,7 +431,7 @@ export function AssignedByMeView() {
           font-mono uppercase column labels + border-b row separators. */}
       <Card>
         <CardContent className="p-0">
-          {listQuery.isLoading ? (
+          {(listQuery.isLoading || riskQuery.isLoading) ? (
             <div className="space-y-3 p-4">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />
@@ -396,120 +489,189 @@ export function AssignedByMeView() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map(({ wo, stage, stale }) => {
-                  const counterparty =
-                    (wo.payload?.counterpartyName as string | undefined) ??
-                    wo.counterpartyName ??
-                    null;
-                  const instruction =
-                    (wo.payload?.instructionNote as string | undefined) ?? null;
-                  const isManual = wo.payload?.origin === "manual";
-                  const requestHeadline = isManual
-                    ? instruction ?? counterparty ?? "—"
-                    : counterparty ?? instruction ?? "—";
-                  const sourceTitle = isAr
-                    ? wo.sourceContractTitleAr
-                    : wo.sourceContractTitleEn;
-                  const stageLabel = t(`myWork.stages.${stage}`, {
-                    defaultValue: humaniseStage(stage),
+                {pageRows.map((row) => {
+                  const stageLabel = t(`myWork.stages.${row.stage}`, {
+                    defaultValue: humaniseStage(row.stage),
                   });
-                  const canAct = wo.status !== "completed" && wo.status !== "cancelled";
+                  // ─── Work-order row ────────────────────────────────────
+                  if (row.kind === "work_order") {
+                    const wo = row.wo;
+                    const counterparty =
+                      (wo.payload?.counterpartyName as string | undefined) ??
+                      wo.counterpartyName ??
+                      null;
+                    const instruction =
+                      (wo.payload?.instructionNote as string | undefined) ?? null;
+                    const isManual = wo.payload?.origin === "manual";
+                    const requestHeadline = isManual
+                      ? instruction ?? counterparty ?? "—"
+                      : counterparty ?? instruction ?? "—";
+                    const sourceTitle = isAr
+                      ? wo.sourceContractTitleAr
+                      : wo.sourceContractTitleEn;
+                    const canAct = wo.status !== "completed" && wo.status !== "cancelled";
+                    return (
+                      <tr
+                        key={row.id}
+                        className={cn(
+                          "group border-b border-border/60 transition-colors hover:bg-surface/50",
+                          row.stale && "bg-[var(--gold)]/[0.06]",
+                        )}
+                      >
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex items-start gap-2">
+                            <div className="font-medium text-ink line-clamp-2">
+                              {requestHeadline}
+                            </div>
+                            {row.stale && (
+                              <span
+                                className="rounded-md border border-[var(--gold)]/50 bg-[var(--gold)]/15 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink"
+                                title={t("assignedWork.staleHint", {
+                                  defaultValue:
+                                    "Not started for {{days}}+ days — consider nudging the owner.",
+                                  days: STALE_DAYS,
+                                })}
+                              >
+                                {t("assignedWork.stale", { defaultValue: "Stale" })}
+                              </span>
+                            )}
+                          </div>
+                          {sourceTitle && (
+                            <div className="text-xs text-ink-muted line-clamp-1">
+                              {t("myWork.basedOn", { defaultValue: "Based on" })}{" "}
+                              <span className="font-mono">{wo.sourceContractNumber}</span>
+                              <span className="mx-1">·</span>
+                              {sourceTitle}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 align-top text-ink-muted">
+                          <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[11px] tracking-wider">
+                            {t(`myWork.types.${wo.workOrderType}`, {
+                              defaultValue: wo.workOrderType,
+                            })}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 align-top text-ink/80">
+                          {wo.assignedToName ?? "—"}
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-normal",
+                              STAGE_TONE[row.stage],
+                            )}
+                          >
+                            {stageLabel}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 align-top text-ink-muted whitespace-nowrap font-mono text-xs">
+                          {formatCreatedDate(wo.createdAt)}
+                        </td>
+                        <td className="px-4 py-3 align-top text-center">
+                          <RowActionsMenu
+                            open={actionRowId === wo.id}
+                            onToggle={() =>
+                              setActionRowId((id) => (id === wo.id ? null : wo.id))
+                            }
+                            onClose={() => setActionRowId(null)}
+                            canAct={canAct}
+                            onView={() => {
+                              const target = wo.targetContractId ?? wo.sourceContractId;
+                              if (target) {
+                                setActionRowId(null);
+                                void navigate({
+                                  to: "/app/contracts/$id",
+                                  params: { id: String(target) },
+                                });
+                              }
+                            }}
+                            onNudge={() => {
+                              setActionRowId(null);
+                              setNudgeTarget(wo);
+                            }}
+                            onReassign={() => {
+                              setActionRowId(null);
+                              setReassignTarget(wo);
+                            }}
+                            onCancel={() => {
+                              setActionRowId(null);
+                              setCancelTarget(wo);
+                            }}
+                            labels={{
+                              view: t("assignedWork.actions.view", { defaultValue: "View contract" }),
+                              nudge: t("assignedWork.actions.nudge", { defaultValue: "Nudge owner" }),
+                              reassign: t("assignedWork.actions.reassign", { defaultValue: "Reassign" }),
+                              cancel: t("assignedWork.actions.cancel", { defaultValue: "Cancel work order" }),
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  }
 
+                  // ─── Risk-case row (kind = risk_promoted | risk_reassigned) ───
+                  const rc = row.rc;
+                  const typeLabel = row.kind === "risk_reassigned"
+                    ? t("assignedWork.types.risk_reassigned", { defaultValue: "Risk Reassigned" })
+                    : t("assignedWork.types.risk_assigned",   { defaultValue: "Risk Assigned" });
+                  const typeTone = row.kind === "risk_reassigned"
+                    ? "bg-[var(--gold)]/15 text-foreground"
+                    : "bg-[var(--sage)]/15 text-[var(--sage)]";
                   return (
                     <tr
-                      key={wo.id}
-                      className={cn(
-                        "group border-b border-border/60 transition-colors hover:bg-surface/50",
-                        stale && "bg-[var(--gold)]/[0.06]",
-                      )}
+                      key={row.id}
+                      className="group border-b border-border/60 transition-colors hover:bg-surface/50"
                     >
                       <td className="px-4 py-3 align-top">
-                        <div className="flex items-start gap-2">
-                          <div className="font-medium text-ink line-clamp-2">
-                            {requestHeadline}
-                          </div>
-                          {stale && (
-                            <span
-                              className="rounded-md border border-[var(--gold)]/50 bg-[var(--gold)]/15 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink"
-                              title={t("assignedWork.staleHint", {
-                                defaultValue:
-                                  "Not started for {{days}}+ days — consider nudging the owner.",
-                                days: STALE_DAYS,
-                              })}
-                            >
-                              {t("assignedWork.stale", { defaultValue: "Stale" })}
-                            </span>
-                          )}
-                        </div>
-                        {sourceTitle && (
+                        <div className="font-medium text-ink line-clamp-2">{rc.title}</div>
+                        {rc.contract_number && (
                           <div className="text-xs text-ink-muted line-clamp-1">
-                            {t("myWork.basedOn", { defaultValue: "Based on" })}{" "}
-                            <span className="font-mono">{wo.sourceContractNumber}</span>
-                            <span className="mx-1">·</span>
-                            {sourceTitle}
+                            <span className="font-mono">{rc.contract_number}</span>
+                            {rc.counterparty_name && (
+                              <>
+                                <span className="mx-1">·</span>
+                                {rc.counterparty_name}
+                              </>
+                            )}
                           </div>
                         )}
                       </td>
                       <td className="px-4 py-3 align-top text-ink-muted">
-                        <span className="rounded-md bg-surface px-2 py-0.5 font-mono text-[11px] tracking-wider">
-                          {t(`myWork.types.${wo.workOrderType}`, {
-                            defaultValue: wo.workOrderType,
-                          })}
+                        <span className={cn("rounded-md px-2 py-0.5 font-mono text-[11px] tracking-wider", typeTone)}>
+                          {typeLabel}
                         </span>
                       </td>
                       <td className="px-4 py-3 align-top text-ink/80">
-                        {wo.assignedToName ?? "—"}
+                        {rc.assigned_user_name ?? rc.assigned_role ?? "—"}
                       </td>
                       <td className="px-4 py-3 align-top">
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-normal",
-                            STAGE_TONE[stage],
+                            STAGE_TONE[row.stage],
                           )}
                         >
                           {stageLabel}
                         </span>
                       </td>
                       <td className="px-4 py-3 align-top text-ink-muted whitespace-nowrap font-mono text-xs">
-                        {formatCreatedDate(wo.createdAt)}
+                        {formatCreatedDate(rc.action_at)}
                       </td>
                       <td className="px-4 py-3 align-top text-center">
-                        <RowActionsMenu
-                          open={actionRowId === wo.id}
-                          onToggle={() =>
-                            setActionRowId((id) => (id === wo.id ? null : wo.id))
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            void navigate({
+                              to: "/app/risk-cases/$caseId",
+                              params: { caseId: rc.id },
+                            })
                           }
-                          onClose={() => setActionRowId(null)}
-                          canAct={canAct}
-                          onView={() => {
-                            const target = wo.targetContractId ?? wo.sourceContractId;
-                            if (target) {
-                              setActionRowId(null);
-                              void navigate({
-                                to: "/app/contracts/$id",
-                                params: { id: String(target) },
-                              });
-                            }
-                          }}
-                          onNudge={() => {
-                            setActionRowId(null);
-                            setNudgeTarget(wo);
-                          }}
-                          onReassign={() => {
-                            setActionRowId(null);
-                            setReassignTarget(wo);
-                          }}
-                          onCancel={() => {
-                            setActionRowId(null);
-                            setCancelTarget(wo);
-                          }}
-                          labels={{
-                            view: t("assignedWork.actions.view", { defaultValue: "View contract" }),
-                            nudge: t("assignedWork.actions.nudge", { defaultValue: "Nudge owner" }),
-                            reassign: t("assignedWork.actions.reassign", { defaultValue: "Reassign" }),
-                            cancel: t("assignedWork.actions.cancel", { defaultValue: "Cancel work order" }),
-                          }}
-                        />
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          {t("common.view", { defaultValue: "View" })}
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -531,7 +693,7 @@ export function AssignedByMeView() {
               to: Math.min(page * pageSize, totalCount),
               total: totalCount,
             })}
-            {sorted.length !== rows.length && (
+            {sorted.length !== merged.length && (
               <span className="ms-1 text-muted-foreground/70">
                 {t("myWork.pagination.localMatch", {
                   defaultValue: "({{visible}} match local filters)",
@@ -593,13 +755,6 @@ export function AssignedByMeView() {
           onClose={() => setCancelTarget(null)}
         />
       )}
-
-      {/* Gap 3 (mig 658) — Risk cases the executive promoted / reassigned /
-          created. Today the work-order table above is silent about Phase E
-          risk routing, so this section sits below as a second card. */}
-      <div className="mt-8">
-        <RiskCasesAssignedByMeSection />
-      </div>
     </div>
   );
 }
@@ -1016,125 +1171,3 @@ function CancelDialog({
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Gap 3 (mig 658) — Risk Cases I Assigned section
-// ────────────────────────────────────────────────────────────────────────────
-function RiskCasesAssignedByMeSection() {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const q = useQuery({
-    queryKey: ["riskCasesAssignedByMe", 25],
-    queryFn: () =>
-      import("@/services/api/risk-review.service").then((m) =>
-        m.riskReviewService.assignedByMe(25),
-      ),
-    staleTime: 30_000,
-  });
-  const rows = q.data?.rows ?? [];
-  const ACTION_TONE: Record<string, string> = {
-    promoted:   "bg-[var(--sage)]/15 text-[var(--sage)]",
-    reassigned: "bg-[var(--gold)]/15 text-foreground",
-    created:    "bg-blue-500/10 text-blue-700",
-    other:      "bg-surface text-ink-muted",
-  };
-  return (
-    <Card>
-      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">
-            {t("assignedWork.riskCases.title", { defaultValue: "Risk cases I assigned" })}
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t("assignedWork.riskCases.subtitle", {
-              defaultValue:
-                "Risk Triage actions you initiated — promoted to a specialist team, reassigned to a different person, or created manually.",
-            })}
-          </p>
-        </div>
-        <span className="text-xs text-muted-foreground">{rows.length}</span>
-      </div>
-      <CardContent className="p-0">
-        {q.isLoading ? (
-          <div className="space-y-2 p-4">
-            {[0, 1].map((i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : q.isError ? (
-          <p className="p-4 text-sm text-[var(--terracotta)]">
-            {t("assignedWork.riskCases.loadError", { defaultValue: "Couldn't load your risk-case actions." })}
-          </p>
-        ) : rows.length === 0 ? (
-          <p className="p-6 text-center text-sm text-muted-foreground">
-            {t("assignedWork.riskCases.empty", {
-              defaultValue: "Nothing yet — promote a Tier-2 case or reassign a Tier-1 case from Risk Triage to populate this list.",
-            })}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-surface">
-                <tr className="text-left">
-                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("assignedWork.riskCases.col.case", { defaultValue: "Case" })}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("assignedWork.riskCases.col.action", { defaultValue: "Action" })}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("assignedWork.riskCases.col.owner", { defaultValue: "Current owner" })}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("assignedWork.riskCases.col.status", { defaultValue: "Status" })}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("assignedWork.riskCases.col.when", { defaultValue: "When" })}
-                  </th>
-                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle text-center">
-                    {t("assignedWork.riskCases.col.open", { defaultValue: "Open" })}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-border/60 transition-colors hover:bg-surface/50">
-                    <td className="px-4 py-2 align-top">
-                      <div className="font-medium text-ink line-clamp-2">{r.title}</div>
-                      {r.contract_number && (
-                        <div className="font-mono text-[11px] text-ink-muted">
-                          {r.contract_number}{r.counterparty_name ? " · " + r.counterparty_name : ""}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 align-top">
-                      <span className={`rounded-md px-2 py-0.5 font-mono text-[11px] tracking-wider ${ACTION_TONE[r.action_kind] ?? ACTION_TONE.other}`}>
-                        {r.action_kind}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 align-top text-ink/80">
-                      {r.assigned_user_name ?? (r.assigned_role ?? "—")}
-                    </td>
-                    <td className="px-4 py-2 align-top text-ink-muted">{r.status}</td>
-                    <td className="px-4 py-2 align-top text-ink-muted whitespace-nowrap font-mono text-xs">
-                      {formatCreatedDate(r.action_at)}
-                    </td>
-                    <td className="px-4 py-2 align-top text-center">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void navigate({ to: "/app/risk-cases/$caseId", params: { caseId: r.id } })}
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        {t("common.view", { defaultValue: "View" })}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
