@@ -504,12 +504,25 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
                       </option>
                     )}
                   </select>
-                  <p className="mt-1 text-[11px] text-ink-subtle">
-                    {t('riskReview.confirmModal.dropdownHint', {
-                      defaultValue:
-                        'Override the suggestion by picking any active user in the target role.',
-                    })}
-                  </p>
+                  {/* Clean-workflow rule: assign must pin a real person.
+                      If the target role has no candidates today, surface the
+                      next step (use Reassign on the Risk Cases page) rather
+                      than letting the executive promote a half-state row. */}
+                  {!suggestQuery.isLoading && (suggestQuery.data?.rows ?? []).length === 0 ? (
+                    <p className="mt-1 text-[11px] text-[var(--terracotta)]">
+                      {t('riskReview.confirmModal.noPeopleHelper', {
+                        defaultValue:
+                          'No one in this role to assign to. Use Reassign from the Risk Cases list to route to a different role / person.',
+                      })}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-ink-subtle">
+                      {t('riskReview.confirmModal.dropdownHint', {
+                        defaultValue:
+                          'Override the suggestion by picking any active user in the target role.',
+                      })}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -543,20 +556,29 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
             <Button
               type="button"
               onClick={() => {
-                if (confirming) {
-                  const userId = pickedAssigneeId ? Number(pickedAssigneeId) : null;
-                  promoteOne.mutate(
-                    { id: Number(confirming.id), userId },
-                    {
-                      onSuccess: () => {
-                        setConfirming(null);
-                        setPickedAssigneeId('');
-                      },
+                if (!confirming || !pickedAssigneeId) return;
+                promoteOne.mutate(
+                  { id: Number(confirming.id), userId: Number(pickedAssigneeId) },
+                  {
+                    onSuccess: () => {
+                      setConfirming(null);
+                      setPickedAssigneeId('');
                     },
-                  );
-                }
+                  },
+                );
               }}
-              disabled={promoteOne.isPending}
+              /* Clean-workflow rule: Assign must pin a person. Block the
+                 click when the dropdown is empty (loading, no candidates,
+                 or user hasn't picked yet). The DB layer (mig 660) also
+                 enforces this as defence in depth. */
+              disabled={promoteOne.isPending || !pickedAssigneeId}
+              title={
+                !pickedAssigneeId
+                  ? t('riskReview.confirmModal.pickPersonHint', {
+                      defaultValue: 'Pick a person from the dropdown to enable Assign.',
+                    })
+                  : undefined
+              }
             >
               {promoteOne.isPending
                 ? t('common.submitting', { defaultValue: 'Assigning…' })

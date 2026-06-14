@@ -50,7 +50,6 @@ import {
   riskReviewService,
   type RiskAssignedByMeRow,
 } from "@/services/api/risk-review.service";
-import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -619,21 +618,11 @@ export function AssignedByMeView() {
                   const typeTone = row.kind === "risk_reassigned"
                     ? "bg-[var(--gold)]/15 text-foreground"
                     : "bg-[var(--sage)]/15 text-[var(--sage)]";
-                  // Owner fallback: prefer the actual pinned user; if no user
-                  // is set (Eman promoted to a role queue without picking a
-                  // person), humanise the role + show a small "(role queue)"
-                  // helper so the row isn't ambiguously blank.
+                  // mig 662 guarantees assigned_user_name is non-null here
+                  // (Assigned Work only returns person-assigned rows). Fall
+                  // back to a long-dash if some edge case slips through.
                   const ownerCell = rc.assigned_user_name
                     ? <span>{rc.assigned_user_name}</span>
-                    : rc.assigned_role
-                    ? (
-                        <span className="text-ink/80">
-                          {humanizeLabel(rc.assigned_role)}
-                          <span className="ms-1 text-[10px] text-ink-subtle/70">
-                            {t("assignedWork.roleQueue", { defaultValue: "(role queue — awaiting claim)" })}
-                          </span>
-                        </span>
-                      )
                     : <span className="text-ink-muted">—</span>;
                   // Use a stable numeric key for the action-menu state so
                   // risk rows don't collide with work-order ids (which can
