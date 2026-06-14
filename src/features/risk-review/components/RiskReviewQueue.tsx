@@ -42,6 +42,8 @@ import {
   type RiskReviewRow,
   type RiskTriageTier1Row,
 } from '@/services/api/risk-review.service';
+import { riskCaseService } from '@/services/api/risk-case.service';
+import type { AssignableUser } from '@/types/risk-case.types';
 import { RiskTypePill } from '@/components/risk/RiskTypePill';
 import { formatAedCompact } from '@/features/dashboards/components/dashboard-primitives';
 import { formatDateTime } from '@/utils/datetime';
@@ -107,9 +109,9 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
     };
   }, [settingsQuery.data]);
 
-  // Phase E.1 — dropdown options for the active confirm modal. Keyed by
-  // the row's preview_role so we re-fetch only when the user opens a
-  // case routed to a different role.
+  // Phase E.1 — lightest-load suggestion for the row's resolved role.
+  // Used only to compute the default selection + flag the suggested
+  // user with a "(suggested)" badge in the dropdown.
   const suggestQuery = useQuery({
     queryKey: ['riskTriageAssigneeSuggest', confirming?.preview_role],
     queryFn: () => riskReviewService.assigneeSuggest(confirming!.preview_role!),
@@ -117,17 +119,36 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
     enabled: !!confirming?.preview_role,
   });
 
-  // Default the dropdown to the suggested (lightest-load) user as soon as
-  // the modal opens / data arrives.
+  // mig 665 — the dropdown now spans all active users (any role), so
+  // pull the assignable-users list and group them by role. The
+  // suggestQuery above still drives the default selection + suggested
+  // badge for the routed role.
+  const allUsersQuery = useQuery({
+    queryKey: ['riskTriageAllUsers'],
+    queryFn: () => riskCaseService.assignableUsers(),
+    staleTime: 60_000,
+    enabled: confirming !== null,
+  });
+
   const suggestedUserId = useMemo(() => {
     const rows = suggestQuery.data?.rows ?? [];
     const suggested = rows.find((r) => r.suggested);
     return suggested?.id ?? rows[0]?.id ?? '';
   }, [suggestQuery.data]);
 
+  const groupedUsers = useMemo(() => {
+    const users: AssignableUser[] = allUsersQuery.data ?? [];
+    const map = new Map<string, AssignableUser[]>();
+    for (const u of users) {
+      const arr = map.get(u.roleDisplay) ?? [];
+      arr.push(u);
+      map.set(u.roleDisplay, arr);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  }, [allUsersQuery.data]);
+
   if (pickedAssigneeId === '' && suggestedUserId) {
-    // Initialise on first render after data arrives. Subsequent changes
-    // flow through the <select onChange>.
+    // Initialise on first render after suggestion data arrives.
     setPickedAssigneeId(suggestedUserId);
   }
 
@@ -477,52 +498,44 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
                     id="assignee-picker"
                     value={pickedAssigneeId}
                     onChange={(e) => setPickedAssigneeId(e.target.value)}
-                    disabled={suggestQuery.isLoading || promoteOne.isPending}
+                    disabled={allUsersQuery.isLoading || promoteOne.isPending}
                     className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-gold/60"
                   >
-                    {suggestQuery.isLoading && (
+                    {allUsersQuery.isLoading && (
                       <option value="">{t('common.loading', { defaultValue: 'Loading…' })}</option>
                     )}
-                    {!suggestQuery.isLoading &&
-                      (suggestQuery.data?.rows ?? []).map((row) => (
-                        <option key={row.id} value={row.id}>
-                          {row.name || row.email}
-                          {row.suggested
-                            ? ' · ' +
-                              t('riskReview.confirmModal.suggestedTag', {
-                                defaultValue: 'suggested (lightest load: {{n}})',
-                                n: row.openCases,
-                              })
-                            : ` · ${row.openCases} ${t('riskReview.confirmModal.openCases', { defaultValue: 'open' })}`}
-                        </option>
-                      ))}
-                    {!suggestQuery.isLoading && (suggestQuery.data?.rows ?? []).length === 0 && (
+                    {/* mig 665 — dropdown now spans all active users grouped
+                        by role. Default selection remains the lightest-load
+                        user in the routed role (suggestQuery). */}
+                    {!allUsersQuery.isLoading && groupedUsers.map(([roleDisplay, users]) => (
+                      <optgroup key={roleDisplay} label={roleDisplay}>
+                        {users.map((u) => {
+                          const isSuggested = u.id === suggestedUserId;
+                          return (
+                            <option key={u.id} value={u.id}>
+                              {u.name || u.email}
+                              {isSuggested ? ' · ' + t('riskReview.confirmModal.suggestedTag', {
+                                defaultValue: 'suggested (lightest load)',
+                              }) : ''}
+                            </option>
+                          );
+                        })}
+                      </optgroup>
+                    ))}
+                    {!allUsersQuery.isLoading && groupedUsers.length === 0 && (
                       <option value="">
                         {t('riskReview.confirmModal.noPeople', {
-                          defaultValue: 'No active users in this role',
+                          defaultValue: 'No active users available to assign',
                         })}
                       </option>
                     )}
                   </select>
-                  {/* Clean-workflow rule: assign must pin a real person.
-                      If the target role has no candidates today, surface the
-                      next step (use Reassign on the Risk Cases page) rather
-                      than letting the executive promote a half-state row. */}
-                  {!suggestQuery.isLoading && (suggestQuery.data?.rows ?? []).length === 0 ? (
-                    <p className="mt-1 text-[11px] text-[var(--terracotta)]">
-                      {t('riskReview.confirmModal.noPeopleHelper', {
-                        defaultValue:
-                          'No one in this role to assign to. Use Reassign from the Risk Cases list to route to a different role / person.',
-                      })}
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-[11px] text-ink-subtle">
-                      {t('riskReview.confirmModal.dropdownHint', {
-                        defaultValue:
-                          'Override the suggestion by picking any active user in the target role.',
-                      })}
-                    </p>
-                  )}
+                  <p className="mt-1 text-[11px] text-ink-subtle">
+                    {t('riskReview.confirmModal.dropdownHintAnyRole', {
+                      defaultValue:
+                        'Default is the lightest-loaded person in the routed role. Open the dropdown to pick someone from any role.',
+                    })}
+                  </p>
                 </div>
               )}
 
