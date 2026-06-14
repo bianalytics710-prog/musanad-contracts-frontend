@@ -270,6 +270,9 @@ export function MyWorkPage() {
     "compliance_esg",
     "finance_treasury",
     "procurement_supplier_risk",
+    // mig 657 (Gap 5) — recipients are signers, so the signature_required
+    // branch only reaches them if their /app/work renders the unified inbox.
+    "contract_recipient",
   ]);
   if (roleName && UNIFIED_INBOX_ROLES.has(roleName)) {
     return <MyWorkUnifiedInbox />;

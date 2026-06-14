@@ -21,6 +21,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ChevronLeft,
@@ -592,6 +593,13 @@ export function AssignedByMeView() {
           onClose={() => setCancelTarget(null)}
         />
       )}
+
+      {/* Gap 3 (mig 658) — Risk cases the executive promoted / reassigned /
+          created. Today the work-order table above is silent about Phase E
+          risk routing, so this section sits below as a second card. */}
+      <div className="mt-8">
+        <RiskCasesAssignedByMeSection />
+      </div>
     </div>
   );
 }
@@ -1005,5 +1013,128 @@ function CancelDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Gap 3 (mig 658) — Risk Cases I Assigned section
+// ────────────────────────────────────────────────────────────────────────────
+function RiskCasesAssignedByMeSection() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const q = useQuery({
+    queryKey: ["riskCasesAssignedByMe", 25],
+    queryFn: () =>
+      import("@/services/api/risk-review.service").then((m) =>
+        m.riskReviewService.assignedByMe(25),
+      ),
+    staleTime: 30_000,
+  });
+  const rows = q.data?.rows ?? [];
+  const ACTION_TONE: Record<string, string> = {
+    promoted:   "bg-[var(--sage)]/15 text-[var(--sage)]",
+    reassigned: "bg-[var(--gold)]/15 text-foreground",
+    created:    "bg-blue-500/10 text-blue-700",
+    other:      "bg-surface text-ink-muted",
+  };
+  return (
+    <Card>
+      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border px-4 py-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">
+            {t("assignedWork.riskCases.title", { defaultValue: "Risk cases I assigned" })}
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {t("assignedWork.riskCases.subtitle", {
+              defaultValue:
+                "Risk Triage actions you initiated — promoted to a specialist team, reassigned to a different person, or created manually.",
+            })}
+          </p>
+        </div>
+        <span className="text-xs text-muted-foreground">{rows.length}</span>
+      </div>
+      <CardContent className="p-0">
+        {q.isLoading ? (
+          <div className="space-y-2 p-4">
+            {[0, 1].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : q.isError ? (
+          <p className="p-4 text-sm text-[var(--terracotta)]">
+            {t("assignedWork.riskCases.loadError", { defaultValue: "Couldn't load your risk-case actions." })}
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="p-6 text-center text-sm text-muted-foreground">
+            {t("assignedWork.riskCases.empty", {
+              defaultValue: "Nothing yet — promote a Tier-2 case or reassign a Tier-1 case from Risk Triage to populate this list.",
+            })}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-border bg-surface">
+                <tr className="text-left">
+                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {t("assignedWork.riskCases.col.case", { defaultValue: "Case" })}
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {t("assignedWork.riskCases.col.action", { defaultValue: "Action" })}
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {t("assignedWork.riskCases.col.owner", { defaultValue: "Current owner" })}
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {t("assignedWork.riskCases.col.status", { defaultValue: "Status" })}
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    {t("assignedWork.riskCases.col.when", { defaultValue: "When" })}
+                  </th>
+                  <th scope="col" className="px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-ink-subtle text-center">
+                    {t("assignedWork.riskCases.col.open", { defaultValue: "Open" })}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-b border-border/60 transition-colors hover:bg-surface/50">
+                    <td className="px-4 py-2 align-top">
+                      <div className="font-medium text-ink line-clamp-2">{r.title}</div>
+                      {r.contract_number && (
+                        <div className="font-mono text-[11px] text-ink-muted">
+                          {r.contract_number}{r.counterparty_name ? " · " + r.counterparty_name : ""}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 align-top">
+                      <span className={`rounded-md px-2 py-0.5 font-mono text-[11px] tracking-wider ${ACTION_TONE[r.action_kind] ?? ACTION_TONE.other}`}>
+                        {r.action_kind}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 align-top text-ink/80">
+                      {r.assigned_user_name ?? (r.assigned_role ?? "—")}
+                    </td>
+                    <td className="px-4 py-2 align-top text-ink-muted">{r.status}</td>
+                    <td className="px-4 py-2 align-top text-ink-muted whitespace-nowrap font-mono text-xs">
+                      {formatCreatedDate(r.action_at)}
+                    </td>
+                    <td className="px-4 py-2 align-top text-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void navigate({ to: "/app/risk-cases/$caseId", params: { caseId: r.id } })}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        {t("common.view", { defaultValue: "View" })}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

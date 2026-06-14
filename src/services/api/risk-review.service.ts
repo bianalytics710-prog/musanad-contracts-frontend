@@ -94,6 +94,29 @@ export interface AssigneeSuggestResponse {
   rows: AssigneeSuggestion[];
 }
 
+/** Gap 3 (mig 658) — one row in the executive's reverse-view of risk routing. */
+export interface RiskAssignedByMeRow {
+  id: string;
+  title: string;
+  status: string;
+  priority: 'low' | 'medium' | 'high' | 'critical' | null;
+  risk_type: string;
+  assigned_role: string | null;
+  assigned_user_id: string | null;
+  assigned_user_name: string | null;
+  contract_number: string | null;
+  contract_title: string | null;
+  counterparty_name: string | null;
+  created_at: string;
+  action_at: string;
+  action_kind: 'promoted' | 'reassigned' | 'created' | 'other';
+}
+
+export interface RiskAssignedByMeResponse {
+  asOf: string;
+  rows: RiskAssignedByMeRow[];
+}
+
 interface Envelope<T> {
   success: boolean;
   data: T;
@@ -142,6 +165,15 @@ export const riskReviewService = {
   /** Phase E.4 — executive reassign override (status='open' only). */
   reassign: async (caseId: number, newUserId: number): Promise<void> => {
     await apiClient.post(`/api/v1/risk-cases/${caseId}/reassign`, { newUserId });
+  },
+
+  /** Gap 3 (mig 658) — executive reverse-view: risk cases I assigned. */
+  assignedByMe: async (limit = 25): Promise<RiskAssignedByMeResponse> => {
+    const res = await apiClient.get<Envelope<RiskAssignedByMeResponse>>(
+      `/api/v1/dashboards/executive/risk-triage/assigned-by-me`,
+      { params: { limit } },
+    );
+    return res.data.data;
   },
 
   bulk: async (action: 'promote' | 'dismiss', caseIds: number[]): Promise<void> => {

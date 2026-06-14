@@ -21,6 +21,9 @@ export const MY_WORK_TYPES = [
   "risk_case_assigned",
   "third_party_review",
   "advisory_draft",
+  // mig 657 — gaps 4 + 5
+  "comment_mention",
+  "signature_required",
 ] as const;
 
 export type MyWorkType = (typeof MY_WORK_TYPES)[number];

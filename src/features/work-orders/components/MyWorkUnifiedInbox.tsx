@@ -31,16 +31,24 @@ import { Input } from "@/components/ui/input";
 
 const PAGE_SIZE = 20;
 
-/** Type filter options — superset of the drafter's three types. */
+/**
+ * Type filter options.
+ *
+ * mig 657 (Gaps 4 + 5): added comment_mention + signature_required.
+ * Dropped comment_response from the non-drafter inbox — it routes only to
+ * the drafter (work_order branch reads assigned_to_user_id) and never
+ * matches for the personas on this surface.
+ */
 const TYPE_OPTIONS: Array<{ value: "all" | MyWorkType; labelKey: string; labelDefault: string }> = [
   { value: "all",                     labelKey: "myWork.filters.allTypes",                labelDefault: "All types" },
   { value: "approval_awaiting",       labelKey: "myWork.types.approval_awaiting",         labelDefault: "Approval awaiting" },
   { value: "risk_case_assigned",      labelKey: "myWork.types.risk_case_assigned",        labelDefault: "Risk case" },
   { value: "third_party_review",      labelKey: "myWork.types.third_party_review",        labelDefault: "Third-party review" },
   { value: "advisory_draft",          labelKey: "myWork.types.advisory_draft",            labelDefault: "Advisory draft" },
+  { value: "comment_mention",         labelKey: "myWork.types.comment_mention",           labelDefault: "Comment mention" },
+  { value: "signature_required",      labelKey: "myWork.types.signature_required",        labelDefault: "Signature required" },
   { value: "contract_draft_request",  labelKey: "myWork.types.contract_draft_request",    labelDefault: "Draft request" },
   { value: "contract_returned",       labelKey: "myWork.types.contract_returned",         labelDefault: "Returned" },
-  { value: "comment_response",        labelKey: "myWork.types.comment_response",          labelDefault: "Comment" },
 ];
 
 /** Tone classes for the type pill — matches the i18n key conventions. */
@@ -49,9 +57,10 @@ const TYPE_TONE: Record<string, string> = {
   risk_case_assigned:     "bg-[var(--terracotta)]/15 text-[var(--terracotta)]",
   third_party_review:     "bg-[var(--gold)]/15 text-foreground",
   advisory_draft:         "bg-blue-500/10 text-blue-700",
+  comment_mention:        "bg-blue-500/10 text-blue-700",
+  signature_required:     "bg-[var(--gold)]/15 text-foreground",
   contract_draft_request: "bg-surface text-ink-muted",
   contract_returned:      "bg-[var(--terracotta)]/10 text-[var(--terracotta)]",
-  comment_response:       "bg-surface text-ink-muted",
 };
 
 const PRIORITY_TONE: Record<string, string> = {
@@ -79,6 +88,8 @@ function actionLabelKey(workOrderType: MyWorkType): { key: string; def: string }
     case "risk_case_assigned":      return { key: "myWork.actions.review",         def: "Review" };
     case "third_party_review":      return { key: "myWork.actions.openTpa",        def: "Open review" };
     case "advisory_draft":          return { key: "myWork.actions.openAdvisory",   def: "Open draft" };
+    case "comment_mention":         return { key: "myWork.actions.openComment",    def: "Open comment" };
+    case "signature_required":      return { key: "myWork.actions.sign",           def: "Sign" };
     case "contract_draft_request":  return { key: "myWork.actions.composeDraft",   def: "Compose draft" };
     case "contract_returned":       return { key: "myWork.actions.editDraft",      def: "Edit draft" };
     case "comment_response":        return { key: "myWork.actions.open",           def: "Open" };
@@ -211,6 +222,9 @@ export function MyWorkUnifiedInbox() {
                     const payloadAny = (wo.payload ?? {}) as Record<string, unknown>;
                     const advisoryDraftType = payloadAny.draftType as string | undefined;
                     const riskCaseTitle    = payloadAny.title       as string | undefined;
+                    const commentSnippet   = payloadAny.snippet     as string | undefined;
+                    // mig 657 — risk_case auto-escalated badge
+                    const autoEscalated    = payloadAny.autoEscalated === true;
                     const headline =
                       wo.workOrderType === "risk_case_assigned"
                         ? (riskCaseTitle ?? sourceTitle ?? "—")
@@ -218,9 +232,15 @@ export function MyWorkUnifiedInbox() {
                         ? (sourceTitle ?? wo.sourceContractNumber ?? "—")
                         : wo.workOrderType === "advisory_draft"
                         ? (advisoryDraftType ?? sourceTitle ?? "—")
+                        : wo.workOrderType === "comment_mention"
+                        ? `@-mention from ${wo.assignedByName ?? "Unknown"}`
+                        : wo.workOrderType === "signature_required"
+                        ? (sourceTitle ?? wo.sourceContractNumber ?? "Signature required")
                         : (counterparty ?? sourceTitle ?? wo.sourceContractNumber ?? "—");
                     const subtitle =
-                      wo.sourceContractNumber && wo.workOrderType !== "third_party_review"
+                      wo.workOrderType === "comment_mention" && commentSnippet
+                        ? `“${commentSnippet}”${wo.sourceContractNumber ? ` · ${wo.sourceContractNumber}` : ""}`
+                        : wo.sourceContractNumber && wo.workOrderType !== "third_party_review"
                         ? `${wo.sourceContractNumber}${sourceTitle ? " · " + sourceTitle : ""}`
                         : wo.workOrderType === "third_party_review" && wo.counterpartyName
                         ? wo.counterpartyName
@@ -246,6 +266,16 @@ export function MyWorkUnifiedInbox() {
                           <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${priorityTone}`}>
                             {t(`myWork.priorities.${wo.priority}`, { defaultValue: wo.priority })}
                           </span>
+                          {autoEscalated && (
+                            <span
+                              className="ms-1 inline-flex items-center rounded border border-[var(--terracotta)]/40 bg-[var(--terracotta)]/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--terracotta)]"
+                              title={t("myWork.autoEscalatedTooltip", {
+                                defaultValue: "Auto-escalated by the SLA cron — beyond Tier-2 review window.",
+                              })}
+                            >
+                              {t("myWork.autoEscalatedBadge", { defaultValue: "Escalated" })}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 align-top text-ink/80">{wo.assignedByName ?? "—"}</td>
                         <td className="px-4 py-3 align-top text-ink-muted whitespace-nowrap font-mono text-xs">
