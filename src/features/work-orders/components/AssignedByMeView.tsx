@@ -50,6 +50,7 @@ import {
   riskReviewService,
   type RiskAssignedByMeRow,
 } from "@/services/api/risk-review.service";
+import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -618,6 +619,26 @@ export function AssignedByMeView() {
                   const typeTone = row.kind === "risk_reassigned"
                     ? "bg-[var(--gold)]/15 text-foreground"
                     : "bg-[var(--sage)]/15 text-[var(--sage)]";
+                  // Owner fallback: prefer the actual pinned user; if no user
+                  // is set (Eman promoted to a role queue without picking a
+                  // person), humanise the role + show a small "(role queue)"
+                  // helper so the row isn't ambiguously blank.
+                  const ownerCell = rc.assigned_user_name
+                    ? <span>{rc.assigned_user_name}</span>
+                    : rc.assigned_role
+                    ? (
+                        <span className="text-ink/80">
+                          {humanizeLabel(rc.assigned_role)}
+                          <span className="ms-1 text-[10px] text-ink-subtle/70">
+                            {t("assignedWork.roleQueue", { defaultValue: "(role queue — awaiting claim)" })}
+                          </span>
+                        </span>
+                      )
+                    : <span className="text-ink-muted">—</span>;
+                  // Use a stable numeric key for the action-menu state so
+                  // risk rows don't collide with work-order ids (which can
+                  // also be small integers). Offset by -10_000_000.
+                  const rcMenuKey = -10_000_000 - Number(rc.id);
                   return (
                     <tr
                       key={row.id}
@@ -643,7 +664,7 @@ export function AssignedByMeView() {
                         </span>
                       </td>
                       <td className="px-4 py-3 align-top text-ink/80">
-                        {rc.assigned_user_name ?? rc.assigned_role ?? "—"}
+                        {ownerCell}
                       </td>
                       <td className="px-4 py-3 align-top">
                         <span
@@ -659,19 +680,24 @@ export function AssignedByMeView() {
                         {formatCreatedDate(rc.action_at)}
                       </td>
                       <td className="px-4 py-3 align-top text-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
+                        <RowActionsMenu
+                          open={actionRowId === rcMenuKey}
+                          onToggle={() =>
+                            setActionRowId((id) => (id === rcMenuKey ? null : rcMenuKey))
+                          }
+                          onClose={() => setActionRowId(null)}
+                          canAct={true}
+                          onView={() => {
+                            setActionRowId(null);
                             void navigate({
                               to: "/app/risk-cases/$caseId",
                               params: { caseId: rc.id },
-                            })
-                          }
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          {t("common.view", { defaultValue: "View" })}
-                        </Button>
+                            });
+                          }}
+                          labels={{
+                            view: t("assignedWork.actions.viewCase", { defaultValue: "View risk case" }),
+                          }}
+                        />
                       </td>
                     </tr>
                   );
@@ -800,10 +826,21 @@ function RowActionsMenu({
   onClose: () => void;
   canAct: boolean;
   onView: () => void;
-  onNudge: () => void;
-  onReassign: () => void;
-  onCancel: () => void;
-  labels: { view: string; nudge: string; reassign: string; cancel: string };
+  /**
+   * Risk-case rows pass only `onView`; the other three are work-order
+   * specific (nudge / reassign-drafter / cancel-work-order) and stay
+   * undefined here so the menu drops those items rather than showing
+   * disabled rows that confuse the executive.
+   */
+  onNudge?: () => void;
+  onReassign?: () => void;
+  onCancel?: () => void;
+  labels: {
+    view: string;
+    nudge?: string;
+    reassign?: string;
+    cancel?: string;
+  };
 }) {
   // close on outside click
   useEffect(() => {
@@ -835,9 +872,15 @@ function RowActionsMenu({
           className="absolute end-0 z-30 mt-1 w-48 rounded-md border border-border bg-card shadow-lg"
         >
           <MenuItem icon={Eye} label={labels.view} onClick={onView} />
-          <MenuItem icon={Send} label={labels.nudge} onClick={onNudge} disabled={!canAct} />
-          <MenuItem icon={UserCog} label={labels.reassign} onClick={onReassign} disabled={!canAct} />
-          <MenuItem icon={X} label={labels.cancel} onClick={onCancel} disabled={!canAct} tone="danger" />
+          {onNudge && labels.nudge && (
+            <MenuItem icon={Send} label={labels.nudge} onClick={onNudge} disabled={!canAct} />
+          )}
+          {onReassign && labels.reassign && (
+            <MenuItem icon={UserCog} label={labels.reassign} onClick={onReassign} disabled={!canAct} />
+          )}
+          {onCancel && labels.cancel && (
+            <MenuItem icon={X} label={labels.cancel} onClick={onCancel} disabled={!canAct} tone="danger" />
+          )}
         </div>
       )}
     </div>
