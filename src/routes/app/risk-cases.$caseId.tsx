@@ -149,6 +149,11 @@ function RiskCaseDetailView() {
   }
 
   const { riskCase, timeline, attachments, linkedCorrelation, linkedContract, linkedAdvisoryDrafts, slaCountdownSeconds } = detail;
+  // mig 656 — counterparty block, resolved server-side via contract.counterparty_id.
+  // Older BE builds don't include this key — narrow safely.
+  const counterparty =
+    (detail as { counterparty?: import('@/types/risk-case.types').CounterpartySummary | null })
+      .counterparty ?? null;
   const isTerminal = TERMINAL_STATUSES.includes(riskCase.status) || riskCase.status === 'closed';
   const transitionsAvailable = (STRICT_TRANSITIONS[riskCase.status] ?? []).length > 0;
   const canEscalateNow = canEscalate && ESCALATABLE_STATUSES.includes(riskCase.status);
@@ -249,6 +254,14 @@ function RiskCaseDetailView() {
                   {riskCase.body ?? <span className="text-ink-muted">—</span>}
                 </p>
               </div>
+
+              {/* mig 656 — Counterparty card. Surfaces the *who* of the case
+                  (counterparty + sanctions status + parent entity) so the
+                  reader doesn't have to click through to the contract or
+                  guess from the body text. */}
+              {counterparty && (
+                <CounterpartyCard counterparty={counterparty} />
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-card p-4">
@@ -534,5 +547,120 @@ function RiskCaseDetailView() {
         caseId={riskCase.id}
       />
     </motion.div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// CounterpartyCard — mig 656 follow-up. Renders the counterparty block from
+// the BE detail payload. Sanctions status drives the badge tone (terracotta
+// for sdn_match / under_review, sage for clean). Parent entity rendered as
+// an inline chain when populated.
+// ───────────────────────────────────────────────────────────────────────────
+function CounterpartyCard({
+  counterparty,
+}: {
+  counterparty: import('@/types/risk-case.types').CounterpartySummary;
+}) {
+  const { t } = useTranslation();
+  const status = counterparty.sanctionsStatus ?? 'unknown';
+  const statusTone =
+    status === 'sdn_match' || status === 'under_review'
+      ? 'bg-[var(--terracotta)]/15 text-[var(--terracotta)] border-[var(--terracotta)]/40'
+      : status === 'clean'
+        ? 'bg-sage/15 text-sage border-sage/40'
+        : 'bg-muted text-muted-foreground border-transparent';
+  const statusLabel = t(`riskCases.detail.counterparty.sanctionsStatus.${status}`, {
+    defaultValue:
+      status === 'sdn_match' ? 'OFAC SDN match'
+      : status === 'under_review' ? 'Under review'
+      : status === 'clean' ? 'Clean'
+      : status === 'unknown' ? 'Unknown'
+      : status,
+  });
+  const name = counterparty.nameEn ?? counterparty.nameAr ?? `#${counterparty.id}`;
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-ink">
+          {t('riskCases.detail.counterparty.title', { defaultValue: 'Counterparty' })}
+        </h2>
+        <span
+          className={
+            'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ' +
+            statusTone
+          }
+        >
+          {statusLabel}
+        </span>
+      </div>
+      <Link
+        to="/app/parties/$id"
+        params={{ id: String(counterparty.id) }}
+        className="text-base font-semibold text-ink hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
+      >
+        {name}
+      </Link>
+      {counterparty.nameAr && counterparty.nameEn && (
+        <p className="mt-0.5 text-xs text-ink-subtle" dir="rtl">
+          {counterparty.nameAr}
+        </p>
+      )}
+      {counterparty.parentName && (
+        <p className="mt-2 text-xs text-ink-muted">
+          {t('riskCases.detail.counterparty.parent', {
+            defaultValue: 'Parent entity: {{name}}',
+            name: counterparty.parentName,
+          })}
+        </p>
+      )}
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        {counterparty.partyType && (
+          <>
+            <dt className="text-ink-muted">
+              {t('riskCases.detail.counterparty.partyType', { defaultValue: 'Type' })}
+            </dt>
+            <dd className="text-ink">{counterparty.partyType}</dd>
+          </>
+        )}
+        {counterparty.country && (
+          <>
+            <dt className="text-ink-muted">
+              {t('riskCases.detail.counterparty.country', { defaultValue: 'Country' })}
+            </dt>
+            <dd className="text-ink">{counterparty.country}</dd>
+          </>
+        )}
+        {counterparty.sanctionsLastChecked && (
+          <>
+            <dt className="text-ink-muted">
+              {t('riskCases.detail.counterparty.sanctionsLastChecked', {
+                defaultValue: 'Sanctions last checked',
+              })}
+            </dt>
+            <dd className="text-ink">{formatDateTime(counterparty.sanctionsLastChecked)}</dd>
+          </>
+        )}
+        {counterparty.isVerified != null && (
+          <>
+            <dt className="text-ink-muted">
+              {t('riskCases.detail.counterparty.verified', { defaultValue: 'Verified' })}
+            </dt>
+            <dd className="text-ink">
+              {counterparty.isVerified
+                ? t('common.yes', { defaultValue: 'Yes' })
+                : t('common.no', { defaultValue: 'No' })}
+            </dd>
+          </>
+        )}
+        {counterparty.aliases && counterparty.aliases.length > 0 && (
+          <>
+            <dt className="text-ink-muted">
+              {t('riskCases.detail.counterparty.aliases', { defaultValue: 'Also known as' })}
+            </dt>
+            <dd className="text-ink">{counterparty.aliases.join(', ')}</dd>
+          </>
+        )}
+      </dl>
+    </div>
   );
 }

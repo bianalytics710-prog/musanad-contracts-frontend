@@ -216,6 +216,30 @@ export interface RiskCaseAttachment {
  * Composite payload returned by fn_risk_case_get_by_id and every lifecycle
  * write fn (create / assign / status_transition / accept_risk / snooze / close).
  */
+/**
+ * mig 656 — counterparty block resolved server-side from
+ * contract.counterparty_id → party. NULL when the case has no linked
+ * contract.
+ */
+export interface CounterpartySummary {
+  id: number;
+  nameEn: string | null;
+  nameAr: string | null;
+  partyType: string | null;
+  country: string | null;
+  emirate: string | null;
+  isVerified: boolean | null;
+  sanctionsStatus: string | null;
+  sanctionsLastChecked: string | null;
+  sanctionsMatchSignalId: number | null;
+  icvStatus: string | null;
+  icvPct: number | null;
+  esgScore: number | null;
+  parentId: number | null;
+  parentName: string | null;
+  aliases: string[] | null;
+}
+
 export interface RiskCaseDetail {
   riskCase: RiskCase;
   timeline: RiskCaseEvent[];
@@ -223,6 +247,8 @@ export interface RiskCaseDetail {
   linkedCorrelation: CorrelationSummary | null;
   linkedContract: LinkedContractSummary | null;
   linkedAdvisoryDrafts: LinkedAdvisoryDraftSummary[];
+  /** mig 656 — counterparty resolved via contract.counterparty_id → party. */
+  counterparty: CounterpartySummary | null;
   slaCountdownSeconds: number | null;
 }
 
