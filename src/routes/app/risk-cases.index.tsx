@@ -68,6 +68,12 @@ function RiskCaseListView() {
   // top-bar Escalate button that fires only when at-risk SLAs exist.
   const userRole = useAuthStore((s) => s.user?.role.name ?? null);
   const isExecutive = userRole === 'executive';
+  // 2026-06-14 — Legal Counsel sees this page AS her personal risk inbox
+  // (mirrors My Work's risk-case branch). Force assignedToMe=true, hide
+  // the "Assigned to" filter (moot — only her cases shown) and the
+  // "Assigned to me" toggle (already implicit). Exec / platform_admin /
+  // Super Admin keep the global oversight view.
+  const isLegalCounsel = userRole === 'legal_counsel';
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -82,7 +88,9 @@ function RiskCaseListView() {
   // Phase A — new server-side "Assigned to" filter. Passes assignedUserId
   // through to fn_risk_case_list. '' means "any assignee".
   const [assignedUserIdFilter, setAssignedUserIdFilter] = useState<string>('');
-  const [assignedToMe, setAssignedToMe] = useState(false);
+  // LC starts narrowed to "assigned to me" by construction; other roles
+  // start wide-open and opt in.
+  const [assignedToMe, setAssignedToMe] = useState(isLegalCounsel);
   const [slaDueWithinHours, setSlaDueWithinHours] = useState<string>('');
 
   const debouncedSearch = useDebounce(search, 300);
@@ -176,7 +184,7 @@ function RiskCaseListView() {
           {/* E-rev-E — single top-bar Escalate button for executive (and any
               other role with risk.case.escalate). Disabled when no cases are
               at-risk; the count badge surfaces urgency. */}
-          {canEscalate && (
+          {canEscalate && !isLegalCounsel && (
             <Button
               type="button"
               variant={atRiskCases.length > 0 ? 'default' : 'outline'}
@@ -196,7 +204,7 @@ function RiskCaseListView() {
               })}
             </Button>
           )}
-          {canCreate && (
+          {canCreate && !isLegalCounsel && (
             <Button onClick={() => setShowCreate(true)}>
               <Plus className="me-1 h-4 w-4" aria-hidden="true" />
               {t('riskCases.actions.createManual')}
@@ -298,29 +306,32 @@ function RiskCaseListView() {
           </select>
         </div>
 
-        <div>
-          <label htmlFor="rc-list-assignee" className="sr-only">
-            {t('riskCases.filters.assignedTo', { defaultValue: 'Assigned to' })}
-          </label>
-          <select
-            id="rc-list-assignee"
-            value={assignedUserIdFilter}
-            onChange={(e) => {
-              setAssignedUserIdFilter(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">
-              {t('riskCases.filters.allAssignees', { defaultValue: 'All assignees' })}
-            </option>
-            {assignableUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} · {u.roleDisplay}
+        {/* LC's page is already personal — assignee filter is moot. */}
+        {!isLegalCounsel && (
+          <div>
+            <label htmlFor="rc-list-assignee" className="sr-only">
+              {t('riskCases.filters.assignedTo', { defaultValue: 'Assigned to' })}
+            </label>
+            <select
+              id="rc-list-assignee"
+              value={assignedUserIdFilter}
+              onChange={(e) => {
+                setAssignedUserIdFilter(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">
+                {t('riskCases.filters.allAssignees', { defaultValue: 'All assignees' })}
               </option>
-            ))}
-          </select>
-        </div>
+              {assignableUsers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} · {u.roleDisplay}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label htmlFor="rc-list-sla" className="sr-only">
@@ -343,8 +354,10 @@ function RiskCaseListView() {
         </div>
 
         {/* E-rev-E — Executive doesn't act on individual cases, so the
-            "Assigned to me" toggle is hidden for that role. */}
-        {!isExecutive && (
+            "Assigned to me" toggle is hidden for that role.
+            2026-06-14 — Also hidden for Legal Counsel: assignedToMe is
+            forced on, so the toggle would be a no-op. */}
+        {!isExecutive && !isLegalCounsel && (
           <label htmlFor="rc-list-mine" className="flex cursor-pointer items-center gap-2 text-sm text-ink">
             <input
               id="rc-list-mine"
@@ -552,16 +565,29 @@ function ScopeCaption() {
   const { t } = useTranslation();
   const user = useAuthStore(selectUser);
   const roleName = user?.role?.name;
-  if (roleName !== 'contract_drafter') return null;
-  return (
-    <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
-      <span aria-hidden="true">•</span>
-      {t('riskCases.list.drafterScopeCaption', {
-        defaultValue:
-          'Read-only view — these are department-wide risk cases; none are assigned to you directly.',
-      })}
-    </p>
-  );
+  if (roleName === 'contract_drafter') {
+    return (
+      <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
+        <span aria-hidden="true">•</span>
+        {t('riskCases.list.drafterScopeCaption', {
+          defaultValue:
+            'Read-only view — these are department-wide risk cases; none are assigned to you directly.',
+        })}
+      </p>
+    );
+  }
+  if (roleName === 'legal_counsel') {
+    return (
+      <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
+        <span aria-hidden="true">•</span>
+        {t('riskCases.list.legalCounselScopeCaption', {
+          defaultValue:
+            'Showing cases assigned to you. Open My Work for the full inbox (approvals, third-party reviews, advisory drafts).',
+        })}
+      </p>
+    );
+  }
+  return null;
 }
 
 /**

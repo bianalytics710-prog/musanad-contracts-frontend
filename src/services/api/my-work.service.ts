@@ -53,9 +53,23 @@ export interface ListMyWorkQuery {
   page?: number;
 }
 
+// mig 684 — personal work-status overlay.
+export const PERSONAL_WORK_STATUSES = [
+  "to_do",
+  "in_progress",
+  "done",
+  "blocked",
+] as const;
+export type PersonalWorkStatus = (typeof PERSONAL_WORK_STATUSES)[number];
+export interface MyWorkStatusEntry {
+  workItemId: number;
+  status: PersonalWorkStatus;
+}
+
 export const myWorkKeys = {
   all: ["myWork"] as const,
   list: (q: ListMyWorkQuery) => ["myWork", "list", q] as const,
+  statuses: ["myWork", "statuses"] as const,
 };
 
 export const myWorkService = {
@@ -67,6 +81,26 @@ export const myWorkService = {
     if (q.limit != null) params.limit = String(q.limit);
     if (q.page != null) params.page = String(q.page);
     const { data } = await apiClient.get<MyWorkListResponse>(BASE, { params });
+    return data;
+  },
+
+  // mig 684 — the actor's personal status overlay as [{workItemId,status}].
+  listStatuses: async (): Promise<MyWorkStatusEntry[]> => {
+    const { data } = await apiClient.get<{ data: MyWorkStatusEntry[] }>(
+      `${BASE}/statuses`,
+    );
+    return data.data;
+  },
+
+  // mig 684 — upsert the actor's personal status for one row.
+  setStatus: async (
+    workItemId: number,
+    status: PersonalWorkStatus,
+  ): Promise<MyWorkStatusEntry> => {
+    const { data } = await apiClient.post<MyWorkStatusEntry>(`${BASE}/status`, {
+      workItemId,
+      status,
+    });
     return data;
   },
 };

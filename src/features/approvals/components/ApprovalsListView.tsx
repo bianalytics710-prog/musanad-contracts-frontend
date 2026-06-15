@@ -43,6 +43,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/patterns";
+import { useAuthStore } from "@/store/auth.store";
 import { useDebounce } from "@/hooks/useDebounce";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useMyPendingApprovals, useDecideApproval } from "@/features/approvals/hooks/useApprovals";
@@ -200,6 +201,12 @@ export function ApprovalsListView() {
     setPage(1);
   };
 
+  // 2026-06-15 — Legal Counsel doesn't want the approver-centric KPI strip
+  // (pending value / SLA breaches etc.) on her Approvals view. Hide it for
+  // legal_counsel only; other approver roles keep it.
+  const isLegalCounsel =
+    useAuthStore((s) => s.user?.role?.name ?? null) === "legal_counsel";
+
   // A5 (Aisha audit) — KPI tiles read "Pending decisions / SLA breaches /
   // Avg waiting / Pending value". Locked to the pending dataset so they keep
   // pending-only semantics regardless of which tab is open. Switching tabs
@@ -317,7 +324,9 @@ export function ApprovalsListView() {
         </Button>
       </header>
 
-      {/* KPI strip — StatCard pattern matches Contracts list (design system). */}
+      {/* KPI strip — StatCard pattern matches Contracts list (design system).
+          Hidden for legal_counsel (2026-06-15) — approver-centric metrics. */}
+      {!isLegalCounsel && (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           label={t("approval.list.stats.pending", { defaultValue: "Pending decisions" })}
@@ -347,6 +356,7 @@ export function ApprovalsListView() {
           }
         />
       </div>
+      )}
 
       {/* Tabs — pill-style for design-system parity with the rest of the app. */}
       <div role="tablist" className="flex flex-wrap gap-1.5">

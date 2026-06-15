@@ -18,16 +18,32 @@
  * would mean threading a dozen flags through one component. Same table
  * styling, separate component, simpler call sites.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { Search, ArrowRight } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Search, ArrowRight, Plus, ScrollText, ClipboardList } from "lucide-react";
 import { useMyWorkUnified } from "../hooks/useWorkOrders";
-import type { MyWorkRow, MyWorkType } from "@/services/api/my-work.service";
+import { AddManualWorkOrderDialog } from "./AddManualWorkOrderDialog";
+import {
+  myWorkService,
+  myWorkKeys,
+  PERSONAL_WORK_STATUSES,
+  type MyWorkRow,
+  type MyWorkType,
+  type PersonalWorkStatus,
+  type MyWorkStatusEntry,
+} from "@/services/api/my-work.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const PAGE_SIZE = 20;
 
@@ -70,6 +86,23 @@ const PRIORITY_TONE: Record<string, string> = {
   low:    "bg-muted/60 text-muted-foreground/80 border-transparent",
 };
 
+// mig 684 — personal work-status overlay (To do / In progress / Done /
+// Blocked). Independent of the row's derived lifecycle status; the user
+// sets it per item. Rows without a saved value default to to_do.
+const PERSONAL_STATUS_TONE: Record<PersonalWorkStatus, string> = {
+  to_do:       "bg-muted text-muted-foreground border-input",
+  in_progress: "bg-[var(--gold)]/15 text-foreground border-[var(--gold)]/40",
+  done:        "bg-[var(--sage)]/15 text-[var(--sage)] border-[var(--sage)]/40",
+  blocked:     "bg-[var(--terracotta)]/15 text-[var(--terracotta)] border-[var(--terracotta)]/40",
+};
+
+const PERSONAL_STATUS_DEFAULT_LABEL: Record<PersonalWorkStatus, string> = {
+  to_do:       "To do",
+  in_progress: "In progress",
+  done:        "Completed",
+  blocked:     "Blocked",
+};
+
 function formatDate(iso: string): string {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return "—";
@@ -97,16 +130,61 @@ function actionLabelKey(workOrderType: MyWorkType): { key: string; def: string }
   }
 }
 
+// mig 684 — personal status dropdown. Pill-styled <select> matching the
+// drafter MyWorkInbox StageSelect look. Defaults to to_do when unset.
+function StatusSelect({
+  value,
+  disabled,
+  onChange,
+  t,
+}: {
+  value: PersonalWorkStatus;
+  disabled: boolean;
+  onChange: (next: PersonalWorkStatus) => void;
+  t: (k: string, opts?: { defaultValue?: string }) => string;
+}) {
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value as PersonalWorkStatus)}
+      aria-label={t("myWork.personalStatus.aria", { defaultValue: "Change my status" })}
+      className={`h-7 cursor-pointer appearance-none rounded-full border px-2 py-0 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 ${PERSONAL_STATUS_TONE[value]}`}
+    >
+      {PERSONAL_WORK_STATUSES.map((s) => (
+        <option key={s} value={s}>
+          {t(`myWork.personalStatus.${s}`, { defaultValue: PERSONAL_STATUS_DEFAULT_LABEL[s] })}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function MyWorkUnifiedInbox() {
   const { t, i18n } = useTranslation();
   const isAr = i18n.language === "ar";
   const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | MyWorkType>("all");
+  // 2026-06-14 — toolbar parity with drafter MyWorkInbox: From + Status
+  // filters, sort toggle, and a local-matches indicator. Status is
+  // 'all' | 'open' | 'completed' (the unified inbox today only returns
+  // open/in_progress rows, but Status keeps the surface symmetric with
+  // the drafter view + leaves headroom for archived rows when added).
+  const [fromFilter, setFromFilter] = useState<string>("all");
+  // mig 684 — the Status filter now filters on the user's PERSONAL status
+  // (To do / In progress / Done / Blocked), matching the new Status column.
+  const [statusFilter, setStatusFilter] = useState<"all" | PersonalWorkStatus>("all");
+  const [sort, setSort] = useState<"createdDesc" | "createdAsc">("createdDesc");
+  const [addOpen, setAddOpen] = useState(false);
+  const [addManualOpen, setAddManualOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-  useEffect(() => { setPage(1); }, [typeFilter, search]);
+  useEffect(() => {
+    setPage(1);
+  }, [typeFilter, search, fromFilter, statusFilter]);
 
   const listQuery = useMyWorkUnified({
     type: typeFilter === "all" ? undefined : [typeFilter],
@@ -120,6 +198,66 @@ export function MyWorkUnifiedInbox() {
   const totalCount = listQuery.data?.totalCount ?? rows.length;
   const pageSize  = listQuery.data?.pageSize ?? PAGE_SIZE;
 
+  // mig 684 — personal status overlay: fetch the map + an upsert mutation.
+  const statusesQuery = useQuery({
+    queryKey: myWorkKeys.statuses,
+    queryFn: () => myWorkService.listStatuses(),
+    staleTime: 30_000,
+  });
+  const statusMap = useMemo(() => {
+    const m = new Map<number, PersonalWorkStatus>();
+    (statusesQuery.data ?? []).forEach((e) => m.set(e.workItemId, e.status));
+    return m;
+  }, [statusesQuery.data]);
+
+  const statusMutation = useMutation({
+    mutationFn: ({ workItemId, status }: { workItemId: number; status: PersonalWorkStatus }) =>
+      myWorkService.setStatus(workItemId, status),
+    onMutate: async ({ workItemId, status }) => {
+      await qc.cancelQueries({ queryKey: myWorkKeys.statuses });
+      const prev = qc.getQueryData<MyWorkStatusEntry[]>(myWorkKeys.statuses);
+      qc.setQueryData<MyWorkStatusEntry[]>(myWorkKeys.statuses, (old) => {
+        const next = (old ?? []).filter((e) => e.workItemId !== workItemId);
+        next.push({ workItemId, status });
+        return next;
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(myWorkKeys.statuses, ctx.prev);
+      toast.error(t("myWork.statusUpdateError", { defaultValue: "Couldn't update the status." }));
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: myWorkKeys.statuses });
+    },
+  });
+
+  // Build the "From" dropdown options from the rows actually on the page —
+  // matches how drafter MyWorkInbox builds its dynamic sender list.
+  const fromOptions = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => {
+      if (r.assignedByName) set.add(r.assignedByName);
+    });
+    return Array.from(set).sort();
+  }, [rows]);
+
+  // Apply local filters (sender + personal status) + sort. Type + search go
+  // to BE. Personal status defaults to to_do when the row has no saved value.
+  const filteredRows = useMemo(() => {
+    const filtered = rows.filter((r) => {
+      if (fromFilter !== "all" && r.assignedByName !== fromFilter) return false;
+      if (statusFilter !== "all" && (statusMap.get(r.id) ?? "to_do") !== statusFilter) return false;
+      return true;
+    });
+    const sorted = [...filtered].sort((a, b) => {
+      const aMs = Date.parse(a.createdAt);
+      const bMs = Date.parse(b.createdAt);
+      return sort === "createdDesc" ? bMs - aMs : aMs - bMs;
+    });
+    return sorted;
+  }, [rows, fromFilter, statusFilter, sort, statusMap]);
+
   const handleAction = (row: MyWorkRow) => {
     // TanStack Router's typed navigate is strict, so route the wildcard via window history.
     // Within the same SPA both behave identically; this avoids a dozen route-type-imports.
@@ -130,18 +268,88 @@ export function MyWorkUnifiedInbox() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t("myWork.title", { defaultValue: "My Work" })}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("myWork.unifiedSubtitle", {
-            defaultValue: "Everything routed to you — approvals, risk cases, third-party reviews and advisory drafts.",
-          })}
-        </p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("myWork.title", { defaultValue: "My Work" })}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("myWork.unifiedSubtitle", {
+              defaultValue: "Everything routed to you — approvals, risk cases, third-party reviews and advisory drafts.",
+            })}
+          </p>
+        </div>
+        {/* 2026-06-14 — "Add to my queue" parity with drafter MyWorkInbox.
+            For non-drafter personas the queue is the actual work board, so
+            the user can: (a) start a third-party review (routes to the
+            existing /app/legal/third-party-review/new flow), or (b) add a
+            personal reminder (opens AddManualWorkOrderDialog with
+            comment_response preselected). */}
+        <Popover open={addOpen} onOpenChange={setAddOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" size="sm" data-testid="unified-add-open">
+              <Plus className="h-3.5 w-3.5" />
+              {t("myWork.addManual.openButton", { defaultValue: "Add to my queue" })}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-64 p-1">
+            <button
+              type="button"
+              className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-surface focus:bg-surface focus:outline-none"
+              onClick={() => {
+                setAddOpen(false);
+                void navigate({ to: "/app/legal/third-party-review/new" as never });
+              }}
+              data-testid="unified-add-tpa"
+            >
+              <ScrollText className="mt-0.5 h-4 w-4 text-[var(--sage)]" aria-hidden="true" />
+              <div>
+                <div className="font-medium text-ink">
+                  {t("myWork.addManual.options.tpa", {
+                    defaultValue: "Start third-party review",
+                  })}
+                </div>
+                <div className="text-xs text-ink-muted">
+                  {t("myWork.addManual.options.tpaDescription", {
+                    defaultValue: "Log a counterparty paper for review.",
+                  })}
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-surface focus:bg-surface focus:outline-none"
+              onClick={() => {
+                setAddOpen(false);
+                setAddManualOpen(true);
+              }}
+              data-testid="unified-add-reminder"
+            >
+              <ClipboardList className="mt-0.5 h-4 w-4 text-[var(--gold)]" aria-hidden="true" />
+              <div>
+                <div className="font-medium text-ink">
+                  {t("myWork.addManual.options.reminder", {
+                    defaultValue: "Add Task",
+                  })}
+                </div>
+                <div className="text-xs text-ink-muted">
+                  {t("myWork.addManual.options.reminderDescription", {
+                    defaultValue: "Track an ad-hoc to-do on your queue.",
+                  })}
+                </div>
+              </div>
+            </button>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* Toolbar */}
+      <AddManualWorkOrderDialog
+        open={addManualOpen}
+        onOpenChange={setAddManualOpen}
+      />
+
+      {/* Toolbar — matches drafter MyWorkInbox richness: search + Type +
+          Status + From + (sortable Created column below). */}
       <Card className="mb-4 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1">
@@ -168,6 +376,36 @@ export function MyWorkUnifiedInbox() {
               </option>
             ))}
           </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "all" | PersonalWorkStatus)}
+            aria-label={t("myWork.filters.statusLabel", { defaultValue: "Filter by status" })}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="all">
+              {t("myWork.filters.allStatuses", { defaultValue: "All statuses" })}
+            </option>
+            {PERSONAL_WORK_STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {t(`myWork.personalStatus.${s}`, { defaultValue: PERSONAL_STATUS_DEFAULT_LABEL[s] })}
+              </option>
+            ))}
+          </select>
+          <select
+            value={fromFilter}
+            onChange={(e) => setFromFilter(e.target.value)}
+            aria-label={t("myWork.filters.fromLabel", { defaultValue: "Filter by sender" })}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="all">
+              {t("myWork.filters.allSenders", { defaultValue: "All senders" })}
+            </option>
+            {fromOptions.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </div>
       </Card>
 
@@ -184,10 +422,14 @@ export function MyWorkUnifiedInbox() {
             <p className="p-6 text-sm text-[var(--terracotta)]">
               {t("myWork.loadError", { defaultValue: "Couldn't load your queue. Try again." })}
             </p>
-          ) : rows.length === 0 ? (
+          ) : filteredRows.length === 0 ? (
             <div className="p-10 text-center">
               <p className="text-sm text-muted-foreground">
-                {t("myWork.empty", { defaultValue: "Your queue is empty." })}
+                {rows.length === 0
+                  ? t("myWork.empty", { defaultValue: "Your queue is empty." })
+                  : t("myWork.emptyFiltered", {
+                      defaultValue: "No work orders match these filters.",
+                    })}
               </p>
             </div>
           ) : (
@@ -207,8 +449,21 @@ export function MyWorkUnifiedInbox() {
                     <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                       {t("myWork.columns.from", { defaultValue: "From" })}
                     </th>
-                    <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                    <th
+                      scope="col"
+                      className="cursor-pointer select-none px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle"
+                      onClick={() =>
+                        setSort((s) => (s === "createdDesc" ? "createdAsc" : "createdDesc"))
+                      }
+                      aria-sort={sort === "createdDesc" ? "descending" : "ascending"}
+                    >
                       {t("myWork.columns.created", { defaultValue: "Created" })}
+                      <span className="ms-1 text-[10px] text-ink-subtle/60">
+                        {sort === "createdDesc" ? "↓" : "↑"}
+                      </span>
+                    </th>
+                    <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                      {t("myWork.columns.status", { defaultValue: "Status" })}
                     </th>
                     <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle text-center">
                       {t("myWork.columns.action", { defaultValue: "Action" })}
@@ -216,7 +471,7 @@ export function MyWorkUnifiedInbox() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((wo) => {
+                  {filteredRows.map((wo) => {
                     const sourceTitle = isAr ? wo.sourceContractTitleAr : wo.sourceContractTitleEn;
                     const counterparty = wo.counterpartyName;
                     const payloadAny = (wo.payload ?? {}) as Record<string, unknown>;
@@ -281,6 +536,16 @@ export function MyWorkUnifiedInbox() {
                         <td className="px-4 py-3 align-top text-ink-muted whitespace-nowrap font-mono text-xs">
                           {formatDate(wo.createdAt)}
                         </td>
+                        <td className="px-4 py-3 align-top">
+                          <StatusSelect
+                            value={statusMap.get(wo.id) ?? "to_do"}
+                            disabled={statusMutation.isPending}
+                            onChange={(next) =>
+                              statusMutation.mutate({ workItemId: wo.id, status: next })
+                            }
+                            t={t}
+                          />
+                        </td>
                         <td className="px-4 py-3 align-top text-center">
                           <Button
                             size="sm"
@@ -302,7 +567,9 @@ export function MyWorkUnifiedInbox() {
         </CardContent>
       </Card>
 
-      {/* Pagination */}
+      {/* Pagination — mirrors drafter MyWorkInbox: range + a local-matches
+          parenthetical when sender / status filters narrow the page below
+          the server result count. */}
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
         <span>
           {t("myWork.pagination.range", {
@@ -311,6 +578,14 @@ export function MyWorkUnifiedInbox() {
             to:   (page - 1) * pageSize + rows.length,
             total: totalCount,
           })}
+          {filteredRows.length !== rows.length && (
+            <span className="ms-1 text-muted-foreground/70">
+              {t("myWork.pagination.localMatch", {
+                defaultValue: "({{visible}} match local filters)",
+                visible: filteredRows.length,
+              })}
+            </span>
+          )}
         </span>
         <div className="flex items-center gap-2">
           <Button

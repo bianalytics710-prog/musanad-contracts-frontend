@@ -38,6 +38,7 @@ import type {
   ExecutiveDashboardSnapshot,
   HealthCheckSnapshot,
   LegalCounselDashboardSnapshot,
+  LegalCounselInsights,
   RecipientDashboardSnapshot,
 } from "@/types/entities/dashboards.types";
 
@@ -53,6 +54,8 @@ export const dashboardsKeys = {
     [...dashboardsKeys.all, "approver", q] as const,
   legalCounsel: (q: DashboardWindowQuery) =>
     [...dashboardsKeys.all, "legalCounsel", q] as const,
+  legalCounselInsights: () =>
+    [...dashboardsKeys.all, "legalCounselInsights"] as const,
   recipient: (q: DashboardWindowQuery) =>
     [...dashboardsKeys.all, "recipient", q] as const,
   router: () => [...dashboardsKeys.all, "router"] as const,
@@ -138,6 +141,22 @@ export function useLegalCounselDashboard(
     queryFn: () => dashboardsService.getLegalCounselDashboard(query),
     staleTime: DEFAULT_DASHBOARD_STALE_MS,
     placeholderData: keepPreviousData,
+    ...options,
+  });
+}
+
+// ─── S4b — legal-counsel insights sidecar (mig 685) ────────────────────────
+
+export function useLegalCounselInsights(
+  options?: Omit<
+    UseQueryOptions<LegalCounselInsights, ApiError>,
+    "queryKey" | "queryFn"
+  >,
+) {
+  return useQuery<LegalCounselInsights, ApiError>({
+    queryKey: dashboardsKeys.legalCounselInsights(),
+    queryFn: () => dashboardsService.getLegalCounselInsights(),
+    staleTime: DEFAULT_DASHBOARD_STALE_MS,
     ...options,
   });
 }

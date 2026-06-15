@@ -1,14 +1,22 @@
 /**
- * LegalCounselDashboard — R-LC1 rebuild for full Lovable parity.
+ * LegalCounselDashboard — revamp (mig 685).
  *
- * Replaces the M_parity S4 regulatory-only layout with the rich
- * legal-counsel surface from Lovable: contracts-led KPIs, my-approval-queue
- * card, risk-exposure card (AI-risk donut + avg-review-time chart + top-5
- * risk list), regulatory-updates 12-week chart by authority, contract-types
- * donut, obligations-at-risk card, and activity feed with filter pills.
+ * Replaces cross-role noise (risk-exposure donut, regulatory-updates chart,
+ * obligations-at-risk, open-impacts) with LC-relevant modules:
+ *   - Advisory & notices pipeline
+ *   - Third-party review pipeline
+ *   - Template & clause library
+ *   - My risk cases
  *
- *   GET /api/v1/dashboards/legal-counsel?windowDays=N (fn_dashboard_legal_counsel
- *   extended in BE migration 071/072).
+ * KEPT from prior build:
+ *   - My approval queue (from useLegalCounselDashboard)
+ *   - Avg legal review time line chart (lifted into its own card)
+ *   - Contract types donut (from useLegalCounselDashboard)
+ *   - Activity feed with filter pills (from useLegalCounselDashboard)
+ *
+ * Data sources:
+ *   useLegalCounselDashboard  → approvalQueue5, avgReview12w, contractTypes, activityFeed
+ *   useLegalCounselInsights   → kpis, advisoryPipeline, tpaPipeline, templateClause, myRiskCases
  */
 
 import { useMemo, useState } from "react";
@@ -18,20 +26,14 @@ import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   Briefcase,
-  Building2,
-  Calendar,
-  CheckSquare,
   Clock,
+  FileStack,
   FileText,
-  Flag,
   PieChart as PieIcon,
-  ScrollText,
-  Shield,
+  ShieldAlert,
   TrendingUp,
 } from "lucide-react";
 import {
-  Bar,
-  BarChart,
   Cell,
   Line,
   LineChart,
@@ -42,7 +44,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useLegalCounselDashboard } from "../hooks/useDashboards";
+import { useLegalCounselDashboard, useLegalCounselInsights } from "../hooks/useDashboards";
 import {
   DashboardEmptyState,
   DashboardErrorState,
@@ -54,78 +56,40 @@ import {
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
 import type {
-  DashboardOpenImpactRow,
-  DashboardRegulatoryUpdateRow,
   LegalCounselApprovalQueueRow,
-  LegalCounselObligationRow,
-  LegalCounselTopRiskRow,
-  LegalCounselWeeklyAuthority,
   LegalCounselWeekHours,
   LegalCounselContractTypeRow,
   LegalCounselActivityRow,
+  LegalCounselRiskCaseRow,
+  LegalCounselTpaPipelineRow,
 } from "@/types/entities/dashboards.types";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
-const SEVERITY_TONE: Record<string, string> = {
-  critical: "bg-terracotta-tint text-terracotta-ink",
-  high: "bg-amber-tint text-amber-ink",
-  medium: "bg-amber-tint/60 text-amber-ink",
-  low: "bg-sage-tint text-sage-ink",
-  unknown: "bg-muted text-ink-muted",
-};
-
-function severityClass(severity: string): string {
-  return SEVERITY_TONE[severity.toLowerCase()] ?? SEVERITY_TONE.unknown;
-}
-
-// AI-risk donut palette (matches FE riskScore tints).
-const RISK_FILL = {
-  low: "#86A89B",
-  medium: "#D9B26A",
-  high: "#C4634D",
-} as const;
-
-// Authority palette for the regulatory-updates 12-week chart.
-const AUTHORITY_FILL: Record<string, string> = {
-  MoHRE: "#C68A3A",
-  FTA: "#86A89B",
-  CBUAE: "#5A6B7C",
-  DIFC: "#7A8FA6",
-  ADGM: "#7A8FA6",
-  TDRA: "#A28BB7",
-  MoJ: "#C4634D",
-  MoE: "#9F7C39",
-  default: "#5A6B7C",
-};
-function authorityFill(code: string | null): string {
-  if (!code) return AUTHORITY_FILL.default;
-  return AUTHORITY_FILL[code] ?? AUTHORITY_FILL.default;
-}
-
-// Activity feed filter pills (R-LC1 LC-C14 — Lovable parity).
-type ActivityFilter = "all" | "mine" | "mentions" | "high";
+// Activity feed filter pills
+type ActivityFilter = "all" | "mine" | "high";
 
 export function LegalCounselDashboard() {
   const { t } = useTranslation();
   const user = useAuthStore(selectUser);
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
 
-  // Time-range filter removed — dashboard now always reads the 30-day window
-  // for downstream activity feed + 12-week aggregates. Snapshot KPIs are
-  // moment-in-time anyway, so a date selector at the top was misleading.
-  const { data, isLoading, isError, error, refetch } = useLegalCounselDashboard(
-    asWindowQuery(DEFAULT_WINDOW_DAYS),
-  );
+  const {
+    data,
+    isLoading: mainLoading,
+    isError: mainError,
+    error: mainErr,
+    refetch: mainRefetch,
+  } = useLegalCounselDashboard(asWindowQuery(DEFAULT_WINDOW_DAYS));
 
-  const riskDonut = useMemo(() => {
-    if (!data?.risk) return [] as Array<{ key: string; count: number; fill: string }>;
-    return [
-      { key: "low", count: data.risk.lowCount, fill: RISK_FILL.low },
-      { key: "medium", count: data.risk.mediumCount, fill: RISK_FILL.medium },
-      { key: "high", count: data.risk.highCount, fill: RISK_FILL.high },
-    ];
-  }, [data]);
+  const {
+    data: insights,
+    isLoading: insightsLoading,
+    isError: insightsError,
+  } = useLegalCounselInsights();
+
+  const isLoading = mainLoading || insightsLoading;
+  const isError = mainError || insightsError;
 
   const reviewChartData = useMemo(() => {
     return [...(data?.avgReview12w ?? [])]
@@ -141,56 +105,12 @@ export function LegalCounselDashboard() {
     return w0 ? w0.avgHours : 0;
   }, [data]);
 
-  // Regulatory updates 12-week — group by week, stack by authority.
-  const regChartData = useMemo(() => {
-    const byWeek: Record<number, Record<string, number>> = {};
-    const authoritiesSet = new Set<string>();
-    (data?.regulatoryUpdates12w?.weeklyByAuthority ?? []).forEach((row) => {
-      const wk = row.weekIndex;
-      const auth = row.authority ?? "Other";
-      authoritiesSet.add(auth);
-      byWeek[wk] = byWeek[wk] ?? {};
-      byWeek[wk][auth] = (byWeek[wk][auth] ?? 0) + row.count;
-    });
-    const rows = Array.from({ length: 12 }, (_, i) => i)
-      .reverse()
-      .map((wk) => ({
-        week: `W${12 - wk}`,
-        ...byWeek[wk],
-      }));
-    return { rows, authorities: Array.from(authoritiesSet) };
-  }, [data]);
-
-  const peakRegWeek = useMemo(() => {
-    const counts = (data?.regulatoryUpdates12w?.weeklyByAuthority ?? []).reduce(
-      (acc, r) => {
-        acc[r.weekIndex] = (acc[r.weekIndex] ?? 0) + r.count;
-        return acc;
-      },
-      {} as Record<number, number>,
-    );
-    let bestWeek = 0;
-    let bestCount = 0;
-    for (const [wk, c] of Object.entries(counts)) {
-      if (c > bestCount) {
-        bestCount = c;
-        bestWeek = Number(wk);
-      }
-    }
-    return { weekLabel: `W${12 - bestWeek}`, count: bestCount };
-  }, [data]);
-
-  // Activity-feed filter — basic client-side.
   const filteredActivity = useMemo(() => {
     const all = data?.activityFeed ?? [];
     switch (activityFilter) {
       case "mine":
         return user ? all.filter((a) => a.actorUserId === user.id) : [];
-      case "mentions":
-        // M_parity stub — no mentions wiring yet; show empty.
-        return [];
       case "high":
-        // Treat AI risk + critical regulatory + escalations as "high-priority".
         return all.filter((a) =>
           [
             "ai_risk_score_updated",
@@ -215,8 +135,6 @@ export function LegalCounselDashboard() {
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          {/* Kicker mirrors Drafter dashboard — mono uppercase so the welcome
-              line reads as a label, not as body copy. */}
           <p className="font-mono text-xs uppercase tracking-wider text-ink-subtle">
             {user
               ? `${t("dashboards.common.welcome", { defaultValue: "Welcome back" })}, ${user.firstName} ${user.lastName} · ${formatDate(nowISO)} · ${formatHijriDate(nowISO)}`
@@ -231,65 +149,69 @@ export function LegalCounselDashboard() {
         </div>
       </header>
 
-      {isLoading && !data ? (
+      {isLoading && !data && !insights ? (
         <DashboardLoadingSkeleton rows={1} />
       ) : isError ? (
         <DashboardErrorState
-          error={error}
-          onRetry={() => void refetch()}
+          error={mainErr}
+          onRetry={() => void mainRefetch()}
           fallbackKey="dashboards.legalCounsel.errors.loadFailed"
         />
       ) : !data ? (
         <DashboardEmptyState />
       ) : (
         <>
-          {/* R-LC1 LC-C4/C5/C6 — contracts-led KPIs (top row, clickable).
-              Drafter + Executive dashboards drop the KPI-strip section heading
-              and let the tiles speak for themselves; match that pattern here. */}
+          {/* ── KPI row ── */}
           <section
             aria-label={t("dashboards.legalCounsel.kpiGroupLabel")}
             className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
           >
-            <Link to="/app/contracts" className="block">
-              <KpiTile
-                label={t("dashboards.legalCounsel.kpis.activeContracts", {
-                  defaultValue: "Active",
-                })}
-                value={formatNumber(data.kpis.activeContracts)}
-              />
-            </Link>
-            <Link to="/app/contracts" className="block">
-              <KpiTile
-                label={t("dashboards.legalCounsel.kpis.expiringIn30d", {
-                  defaultValue: "Expiring 30d",
-                })}
-                value={formatNumber(data.kpis.expiringIn30d)}
-                variant={data.kpis.expiringIn30d > 0 ? "warning" : "default"}
-              />
-            </Link>
-            <Link to="/app/regulatory-radar" className="block">
-              <KpiTile
-                label={t("dashboards.legalCounsel.kpis.openRegulatoryImpacts", {
-                  defaultValue: "Regulatory impact (open)",
-                })}
-                value={formatNumber(data.kpis.openRegulatoryImpacts)}
-                variant={data.kpis.openRegulatoryImpacts > 0 ? "warning" : "default"}
-              />
-            </Link>
             <Link to="/app/approvals" className="block">
               <KpiTile
-                label={t("dashboards.legalCounsel.kpis.pendingReview", {
-                  defaultValue: "Pending Review",
+                label={t("dashboards.legalCounsel.kpis.pendingMyReview", {
+                  defaultValue: "Pending my review",
                 })}
-                value={formatNumber(data.kpis.pendingReview)}
-                variant={data.kpis.pendingReview > 0 ? "warning" : "default"}
+                value={formatNumber(insights?.kpis.contractsPendingMyReview ?? 0)}
+                variant={
+                  (insights?.kpis.contractsPendingMyReview ?? 0) > 0 ? "warning" : "default"
+                }
+              />
+            </Link>
+            <Link to="/app/work" className="block">
+              <KpiTile
+                label={t("dashboards.legalCounsel.kpis.advisoriesInProgress", {
+                  defaultValue: "Advisories in progress",
+                })}
+                value={formatNumber(insights?.kpis.advisoriesInProgress ?? 0)}
+              />
+            </Link>
+            <Link to="/app/legal/third-party-review" className="block">
+              <KpiTile
+                label={t("dashboards.legalCounsel.kpis.tpaAwaitingMe", {
+                  defaultValue: "TPA awaiting me",
+                })}
+                value={formatNumber(insights?.kpis.tpaReviewsAwaitingMe ?? 0)}
+                variant={
+                  (insights?.kpis.tpaReviewsAwaitingMe ?? 0) > 0 ? "warning" : "default"
+                }
+              />
+            </Link>
+            <Link to="/app/risk-cases" className="block">
+              <KpiTile
+                label={t("dashboards.legalCounsel.kpis.myOpenRiskCases", {
+                  defaultValue: "My open risk cases",
+                })}
+                value={formatNumber(insights?.kpis.myOpenRiskCases ?? 0)}
+                variant={
+                  (insights?.kpis.myOpenRiskCases ?? 0) > 0 ? "warning" : "default"
+                }
               />
             </Link>
           </section>
 
-          {/* My approval queue + Risk exposure side-by-side */}
+          {/* ── Row 2: Approval queue (lg:col-span-2) + Advisory & notices ── */}
           <div className="grid gap-4 lg:grid-cols-3">
-            {/* My approval queue — 5-row table with Review buttons */}
+            {/* My approval queue */}
             <section className="rounded-lg border border-border bg-card p-4 lg:col-span-2">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
@@ -308,218 +230,131 @@ export function LegalCounselDashboard() {
               <ApprovalQueueTable rows={data.approvalQueue5} />
             </section>
 
-            {/* Risk exposure — donut + avg-review chart + top-5 list */}
+            {/* Advisory & notices pipeline */}
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
-                <Shield className="h-4 w-4 text-gold" />
+                <FileText className="h-4 w-4 text-gold" />
                 <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.legalCounsel.risk.title", {
-                    defaultValue: "Risk exposure",
+                  {t("dashboards.legalCounsel.advisory.title", {
+                    defaultValue: "Advisory & notices",
                   })}
                 </h3>
               </div>
-              <p className="text-xs text-ink-subtle">
-                {t("dashboards.legalCounsel.risk.subtitle", {
-                  defaultValue: "Active contracts by AI risk score",
-                })}
-              </p>
-              <div className="relative h-44">
-                {data.risk.totalActive === 0 ? (
-                  <DashboardEmptyState />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={riskDonut}
-                        dataKey="count"
-                        nameKey="key"
-                        innerRadius={42}
-                        outerRadius={66}
-                        paddingAngle={2}
-                        stroke="var(--card)"
-                        strokeWidth={2}
-                        isAnimationActive={false}
-                      >
-                        {riskDonut.map((d, i) => (
-                          <Cell key={i} fill={d.fill} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                          fontSize: 11,
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-mono text-xl font-semibold text-ink">
-                    {data.risk.totalActive}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wider text-ink-subtle">
-                    {t("dashboards.legalCounsel.risk.totalActive", {
-                      defaultValue: "Total active",
+              {insights ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <AdvisoryStatCell
+                    label={t("dashboards.legalCounsel.advisory.draft", {
+                      defaultValue: "Draft",
                     })}
-                  </span>
-                </div>
-              </div>
-              <ul className="mt-3 space-y-1.5">
-                <RiskLegendRow
-                  label={t("dashboards.legalCounsel.risk.bucketLow", {
-                    defaultValue: "Low (0–30)",
-                  })}
-                  count={data.risk.lowCount}
-                  fill={RISK_FILL.low}
-                />
-                <RiskLegendRow
-                  label={t("dashboards.legalCounsel.risk.bucketMedium", {
-                    defaultValue: "Medium (31–60)",
-                  })}
-                  count={data.risk.mediumCount}
-                  fill={RISK_FILL.medium}
-                />
-                <RiskLegendRow
-                  label={t("dashboards.legalCounsel.risk.bucketHigh", {
-                    defaultValue: "High (61+)",
-                  })}
-                  count={data.risk.highCount}
-                  fill={RISK_FILL.high}
-                />
-              </ul>
-              <div className="mt-4 border-t border-border/60 pt-3">
-                <div className="mb-1 flex items-center justify-between text-xs text-ink-muted">
-                  <span>
-                    {t("dashboards.legalCounsel.risk.avgReview", {
-                      defaultValue: "Avg legal review time",
+                    value={insights.advisoryPipeline.draft}
+                  />
+                  <AdvisoryStatCell
+                    label={t("dashboards.legalCounsel.advisory.inExecReview", {
+                      defaultValue: "In exec review",
                     })}
-                  </span>
-                  <span className="font-mono text-ink">
-                    {t("dashboards.legalCounsel.risk.currentWeek", {
-                      defaultValue: "Current week",
+                    value={insights.advisoryPipeline.inExecReview}
+                  />
+                  <AdvisoryStatCell
+                    label={t("dashboards.legalCounsel.advisory.approvedReady", {
+                      defaultValue: "Approved — ready",
                     })}
-                    : {Math.round(currentWeekReviewHours)}h
-                  </span>
+                    value={insights.advisoryPipeline.approvedReady}
+                  />
+                  <AdvisoryStatCell
+                    label={t("dashboards.legalCounsel.advisory.sentThisMonth", {
+                      defaultValue: "Sent this month",
+                    })}
+                    value={insights.advisoryPipeline.sentThisMonth}
+                    highlight
+                  />
                 </div>
-                <div className="h-20">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={reviewChartData}>
-                      <XAxis dataKey="week" tick={{ fontSize: 10 }} interval={1} />
-                      <YAxis tick={{ fontSize: 10 }} width={28} />
-                      <Tooltip
-                        contentStyle={{
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                          fontSize: 11,
-                        }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="hours"
-                        stroke={RISK_FILL.medium}
-                        strokeWidth={2}
-                        dot={{ r: 2 }}
-                        isAnimationActive={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-              <div className="mt-3 border-t border-border/60 pt-3">
-                <p className="mb-2 text-xs font-medium text-ink-muted">
-                  {t("dashboards.legalCounsel.risk.top5Title", {
-                    defaultValue: "Top 5 highest-risk contracts",
-                  })}
-                </p>
-                <TopRiskList rows={data.risk.top5HighRisk} />
-              </div>
+              ) : (
+                <DashboardEmptyState />
+              )}
             </section>
           </div>
 
-          {/* Regulatory updates 12 weeks + Contract types donut */}
+          {/* ── Row 3: TPA pipeline + Template/clause library + My risk cases ── */}
           <div className="grid gap-4 lg:grid-cols-3">
-            <section className="rounded-lg border border-border bg-card p-4 lg:col-span-2">
-              <div className="mb-2 flex items-center gap-2">
-                <ScrollText className="h-4 w-4 text-gold" />
+            {/* Third-party review pipeline */}
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                  <TrendingUp className="h-4 w-4 text-gold" />
+                  {t("dashboards.legalCounsel.tpa.title", {
+                    defaultValue: "Third-party review pipeline",
+                  })}
+                </h3>
+                <Link
+                  to="/app/legal/third-party-review"
+                  className="text-xs font-medium text-gold hover:underline"
+                >
+                  {t("dashboards.common.viewAll", { defaultValue: "View all →" })}
+                </Link>
+              </div>
+              <TpaPipelineList rows={insights?.tpaPipeline ?? []} />
+            </section>
+
+            {/* Template & clause library */}
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <FileStack className="h-4 w-4 text-gold" />
                 <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.legalCounsel.regUpdates12w.title", {
-                    defaultValue: "Regulatory updates · 12 weeks",
+                  {t("dashboards.legalCounsel.templateClause.title", {
+                    defaultValue: "Template & clause library",
                   })}
                 </h3>
               </div>
-              <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-ink-muted">
-                <span>
-                  {t("dashboards.legalCounsel.regUpdates12w.totalUpdates", {
-                    defaultValue: "Total updates",
-                  })}
-                  : <span className="font-mono text-ink">{data.regulatoryUpdates12w.totalUpdates}</span>
-                </span>
-                <span>
-                  {t("dashboards.legalCounsel.regUpdates12w.authoritiesActive", {
-                    defaultValue: "Authorities active",
-                  })}
-                  : <span className="font-mono text-ink">{data.regulatoryUpdates12w.authoritiesActive}</span>
-                </span>
-                <span>
-                  {t("dashboards.legalCounsel.regUpdates12w.peakWeek", {
-                    defaultValue: "Peak week",
-                  })}
-                  : <span className="font-mono text-ink">
-                    {peakRegWeek.weekLabel} · {peakRegWeek.count}
-                  </span>
-                </span>
-              </div>
-              {data.regulatoryUpdates12w.totalUpdates === 0 ? (
-                <DashboardEmptyState />
-              ) : (
-                <div className="h-44">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={regChartData.rows}>
-                      <XAxis dataKey="week" tick={{ fontSize: 10 }} />
-                      {/* L9 — integer-only Y-axis tick formatter (no decimal counts). */}
-                      <YAxis
-                        tick={{ fontSize: 10 }}
-                        width={28}
-                        allowDecimals={false}
-                        tickFormatter={(v: number) => (Number.isInteger(v) ? String(v) : "")}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: "var(--card)",
-                          border: "1px solid var(--border)",
-                          borderRadius: 8,
-                          fontSize: 11,
-                        }}
-                      />
-                      {regChartData.authorities.map((auth) => (
-                        <Bar
-                          key={auth}
-                          dataKey={auth}
-                          stackId="a"
-                          fill={authorityFill(auth)}
-                          isAnimationActive={false}
-                        />
-                      ))}
-                    </BarChart>
-                  </ResponsiveContainer>
+              {insights ? (
+                <div className="space-y-3">
+                  <LibraryStatRow
+                    label={t("dashboards.legalCounsel.templateClause.templates", {
+                      defaultValue: "Templates",
+                    })}
+                    value={insights.templateClause.templateCount}
+                  />
+                  <LibraryStatRow
+                    label={t("dashboards.legalCounsel.templateClause.clauses", {
+                      defaultValue: "Clauses",
+                    })}
+                    value={insights.templateClause.clauseCount}
+                  />
+                  <LibraryStatRow
+                    label={t("dashboards.legalCounsel.templateClause.approvedClauses", {
+                      defaultValue: "Approved clauses",
+                    })}
+                    value={insights.templateClause.approvedClauseCount}
+                    highlight
+                  />
                 </div>
+              ) : (
+                <DashboardEmptyState />
               )}
-              <ul className="mt-3 flex flex-wrap gap-3 text-xs">
-                {regChartData.authorities.map((auth) => (
-                  <li key={auth} className="inline-flex items-center gap-1.5 text-ink-muted">
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-sm"
-                      style={{ background: authorityFill(auth) }}
-                    />
-                    {auth}
-                  </li>
-                ))}
-              </ul>
             </section>
 
+            {/* My risk cases */}
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                  <ShieldAlert className="h-4 w-4 text-gold" />
+                  {t("dashboards.legalCounsel.riskCases.title", {
+                    defaultValue: "My risk cases",
+                  })}
+                </h3>
+                <Link
+                  to="/app/risk-cases"
+                  className="text-xs font-medium text-gold hover:underline"
+                >
+                  {t("dashboards.common.viewAll", { defaultValue: "View all →" })}
+                </Link>
+              </div>
+              <MyRiskCasesList rows={insights?.myRiskCases ?? []} />
+            </section>
+          </div>
+
+          {/* ── Row 4: Contract types donut + Avg review time ── */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Contract types donut */}
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="mb-2 flex items-center gap-2">
                 <PieIcon className="h-4 w-4 text-gold" />
@@ -534,122 +369,85 @@ export function LegalCounselDashboard() {
                   defaultValue: "Active contracts by type",
                 })}
               </p>
-              <ContractTypesDonut rows={data.contractTypes.rows} total={data.contractTypes.total} />
+              <ContractTypesDonut
+                rows={data.contractTypes.rows}
+                total={data.contractTypes.total}
+              />
             </section>
-          </div>
 
-          {/* Obligations at risk + Activity feed */}
-          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Avg legal review time (line chart, lifted from risk card) */}
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="mb-2 flex items-center gap-2">
-                <Flag className="h-4 w-4 text-gold" />
+                <Clock className="h-4 w-4 text-gold" />
                 <h3 className="text-sm font-semibold text-ink">
-                  {t("dashboards.legalCounsel.obligations.title", {
-                    defaultValue: "Obligations at risk",
+                  {t("dashboards.legalCounsel.avgReview.title", {
+                    defaultValue: "Avg legal review time",
                   })}
                 </h3>
               </div>
-              <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-ink-muted">
-                <span className="inline-flex items-center gap-1">
-                  <span className="inline-block h-2 w-2 rounded-full bg-terracotta" />
-                  <span>
-                    {data.obligations.overdueCount}{" "}
-                    {t("dashboards.legalCounsel.obligations.overdue", {
-                      defaultValue: "overdue",
-                    })}
-                  </span>
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="inline-block h-2 w-2 rounded-full bg-amber" />
-                  <span>
-                    {data.obligations.dueThisWeekCount}{" "}
-                    {t("dashboards.legalCounsel.obligations.dueWeek", {
-                      defaultValue: "due this week",
-                    })}
-                  </span>
-                </span>
-              </div>
-              <ObligationsAtRiskList rows={data.obligations.top5} />
-              <Link
-                to="/app/obligations"
-                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-gold hover:underline"
-              >
-                {t("dashboards.legalCounsel.obligations.viewAll", {
-                  defaultValue: "View all obligations →",
+              <p className="mb-3 text-xs text-ink-subtle">
+                {t("dashboards.legalCounsel.avgReview.subtitle", {
+                  defaultValue: "Hours per week · last 12 weeks",
                 })}
-              </Link>
-            </section>
-
-            <section className="rounded-lg border border-border bg-card p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
-                  <Clock className="h-4 w-4 text-gold" />
-                  {t("dashboards.legalCounsel.activityFeed.title", {
-                    defaultValue: "Activity feed",
-                  })}
-                </h3>
-                <div className="inline-flex flex-wrap gap-1">
-                  {(
-                    [
-                      { key: "all", labelKey: "all", defaultLabel: "All" },
-                      { key: "mine", labelKey: "mine", defaultLabel: "My actions" },
-                      { key: "mentions", labelKey: "mentions", defaultLabel: "Mentions" },
-                      { key: "high", labelKey: "high", defaultLabel: "High-priority" },
-                    ] as const
-                  ).map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => setActivityFilter(p.key)}
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
-                        activityFilter === p.key
-                          ? "bg-gold/20 text-gold"
-                          : "text-ink-muted hover:bg-surface"
-                      }`}
-                    >
-                      {t(`dashboards.legalCounsel.activityFeed.pill.${p.labelKey}`, {
-                        defaultValue: p.defaultLabel,
-                      })}
-                    </button>
-                  ))}
-                </div>
+              </p>
+              <div className="mb-2 text-right font-mono text-sm text-ink">
+                {t("dashboards.legalCounsel.avgReview.currentWeek", {
+                  defaultValue: "Current week",
+                })}
+                :{" "}
+                <span className="font-semibold">{Math.round(currentWeekReviewHours)}h</span>
               </div>
-              <ActivityFeedList rows={filteredActivity} />
+              <div className="h-40">
+                <ReviewTimeChart data={reviewChartData} />
+              </div>
             </section>
           </div>
 
-          {/* Existing recent regulatory updates + open impacts (kept for parity) */}
-          <div className="grid gap-3 lg:grid-cols-2">
-            <section className="rounded-lg border border-border bg-card p-4">
-              <h3 className="mb-2 text-sm font-semibold text-ink">
-                {t("dashboards.legalCounsel.lists.recentRegulatoryUpdatesTitle")}
+          {/* ── Row 5: Activity feed (full width) ── */}
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                <Clock className="h-4 w-4 text-gold" />
+                {t("dashboards.legalCounsel.activityFeed.title", {
+                  defaultValue: "Activity feed",
+                })}
               </h3>
-              <p className="mb-3 text-xs text-ink-subtle">
-                {t(
-                  "dashboards.legalCounsel.lists.recentRegulatoryUpdatesDescription",
-                )}
-              </p>
-              <RegulatoryUpdateRows rows={data.lists.recentRegulatoryUpdates5} />
-            </section>
-
-            <section className="rounded-lg border border-border bg-card p-4">
-              <h3 className="mb-2 text-sm font-semibold text-ink">
-                {t("dashboards.legalCounsel.lists.openImpactsTitle")}
-              </h3>
-              <p className="mb-3 text-xs text-ink-subtle">
-                {t("dashboards.legalCounsel.lists.openImpactsDescription")}
-              </p>
-              <OpenImpactRows rows={data.lists.openImpacts5} />
-            </section>
-          </div>
+              <div className="inline-flex flex-wrap gap-1">
+                {(
+                  [
+                    { key: "all", labelKey: "all", defaultLabel: "All" },
+                    { key: "mine", labelKey: "mine", defaultLabel: "My actions" },
+                    { key: "high", labelKey: "high", defaultLabel: "High-priority" },
+                  ] as const
+                ).map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setActivityFilter(p.key)}
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
+                      activityFilter === p.key
+                        ? "bg-gold/20 text-gold"
+                        : "text-ink-muted hover:bg-surface"
+                    }`}
+                  >
+                    {t(`dashboards.legalCounsel.activityFeed.pill.${p.labelKey}`, {
+                      defaultValue: p.defaultLabel,
+                    })}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ActivityFeedList rows={filteredActivity} />
+          </section>
         </>
       )}
     </motion.div>
   );
 }
 
-// L13 / L99 / L104 — shared widget for humanizing contract type slugs.
-function humanizeApprovalRowType(slug: string | null | undefined): string {
+// ── Shared contract-type humanizer ──────────────────────────────────────────
+
+function humanizeContractType(slug: string | null | undefined): string {
   if (!slug) return "—";
   const map: Record<string, string> = {
     services: "Services",
@@ -665,8 +463,12 @@ function humanizeApprovalRowType(slug: string | null | undefined): string {
     sow: "SOW",
     supply: "Supply",
   };
-  return map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+  return (
+    map[slug] ?? slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase())
+  );
 }
+
+// ── ApprovalQueueTable ───────────────────────────────────────────────────────
 
 function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) {
   const { t, i18n } = useTranslation();
@@ -683,7 +485,6 @@ function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        {/* L14 — drop uppercase column headers for consistency with the contracts list */}
         <thead className="text-[10px] font-medium tracking-wider text-ink-subtle">
           <tr className="border-b border-border/60">
             <th className="py-1.5 text-start">
@@ -711,7 +512,9 @@ function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) 
         </thead>
         <tbody>
           {rows.map((r) => {
-            const drafterName = [r.drafterFirstName, r.drafterLastName].filter(Boolean).join(" ");
+            const drafterName = [r.drafterFirstName, r.drafterLastName]
+              .filter(Boolean)
+              .join(" ");
             return (
               <tr key={r.id} className="border-b border-border/40">
                 <td className="py-2">
@@ -723,7 +526,6 @@ function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) 
                     <div className="font-mono text-xs text-ink-muted">
                       {r.contractNumber}
                     </div>
-                    {/* L99 — locale-aware title: prefer Arabic when actor lang is AR */}
                     <div
                       className="text-sm text-ink"
                       dir={isAr && (r as { titleAr?: string | null }).titleAr ? "rtl" : "ltr"}
@@ -735,12 +537,13 @@ function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) 
                   </Link>
                 </td>
                 <td className="py-2 text-xs text-ink-muted">
-                  {/* L13 — humanize contract_type slug (services → Services). */}
                   {t(`contractType.${r.contractType}`, {
-                    defaultValue: humanizeApprovalRowType(r.contractType),
+                    defaultValue: humanizeContractType(r.contractType),
                   })}
                 </td>
-                <td className="py-2 text-xs text-ink-muted">{drafterName || "—"}</td>
+                <td className="py-2 text-xs text-ink-muted">
+                  {drafterName || "—"}
+                </td>
                 <td className="py-2 font-mono text-xs text-ink-muted">
                   {r.submittedAt ? formatDate(r.submittedAt) : "—"}
                 </td>
@@ -765,63 +568,134 @@ function ApprovalQueueTable({ rows }: { rows: LegalCounselApprovalQueueRow[] }) 
   );
 }
 
-function RiskLegendRow({
+// ── AdvisoryStatCell ─────────────────────────────────────────────────────────
+
+function AdvisoryStatCell({
   label,
-  count,
-  fill,
+  value,
+  highlight = false,
 }: {
   label: string;
-  count: number;
-  fill: string;
+  value: number;
+  highlight?: boolean;
 }) {
   return (
-    <li className="flex items-center justify-between text-xs">
-      <span className="flex items-center gap-2 text-ink">
-        <span
-          className="inline-block h-2.5 w-2.5 rounded-sm"
-          style={{ background: fill }}
-        />
-        {label}
-      </span>
-      <span className="font-mono text-ink-muted">{count}</span>
-    </li>
+    <div className="rounded-md border border-border/60 bg-surface/40 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-ink-subtle">{label}</p>
+      <p
+        className={`mt-1 font-mono text-xl font-semibold ${highlight ? "text-gold" : "text-ink"}`}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 
-function TopRiskList({ rows }: { rows: LegalCounselTopRiskRow[] }) {
+// ── TpaPipelineList ──────────────────────────────────────────────────────────
+
+function TpaPipelineList({ rows }: { rows: LegalCounselTpaPipelineRow[] }) {
   const { t } = useTranslation();
   if (rows.length === 0) {
-    return <p className="text-xs text-ink-subtle">{t("dashboards.common.emptyList")}</p>;
+    return (
+      <DashboardEmptyState
+        description={t("dashboards.legalCounsel.tpa.empty", {
+          defaultValue: "No third-party reviews",
+        })}
+      />
+    );
   }
+  const humanizeStatus = (s: string) =>
+    s.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+
   return (
-    <ul role="list" className="space-y-1.5">
+    <ul role="list" className="divide-y divide-border/50">
       {rows.map((r) => (
-        <li key={r.id} className="flex items-center justify-between gap-2 text-xs">
-          <Link
-            to="/app/contracts/$id"
-            params={{ id: String(r.id) }}
-            className="block min-w-0 flex-1 truncate text-ink hover:underline"
-          >
-            <span className="font-mono text-ink-muted">{r.contractNumber}</span>{" "}
-            <span className="text-ink">·</span>{" "}
-            <span>{r.titleEn}</span>
-          </Link>
-          <span
-            className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 font-mono text-[10px] font-medium ${
-              r.risk >= 60
-                ? "bg-terracotta-tint text-terracotta-ink"
-                : r.risk >= 30
-                  ? "bg-amber-tint text-amber-ink"
-                  : "bg-sage-tint text-sage-ink"
-            }`}
-          >
-            {r.risk}
-          </span>
+        <li
+          key={r.status}
+          className="flex items-center justify-between gap-2 py-2 text-sm"
+        >
+          <span className="text-ink">{humanizeStatus(r.status)}</span>
+          <span className="font-mono text-sm font-semibold text-ink">{r.count}</span>
         </li>
       ))}
     </ul>
   );
 }
+
+// ── LibraryStatRow ───────────────────────────────────────────────────────────
+
+function LibraryStatRow({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-sm text-ink">{label}</span>
+      <span
+        className={`font-mono text-sm font-semibold ${highlight ? "text-gold" : "text-ink"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ── MyRiskCasesList ──────────────────────────────────────────────────────────
+
+const PRIORITY_CLASS: Record<string, string> = {
+  critical: "bg-terracotta-tint text-terracotta-ink",
+  high: "bg-amber-tint text-amber-ink",
+  medium: "bg-amber-tint/60 text-amber-ink",
+  low: "bg-sage-tint text-sage-ink",
+};
+
+function MyRiskCasesList({ rows }: { rows: LegalCounselRiskCaseRow[] }) {
+  const { t } = useTranslation();
+  if (rows.length === 0) {
+    return (
+      <p className="text-sm text-ink-subtle">
+        {t("dashboards.legalCounsel.riskCases.empty", {
+          defaultValue: "No risk cases assigned to you",
+        })}
+      </p>
+    );
+  }
+  const humanize = (s: string) =>
+    s.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+
+  return (
+    <ul role="list" className="divide-y divide-border/50">
+      {rows.map((rc) => (
+        <li key={rc.id} className="py-2">
+          <Link
+            to="/app/risk-cases/$caseId"
+            params={{ caseId: String(rc.id) }}
+            className="block rounded-md px-1 transition-colors hover:bg-surface/50"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm text-ink line-clamp-2">{rc.title}</p>
+              <span
+                className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${PRIORITY_CLASS[rc.priority] ?? "bg-muted text-ink-muted"}`}
+              >
+                {humanize(rc.priority)}
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] text-ink-subtle">
+              {humanize(rc.caseType)} · {humanize(rc.status)}
+            </p>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ── ContractTypesDonut ───────────────────────────────────────────────────────
 
 function ContractTypesDonut({
   rows,
@@ -831,28 +705,20 @@ function ContractTypesDonut({
   total: number;
 }) {
   const { t } = useTranslation();
-  const palette = ["#C68A3A", "#86A89B", "#D9B26A", "#7A8FA6", "#A28BB7", "#9F7C39", "#5A6B7C", "#C4634D"];
-  // L100 + L104 — humanize contract_type slugs (services → Services, epc → EPC, gas_spa → Gas SPA).
-  const humanizeType = (slug: string): string => {
-    const map: Record<string, string> = {
-      services: "Services",
-      epc: "EPC",
-      gas_spa: "Gas SPA",
-      concession: "Concession",
-      employment: "Employment",
-      consultancy: "Consultancy",
-      advisory: "Advisory",
-      nda: "Non-disclosure",
-      vendor_services: "Vendor Services",
-      master_services: "Master Services",
-      sow: "SOW",
-      supply: "Supply",
-    };
-    if (map[slug]) return map[slug];
-    return slug.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-  };
+  const palette = [
+    "#C68A3A",
+    "#86A89B",
+    "#D9B26A",
+    "#7A8FA6",
+    "#A28BB7",
+    "#9F7C39",
+    "#5A6B7C",
+    "#C4634D",
+  ];
   const data = rows.map((r, i) => ({
-    type: t(`contractType.${r.type}`, { defaultValue: humanizeType(r.type) }),
+    type: t(`contractType.${r.type}`, {
+      defaultValue: humanizeContractType(r.type),
+    }),
     count: r.count,
     pct: r.pct,
     fill: palette[i % palette.length],
@@ -913,45 +779,37 @@ function ContractTypesDonut({
   );
 }
 
-function ObligationsAtRiskList({ rows }: { rows: LegalCounselObligationRow[] }) {
-  const { t } = useTranslation();
-  if (rows.length === 0) {
-    return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
-  }
+// ── ReviewTimeChart ──────────────────────────────────────────────────────────
+
+function ReviewTimeChart({ data }: { data: Array<{ week: string; hours: number }> }) {
+  if (data.length === 0) return <DashboardEmptyState />;
   return (
-    <ul role="list" className="divide-y divide-border/50">
-      {rows.map((r) => (
-        <li key={r.id} className="py-2">
-          <Link
-            to="/app/contracts/$id"
-            params={{ id: String(r.contractId) }}
-            className="block transition-colors hover:bg-surface/50"
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-sm text-ink">{r.titleEn}</span>
-              {r.daysOverdue > 0 ? (
-                <span className="inline-flex items-center rounded-full bg-terracotta-tint px-2 py-0.5 font-mono text-[10px] font-medium text-terracotta-ink">
-                  {r.daysOverdue}{" "}
-                  {t("dashboards.legalCounsel.obligations.daysOverdue", {
-                    defaultValue: "days overdue",
-                  })}
-                </span>
-              ) : r.daysLeft >= 0 ? (
-                <span className="inline-flex items-center rounded-full bg-amber-tint px-2 py-0.5 font-mono text-[10px] font-medium text-amber-ink">
-                  {r.daysLeft}{" "}
-                  {t("dashboards.legalCounsel.obligations.daysLeft", {
-                    defaultValue: "days left",
-                  })}
-                </span>
-              ) : null}
-            </div>
-            <p className="font-mono text-[10px] text-ink-subtle">{r.contractNumber}</p>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data}>
+        <XAxis dataKey="week" tick={{ fontSize: 10 }} interval={1} />
+        <YAxis tick={{ fontSize: 10 }} width={28} />
+        <Tooltip
+          contentStyle={{
+            background: "var(--card)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            fontSize: 11,
+          }}
+        />
+        <Line
+          type="monotone"
+          dataKey="hours"
+          stroke="#D9B26A"
+          strokeWidth={2}
+          dot={{ r: 2 }}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
   );
 }
+
+// ── ActivityFeedList ─────────────────────────────────────────────────────────
 
 function ActivityFeedList({ rows }: { rows: LegalCounselActivityRow[] }) {
   const { t } = useTranslation();
@@ -962,7 +820,10 @@ function ActivityFeedList({ rows }: { rows: LegalCounselActivityRow[] }) {
     <ul role="list" className="space-y-2 text-sm">
       {rows.slice(0, 12).map((r) => (
         <li key={r.id} className="flex items-baseline gap-2">
-          <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-gold/60" aria-hidden />
+          <span
+            className="mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-gold/60"
+            aria-hidden
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm text-ink">
               {t(`dashboards.legalCounsel.activityFeed.type.${r.activityType}`, {
@@ -981,85 +842,6 @@ function ActivityFeedList({ rows }: { rows: LegalCounselActivityRow[] }) {
               </Link>
             </p>
           </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function RegulatoryUpdateRows({
-  rows,
-}: {
-  rows: DashboardRegulatoryUpdateRow[];
-}) {
-  const { t } = useTranslation();
-  if (rows.length === 0) {
-    return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
-  }
-  return (
-    <ul role="list" className="divide-y divide-border">
-      {rows.map((row) => (
-        <li key={row.id} role="listitem" className="flex items-start gap-3 py-2">
-          <span
-            className={`mt-0.5 inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${severityClass(row.severity)}`}
-          >
-            {t(`dashboards.common.severity.${row.severity}`, {
-              defaultValue: row.severity,
-            })}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-ink">{row.titleEn}</p>
-            <p className="text-[11px] text-ink-muted">
-              {row.regulator?.nameEn ?? ""}
-              {row.effectiveDate && (
-                <>
-                  {" · "}
-                  {t("dashboards.common.effective")}: {formatDate(row.effectiveDate)}
-                </>
-              )}
-            </p>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function OpenImpactRows({ rows }: { rows: DashboardOpenImpactRow[] }) {
-  const { t } = useTranslation();
-  if (rows.length === 0) {
-    return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
-  }
-  return (
-    <ul role="list" className="divide-y divide-border">
-      {rows.map((row) => (
-        <li key={row.id} role="listitem" className="py-2">
-          <Link
-            to="/app/contracts/$id"
-            params={{ id: String(row.contractId) }}
-            className="block rounded-md px-2 py-1 transition hover:bg-surface focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label={t("dashboards.common.openContractAria", {
-              number: row.contractNumber,
-              title: row.regulationTitleEn,
-            })}
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="font-mono text-xs text-ink-subtle">
-                {row.contractNumber}
-              </span>
-              <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${severityClass(row.severity)}`}
-              >
-                {t(`dashboards.common.severity.${row.severity}`, {
-                  defaultValue: row.severity,
-                })}
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-ink">{row.regulationTitleEn}</p>
-            <p className="text-[11px] text-ink-muted">
-              {t("dashboards.common.detected")}: {formatDate(row.detectedAt)}
-            </p>
-          </Link>
         </li>
       ))}
     </ul>

@@ -39,6 +39,7 @@ import {
   type WorkOrderType,
 } from "@/services/api/work-orders.service";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth.store";
 
 interface AddManualWorkOrderDialogProps {
   open: boolean;
@@ -59,6 +60,11 @@ export function AddManualWorkOrderDialog({
 }: AddManualWorkOrderDialogProps) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  // 2026-06-15 — "Similar contract" is a drafter affordance (replicate an
+  // existing contract for a new draft). Not relevant to Legal Counsel's
+  // ad-hoc tasks, so hide it for legal_counsel.
+  const isLegalCounsel =
+    useAuthStore((s) => s.user?.role?.name ?? null) === "legal_counsel";
 
   // Form state.
   const [requestType, setRequestType] = useState<WorkOrderType>("contract_draft_request");
@@ -256,8 +262,9 @@ export function AddManualWorkOrderDialog({
             />
           </div>
 
-          {/* 3. Similar contract (optional, only for Draft request) — M21 mig 631 */}
-          {requestType === "contract_draft_request" && (
+          {/* 3. Similar contract (optional, only for Draft request) — M21 mig 631.
+              2026-06-15 — hidden for legal_counsel (drafter-only affordance). */}
+          {requestType === "contract_draft_request" && !isLegalCounsel && (
             <div>
               <label
                 htmlFor="addmanual-similar"

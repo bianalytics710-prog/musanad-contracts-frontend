@@ -35,6 +35,27 @@ function timeAgo(iso: string, lng: string): string {
   return lng === "ar" ? `قبل ${d} ي` : `${d}d ago`;
 }
 
+// 2026-06-15 — some notification bodies (e.g. advisory review templates,
+// mig 676) are stored as HTML. The bell renders bodies as plain text, so the
+// tags leaked through as literal "<p>…</p>". Strip tags + decode entities so
+// the body reads as clean prose. Block-level tags become a single space; the
+// notification row is already clickable, so the embedded <a> link is dropped.
+function htmlToText(raw: string | undefined | null): string {
+  if (!raw) return "";
+  return raw
+    .replace(/<\s*br\s*\/?>/gi, " ")
+    .replace(/<\/(p|div|li|h[1-6])\s*>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function NotificationBell() {
   const { t, i18n } = useTranslation();
   const lng = i18n.language?.startsWith("ar") ? "ar" : "en";
@@ -201,7 +222,7 @@ export function NotificationBell() {
   function renderNotifications(list: typeof notifications) {
     return list.map((n) => {
               const title = lng === "ar" ? n.titleAr : n.titleEn;
-              const body = lng === "ar" ? n.bodyAr : n.bodyEn;
+              const body = htmlToText(lng === "ar" ? n.bodyAr : n.bodyEn);
               const inner = (
                 <div
                   className={`flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-surface ${

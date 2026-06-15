@@ -38,6 +38,7 @@ import type {
   ExecutiveDashboardSnapshot,
   HealthCheckSnapshot,
   LegalCounselDashboardSnapshot,
+  LegalCounselInsights,
   RecipientDashboardSnapshot,
 } from "@/types/entities/dashboards.types";
 
@@ -84,6 +85,14 @@ export const dashboardsService = {
     const { data } = await apiClient.get<LegalCounselDashboardSnapshot>(
       `${BASE}/dashboards/legal-counsel`,
       { params: query },
+    );
+    return data;
+  },
+
+  // S4b — legal-counsel insights sidecar (mig 685)
+  getLegalCounselInsights: async (): Promise<LegalCounselInsights> => {
+    const { data } = await apiClient.get<LegalCounselInsights>(
+      `${BASE}/dashboards/legal-counsel/insights`,
     );
     return data;
   },

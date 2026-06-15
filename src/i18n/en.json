@@ -7550,7 +7550,7 @@
     },
     "legalCounsel": {
       "title": "Legal insights",
-      "subtitle": "Regulatory updates, impacts and audit visibility.",
+      "subtitle": "Your approvals, advisories, third-party reviews and contract portfolio at a glance.",
       "kpiGroupLabel": "Legal counsel key performance indicators",
       "kpis": {
         "activeContracts": "Active",
