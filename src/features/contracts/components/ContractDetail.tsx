@@ -94,6 +94,10 @@ import { ContractClausesTab } from "@/components/contracts/ContractClausesTab";
 import { documentIngestionService } from "@/services/api/document-ingestion.service";
 // M14 — CR-F — Risk Scoring
 import { ContractRiskTab } from "./ContractRiskTab";
+import { ContractNoticesTab } from "./ContractNoticesTab";
+import { GenerateNoticeDialog } from "./GenerateNoticeDialog";
+import { ConfirmSendDialog } from "./ConfirmSendDialog";
+import { riskCaseService } from "@/services/api/risk-case.service";
 import { useContractVersions } from "@/features/contracts/hooks/useContracts";
 import { ContractSignaturesTab } from "@/features/signatures/components/ContractSignaturesTab";
 import { approvalKeys, useApprovalChainByContract } from "@/features/approvals/hooks/useApprovals";
@@ -119,20 +123,30 @@ type Tab =
   | "tree"
   | "signatures"
   | "clauses"
-  | "risk";
+  | "risk"
+  | "notices";
 
 interface ContractDetailProps {
   contractId: number;
+  // 2026-06-14 — passed from /app/contracts/$id when Layla arrives from a
+  // risk case. Used to (a) auto-switch to the Notices tab, (b) link the
+  // generated draft back to the case. Optional for direct contract entry.
+  riskCaseIdFromUrl?: string;
+  initialTab?: string;
 }
 
-export function ContractDetail({ contractId }: ContractDetailProps) {
+export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: ContractDetailProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   // R-LC2 LC-E10 — default tab → Document (Lovable parity; was "overview").
   // A28 (Aisha audit fix 2026-06-01) — approvers want metadata + parties +
   // approval stages on landing, not the legal body text. Default to overview
   // again; the Document tab is one click away.
-  const [tab, setTab] = useState<Tab>("overview");
+  // 2026-06-14 — when ?riskCase=N or ?tab=notices is present, land on the
+  // Notices tab so Layla immediately sees the draft-notice flow.
+  const computedInitialTab: Tab =
+    initialTab === 'notices' || riskCaseIdFromUrl ? 'notices' : 'overview';
+  const [tab, setTab] = useState<Tab>(computedInitialTab);
   // v616 — when the drafter clicks "View this version" on the Versions
   // tab, store the chosen historical version and switch to Document.
   // Cleared when the user clicks Back-to-current or navigates away.
@@ -140,6 +154,61 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusPreset, setStatusPreset] = useState<ContractStatus | undefined>(undefined);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // 2026-06-15 — Draft-notice dialog state for the header button (Phase 1).
+  // Lives at ContractDetail level so the header button + the Notices tab
+  // share one source of truth.
+  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
+  const [confirmSendDraftId, setConfirmSendDraftId] = useState<number | null>(null);
+  // 2026-06-15 — mode tells ConfirmSendDialog which BE endpoint to call:
+  //   'send_directly'      — unapproved draft, LC chose direct path
+  //   'send_after_review'  — exec-approved draft, LC dispatching the
+  //                          final version
+  const [confirmSendMode, setConfirmSendMode] = useState<'send_directly' | 'send_after_review'>('send_directly');
+
+  // 2026-06-15 — Risk-case context for the Draft Notice dialog. Two sources:
+  //   1. ?riskCase=N URL param (when arriving from risk case detail link)
+  //   2. Fallback — query the actor's open risk cases assigned to them,
+  //      pick the most-recent one whose contractId matches this contract.
+  //      This handles the natural-nav case where the URL has no param
+  //      (Contracts list, dashboard, search, direct).
+  // riskType drives the template preselection in GenerateNoticeDialog.
+  const riskCaseIdFromUrlNum = riskCaseIdFromUrl ? Number(riskCaseIdFromUrl) : null;
+
+  // Fallback: my open risk cases on this contract
+  const myCasesQuery = useQuery({
+    queryKey: ["myRiskCasesForContract", contractId],
+    queryFn: () =>
+      riskCaseService.list({
+        page: 1,
+        limit: 50,
+        assignedToMe: true,
+        status: "open_all",
+      }),
+    enabled: !riskCaseIdFromUrlNum,
+    staleTime: 30_000,
+  });
+  const fallbackRiskCaseId = useMemo(() => {
+    if (riskCaseIdFromUrlNum) return null;
+    const rows = myCasesQuery.data?.data ?? [];
+    const match = rows.find((rc) => rc.contractId === contractId);
+    return match?.id ?? null;
+  }, [riskCaseIdFromUrlNum, myCasesQuery.data, contractId]);
+
+  const resolvedRiskCaseId = riskCaseIdFromUrlNum ?? fallbackRiskCaseId;
+
+  // Fetch the detail (needed for riskType which the list rows do carry,
+  // but we use getById to keep the data shape consistent + so we always
+  // get the full freshness when URL param is used).
+  const riskCaseQuery = useQuery({
+    queryKey: ["riskCaseForDraft", resolvedRiskCaseId],
+    queryFn: () => riskCaseService.getById(resolvedRiskCaseId as number),
+    enabled: !!resolvedRiskCaseId && Number.isFinite(resolvedRiskCaseId),
+    staleTime: 60_000,
+  });
+  const riskTypeFromCase =
+    riskCaseQuery.data?.riskCase?.riskType
+    ?? (myCasesQuery.data?.data ?? []).find((rc) => rc.id === resolvedRiskCaseId)?.riskType
+    ?? null;
   // M1b — Export PDF dialog state.
   const [exportPdfOpen, setExportPdfOpen] = useState(false);
   // R-LC2 LC-E11 — track preset language so the same dialog can serve
@@ -583,24 +652,21 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               the same affordance twice in different chrome (top-right
               button + 5th tab) was confusing without adding value. */}
           {/* L45 — Draft Cure Notice action surfaced to legal_counsel.
-              Links to the advisory queue with the contract pre-filtered so Layla
-              lands on (or can create) a cure notice tied to this contract. */}
+              2026-06-15 — rewired (Phase 1) to open the GenerateNoticeDialog
+              directly instead of routing to the legacy advisory queue.
+              The dialog handles template pick + preview + send-choice. */}
           {isLegalCounselOnly && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() =>
-                navigate({
-                  to: "/app/legal/advisory-queue",
-                  search: { contract: String(contract.id) } as never,
-                })
-              }
+              onClick={() => setDraftDialogOpen(true)}
               className="hidden sm:inline-flex border-gold/30 text-gold hover:bg-gold/5"
+              data-testid="header-draft-cure-notice"
             >
               <FileEdit className="h-3.5 w-3.5" />
-              {t("contracts.detail.actions.draftCureNotice", {
-                defaultValue: "Draft Cure Notice",
+              {t("contracts.detail.actions.draftNotice", {
+                defaultValue: "Draft Notice",
               })}
             </Button>
           )}
@@ -875,6 +941,13 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
             {t("contracts.detail.tabs.risk", { defaultValue: "Risk" })}
           </TabButton>
         )}
+        {/* 2026-06-14 — Notices tab: cure notices / FM invocations / etc.
+            Visible to LC + platform_admin (anyone who can review advisory drafts). */}
+        {!isRecipientOnly && (
+          <TabButton active={tab === "notices"} onClick={() => setTab("notices")}>
+            {t("contracts.detail.tabs.notices", { defaultValue: "Notices" })}
+          </TabButton>
+        )}
       </div>
 
       {/* Tab panels */}
@@ -970,6 +1043,19 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
       {tab === "risk" && (
         <div role="tabpanel" aria-labelledby="tab-risk">
           <ContractRiskTab contractId={contract.id} />
+        </div>
+      )}
+      {/* 2026-06-14 — Notices tab */}
+      {tab === "notices" && (
+        <div role="tabpanel" aria-labelledby="tab-notices">
+          <ContractNoticesTab
+            contractId={contract.id}
+            contractNumber={contract.contractNumber}
+            counterpartyName={
+              (contract as { counterpartyNameEn?: string | null }).counterpartyNameEn ?? null
+            }
+            riskCaseIdFromUrl={riskCaseIdFromUrl}
+          />
         </div>
       )}
 
@@ -1147,6 +1233,57 @@ export function ContractDetail({ contractId }: ContractDetailProps) {
               queryKey: ["comments", contract.id],
               refetchType: "active",
             });
+          }}
+        />
+      )}
+
+      {/* 2026-06-15 — Phase 1 draft-notice flow mounted at ContractDetail
+          level so the header "Draft Cure Notice" button can pop the same
+          dialogs as the Notices tab. After send_directly is picked from
+          the generator preview, we open the ConfirmSendDialog with the
+          fresh draft id; on dispatch, the Notices tab cache invalidates. */}
+      {draftDialogOpen && (
+        <GenerateNoticeDialog
+          open={draftDialogOpen}
+          onOpenChange={setDraftDialogOpen}
+          contractId={contract.id}
+          contractNumber={contract.contractNumber}
+          counterpartyName={
+            (contract as { counterpartyNameEn?: string | null }).counterpartyNameEn ?? null
+          }
+          riskCaseId={resolvedRiskCaseId}
+          riskType={riskTypeFromCase}
+          onPickSendDirectly={(draft) => {
+            void qc.invalidateQueries({ queryKey: ["contractAdvisories", contract.id] });
+            setConfirmSendMode("send_directly");
+            setConfirmSendDraftId(draft.id);
+          }}
+          onPickSendAfterReview={(draft) => {
+            void qc.invalidateQueries({ queryKey: ["contractAdvisories", contract.id] });
+            setConfirmSendMode("send_after_review");
+            setConfirmSendDraftId(draft.id);
+          }}
+          onRoutedForReview={() => {
+            void qc.invalidateQueries({ queryKey: ["contractAdvisories", contract.id] });
+          }}
+        />
+      )}
+      {confirmSendDraftId != null && (
+        <ConfirmSendDialog
+          open
+          onOpenChange={(o) => { if (!o) setConfirmSendDraftId(null); }}
+          contractId={contract.id}
+          draftId={confirmSendDraftId}
+          mode={confirmSendMode}
+          onSent={() => {
+            void qc.invalidateQueries({ queryKey: ["contractAdvisories", contract.id] });
+            // 2026-06-15 — refetch risk cases too — the BE auto-closes the
+            // linked risk case on dispatch (mig 681), so the list view
+            // should reflect that immediately.
+            void qc.invalidateQueries({ queryKey: ["riskCases"] });
+            void qc.invalidateQueries({ queryKey: ["myRiskCasesForContract"] });
+            setConfirmSendDraftId(null);
+            setTab("notices");
           }}
         />
       )}

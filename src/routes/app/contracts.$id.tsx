@@ -15,12 +15,27 @@ import { ContractDetail } from "@/features/contracts/components/ContractDetail";
 
 interface ContractDetailSearch {
   tab?: string;
+  // 2026-06-14 — risk case id is carried forward when Layla navigates
+  // from /app/risk-cases/$id → contract link. The Notices tab uses it
+  // to preselect a template type and link the resulting draft back to
+  // the case.
+  riskCase?: string;
 }
 
 export const Route = createFileRoute("/app/contracts/$id")({
   component: ContractDetailRoute,
   validateSearch: (s: Record<string, unknown>): ContractDetailSearch => ({
-    tab: typeof s.tab === "string" ? s.tab : undefined,
+    // 2026-06-15 — accept tab as either raw string ("notices") or
+    // JSON-quoted string ('"notices"'). Same for riskCase: TanStack
+    // sometimes serialises numbers raw and sometimes JSON-encodes them
+    // as strings depending on caller.
+    tab: typeof s.tab === "string" && s.tab ? s.tab : undefined,
+    riskCase:
+      typeof s.riskCase === "string" && s.riskCase
+        ? s.riskCase
+        : typeof s.riskCase === "number"
+          ? String(s.riskCase)
+          : undefined,
   }),
 });
 
@@ -30,6 +45,7 @@ const POSITIVE_INT = /^[1-9]\d*$/;
 
 function ContractDetailRoute() {
   const { id } = Route.useParams();
+  const { riskCase, tab } = Route.useSearch();
   const { t } = useTranslation();
 
   if (typeof id !== "string" || !POSITIVE_INT.test(id)) {
@@ -53,7 +69,11 @@ function ContractDetailRoute() {
 
   return (
     <ErrorBoundary>
-      <ContractDetail contractId={numericId} />
+      <ContractDetail
+        contractId={numericId}
+        riskCaseIdFromUrl={riskCase}
+        initialTab={tab}
+      />
     </ErrorBoundary>
   );
 }

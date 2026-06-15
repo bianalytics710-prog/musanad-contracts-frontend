@@ -107,4 +107,189 @@ export const advisoryDraftsService = {
     );
     return data;
   },
+
+  // ─── 2026-06-14 — Risk-case → contract → draft workflow ───────────────
+  generateFromRiskCase: async (payload: {
+    templateId: number;
+    contractId: number;
+    riskCaseId?: number | null;
+    reviewPath: 'send_directly' | 'executive_review';
+    templateContext?: Record<string, unknown>;
+  }): Promise<GenerateFromRiskCaseResponse> => {
+    const { data } = await apiClient.post<GenerateFromRiskCaseResponse>(
+      `/api/v1/advisory-drafts/from-risk-case`,
+      payload,
+    );
+    return data;
+  },
+
+  sendDirectly: async (id: number, payload: SendPayload): Promise<DispatchResponse> => {
+    const { data } = await apiClient.post<DispatchResponse>(
+      `/api/v1/advisory-drafts/${id}/send-directly`,
+      payload,
+    );
+    return data;
+  },
+
+  routeForReview: async (id: number): Promise<RouteForReviewResponse> => {
+    const { data } = await apiClient.post<RouteForReviewResponse>(
+      `/api/v1/advisory-drafts/${id}/route-for-review`,
+    );
+    return data;
+  },
+
+  execApprove: async (id: number): Promise<ExecApproveResponse> => {
+    const { data } = await apiClient.post<ExecApproveResponse>(
+      `/api/v1/advisory-drafts/${id}/exec-approve`,
+    );
+    return data;
+  },
+
+  sendAfterReview: async (id: number, payload: SendPayload): Promise<DispatchResponse> => {
+    const { data } = await apiClient.post<DispatchResponse>(
+      `/api/v1/advisory-drafts/${id}/send-after-review`,
+      payload,
+    );
+    return data;
+  },
+
+  resend: async (id: number, payload: SendPayload): Promise<DispatchResponse> => {
+    const { data } = await apiClient.post<DispatchResponse>(
+      `/api/v1/advisory-drafts/${id}/resend`,
+      payload,
+    );
+    return data;
+  },
+
+  listByContract: async (contractId: number): Promise<ContractAdvisorySummary[]> => {
+    const { data } = await apiClient.get<ContractAdvisorySummary[]>(
+      `/api/v1/advisory-drafts/by-contract/${contractId}`,
+    );
+    return data;
+  },
+
+  resolveRecipient: async (contractId: number): Promise<RecipientResolution> => {
+    const { data } = await apiClient.get<RecipientResolution>(
+      `/api/v1/advisory-drafts/recipient/${contractId}`,
+    );
+    return data;
+  },
+
+  // 2026-06-15 — Phase 2: drafts awaiting executive review (exec inbox).
+  pendingForExecutive: async (): Promise<PendingAdvisoryRow[]> => {
+    const { data } = await apiClient.get<PendingAdvisoryRow[]>(
+      `/api/v1/advisory-drafts/pending-for-executive`,
+    );
+    return data;
+  },
+
+  execModify: async (
+    id: number,
+    payload: { modifiedTextEn: string; modifiedTextAr?: string },
+  ): Promise<ExecApproveResponse> => {
+    const { data } = await apiClient.post<ExecApproveResponse>(
+      `/api/v1/advisory-drafts/${id}/exec-modify`,
+      payload,
+    );
+    return data;
+  },
 };
+
+export interface PendingAdvisoryRow {
+  id: number;
+  draftType: string;
+  templateId: string;
+  templateDisplayEn: string;
+  templateDisplayAr: string | null;
+  approvalStatus: string;
+  reviewPath: string | null;
+  currentReviewer: string | null;
+  linkedRiskCaseId: string | null;
+  contractId: number;
+  contractNumber: string;
+  contractTitle: string | null;
+  counterpartyName: string | null;
+  createdAt: string;
+  createdBy: number | null;
+  createdByName: string | null;
+  routedAt: string | null;
+  generatedTextEn: string;
+  generatedTextAr: string | null;
+  finalTextEn: string | null;
+  finalTextAr: string | null;
+}
+
+// ─── Local types for the v2 workflow ─────────────────────────────────────
+export interface SendPayload {
+  recipientAddress: string;
+  recipientName?: string;
+}
+
+export interface DispatchResponse {
+  id: number;
+  dispatched: boolean;
+  isResend?: boolean;
+  advisoryDispatchLogId?: number;
+  notificationLogId?: number;
+  recipientAddress?: string;
+}
+
+export interface GenerateFromRiskCaseResponse {
+  id: number;
+  correlationId: number;
+  contractId: number;
+  templateId: number;
+  draftType: string;
+  approvalStatus: string;
+  reviewPath: 'send_directly' | 'executive_review';
+  currentReviewer: 'executive' | 'legal_counsel' | null;
+  linkedRiskCaseId: number | null;
+}
+
+export interface RouteForReviewResponse {
+  id: number;
+  routedTo: 'executive';
+  reviewerUserId: number | null;
+  notificationLogId: number;
+}
+
+export interface ExecApproveResponse {
+  id: number;
+  approved: boolean;
+  handedBackTo: 'legal_counsel';
+  notificationLogId: number;
+}
+
+export interface ContractAdvisorySummary {
+  id: number;
+  draftType: string;
+  templateId: string;
+  templateDisplayEn: string;
+  templateDisplayAr: string | null;
+  approvalStatus: 'unapproved' | 'approved' | 'rejected' | 'modified';
+  reviewPath: 'send_directly' | 'executive_review' | null;
+  currentReviewer: 'executive' | 'legal_counsel' | null;
+  linkedRiskCaseId: string | null;
+  createdAt: string;
+  createdBy: number | null;
+  createdByName: string | null;
+  approvedAt: string | null;
+  approvedBy: number | null;
+  approvedByName: string | null;
+  dispatchedAt: string | null;
+  dispatchChannel: string | null;
+  dispatchRecipients: Array<{ address: string; name: string | null }>;
+  dispatchCount: number;
+  lastDispatchAt: string | null;
+  generatedTextEn: string;
+  generatedTextAr: string | null;
+  finalTextEn: string | null;
+  finalTextAr: string | null;
+}
+
+export interface RecipientResolution {
+  recipientAddress: string;
+  recipientName: string;
+  source: 'party_contact' | 'signer' | 'demo_fallback';
+  counterpartyName: string | null;
+}

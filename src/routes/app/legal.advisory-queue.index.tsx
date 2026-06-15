@@ -9,7 +9,7 @@
  *   - single primary "View" action per row (navigates to detail page)
  */
 import { useMemo, useState, type ChangeEvent } from 'react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  FileText,
   RefreshCw,
   Search,
   X,
@@ -32,7 +33,29 @@ import { advisoryDraftsService } from '@/services/api/advisory-drafts.service';
 import { formatDateTime } from '@/utils/datetime';
 import type { ApprovalStatus } from '@/types/advisory-drafts.types';
 
+/**
+ * 2026-06-14 — accept `?correlation=<id>`, `?contract=<id>`, `?riskCase=<id>`
+ * from the Draft-Advisory action on the risk case detail page.
+ *   - correlation (preferred) → filters to drafts originating from THIS
+ *     risk case (advisory_draft.correlation_id = risk_case.correlation_id).
+ *   - contract (fallback) → filters to all drafts on the contract; used
+ *     when a risk case has no correlation, or for admin governance links.
+ *   - riskCase → cosmetic only; names the source in the banner.
+ * Banner appears whenever correlation or contract is present and offers a
+ * one-click Clear filter.
+ */
+type AdvisoryQueueSearch = {
+  correlation?: string;
+  contract?: string;
+  riskCase?: string;
+};
+
 export const Route = createFileRoute('/app/legal/advisory-queue/')({
+  validateSearch: (raw: Record<string, unknown>): AdvisoryQueueSearch => ({
+    correlation: typeof raw.correlation === 'string' && raw.correlation ? raw.correlation : undefined,
+    contract: typeof raw.contract === 'string' && raw.contract ? raw.contract : undefined,
+    riskCase: typeof raw.riskCase === 'string' && raw.riskCase ? raw.riskCase : undefined,
+  }),
   component: () => (
     <ErrorBoundary>
       <LegalAdvisoryQueueView />
@@ -71,26 +94,66 @@ const PAGE_SIZE = 20;
 function LegalAdvisoryQueueView() {
   const { t } = useTranslation();
   const canReview = useAuthStore(selectHasPermission('advisory.draft.review'));
+  // Search params (deep-link from risk case detail). When present, the
+  // BE list is filtered and a banner explains the scope.
+  //   correlation : preferred — narrows to drafts FROM this risk case
+  //   contract    : fallback — narrows to all drafts on this contract
+  const {
+    correlation: correlationParam,
+    contract: contractParam,
+    riskCase: riskCaseParam,
+  } = Route.useSearch();
+  const navigate = useNavigate();
+  const correlationId = correlationParam ? Number(correlationParam) : undefined;
+  const contractId = contractParam ? Number(contractParam) : undefined;
+  const hasCorrelationFilter = Number.isFinite(correlationId);
+  const hasContractFilter = Number.isFinite(contractId);
+  const hasContextFilter = hasCorrelationFilter || hasContractFilter;
 
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 300);
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | ''>('');
   const [draftTypeFilter, setDraftTypeFilter] = useState<string>('');
+  // 2026-06-14 — Page is admin-governance only (LC sidebar entry removed).
+  // Default = global view; "My queue only" narrows to drafts where my
+  // role is the assigned approver (BE myQueue filter).
   const [myQueue, setMyQueue] = useState(false);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['advisoryDrafts', { page, approvalStatus: statusFilter, myQueue }],
+    queryKey: [
+      'advisoryDrafts',
+      {
+        page,
+        approvalStatus: statusFilter,
+        myQueue,
+        correlationId: correlationId ?? null,
+        contractId: contractId ?? null,
+      },
+    ],
     queryFn: () =>
       advisoryDraftsService.list({
         page,
         limit: PAGE_SIZE,
         approvalStatus: statusFilter || undefined,
         myQueue: myQueue || undefined,
+        // Correlation wins when present — it's the precise "drafts FOR
+        // this risk case" filter. Contract is the broader fallback.
+        correlationId: hasCorrelationFilter ? correlationId : undefined,
+        contractId: !hasCorrelationFilter && hasContractFilter ? contractId : undefined,
       }),
     enabled: canReview,
     staleTime: 30_000,
   });
+
+  const clearContextFilter = () => {
+    // Strip both URL params; preserve the in-page filter state.
+    navigate({
+      to: '/app/legal/advisory-queue',
+      search: {} as never,
+      replace: true,
+    });
+  };
 
   const rawItems = data?.data ?? [];
   const pagination = data?.pagination;
@@ -186,6 +249,53 @@ function LegalAdvisoryQueueView() {
           {t('common.refresh', { defaultValue: 'Refresh' })}
         </Button>
       </header>
+
+      {/* 2026-06-14 — Context banner: shown when navigated here from a
+          risk case (?contract=, optionally ?riskCase=). Names the source
+          and offers a one-click clear. Without this, the deep-link looks
+          like a generic queue and Layla can't tell why row count dropped. */}
+      {hasContextFilter && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gold/40 bg-gold/5 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2 text-ink">
+            <FileText className="h-4 w-4 text-gold" aria-hidden="true" />
+            {riskCaseParam ? (
+              <span>
+                {t('legal.advisoryQueue.contextBanner.riskCase', {
+                  defaultValue: 'Filtered to drafts for Risk Case #{{id}}.',
+                  id: riskCaseParam,
+                })}{' '}
+                <Link
+                  to="/app/risk-cases/$caseId"
+                  params={{ caseId: riskCaseParam }}
+                  className="underline decoration-gold/60 underline-offset-2 hover:text-gold"
+                >
+                  {t('legal.advisoryQueue.contextBanner.openCase', {
+                    defaultValue: 'Open case',
+                  })}
+                </Link>
+              </span>
+            ) : (
+              <span>
+                {t('legal.advisoryQueue.contextBanner.contract', {
+                  defaultValue: 'Filtered to drafts for contract #{{id}}.',
+                  id: contractId,
+                })}
+              </span>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={clearContextFilter}
+          >
+            <X className="h-3.5 w-3.5" />
+            {t('legal.advisoryQueue.contextBanner.clear', {
+              defaultValue: 'Clear filter',
+            })}
+          </Button>
+        </div>
+      )}
 
       {/* KPI strip — always rendered for consistency with Contracts/Approvals. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -472,9 +582,12 @@ function LegalAdvisoryQueueView() {
       {pagination && pagination.totalPages > 1 && (
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-ink-muted">
+            {/* 2026-06-14 — i18n key common.pagination.showing template is
+                "Page {{current}} of {{total}}". The prior call passed `count`
+                (items on page), so {{current}} was never interpolated. */}
             {t('common.pagination.showing', {
-              count: items.length,
-              total: pagination.total,
+              current: page,
+              total: pagination.totalPages,
             })}
           </p>
           <div className="flex items-center gap-2">

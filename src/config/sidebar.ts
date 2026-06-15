@@ -126,7 +126,9 @@ export type ModuleKey =
   // M21 / CR-N — Financial Intelligence Budget Burn (finance.budget.read)
   | "financial.budgetBurn"
   // M21 / CR-O — Financial Intelligence Trade Margin (finance.margin.read)
-  | "financial.tradeMargin";
+  | "financial.tradeMargin"
+  // 2026-06-15 — Executive review inbox for advisories awaiting approval.
+  | "exec.pendingAdvisories";
 
 export interface SidebarModule {
   key: ModuleKey;
@@ -177,6 +179,9 @@ export const MODULES: Record<ModuleKey, SidebarModule> = {
   // Phase B (mig 643, 2026-06-13) — Risk Triage sits directly after Risk
   // Cases on the executive sidebar (per Phase B locked decision Q1).
   riskTriage: { key: "riskTriage", to: "/app/exec/risk-triage", labelKey: "nav.riskTriage", defaultLabel: "Risk Triage", icon: ShieldCheck, displayOrder: 365 },
+  // 2026-06-15 — Executive's advisory-review inbox. Sits next to Risk
+  // Triage on the executive sidebar.
+  "exec.pendingAdvisories": { key: "exec.pendingAdvisories", to: "/app/exec/pending-advisories", labelKey: "nav.execPendingAdvisories", defaultLabel: "Pending Advisories", icon: FileEdit, displayOrder: 367 },
   // M20 / CR-L — Reports
   // Reports bumped to displayOrder 490 (2026-06-04) so it always renders
   // as the last CLM-bundle entry — sits after Budget Burn (400) and Trade
@@ -254,8 +259,11 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "radar",
     // (removed) "obligations",
     "parties",
-    // M16 / CR-H — advisory queue for legal counsel
-    "legal.advisoryQueue",
+    // 2026-06-14 — Advisory Queue removed from LC sidebar. Advisories
+    // are surfaced inline in My Work (advisory_draft branch) and on the
+    // Risk Case detail (linked drafts block + "+ Draft new"). The
+    // queue page still exists for deep links + admin governance.
+    // (removed) "legal.advisoryQueue",
     // L49 — Advisory templates
     "legal.advisoryTemplates",
     // TPA — Third-Party Review
@@ -284,7 +292,9 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // (35 items, grouped). They land on /app/admin overview and navigate
   // everything from there — they don't need contracts, persona dashboards,
   // reports, etc. cluttering the top-level sidebar.
-  platform_admin: ["admin"],
+  // 2026-06-14 — Advisory Queue lives in the platform_admin sidebar for
+  // governance/audit (LC works advisories from My Work + Risk Case detail).
+  platform_admin: ["admin", "legal.advisoryQueue"],
   "Super Admin": [
     "admin",
     "insights",
@@ -308,6 +318,8 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
     "riskCases", "reports",
     // TPA — Third-Party Review
     "legal.thirdPartyReview",
+    // 2026-06-14 — Advisory Queue retained for Super Admin governance.
+    "legal.advisoryQueue",
   ],
   // R-EX0 audit: Lovable executive sidebar is Insights / Contracts /
   // Impact Watch only. Drop the Parties leak — executive consumes
@@ -319,7 +331,7 @@ export const ROLE_MODULES: Record<AppRole, ModuleKey[]> = {
   // M21 mig 638 — exec gets "Assigned Work" (label override at render time)
   // as the FIRST entry. The route still resolves to /app/work; the page
   // dispatches to AssignedByMeView when the role is "executive".
-  executive: ["myWork", "insights", "contracts", "regulations", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "riskTriage", "reports"],
+  executive: ["myWork", "insights", "contracts", "regulations", "financial.budgetBurn", "financial.tradeMargin", "riskCases", "riskTriage", "exec.pendingAdvisories", "reports"],
   // CR-M — procurement_supplier_risk seeded in migration 292
   procurement_supplier_risk: [
     "insights",
@@ -581,7 +593,16 @@ export function modulesForEffectiveSet(
   // links still work; only the nav entries disappear).
   const PER_ROLE_SUPPRESSED: Record<string, ReadonlySet<ModuleKey>> = {
     contract_drafter: new Set<ModuleKey>(["obligations", "regulations"]),
-    legal_counsel:    new Set<ModuleKey>(["obligations", "regulations"]),
+    // 2026-06-14 — Advisory Queue dropped from LC sidebar. Layla works
+    // advisories from My Work (advisory_draft branch) + the Risk Case
+    // detail's linked-drafts block. Route + permissions stay live so
+    // deep links continue to work.
+    legal_counsel:    new Set<ModuleKey>(["obligations", "regulations", "legal.advisoryQueue"]),
+    // 2026-06-15 — Executive has access to advisory_queue module (granted
+    // by mig 673 to enable the exec-approve API) but the dedicated
+    // "Pending Advisories" entry is their real workflow surface. Hide the
+    // raw queue to keep the sidebar focused.
+    executive:        new Set<ModuleKey>(["legal.advisoryQueue"]),
   };
   const roleSuppressed: ReadonlySet<ModuleKey> | undefined =
     roleName ? PER_ROLE_SUPPRESSED[roleName] : undefined;
@@ -594,6 +615,24 @@ export function modulesForEffectiveSet(
     if (roleSuppressed && roleSuppressed.has(feKey)) continue;
     seen.add(feKey);
     result.push(MODULES[feKey]);
+  }
+
+  // 2026-06-15 — FE-only injected entries per role. Used for sidebar
+  // links whose backing BE module hasn't been seeded yet (e.g. brand-new
+  // routes added on the FE while the platform-module catalog catches up).
+  const PER_ROLE_INJECTED: Record<string, ReadonlySet<ModuleKey>> = {
+    executive: new Set<ModuleKey>(["exec.pendingAdvisories"]),
+  };
+  const injected = roleName ? PER_ROLE_INJECTED[roleName] : undefined;
+  if (injected) {
+    for (const feKey of injected) {
+      if (MODULES[feKey] && !seen.has(feKey) && !SUPPRESSED_MODULES.has(feKey)) {
+        if (!roleSuppressed || !roleSuppressed.has(feKey)) {
+          seen.add(feKey);
+          result.push(MODULES[feKey]);
+        }
+      }
+    }
   }
 
   // Ensure the single "Admin" nav pin is rendered when the user actually has

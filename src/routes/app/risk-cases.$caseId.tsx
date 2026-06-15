@@ -321,9 +321,14 @@ function RiskCaseDetailView() {
                             Stabilization Unit — Ruwais" (number + title), not just
                             the bare title. Full label stays clickable. */}
                         <dd className="text-ink truncate ms-2" title={linkedContract.title ?? linkedContract.contractNumber}>
+                          {/* 2026-06-14 — pass ?riskCase=<id> so the contract
+                              detail page lands on the Notices tab and the
+                              draft generator preselects + links back to the
+                              case. */}
                           <Link
                             to="/app/contracts/$id"
                             params={{ id: String(linkedContract.id) }}
+                            search={{ riskCase: String(riskCase.id), tab: 'notices' } as never}
                             className="hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
                           >
                             {linkedContract.contractNumber && linkedContract.title
@@ -341,15 +346,42 @@ function RiskCaseDetailView() {
                         </dd>
                       </div>
                     )}
-                    {linkedAdvisoryDrafts.length > 0 && (
+                    {/* 2026-06-14 — Advisories block now lives on the
+                        Contract Detail "Notices" tab (per workflow rewrite).
+                        Show a compact summary card here that links into the
+                        Notices tab so Layla has one click to act. */}
+                    {linkedContract && (linkedAdvisoryDrafts.length > 0 || canDraftAdvisory) && !isTerminal && (
                       <div>
-                        <dt className="text-ink-muted">{t('riskCases.detail.overview.advisories')}</dt>
-                        <dd className="mt-1 space-y-1">
-                          {linkedAdvisoryDrafts.map((a) => (
-                            <div key={a.id} className="text-xs text-ink">
-                              {a.templateId} · {a.approvalStatus}
-                            </div>
-                          ))}
+                        <div className="mt-2 flex items-center justify-between">
+                          <dt className="text-ink-muted">
+                            {t('riskCases.detail.overview.advisories', {
+                              defaultValue: 'Notices',
+                            })}
+                            {linkedAdvisoryDrafts.length > 0 && (
+                              <span className="ms-1 text-ink-muted">
+                                ({linkedAdvisoryDrafts.length})
+                              </span>
+                            )}
+                          </dt>
+                        </div>
+                        <dd className="mt-1">
+                          <Link
+                            to="/app/contracts/$id"
+                            params={{ id: String(linkedContract.id) }}
+                            search={{ riskCase: String(riskCase.id), tab: 'notices' } as never}
+                            className="block rounded-md border border-gold/30 bg-gold/5 px-3 py-2 text-xs text-ink hover:border-gold/60 hover:bg-gold/10 focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            {linkedAdvisoryDrafts.length === 0
+                              ? t('riskCases.detail.overview.draftFromContract', {
+                                  defaultValue:
+                                    'Open contract → Notices tab to draft a notice for this risk.',
+                                })
+                              : t('riskCases.detail.overview.openNotices', {
+                                  defaultValue:
+                                    'Open contract → Notices tab to review {{n}} draft(s).',
+                                  n: linkedAdvisoryDrafts.length,
+                                })}
+                          </Link>
                         </dd>
                       </div>
                     )}
@@ -480,25 +512,12 @@ function RiskCaseDetailView() {
             </Button>
           )}
 
-          {/* L78 — Draft Advisory action: surfaced when the actor can review
-              advisory drafts (legal_counsel + platform_admin). Links to the
-              advisory queue with the contract pre-filtered so the operator
-              lands on (or can spawn) the relevant draft. */}
-          {canDraftAdvisory && !isTerminal && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-gold hover:bg-gold/10"
-              onClick={() =>
-                navigate({
-                  to: '/app/legal/advisory-queue',
-                  search: { contract: String(riskCase.linkedContract?.id ?? '') } as never,
-                })
-              }
-            >
-              <FileEdit className="me-2 h-4 w-4" aria-hidden="true" />
-              {t('riskCases.actions.draftAdvisory', { defaultValue: 'Draft Advisory' })}
-            </Button>
-          )}
+          {/* 2026-06-14 — Sidebar "Draft Advisory" action removed.
+              The Notices workflow now lives on the Contract Detail page
+              under the new "Notices" tab. Layla clicks the contract link
+              in the Linked records block (which carries ?riskCase=N) and
+              the contract page lands on Notices tab with the right
+              template preselected. */}
 
           {isTerminal && (
             <p className="text-xs text-ink-muted">{t('riskCases.detail.terminal')}</p>
