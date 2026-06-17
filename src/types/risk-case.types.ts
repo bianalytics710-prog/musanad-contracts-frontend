@@ -138,6 +138,8 @@ export interface RiskCaseListQuery {
   limit?: number;
   // Phase A — server-side "Assigned to" filter.
   assignedUserId?: number;
+  // 698 — filter to a single contract (contract detail Risk tab).
+  contractId?: number;
 }
 
 /**

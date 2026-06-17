@@ -896,6 +896,12 @@
     "other": "Other"
   },
   "contracts": {
+    "risk": {
+      "title": "Managed risks",
+      "subtitle": "Confirmed and auto-routed risk cases on this contract.",
+      "emptyTitle": "No managed risks on this contract",
+      "emptyBody": "Signals still under review in Risk Triage are not shown here until an executive confirms them as a risk."
+    },
     "title": "Contracts",
     "newContract": "New contract",
     "totalCount": "{{count}} total",
