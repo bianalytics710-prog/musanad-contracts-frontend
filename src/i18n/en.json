@@ -900,7 +900,17 @@
       "title": "Managed risks",
       "subtitle": "Confirmed and auto-routed risk cases on this contract.",
       "emptyTitle": "No managed risks on this contract",
-      "emptyBody": "Signals still under review in Risk Triage are not shown here until an executive confirms them as a risk."
+      "emptyBody": "Signals still under review in Risk Triage are not shown here until an executive confirms them as a risk.",
+      "indicator": {
+        "title": "Risk indicator",
+        "disclaimer": "A weighted indicator (not a calibrated probability): live signals plus the contract’s structural exposure.",
+        "active": "Active risk (live signals)",
+        "activeHint": "Correlations currently firing on this contract.",
+        "inherent": "Inherent risk (exposure)",
+        "inherentHint": "Value, duration, sector and clause exposure — present even with no signals.",
+        "howCalc": "How is this calculated?",
+        "formulaNote": "Each signal = confidence × source reliability × severity weight. Weights and tiers are admin-configurable."
+      }
     },
     "title": "Contracts",
     "newContract": "New contract",

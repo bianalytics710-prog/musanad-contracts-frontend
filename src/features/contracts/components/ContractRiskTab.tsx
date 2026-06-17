@@ -20,6 +20,7 @@ import { riskCaseService } from '@/services/api/risk-case.service';
 import { RiskTypePill } from '@/components/risk/RiskTypePill';
 import { OriginBadge } from '@/components/risk/OriginBadge';
 import { StatusBadge, PriorityBadge, SlaCountdown } from '@/components/risk-cases/Badges';
+import { RiskIndicatorCard } from '@/components/risk-cases/RiskIndicatorCard';
 import type { RiskCaseListItem } from '@/types/risk-case.types';
 
 interface ContractRiskTabProps {
@@ -69,6 +70,9 @@ export function ContractRiskTab({ contractId }: ContractRiskTabProps) {
 
   return (
     <section className="space-y-4">
+      {/* A+B — explainable risk indicator (inherent vs active), above the managed risks. */}
+      <RiskIndicatorCard contractId={contractId} />
+
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
