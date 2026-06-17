@@ -81,13 +81,13 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
     enabled: canManage,
   });
 
-  // Tier 1 — new Phase E.3 oversight list. Lazy: only fires on first
-  // switch to that tab.
+  // Tier 1 — Phase E.3 oversight list. Loaded eagerly (like Tier 2) so the
+  // tab's count badge is accurate on first paint, not only after a click.
   const tier1Query = useQuery({
     queryKey: ['riskTriageTier1', 50],
     queryFn: () => riskReviewService.tier1List(50),
     staleTime: 30_000,
-    enabled: canManage && activeTab === 'tier1',
+    enabled: canManage,
   });
 
   // Phase D — pull the 3 Risk Triage SLA thresholds for per-row aging badges.
