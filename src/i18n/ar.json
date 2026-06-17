@@ -8716,7 +8716,8 @@
       "caseType": "النوع",
       "assignedTo": "مُعيَّن إلى",
       "sla": "اتفاقية مستوى الخدمة",
-      "dueAt": "موعد الاستحقاق"
+      "dueAt": "موعد الاستحقاق",
+      "origin": "المصدر"
     },
     "filters": {
       "searchLabel": "بحث في حالات المخاطر",
@@ -8725,6 +8726,8 @@
       "openAll": "كل المفتوحة",
       "allPriorities": "كل الأولويات",
       "allCaseTypes": "كل الأنواع",
+      "origin": "المصدر",
+      "allOrigins": "كل المصادر",
       "anySla": "أي اتفاقية مستوى خدمة",
       "slaWithin": "مستحق ≤ {{hours}} ساعة",
       "assignedToMe": "مُعيَّن إليّ",

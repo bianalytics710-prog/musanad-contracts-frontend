@@ -36,7 +36,6 @@ import { riskCaseService } from '@/services/api/risk-case.service';
 import { translateApiError } from '@/lib/translate-api-error';
 import type { AssignableUser, RiskCaseListItem } from '@/types/risk-case.types';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDateTime } from '@/utils/datetime';
 import {
   RISK_CASE_STATUSES,
   RISK_CASE_PRIORITIES,
@@ -86,6 +85,8 @@ function RiskCaseListView() {
   // riskType filter is client-side because the BE list fn doesn't accept it
   // yet (only filters on case_type / status / priority / SLA / search).
   const [riskTypeFilter, setRiskTypeFilter] = useState<string>('');
+  // Origin filter (internal/external) — client-side, same rationale as riskType.
+  const [originFilter, setOriginFilter] = useState<'' | 'internal' | 'external'>('');
   // Phase A — new server-side "Assigned to" filter. Passes assignedUserId
   // through to fn_risk_case_list. '' means "any assignee".
   const [assignedUserIdFilter, setAssignedUserIdFilter] = useState<string>('');
@@ -140,9 +141,11 @@ function RiskCaseListView() {
   // but classification is computed server-side and shipped on every row,
   // so the filter is cheap and consistent. Pagination total stays the
   // backend total when no risk-type filter is active.
-  const items = riskTypeFilter
-    ? rawItems.filter((item: RiskCaseListItem) => item.riskType === riskTypeFilter)
-    : rawItems;
+  const items = rawItems.filter(
+    (item: RiskCaseListItem) =>
+      (!riskTypeFilter || item.riskType === riskTypeFilter) &&
+      (!originFilter || (item.riskOrigin ?? 'external') === originFilter),
+  );
   const pagination = data?.pagination;
 
   // Cases that are overdue OR due within 24h, excluding terminal states.
@@ -307,6 +310,25 @@ function RiskCaseListView() {
           </select>
         </div>
 
+        <div>
+          <label htmlFor="rc-list-origin" className="sr-only">
+            {t('riskCases.filters.origin', { defaultValue: 'Origin' })}
+          </label>
+          <select
+            id="rc-list-origin"
+            value={originFilter}
+            onChange={(e) => {
+              setOriginFilter(e.target.value as '' | 'internal' | 'external');
+              setPage(1);
+            }}
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="">{t('riskCases.filters.allOrigins', { defaultValue: 'All origins' })}</option>
+            <option value="internal">{t('riskCases.origin.internal', { defaultValue: 'Internal' })}</option>
+            <option value="external">{t('riskCases.origin.external', { defaultValue: 'External' })}</option>
+          </select>
+        </div>
+
         {/* LC's page is already personal — assignee filter is moot. */}
         {!isLegalCounsel && (
           <div>
@@ -422,7 +444,17 @@ function RiskCaseListView() {
             <Card>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full table-fixed text-sm">
+                    <colgroup>
+                      <col className="w-[15%]" />{/* Contract */}
+                      <col className="w-[14%]" />{/* Counterparty */}
+                      <col className="w-[13%]" />{/* Risk type */}
+                      <col className="w-[11%]" />{/* Origin */}
+                      <col className="w-[9%]" />{/* Priority */}
+                      <col className="w-[10%]" />{/* Status */}
+                      <col className="w-[18%]" />{/* Assigned to */}
+                      <col className="w-[10%]" />{/* SLA */}
+                    </colgroup>
                     <thead className="border-b border-border bg-surface">
                       <tr className="text-left">
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
@@ -435,6 +467,9 @@ function RiskCaseListView() {
                           {t('riskCases.columns.riskType', { defaultValue: 'Risk type' })}
                         </th>
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                          {t('riskCases.columns.origin', { defaultValue: 'Origin' })}
+                        </th>
+                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                           {t('riskCases.columns.priority')}
                         </th>
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
@@ -445,9 +480,6 @@ function RiskCaseListView() {
                         </th>
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                           {t('riskCases.columns.sla')}
-                        </th>
-                        <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
-                          {t('riskCases.columns.dueAt')}
                         </th>
                       </tr>
                     </thead>
@@ -469,20 +501,26 @@ function RiskCaseListView() {
                           <span className="text-xs text-ink-muted">—</span>
                         )}
                         {item.contractTitle && (
-                          <p className="mt-0.5 max-w-[260px] truncate text-xs text-ink-muted" title={item.contractTitle}>
+                          <p className="mt-0.5 max-w-[130px] truncate text-xs text-ink-muted" title={item.contractTitle}>
                             {item.contractTitle}
                           </p>
                         )}
                       </td>
                       {/* Counterparty column */}
                       <td className="px-4 py-3 align-top text-xs text-ink">
-                        {item.counterpartyName ?? <span className="text-ink-muted">—</span>}
+                        {item.counterpartyName ? (
+                          <span className="block max-w-[140px] truncate" title={item.counterpartyName}>
+                            {item.counterpartyName}
+                          </span>
+                        ) : (
+                          <span className="text-ink-muted">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 align-top">
-                        <div className="flex flex-col items-start gap-1">
-                          <RiskTypePill type={item.riskType} />
-                          <OriginBadge origin={item.riskOrigin} />
-                        </div>
+                        <RiskTypePill type={item.riskType} />
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <OriginBadge origin={item.riskOrigin} />
                       </td>
                       <td className="px-4 py-3 align-top">
                         <PriorityBadge priority={item.priority} />
@@ -496,9 +534,6 @@ function RiskCaseListView() {
                       </td>
                       <td className="px-4 py-3 align-top">
                         <SlaCountdown seconds={item.slaCountdownSeconds} />
-                      </td>
-                      <td className="px-4 py-3 align-top text-xs text-ink-muted">
-                        {item.dueAt ? formatDateTime(item.dueAt, { showTime: true }) : '—'}
                       </td>
                     </tr>
                   ))}

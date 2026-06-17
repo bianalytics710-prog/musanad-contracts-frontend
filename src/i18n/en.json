@@ -8716,7 +8716,8 @@
       "caseType": "Type",
       "assignedTo": "Assigned to",
       "sla": "SLA",
-      "dueAt": "Due"
+      "dueAt": "Due",
+      "origin": "Origin"
     },
     "filters": {
       "searchLabel": "Search risk cases",
@@ -8725,6 +8726,8 @@
       "openAll": "All open",
       "allPriorities": "All priorities",
       "allCaseTypes": "All types",
+      "origin": "Origin",
+      "allOrigins": "All origins",
       "anySla": "Any SLA",
       "slaWithin": "Due ≤ {{hours}}h",
       "assignedToMe": "Assigned to me",
