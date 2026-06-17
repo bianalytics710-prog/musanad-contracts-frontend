@@ -22,20 +22,49 @@ export interface ContractCommentReply {
   createdBy: CommentUserRef | null;
 }
 
+/** 687 — kind discriminator: 'general' free chat vs 'redline' pinned to doc. */
+export type ContractCommentKind = "general" | "redline";
+
 export interface ContractComment {
   id: number;
   contractId: number;
   body: string;
+  commentKind: ContractCommentKind;
+  // 687 — anchor (populated only for redline comments).
+  anchorClauseId: string | null;
+  anchorClauseHeading: string | null;
+  anchorQuote: string | null;
+  anchorSide: "en" | "ar" | null;
+  anchorVersionNumber: number | null;
   mentionedUserIds: number[];
   resolvedAt: string | null;
   resolvedBy: number | null;
+  resolvedByUser: CommentUserRef | null;
   createdAt: string;
   updatedAt: string;
   createdBy: CommentUserRef | null;
   replies: ContractCommentReply[];
 }
 
-export type ContractCommentFilter = "all" | "unresolved" | "mine" | "mentions_me";
+export type ContractCommentFilter =
+  | "all"
+  | "unresolved"
+  | "mine"
+  | "mentions_me"
+  | "redlines";
+
+/** Payload for creating a comment. Anchor fields only sent for redlines. */
+export interface CreateCommentPayload {
+  body: string;
+  parentId?: number | null;
+  mentionedUserIds?: number[];
+  commentKind?: ContractCommentKind;
+  anchorClauseId?: string | null;
+  anchorClauseHeading?: string | null;
+  anchorQuote?: string | null;
+  anchorSide?: "en" | "ar" | null;
+  anchorVersionNumber?: number | null;
+}
 
 export const contractCommentService = {
   list: async (
@@ -51,7 +80,7 @@ export const contractCommentService = {
 
   create: async (
     contractId: number,
-    payload: { body: string; parentId?: number | null; mentionedUserIds?: number[] },
+    payload: CreateCommentPayload,
   ): Promise<{ id: number }> => {
     const { data } = await apiClient.post(`/api/v1/contracts/${contractId}/comments`, payload);
     return unwrap<{ id: number }>(data);
@@ -63,6 +92,17 @@ export const contractCommentService = {
   ): Promise<{ id: number; resolved: boolean }> => {
     const { data } = await apiClient.post(
       `/api/v1/contracts/${contractId}/comments/${commentId}/resolve`,
+    );
+    return unwrap<{ id: number; resolved: boolean }>(data);
+  },
+
+  // 687 — re-open a thread the drafter marked done but didn't satisfy.
+  reopen: async (
+    contractId: number,
+    commentId: number,
+  ): Promise<{ id: number; resolved: boolean }> => {
+    const { data } = await apiClient.post(
+      `/api/v1/contracts/${contractId}/comments/${commentId}/reopen`,
     );
     return unwrap<{ id: number; resolved: boolean }>(data);
   },

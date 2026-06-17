@@ -151,6 +151,8 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
   // tab, store the chosen historical version and switch to Document.
   // Cleared when the user clicks Back-to-current or navigates away.
   const [historicalVersion, setHistoricalVersion] = useState<ContractVersion | null>(null);
+  // 687 — cross-tab "jump to clause": Comments tab → Document tab scroll.
+  const [scrollToClauseId, setScrollToClauseId] = useState<string | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [statusPreset, setStatusPreset] = useState<ContractStatus | undefined>(undefined);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -232,6 +234,13 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
   const canChangeStatus = useAuthStore(selectHasPermission("contract.status.update"));
   const canManageTags = useAuthStore(selectHasPermission("contract.tag.manage"));
   const canApprove = useAuthStore(selectHasPermission("approval.act"));
+  // 687 — gate the Document-tab redline composer. There is no dedicated
+  // `contract.comment.write` permission seeded (the old gate was dead for
+  // every role); the comment endpoints authorise on READ_ANY. Mirror the
+  // feature intent: internal reviewers/authors (LC / approver / drafter) can
+  // comment, external recipients stay read-only. approval.act covers LC +
+  // approver; contract.edit covers drafter + LC; recipients have neither.
+  const canWriteComment = canApprove || canEditPerm;
   const canReviewClauses = useAuthStore(selectHasPermission("clause.review"));
   // M14 — CR-F: Risk tab visible to roles with score.read (hidden for contract_recipient)
   const canReadRiskScore = useAuthStore(selectHasPermission("score.read"));
@@ -975,6 +984,11 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
               contract={contract}
               historicalVersion={historicalVersion}
               onBackToCurrent={() => setHistoricalVersion(null)}
+              canRedline={canWriteComment}
+              currentVersionNumber={contract.currentVersion}
+              scrollToClauseId={scrollToClauseId}
+              onScrolled={() => setScrollToClauseId(null)}
+              onViewClauseInComments={() => setTab("comments")}
             />
           </DocumentTabExtension>
         </div>
@@ -989,7 +1003,15 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
       )}
       {tab === "comments" && (
         <div role="tabpanel" aria-labelledby="tab-comments">
-          <ContractCommentsTab contractId={contract.id} />
+          <ContractCommentsTab
+            contractId={contract.id}
+            onJumpToClause={(clauseId) => {
+              // 687 — switch to the Document tab (live body) + scroll there.
+              setHistoricalVersion(null);
+              setScrollToClauseId(clauseId);
+              setTab("document");
+            }}
+          />
         </div>
       )}
       {tab === "edit" && (
@@ -1006,6 +1028,7 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
         <div role="tabpanel" aria-labelledby="tab-versions">
           <ContractVersionList
             contractId={contract.id}
+            canRestore={canEdit}
             onViewVersion={(v) => {
               // If they pick the current version, treat it as Back-to-current
               // rather than mounting an immutable snapshot of the same body.

@@ -290,8 +290,9 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                 </div>
               )}
               {/* M12 — Clauses sub-nav (review queue) when on a /app/clauses/* route.
-                  Gated by clause.review so drafters / recipients don't see it. */}
-              {isClauses && onClausesRoute && !collapsed && canReviewClauses && (
+                  Gated by clause.review so drafters / recipients don't see it.
+                  2026-06-15 — also hidden for legal_counsel per request. */}
+              {isClauses && onClausesRoute && !collapsed && canReviewClauses && roleName !== "legal_counsel" && (
                 <ul className="mt-1 ms-4 space-y-0.5 border-s border-white/10 ps-2">
                   {CLAUSES_SUB_NAV.map((sub) => {
                     const subActive = path === sub.to || path.startsWith(sub.to + "/");

@@ -13,9 +13,11 @@ import { useMemo, useState, type ChangeEvent } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronRight as ChevronRightIcon,
@@ -68,10 +70,27 @@ const STATUS_LABEL: Record<ReviewStatus, string> = {
 
 const PAGE_SIZE = 25;
 
+// 2026-06-15 — statuses an LC may set manually via fn_tpa_review_set_status.
+// A TPA is analysed on upload, so it never sits in 'awaiting_review' with a
+// verdict already attached — the manual lifecycle runs reviewed → redline_sent
+// → closed. (pending_analysis / analyzing / failed are system-managed.)
+type AmendableStatus =
+  | 'reviewed'
+  | 'redline_sent'
+  | 'closed_accepted'
+  | 'closed_rejected';
+const AMENDABLE_STATUSES: AmendableStatus[] = [
+  'reviewed',
+  'redline_sent',
+  'closed_accepted',
+  'closed_rejected',
+];
+
 function ThirdPartyReviewListView() {
   const { t } = useTranslation();
   const canRead = useAuthStore(selectHasPermission('tpa.review.read'));
   const canCreate = useAuthStore(selectHasPermission('tpa.review.create'));
+  const canAmend = useAuthStore(selectHasPermission('tpa.review.amend'));
 
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
@@ -284,14 +303,13 @@ function ThirdPartyReviewListView() {
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Verdict</th>
                     <th className="px-4 py-3 text-right">Risk</th>
-                    <th className="px-4 py-3 text-right">Findings</th>
                     <th className="px-4 py-3">Uploaded</th>
                     <th className="px-4 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((r) => (
-                    <ReviewRow key={r.id} row={r} />
+                    <ReviewRow key={r.id} row={r} canAmend={canAmend} />
                   ))}
                 </tbody>
               </table>
@@ -334,7 +352,52 @@ function ThirdPartyReviewListView() {
   );
 }
 
-function ReviewRow({ row }: { row: ReviewListItem }) {
+// 2026-06-15 — inline status override for LC (tpa.review.amend). Calls
+// POST /tpa/reviews/:id/status (fn_tpa_review_set_status). System statuses
+// (pending_analysis/analyzing/failed) show as a disabled current option so the
+// pill still reads correctly, but only the 5 amendable targets are selectable.
+function StatusSelect({ reviewId, status }: { reviewId: number; status: ReviewStatus }) {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (next: AmendableStatus) => tpaService.setStatus(reviewId, { status: next }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['tpa.reviews'] });
+      toast.success('Review status updated');
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Couldn't update the status."),
+  });
+  const isSystemStatus = !(AMENDABLE_STATUSES as ReviewStatus[]).includes(status);
+  return (
+    <span className={`relative inline-flex items-center rounded-full ${STATUS_TONE[status]}`}>
+      <select
+        value={status}
+        disabled={mutation.isPending}
+        onChange={(e) => mutation.mutate(e.target.value as AmendableStatus)}
+        aria-label="Override review status"
+        title="Change status"
+        className="cursor-pointer appearance-none rounded-full border-0 bg-transparent py-0.5 ps-2.5 pe-6 text-[11px] font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+      >
+        {isSystemStatus && (
+          <option value={status} disabled>
+            {STATUS_LABEL[status]}
+          </option>
+        )}
+        {AMENDABLE_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {STATUS_LABEL[s]}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute end-1.5 h-3 w-3 opacity-70"
+        aria-hidden="true"
+      />
+    </span>
+  );
+}
+
+function ReviewRow({ row, canAmend }: { row: ReviewListItem; canAmend: boolean }) {
   const verdictTone =
     row.overallVerdict === 'reject'
       ? 'text-terracotta'
@@ -352,12 +415,18 @@ function ReviewRow({ row }: { row: ReviewListItem }) {
       </td>
       <td className="px-4 py-3 text-xs uppercase text-ink-subtle">{row.agreementType}</td>
       <td className="px-4 py-3">
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE[row.status]}`}
-        >
-          {STATUS_LABEL[row.status]}
-        </span>
+        {canAmend ? (
+          <StatusSelect reviewId={row.id} status={row.status} />
+        ) : (
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_TONE[row.status]}`}
+          >
+            {STATUS_LABEL[row.status]}
+          </span>
+        )}
       </td>
+      {/* Verdict mirrors the detail view: shown whenever the AI analysis has
+          produced one (null only for a brand-new, not-yet-analysed review). */}
       <td className={`px-4 py-3 text-sm font-medium uppercase ${verdictTone}`}>
         {row.overallVerdict ?? '—'}
       </td>
@@ -367,13 +436,6 @@ function ReviewRow({ row }: { row: ReviewListItem }) {
         ) : (
           <span className="text-ink-subtle">—</span>
         )}
-      </td>
-      <td className="px-4 py-3 text-right text-xs text-ink-subtle">
-        <span className="font-medium text-sage-ink">{row.acceptCount}</span>
-        <span className="mx-1">·</span>
-        <span className="font-medium text-amber-ink">{row.amendCount}</span>
-        <span className="mx-1">·</span>
-        <span className="font-medium text-terracotta">{row.rejectCount}</span>
       </td>
       <td className="px-4 py-3 text-xs text-ink-subtle">{formatDateTime(row.createdAt)}</td>
       <td className="px-4 py-3 text-right">

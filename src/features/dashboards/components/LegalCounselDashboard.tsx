@@ -19,7 +19,7 @@
  *   useLegalCounselInsights   → kpis, advisoryPipeline, tpaPipeline, templateClause, myRiskCases
  */
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
@@ -57,22 +57,17 @@ import { useAuthStore, selectUser } from "@/store/auth.store";
 import { formatDate, formatHijriDate } from "@/utils/datetime";
 import type {
   LegalCounselApprovalQueueRow,
-  LegalCounselWeekHours,
   LegalCounselContractTypeRow,
-  LegalCounselActivityRow,
   LegalCounselRiskCaseRow,
-  LegalCounselTpaPipelineRow,
+  LegalCounselTpaPipeline,
+  LegalCounselAvgReview,
 } from "@/types/entities/dashboards.types";
 
 const DEFAULT_WINDOW_DAYS = 30;
 
-// Activity feed filter pills
-type ActivityFilter = "all" | "mine" | "high";
-
 export function LegalCounselDashboard() {
   const { t } = useTranslation();
   const user = useAuthStore(selectUser);
-  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
 
   const {
     data,
@@ -91,38 +86,15 @@ export function LegalCounselDashboard() {
   const isLoading = mainLoading || insightsLoading;
   const isError = mainError || insightsError;
 
+  // mig 686 — avg review time now comes from the insights fn (days, glitch-filtered).
   const reviewChartData = useMemo(() => {
-    return [...(data?.avgReview12w ?? [])]
+    return [...(insights?.avgReview.series12w ?? [])]
       .sort((a, b) => b.weekIndex - a.weekIndex)
       .map((row) => ({
         week: `W${12 - row.weekIndex}`,
-        hours: row.avgHours,
+        days: row.avgDays,
       }));
-  }, [data]);
-
-  const currentWeekReviewHours = useMemo(() => {
-    const w0 = (data?.avgReview12w ?? []).find((r) => r.weekIndex === 0);
-    return w0 ? w0.avgHours : 0;
-  }, [data]);
-
-  const filteredActivity = useMemo(() => {
-    const all = data?.activityFeed ?? [];
-    switch (activityFilter) {
-      case "mine":
-        return user ? all.filter((a) => a.actorUserId === user.id) : [];
-      case "high":
-        return all.filter((a) =>
-          [
-            "ai_risk_score_updated",
-            "approval_escalated",
-            "regulatory_impact_detected",
-            "fully_executed",
-          ].includes(a.activityType),
-        );
-      default:
-        return all;
-    }
-  }, [data, activityFilter, user]);
+  }, [insights]);
 
   const nowISO = new Date().toISOString();
 
@@ -292,7 +264,7 @@ export function LegalCounselDashboard() {
                   {t("dashboards.common.viewAll", { defaultValue: "View all →" })}
                 </Link>
               </div>
-              <TpaPipelineList rows={insights?.tpaPipeline ?? []} />
+              <TpaPipelineList data={insights?.tpaPipeline} />
             </section>
 
             {/* Template & clause library */}
@@ -375,7 +347,7 @@ export function LegalCounselDashboard() {
               />
             </section>
 
-            {/* Avg legal review time (line chart, lifted from risk card) */}
+            {/* Avg legal review time — headline in days + 12-week trend */}
             <section className="rounded-lg border border-border bg-card p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Clock className="h-4 w-4 text-gold" />
@@ -387,58 +359,28 @@ export function LegalCounselDashboard() {
               </div>
               <p className="mb-3 text-xs text-ink-subtle">
                 {t("dashboards.legalCounsel.avgReview.subtitle", {
-                  defaultValue: "Hours per week · last 12 weeks",
+                  defaultValue: "Days per review · last 12 weeks",
                 })}
               </p>
-              <div className="mb-2 text-right font-mono text-sm text-ink">
-                {t("dashboards.legalCounsel.avgReview.currentWeek", {
-                  defaultValue: "Current week",
-                })}
-                :{" "}
-                <span className="font-semibold">{Math.round(currentWeekReviewHours)}h</span>
+              <div className="mb-2 flex items-baseline gap-2">
+                <span className="font-mono text-3xl font-semibold text-ink">
+                  {insights?.avgReview.avgDays ?? 0}
+                </span>
+                <span className="text-sm text-ink-muted">
+                  {t("dashboards.legalCounsel.avgReview.daysUnit", { defaultValue: "days" })}
+                </span>
+                <span className="ms-auto text-xs text-ink-subtle">
+                  {t("dashboards.legalCounsel.avgReview.sample", {
+                    defaultValue: "across {{n}} reviews",
+                    n: insights?.avgReview.sampleSize ?? 0,
+                  })}
+                </span>
               </div>
-              <div className="h-40">
+              <div className="h-32">
                 <ReviewTimeChart data={reviewChartData} />
               </div>
             </section>
           </div>
-
-          {/* ── Row 5: Activity feed (full width) ── */}
-          <section className="rounded-lg border border-border bg-card p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h3 className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
-                <Clock className="h-4 w-4 text-gold" />
-                {t("dashboards.legalCounsel.activityFeed.title", {
-                  defaultValue: "Activity feed",
-                })}
-              </h3>
-              <div className="inline-flex flex-wrap gap-1">
-                {(
-                  [
-                    { key: "all", labelKey: "all", defaultLabel: "All" },
-                    { key: "mine", labelKey: "mine", defaultLabel: "My actions" },
-                    { key: "high", labelKey: "high", defaultLabel: "High-priority" },
-                  ] as const
-                ).map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => setActivityFilter(p.key)}
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider transition-colors ${
-                      activityFilter === p.key
-                        ? "bg-gold/20 text-gold"
-                        : "text-ink-muted hover:bg-surface"
-                    }`}
-                  >
-                    {t(`dashboards.legalCounsel.activityFeed.pill.${p.labelKey}`, {
-                      defaultValue: p.defaultLabel,
-                    })}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <ActivityFeedList rows={filteredActivity} />
-          </section>
         </>
       )}
     </motion.div>
@@ -593,9 +535,9 @@ function AdvisoryStatCell({
 
 // ── TpaPipelineList ──────────────────────────────────────────────────────────
 
-function TpaPipelineList({ rows }: { rows: LegalCounselTpaPipelineRow[] }) {
+function TpaPipelineList({ data }: { data?: LegalCounselTpaPipeline }) {
   const { t } = useTranslation();
-  if (rows.length === 0) {
+  if (!data || data.received === 0) {
     return (
       <DashboardEmptyState
         description={t("dashboards.legalCounsel.tpa.empty", {
@@ -604,18 +546,52 @@ function TpaPipelineList({ rows }: { rows: LegalCounselTpaPipelineRow[] }) {
       />
     );
   }
-  const humanizeStatus = (s: string) =>
-    s.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-
+  const rows: Array<{ key: string; label: string; value: number; tone?: string }> = [
+    {
+      key: "received",
+      label: t("dashboards.legalCounsel.tpa.received", { defaultValue: "Reviews received" }),
+      value: data.received,
+    },
+    {
+      key: "awaitingOurReview",
+      label: t("dashboards.legalCounsel.tpa.awaitingOurReview", {
+        defaultValue: "Awaiting our review",
+      }),
+      value: data.awaitingOurReview,
+    },
+    {
+      key: "reviewed",
+      label: t("dashboards.legalCounsel.tpa.reviewed", { defaultValue: "Reviewed by us" }),
+      value: data.reviewed,
+    },
+    {
+      key: "awaitingCounterparty",
+      label: t("dashboards.legalCounsel.tpa.awaitingCounterparty", {
+        defaultValue: "Awaiting counterparty",
+      }),
+      value: data.awaitingCounterparty,
+    },
+    {
+      key: "accepted",
+      label: t("dashboards.legalCounsel.tpa.accepted", { defaultValue: "Accepted" }),
+      value: data.accepted,
+      tone: "text-[var(--sage)]",
+    },
+    {
+      key: "rejected",
+      label: t("dashboards.legalCounsel.tpa.rejected", { defaultValue: "Rejected" }),
+      value: data.rejected,
+      tone: "text-[var(--terracotta)]",
+    },
+  ];
   return (
     <ul role="list" className="divide-y divide-border/50">
       {rows.map((r) => (
-        <li
-          key={r.status}
-          className="flex items-center justify-between gap-2 py-2 text-sm"
-        >
-          <span className="text-ink">{humanizeStatus(r.status)}</span>
-          <span className="font-mono text-sm font-semibold text-ink">{r.count}</span>
+        <li key={r.key} className="flex items-center justify-between gap-2 py-2 text-sm">
+          <span className="text-ink">{r.label}</span>
+          <span className={`font-mono text-sm font-semibold ${r.tone ?? "text-ink"}`}>
+            {r.value}
+          </span>
         </li>
       ))}
     </ul>
@@ -781,13 +757,13 @@ function ContractTypesDonut({
 
 // ── ReviewTimeChart ──────────────────────────────────────────────────────────
 
-function ReviewTimeChart({ data }: { data: Array<{ week: string; hours: number }> }) {
+function ReviewTimeChart({ data }: { data: Array<{ week: string; days: number }> }) {
   if (data.length === 0) return <DashboardEmptyState />;
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data}>
         <XAxis dataKey="week" tick={{ fontSize: 10 }} interval={1} />
-        <YAxis tick={{ fontSize: 10 }} width={28} />
+        <YAxis tick={{ fontSize: 10 }} width={28} allowDecimals={false} />
         <Tooltip
           contentStyle={{
             background: "var(--card)",
@@ -795,10 +771,11 @@ function ReviewTimeChart({ data }: { data: Array<{ week: string; hours: number }
             borderRadius: 8,
             fontSize: 11,
           }}
+          formatter={(v: number) => [`${v} d`, "Avg"]}
         />
         <Line
           type="monotone"
-          dataKey="hours"
+          dataKey="days"
           stroke="#D9B26A"
           strokeWidth={2}
           dot={{ r: 2 }}
@@ -806,45 +783,6 @@ function ReviewTimeChart({ data }: { data: Array<{ week: string; hours: number }
         />
       </LineChart>
     </ResponsiveContainer>
-  );
-}
-
-// ── ActivityFeedList ─────────────────────────────────────────────────────────
-
-function ActivityFeedList({ rows }: { rows: LegalCounselActivityRow[] }) {
-  const { t } = useTranslation();
-  if (rows.length === 0) {
-    return <DashboardEmptyState description={t("dashboards.common.emptyList")} />;
-  }
-  return (
-    <ul role="list" className="space-y-2 text-sm">
-      {rows.slice(0, 12).map((r) => (
-        <li key={r.id} className="flex items-baseline gap-2">
-          <span
-            className="mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-gold/60"
-            aria-hidden
-          />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm text-ink">
-              {t(`dashboards.legalCounsel.activityFeed.type.${r.activityType}`, {
-                defaultValue: r.description,
-              })}
-            </p>
-            <p className="text-[10px] text-ink-subtle">
-              {formatDate(r.createdAt)}
-              {" · "}
-              <Link
-                to="/app/contracts/$id"
-                params={{ id: String(r.contractId) }}
-                className="text-gold hover:underline"
-              >
-                {r.contractNumber}
-              </Link>
-            </p>
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }
 
