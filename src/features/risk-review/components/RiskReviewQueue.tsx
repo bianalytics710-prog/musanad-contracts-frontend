@@ -45,6 +45,7 @@ import {
 import { riskCaseService } from '@/services/api/risk-case.service';
 import type { AssignableUser } from '@/types/risk-case.types';
 import { RiskTypePill } from '@/components/risk/RiskTypePill';
+import { OriginBadge } from '@/components/risk/OriginBadge';
 import { formatAedCompact } from '@/features/dashboards/components/dashboard-primitives';
 import { formatDateTime } from '@/utils/datetime';
 import { cn } from '@/lib/utils';
@@ -689,6 +690,7 @@ function Tier2List({
             <div className="flex-1">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <RiskTypePill type={row.risk_type} />
+                <OriginBadge origin={row.risk_origin} />
                 <span className="rounded-full bg-amber/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber">
                   {t('riskReview.tier2Badge', { defaultValue: 'Tier 2 · Review' })}
                 </span>
@@ -799,6 +801,7 @@ function Tier1List({ rows, onReassign, onDismiss, dismissDisabled }: Tier1ListPr
             <div className="flex-1">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <RiskTypePill type={row.risk_type} />
+                <OriginBadge origin={row.risk_origin} />
                 <span className="rounded-full bg-sage/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sage">
                   {t('riskTriage.tier1.badge', { defaultValue: 'Tier 1 · Auto-routed' })}
                 </span>

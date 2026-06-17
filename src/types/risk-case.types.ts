@@ -86,6 +86,8 @@ export interface RiskCaseListItem {
    * was opened") but is no longer rendered in the list.
    */
   riskType: string;
+  /** 690 — internal vs external (derived from the triggering signal). */
+  riskOrigin?: RiskOrigin;
   assignedRole: string | null;
   assignedUserId: number | null;
   assignedUserName: string | null;
@@ -133,6 +135,13 @@ export interface RiskCaseListQuery {
   assignedUserId?: number;
 }
 
+/**
+ * 690 — risk origin. 'internal' when the triggering signal came from one of our
+ * own systems (SAP/ServiceNow/Primavera/…); 'external' for OSINT-sourced signals
+ * (sanctions/weather/commodity/…). Derived server-side from correlation→signal.kind.
+ */
+export type RiskOrigin = 'internal' | 'external';
+
 export interface RiskCase {
   id: number;
   tenantId: string;
@@ -141,6 +150,8 @@ export interface RiskCase {
   caseType: RiskCaseType;
   /** See RiskCaseListItem.riskType. */
   riskType: string;
+  /** 690 — internal vs external (derived from the triggering signal). */
+  riskOrigin?: RiskOrigin;
   priority: RiskCasePriority;
   title: string;
   body: string | null;
@@ -240,6 +251,41 @@ export interface CounterpartySummary {
   aliases: string[] | null;
 }
 
+/**
+ * 690 — one fetched field from the source system record (label + value),
+ * e.g. { label: 'Approved budget', value: 'AED 4,220,000,000' }.
+ */
+export interface SourceRecordField {
+  label: string;
+  value: string;
+}
+
+/**
+ * 690 — the actual record fetched from an internal source system that triggered
+ * an internal risk case. Rendered inline on the case detail so a reviewer sees
+ * the real system data (system + record + values), not just an outbound link.
+ * NULL for external cases.
+ */
+export interface SourceSystemRecord {
+  systemCode: string | null;
+  systemName: string | null;
+  systemKind: string | null;
+  recordRef: string | null;
+  recordUrl: string | null;
+  capturedAt: string | null;
+  signalSubtype: string | null;
+  snapshot: {
+    systemName?: string;
+    systemCode?: string;
+    systemKind?: string;
+    recordType?: string;
+    recordId?: string;
+    recordUrl?: string;
+    capturedAt?: string;
+    fields?: SourceRecordField[];
+  } | null;
+}
+
 export interface RiskCaseDetail {
   riskCase: RiskCase;
   timeline: RiskCaseEvent[];
@@ -249,6 +295,8 @@ export interface RiskCaseDetail {
   linkedAdvisoryDrafts: LinkedAdvisoryDraftSummary[];
   /** mig 656 — counterparty resolved via contract.counterparty_id → party. */
   counterparty: CounterpartySummary | null;
+  /** 690 — actual internal source-system record for internal cases; null otherwise. */
+  sourceSystemRecord: SourceSystemRecord | null;
   slaCountdownSeconds: number | null;
 }
 

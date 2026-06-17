@@ -47,6 +47,7 @@ import type {
 } from '@/types/risk-case.types';
 import { StatusBadge, PriorityBadge, SlaCountdown } from '@/components/risk-cases/Badges';
 import { RiskTypePill, RISK_TYPE_SLUGS } from '@/components/risk/RiskTypePill';
+import { OriginBadge } from '@/components/risk/OriginBadge';
 import { CreateRiskCaseDialog } from '@/components/risk-cases/CreateRiskCaseDialog';
 // Re-audit fix — humanize assignedRole slug display.
 import { humanizeLabel } from '@/features/dashboards/components/dashboard-primitives';
@@ -478,7 +479,10 @@ function RiskCaseListView() {
                         {item.counterpartyName ?? <span className="text-ink-muted">—</span>}
                       </td>
                       <td className="px-4 py-3 align-top">
-                        <RiskTypePill type={item.riskType} />
+                        <div className="flex flex-col items-start gap-1">
+                          <RiskTypePill type={item.riskType} />
+                          <OriginBadge origin={item.riskOrigin} />
+                        </div>
                       </td>
                       <td className="px-4 py-3 align-top">
                         <PriorityBadge priority={item.priority} />

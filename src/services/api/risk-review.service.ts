@@ -21,6 +21,8 @@ export interface RiskReviewRow {
   confidence: number;
   materiality_aed: number;
   risk_type: string;
+  /** 690 — 'internal' (own systems) vs 'external' (OSINT). */
+  risk_origin: 'internal' | 'external';
   contract_id: string | null;
   contract_number: string | null;
   contract_title: string | null;
@@ -54,6 +56,8 @@ export interface RiskTriageTier1Row {
   confidence: number;
   materiality_aed: number;
   risk_type: string;
+  /** 690 — 'internal' (own systems) vs 'external' (OSINT). */
+  risk_origin: 'internal' | 'external';
   contract_id: string | null;
   contract_number: string | null;
   contract_title: string | null;

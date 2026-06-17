@@ -8666,6 +8666,12 @@
     "other": "Other"
   },
   "riskCases": {
+    "origin": {
+      "internal": "Internal",
+      "external": "External",
+      "internalHint": "Triggered by an internal system signal (e.g. SAP, ServiceNow, Primavera).",
+      "externalHint": "Triggered by an external OSINT signal (e.g. sanctions, weather, commodity)."
+    },
     "list": {
       "title": "Risk Cases",
       "subtitle": "Active risk-management workflow for auto-detected alerts, obligations and SLA breaches.",
@@ -8678,6 +8684,14 @@
       "terminal": "This case is in a terminal state. No further actions are available.",
       "slaCountdown": "SLA countdown",
       "createdAt": "Created {{date}}",
+      "sourceRecord": {
+        "title": "Source system record",
+        "intro": "This internal risk was identified from the following record fetched from {{system}}.",
+        "recordType": "Record type",
+        "recordId": "Record",
+        "captured": "Fetched from {{system}}{{at}}",
+        "openInSystem": "Open in system"
+      },
       "closureBanner": "Closed — outcome: {{outcome}} · {{date}}",
       "tabsAria": "Risk case detail tabs",
       "tabs": {
