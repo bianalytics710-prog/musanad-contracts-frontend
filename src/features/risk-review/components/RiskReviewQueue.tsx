@@ -46,6 +46,7 @@ import { riskCaseService } from '@/services/api/risk-case.service';
 import type { AssignableUser } from '@/types/risk-case.types';
 import { RiskTypePill } from '@/components/risk/RiskTypePill';
 import { OriginBadge } from '@/components/risk/OriginBadge';
+import { TriageCaseDrawer } from './TriageCaseDrawer';
 import { formatAedCompact } from '@/features/dashboards/components/dashboard-primitives';
 import { formatDateTime } from '@/utils/datetime';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,8 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [confirming, setConfirming] = useState<RiskReviewRow | null>(null);
   const [reassigning, setReassigning] = useState<RiskTriageTier1Row | null>(null);
+  // 691 — triage item being viewed in the in-context drawer (null = closed).
+  const [viewing, setViewing] = useState<RiskReviewRow | null>(null);
   // Tier-2 confirm dropdown selection. Reset whenever `confirming` flips.
   const [pickedAssigneeId, setPickedAssigneeId] = useState<string>('');
 
@@ -390,6 +393,7 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
                 setPickedAssigneeId('');
               }}
               onDismiss={(id) => dismissOne.mutate(id)}
+              onView={(row) => setViewing(row)}
               dismissDisabled={dismissOne.isPending}
             />
           )}
@@ -620,6 +624,18 @@ export function RiskReviewQueue({ variant = 'admin' }: RiskReviewQueueProps) {
           }
         />
       )}
+
+      {/* 691 — in-context triage detail drawer (replaces nav to Risk Cases). */}
+      <TriageCaseDrawer
+        row={viewing}
+        onClose={() => setViewing(null)}
+        onConfirm={(row) => {
+          setConfirming(row);
+          setPickedAssigneeId('');
+        }}
+        onDismiss={(id) => dismissOne.mutate(id)}
+        dismissDisabled={dismissOne.isPending}
+      />
     </motion.div>
   );
 }
@@ -634,6 +650,7 @@ interface Tier2ListProps {
   thresholds: { amberHours: number; redHours: number; autoEscalateDays: number };
   onConfirm: (row: RiskReviewRow) => void;
   onDismiss: (id: number) => void;
+  onView: (row: RiskReviewRow) => void;
   dismissDisabled: boolean;
 }
 
@@ -644,6 +661,7 @@ function Tier2List({
   thresholds,
   onConfirm,
   onDismiss,
+  onView,
   dismissDisabled,
 }: Tier2ListProps) {
   const { t } = useTranslation();
@@ -761,16 +779,16 @@ function Tier2List({
                 <ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />
                 {t('riskReview.markNoise', { defaultValue: 'Mark as noise' })}
               </button>
-              {row.contract_id && (
-                <Link
-                  to="/app/risk-cases/$caseId"
-                  params={{ caseId: row.id }}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-ink-muted hover:bg-muted focus:outline-none focus:ring-2 focus:ring-gold/60"
-                >
-                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t('riskReview.viewDetail', { defaultValue: 'View' })}
-                </Link>
-              )}
+              {/* 691 — View opens an in-context drawer (Confirm/Noise inside),
+                  no longer navigates into the Risk Cases module. */}
+              <button
+                type="button"
+                onClick={() => onView(row)}
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-ink-muted hover:bg-muted focus:outline-none focus:ring-2 focus:ring-gold/60"
+              >
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('riskReview.viewDetail', { defaultValue: 'View' })}
+              </button>
             </div>
           </li>
         );

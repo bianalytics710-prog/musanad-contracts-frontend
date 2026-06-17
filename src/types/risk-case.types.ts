@@ -70,6 +70,9 @@ export interface CorrelationSummary {
   id: number;
   ruleId: string;
   confidence: number;
+  /** Populated by fn_risk_case_get_by_id (mig 656) — why the engine matched. */
+  matchReason?: string | null;
+  status?: string | null;
 }
 
 export interface RiskCaseListItem {
