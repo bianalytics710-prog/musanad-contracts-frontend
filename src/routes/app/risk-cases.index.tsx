@@ -86,7 +86,7 @@ function RiskCaseListView() {
   // yet (only filters on case_type / status / priority / SLA / search).
   const [riskTypeFilter, setRiskTypeFilter] = useState<string>('');
   // Origin filter (internal/external) — client-side, same rationale as riskType.
-  const [originFilter, setOriginFilter] = useState<'' | 'internal' | 'external'>('');
+  const [originFilter, setOriginFilter] = useState<'' | 'internal' | 'external' | 'manual'>('');
   // Phase A — new server-side "Assigned to" filter. Passes assignedUserId
   // through to fn_risk_case_list. '' means "any assignee".
   const [assignedUserIdFilter, setAssignedUserIdFilter] = useState<string>('');
@@ -151,20 +151,6 @@ function RiskCaseListView() {
   );
   const pagination = data?.pagination;
 
-  // Cases that are overdue OR due within 24h, excluding terminal states.
-  // E-rev-E — drives the top-bar Escalate button (visible only when > 0
-  // and the actor has the escalate permission).
-  const atRiskCases = useMemo(
-    () =>
-      items.filter((c) => {
-        if (!c.dueAt) return false;
-        if (['closed', 'rejected', 'approved', 'accept_risk'].includes(c.status)) return false;
-        const hours = (new Date(c.dueAt).getTime() - Date.now()) / (1000 * 60 * 60);
-        return hours <= 24;
-      }),
-    [items],
-  );
-
   // #4 — show the row-selection checkbox column only for actors who can escalate.
   const showSelect = canEscalate && !isLegalCounsel;
   const selectableItems = useMemo(
@@ -224,26 +210,6 @@ function RiskCaseListView() {
                   selectedIds.size === 1
                     ? 'Escalate 1 selected'
                     : `Escalate ${selectedIds.size} selected`,
-              })}
-            </Button>
-          )}
-          {canEscalate && !isLegalCounsel && (
-            <Button
-              type="button"
-              variant={atRiskCases.length > 0 ? 'default' : 'outline'}
-              size="sm"
-              disabled={atRiskCases.length === 0}
-              onClick={() => setEscalateTargets(atRiskCases)}
-            >
-              <ArrowUpRight className="me-1 h-4 w-4" aria-hidden="true" />
-              {t('riskCases.actions.escalateAtRisk', {
-                count: atRiskCases.length,
-                defaultValue:
-                  atRiskCases.length === 0
-                    ? 'No overdue cases'
-                    : atRiskCases.length === 1
-                      ? 'Escalate 1 overdue case'
-                      : `Escalate ${atRiskCases.length} overdue cases`,
               })}
             </Button>
           )}
@@ -357,7 +323,7 @@ function RiskCaseListView() {
             id="rc-list-origin"
             value={originFilter}
             onChange={(e) => {
-              setOriginFilter(e.target.value as '' | 'internal' | 'external');
+              setOriginFilter(e.target.value as '' | 'internal' | 'external' | 'manual');
               setPage(1);
             }}
             className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary"
@@ -365,6 +331,7 @@ function RiskCaseListView() {
             <option value="">{t('riskCases.filters.allOrigins', { defaultValue: 'All origins' })}</option>
             <option value="internal">{t('riskCases.origin.internal', { defaultValue: 'Internal' })}</option>
             <option value="external">{t('riskCases.origin.external', { defaultValue: 'External' })}</option>
+            <option value="manual">{t('riskCases.origin.manual', { defaultValue: 'Manual' })}</option>
           </select>
         </div>
 
@@ -549,7 +516,7 @@ function RiskCaseListView() {
                     </thead>
                 <tbody className="divide-y divide-border bg-card">
                   {items.map((item) => {
-                    const isEscalated = item.status === 'escalated';
+                    const isEscalated = !!item.isEscalated;
                     return (
                     <tr
                       key={item.id}

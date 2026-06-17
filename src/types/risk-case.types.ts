@@ -91,6 +91,8 @@ export interface RiskCaseListItem {
   riskType: string;
   /** 690 — internal vs external (derived from the triggering signal). */
   riskOrigin?: RiskOrigin;
+  /** 694 — escalation flag (does not change status). */
+  isEscalated?: boolean;
   assignedRole: string | null;
   assignedUserId: number | null;
   assignedUserName: string | null;
@@ -143,7 +145,7 @@ export interface RiskCaseListQuery {
  * own systems (SAP/ServiceNow/Primavera/…); 'external' for OSINT-sourced signals
  * (sanctions/weather/commodity/…). Derived server-side from correlation→signal.kind.
  */
-export type RiskOrigin = 'internal' | 'external';
+export type RiskOrigin = 'internal' | 'external' | 'manual';
 
 export interface RiskCase {
   id: number;
@@ -155,6 +157,8 @@ export interface RiskCase {
   riskType: string;
   /** 690 — internal vs external (derived from the triggering signal). */
   riskOrigin?: RiskOrigin;
+  /** 694 — escalation flag (does not change status). */
+  isEscalated?: boolean;
   priority: RiskCasePriority;
   title: string;
   body: string | null;

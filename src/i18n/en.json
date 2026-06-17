@@ -8669,8 +8669,10 @@
     "origin": {
       "internal": "Internal",
       "external": "External",
+      "manual": "Manual",
       "internalHint": "Triggered by an internal system signal (e.g. SAP, ServiceNow, Primavera).",
-      "externalHint": "Triggered by an external OSINT signal (e.g. sanctions, weather, commodity)."
+      "externalHint": "Triggered by an external OSINT signal (e.g. sanctions, weather, commodity).",
+      "manualHint": "Logged manually by a user — no automated signal."
     },
     "list": {
       "title": "Risk Cases",
