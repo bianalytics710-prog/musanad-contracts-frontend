@@ -8694,6 +8694,12 @@
         "captured": "Fetched from {{system}}{{at}}",
         "openInSystem": "Open in system"
       },
+      "breachedObligation": {
+        "title": "Contract obligation breached",
+        "intro": "The contract commitment this risk is measured against (the expected side).",
+        "dueDate": "Due / target",
+        "status": "Obligation status"
+      },
       "closureBanner": "Closed — outcome: {{outcome}} · {{date}}",
       "tabsAria": "Risk case detail tabs",
       "tabs": {

@@ -293,6 +293,26 @@ export interface SourceSystemRecord {
   } | null;
 }
 
+/**
+ * 696 — the breached contract obligation (the "promise") behind an internal risk,
+ * paired with the clause it derives from. Shown next to the SourceSystemRecord
+ * (the "reality") so the reviewer sees expected vs actual. Null when the case has
+ * no linked obligation.
+ */
+export interface BreachedObligation {
+  id: number;
+  titleEn: string | null;
+  titleAr: string | null;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
+  obligationType: string | null;
+  dueDate: string | null;
+  status: string | null;
+  responsibleParty: string | null;
+  clauseHeading: string | null;
+  clauseSnippet: string | null;
+}
+
 export interface RiskCaseDetail {
   riskCase: RiskCase;
   timeline: RiskCaseEvent[];
@@ -304,6 +324,8 @@ export interface RiskCaseDetail {
   counterparty: CounterpartySummary | null;
   /** 690 — actual internal source-system record for internal cases; null otherwise. */
   sourceSystemRecord: SourceSystemRecord | null;
+  /** 696 — the breached contract obligation (the "promise"); null otherwise. */
+  breachedObligation: BreachedObligation | null;
   slaCountdownSeconds: number | null;
 }
 

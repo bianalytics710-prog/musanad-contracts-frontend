@@ -23,6 +23,7 @@ import { riskCaseService } from '@/services/api/risk-case.service';
 import { OriginBadge } from '@/components/risk/OriginBadge';
 import { PriorityBadge } from '@/components/risk-cases/Badges';
 import { SourceSystemRecordCard } from '@/components/risk-cases/SourceSystemRecordCard';
+import { BreachedObligationCard } from '@/components/risk-cases/BreachedObligationCard';
 import type { RiskReviewRow } from '@/services/api/risk-review.service';
 
 interface TriageCaseDrawerProps {
@@ -56,6 +57,9 @@ export function TriageCaseDrawer({
   const sourceSystemRecord =
     (detail as { sourceSystemRecord?: import('@/types/risk-case.types').SourceSystemRecord | null } | undefined)
       ?.sourceSystemRecord ?? null;
+  const breachedObligation =
+    (detail as { breachedObligation?: import('@/types/risk-case.types').BreachedObligation | null } | undefined)
+      ?.breachedObligation ?? null;
   const matchReason = detail?.linkedCorrelation?.matchReason ?? null;
   const body = detail?.riskCase.body ?? row?.description ?? null;
 
@@ -103,6 +107,8 @@ export function TriageCaseDrawer({
                 </div>
               )}
 
+              {/* Expected (contract obligation) vs actual (system record). */}
+              {breachedObligation && <BreachedObligationCard obligation={breachedObligation} />}
               {/* The actual system record that triggered this internal risk. */}
               {sourceSystemRecord && <SourceSystemRecordCard record={sourceSystemRecord} />}
 

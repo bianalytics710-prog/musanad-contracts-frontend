@@ -43,6 +43,7 @@ import { StatusBadge, PriorityBadge, SlaCountdown } from '@/components/risk-case
 import { RiskTypePill } from '@/components/risk/RiskTypePill';
 import { OriginBadge } from '@/components/risk/OriginBadge';
 import { SourceSystemRecordCard } from '@/components/risk-cases/SourceSystemRecordCard';
+import { BreachedObligationCard } from '@/components/risk-cases/BreachedObligationCard';
 import { RiskCaseTimeline } from '@/components/risk-cases/RiskCaseTimeline';
 import { RiskCaseEvidenceList } from '@/components/risk-cases/RiskCaseEvidenceList';
 import { CommentInline } from '@/components/risk-cases/CommentInline';
@@ -156,6 +157,10 @@ function RiskCaseDetailView() {
   const sourceSystemRecord =
     (detail as { sourceSystemRecord?: import('@/types/risk-case.types').SourceSystemRecord | null })
       .sourceSystemRecord ?? null;
+  // 696 — the breached contract obligation (the "promise" side).
+  const breachedObligation =
+    (detail as { breachedObligation?: import('@/types/risk-case.types').BreachedObligation | null })
+      .breachedObligation ?? null;
   // mig 656 — counterparty block, resolved server-side via contract.counterparty_id.
   // Older BE builds don't include this key — narrow safely.
   const counterparty =
@@ -274,6 +279,10 @@ function RiskCaseDetailView() {
               {/* 690 — Source system record. For internal cases, show the ACTUAL
                   record fetched from the originating system (system + record +
                   field/values) so the reviewer sees the data behind the risk. */}
+              {/* 696 — expected (contract obligation) vs actual (system record). */}
+              {breachedObligation && (
+                <BreachedObligationCard obligation={breachedObligation} />
+              )}
               {sourceSystemRecord && (
                 <SourceSystemRecordCard record={sourceSystemRecord} />
               )}
