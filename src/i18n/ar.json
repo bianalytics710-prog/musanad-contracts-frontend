@@ -8776,8 +8776,12 @@
       "snooze": "تأجيل",
       "close": "إغلاق الحالة",
       "uploadEvidence": "رفع دليل",
-      "addComment": "نشر تعليق"
+      "addComment": "نشر تعليق",
+      "escalateSelected": "تصعيد {{count}} محدد",
+      "selectAll": "تحديد الكل",
+      "selectRow": "تحديد الحالة"
     },
+    "escalatedLabel": "مُصعَّد",
     "sla": {
       "title": "العدّ التنازلي لاتفاقية مستوى الخدمة",
       "overdue": "متأخر {{duration}}",

@@ -8776,8 +8776,12 @@
       "snooze": "Snooze",
       "close": "Close case",
       "uploadEvidence": "Upload evidence",
-      "addComment": "Post comment"
+      "addComment": "Post comment",
+      "escalateSelected": "Escalate {{count}} selected",
+      "selectAll": "Select all",
+      "selectRow": "Select case"
     },
+    "escalatedLabel": "Escalated",
     "sla": {
       "title": "SLA countdown",
       "overdue": "Overdue {{duration}}",

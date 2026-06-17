@@ -31,7 +31,6 @@ export const RISK_TYPE_SLUGS: RiskTypeSlug[] = [
   "force_majeure",
   "sanctions",
   "sla_breach",
-  "approval_workflow",
   "budget_overrun",
   "counterparty_concentration",
   "vendor_supplier",

@@ -134,7 +134,10 @@ function RiskCaseListView() {
   });
 
   const [showCreate, setShowCreate] = useState(false);
-  const [showBulkEscalate, setShowBulkEscalate] = useState(false);
+  // #4 — escalation targets fed to the dialog (overdue set OR row selection).
+  const [escalateTargets, setEscalateTargets] = useState<RiskCaseListItem[] | null>(null);
+  // #4 — row selection for "Escalate selected".
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const rawItems = data?.data ?? [];
   // Client-side risk-type filter — BE list fn doesn't accept riskType yet,
@@ -162,6 +165,24 @@ function RiskCaseListView() {
     [items],
   );
 
+  // #4 — show the row-selection checkbox column only for actors who can escalate.
+  const showSelect = canEscalate && !isLegalCounsel;
+  const selectableItems = useMemo(
+    () => items.filter((c) => !['closed', 'rejected', 'approved', 'accept_risk', 'escalated'].includes(c.status)),
+    [items],
+  );
+  const selectedItems = useMemo(
+    () => items.filter((c) => selectedIds.has(c.id)),
+    [items, selectedIds],
+  );
+  const toggleSelected = (id: number) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -188,13 +209,31 @@ function RiskCaseListView() {
           {/* E-rev-E — single top-bar Escalate button for executive (and any
               other role with risk.case.escalate). Disabled when no cases are
               at-risk; the count badge surfaces urgency. */}
+          {/* #4 — escalate the rows the user selected. */}
+          {showSelect && selectedIds.size > 0 && (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setEscalateTargets(selectedItems)}
+            >
+              <ArrowUpRight className="me-1 h-4 w-4" aria-hidden="true" />
+              {t('riskCases.actions.escalateSelected', {
+                count: selectedIds.size,
+                defaultValue:
+                  selectedIds.size === 1
+                    ? 'Escalate 1 selected'
+                    : `Escalate ${selectedIds.size} selected`,
+              })}
+            </Button>
+          )}
           {canEscalate && !isLegalCounsel && (
             <Button
               type="button"
               variant={atRiskCases.length > 0 ? 'default' : 'outline'}
               size="sm"
               disabled={atRiskCases.length === 0}
-              onClick={() => setShowBulkEscalate(true)}
+              onClick={() => setEscalateTargets(atRiskCases)}
             >
               <ArrowUpRight className="me-1 h-4 w-4" aria-hidden="true" />
               {t('riskCases.actions.escalateAtRisk', {
@@ -446,6 +485,7 @@ function RiskCaseListView() {
                 <div className="overflow-x-auto">
                   <table className="w-full table-fixed text-sm">
                     <colgroup>
+                      {showSelect && <col className="w-[4%]" />}{/* select */}
                       <col className="w-[15%]" />{/* Contract */}
                       <col className="w-[14%]" />{/* Counterparty */}
                       <col className="w-[13%]" />{/* Risk type */}
@@ -457,6 +497,30 @@ function RiskCaseListView() {
                     </colgroup>
                     <thead className="border-b border-border bg-surface">
                       <tr className="text-left">
+                        {showSelect && (
+                          <th scope="col" className="px-3 py-3">
+                            <label htmlFor="rc-select-all" className="sr-only">
+                              {t('riskCases.actions.selectAll', { defaultValue: 'Select all' })}
+                            </label>
+                            <input
+                              id="rc-select-all"
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-border accent-primary"
+                              checked={selectableItems.length > 0 && selectableItems.every((c) => selectedIds.has(c.id))}
+                              ref={(el) => {
+                                if (el) {
+                                  const some = selectableItems.some((c) => selectedIds.has(c.id));
+                                  el.indeterminate = some && !selectableItems.every((c) => selectedIds.has(c.id));
+                                }
+                              }}
+                              onChange={(e) =>
+                                setSelectedIds(
+                                  e.target.checked ? new Set(selectableItems.map((c) => c.id)) : new Set(),
+                                )
+                              }
+                            />
+                          </th>
+                        )}
                         <th scope="col" className="px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
                           {t('riskCases.columns.contract', { defaultValue: 'Contract' })}
                         </th>
@@ -484,8 +548,33 @@ function RiskCaseListView() {
                       </tr>
                     </thead>
                 <tbody className="divide-y divide-border bg-card">
-                  {items.map((item) => (
-                    <tr key={item.id} className="hover:bg-surface/50 transition-colors">
+                  {items.map((item) => {
+                    const isEscalated = item.status === 'escalated';
+                    return (
+                    <tr
+                      key={item.id}
+                      className={`transition-colors ${
+                        isEscalated ? 'bg-amber-tint hover:bg-amber-tint' : 'hover:bg-surface/50'
+                      }`}
+                    >
+                      {showSelect && (
+                        <td className="px-3 py-3 align-top">
+                          {selectableItems.some((c) => c.id === item.id) ? (
+                            <>
+                              <label htmlFor={`rc-select-${item.id}`} className="sr-only">
+                                {t('riskCases.actions.selectRow', { defaultValue: 'Select case' })}
+                              </label>
+                              <input
+                                id={`rc-select-${item.id}`}
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-border accent-primary"
+                                checked={selectedIds.has(item.id)}
+                                onChange={() => toggleSelected(item.id)}
+                              />
+                            </>
+                          ) : null}
+                        </td>
+                      )}
                       {/* Contract column — number links to detail page;
                           title below in muted text for context. */}
                       <td className="px-4 py-3 align-top">
@@ -500,6 +589,12 @@ function RiskCaseListView() {
                         ) : (
                           <span className="text-xs text-ink-muted">—</span>
                         )}
+                        {isEscalated && (
+                          <span className="mt-0.5 inline-flex items-center gap-0.5 rounded-full border border-amber/50 bg-amber/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber">
+                            <ArrowUpRight className="h-2.5 w-2.5" aria-hidden="true" />
+                            {t('riskCases.escalatedLabel', { defaultValue: 'Escalated' })}
+                          </span>
+                        )}
                         {item.contractTitle && (
                           <p className="mt-0.5 max-w-[130px] truncate text-xs text-ink-muted" title={item.contractTitle}>
                             {item.contractTitle}
@@ -509,7 +604,7 @@ function RiskCaseListView() {
                       {/* Counterparty column */}
                       <td className="px-4 py-3 align-top text-xs text-ink">
                         {item.counterpartyName ? (
-                          <span className="block max-w-[140px] truncate" title={item.counterpartyName}>
+                          <span className="block line-clamp-2 break-words" title={item.counterpartyName}>
                             {item.counterpartyName}
                           </span>
                         ) : (
@@ -536,7 +631,8 @@ function RiskCaseListView() {
                         <SlaCountdown seconds={item.slaCountdownSeconds} />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
                 </div>
@@ -586,9 +682,12 @@ function RiskCaseListView() {
 
       <CreateRiskCaseDialog open={showCreate} onClose={() => setShowCreate(false)} />
       <BulkEscalateDialog
-        open={showBulkEscalate}
-        onClose={() => setShowBulkEscalate(false)}
-        cases={atRiskCases}
+        open={escalateTargets !== null}
+        onClose={() => {
+          setEscalateTargets(null);
+          setSelectedIds(new Set());
+        }}
+        cases={escalateTargets ?? []}
       />
     </motion.div>
   );
