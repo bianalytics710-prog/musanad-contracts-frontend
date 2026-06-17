@@ -31,7 +31,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { ChevronDown, ChevronUp, AlertTriangle, TrendingUp, Sparkles, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, TrendingUp, Sparkles, Info, ExternalLink, Database } from 'lucide-react';
 import { useContractRiskScore, useContractRiskScoreHistory } from '../hooks/useRiskScore';
 import { formatDateTime } from '@/utils/datetime';
 import { cn } from '@/lib/utils';
@@ -686,14 +686,44 @@ function WhatIfPanel({
   );
 }
 
+/**
+ * 689 — distinct internal-signal provenance entries across a WhatIf row's
+ * member correlations. Empty when every member is backed by an external/OSINT
+ * signal. Dedup by system + record ref so a rule firing N times on the same
+ * record shows one source line.
+ */
+interface SignalProvenance {
+  systemName: string;
+  recordRef: string | null;
+  recordUrl: string | null;
+}
+function rowProvenance(row: WhatIfRow): SignalProvenance[] {
+  const seen = new Set<string>();
+  const out: SignalProvenance[] = [];
+  for (const m of row.members) {
+    if (!m.sourceSystemName) continue;
+    const key = `${m.sourceSystemName}|${m.sourceRecordRef ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      systemName: m.sourceSystemName,
+      recordRef: m.sourceRecordRef ?? null,
+      recordUrl: m.sourceRecordUrl ?? null,
+    });
+  }
+  return out;
+}
+
 function WhatIfRowView({ row }: { row: WhatIfRow }) {
   const { t } = useTranslation();
   const [showTooltip, setShowTooltip] = useState(false);
   const deltaLabel = row.totalDelta > 0 ? `-${row.totalDelta}` : '0';
   const memberCount = row.members.length;
+  const provenance = rowProvenance(row);
 
   return (
-    <div className="relative flex items-center justify-between gap-3 rounded-md bg-muted/40 px-3 py-2">
+    <div className="relative flex flex-col gap-1 rounded-md bg-muted/40 px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
       <p className="min-w-0 flex-1 truncate text-xs font-medium text-ink">
         {row.label}
         {memberCount > 1 && (
@@ -723,6 +753,35 @@ function WhatIfRowView({ row }: { row: WhatIfRow }) {
           {t('risk.score.whatif.deltaLabel', { delta: deltaLabel })}
         </span>
       </div>
+      </div>
+      {/* 689 — internal-signal provenance: which system + record this came from. */}
+      {provenance.length > 0 && (
+        <ul className="flex flex-col gap-0.5">
+          {provenance.map((pv, i) => (
+            <li key={i} className="inline-flex flex-wrap items-center gap-1 text-[10px] text-ink-subtle">
+              <Database className="h-3 w-3 shrink-0" aria-hidden />
+              <span className="text-ink-muted">
+                {t('risk.score.whatif.sourceLabel', { defaultValue: 'Source' })}:
+              </span>
+              <span className="font-medium text-ink">{pv.systemName}</span>
+              {pv.recordRef &&
+                (pv.recordUrl ? (
+                  <a
+                    href={pv.recordUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 rounded font-mono text-gold hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold/60"
+                  >
+                    {pv.recordRef}
+                    <ExternalLink className="h-2.5 w-2.5" aria-hidden />
+                  </a>
+                ) : (
+                  <span className="font-mono text-ink-muted">{pv.recordRef}</span>
+                ))}
+            </li>
+          ))}
+        </ul>
+      )}
       {showTooltip && <WhatIfTooltip row={row} />}
     </div>
   );

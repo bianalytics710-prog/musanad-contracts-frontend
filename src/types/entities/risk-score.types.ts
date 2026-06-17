@@ -101,6 +101,14 @@ export interface ContributingCorrelation {
   // optional because older snapshots predate this addition.
   contractValue?: string | null;
   exposureFraction?: number | null;
+  // 689 — internal-signal provenance. Present only when this correlation is
+  // backed by an internal signal (kind=internal); fn_risk_score_explain grafts
+  // the originating source system + record ref + deep-link at read time.
+  // Absent/undefined for correlations backed by external/OSINT signals.
+  sourceSystemCode?: string | null;
+  sourceSystemName?: string | null;
+  sourceRecordRef?: string | null;
+  sourceRecordUrl?: string | null;
 }
 
 // ── RiskScore table row ───────────────────────────────────────────────────────

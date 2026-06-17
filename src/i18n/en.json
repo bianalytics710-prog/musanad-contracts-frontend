@@ -44,7 +44,8 @@
         "title": "What-if analysis",
         "description": "Estimated change in Health Score if each signal were resolved.",
         "deltaLabel": "Without this: {{delta}}",
-        "disclaimer": "Estimates are approximate client-side derivations."
+        "disclaimer": "Estimates are approximate client-side derivations.",
+        "sourceLabel": "Source"
       },
       "history": {
         "title": "Score history",
