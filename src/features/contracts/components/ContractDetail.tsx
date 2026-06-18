@@ -95,6 +95,7 @@ import { ContractClausesTab } from "@/components/contracts/ContractClausesTab";
 import { documentIngestionService } from "@/services/api/document-ingestion.service";
 // M14 — CR-F — Risk Scoring
 import { ContractRiskTab } from "./ContractRiskTab";
+import { ContractRedlineTab } from "./ContractRedlineTab";
 import { ContractNoticesTab } from "./ContractNoticesTab";
 import { GenerateNoticeDialog } from "./GenerateNoticeDialog";
 import { ConfirmSendDialog } from "./ConfirmSendDialog";
@@ -125,6 +126,7 @@ type Tab =
   | "signatures"
   | "clauses"
   | "risk"
+  | "redline"
   | "notices";
 
 interface ContractDetailProps {
@@ -951,6 +953,12 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
             {t("contracts.detail.tabs.risk", { defaultValue: "Risk" })}
           </TabButton>
         )}
+        {/* Redline — upload + diff the counterparty's returned contract. */}
+        {!isRecipientOnly && (
+          <TabButton active={tab === "redline"} onClick={() => setTab("redline")}>
+            {t("contracts.detail.tabs.redline", { defaultValue: "Redline" })}
+          </TabButton>
+        )}
         {/* 2026-06-14 — Notices tab: cure notices / FM invocations / etc.
             Visible to LC + platform_admin (anyone who can review advisory drafts). */}
         {!isRecipientOnly && (
@@ -1067,6 +1075,12 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
       {tab === "risk" && (
         <div role="tabpanel" aria-labelledby="tab-risk">
           <ContractRiskTab contractId={contract.id} />
+        </div>
+      )}
+      {/* Scenario 2 — counterparty redline upload + diff */}
+      {tab === "redline" && (
+        <div role="tabpanel" aria-labelledby="tab-redline">
+          <ContractRedlineTab contractId={contract.id} />
         </div>
       )}
       {/* 2026-06-14 — Notices tab */}
