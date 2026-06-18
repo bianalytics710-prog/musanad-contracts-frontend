@@ -464,8 +464,25 @@ function mapFeedRow(row: NotificationFeedRow): AppNotification {
         : contractId
           ? "/app/contracts/" + contractId
           : undefined;
-  const title = row.subject ?? "(notification)";
-  const body = row.bodyRendered ?? undefined;
+  // Title: use the rendered subject, but fall back to a readable kind-based
+  // label when it's missing or still contains unrendered template tokens
+  // (e.g. "{notification}" / "{{contractNumber}}") — never show raw tokens.
+  const KIND_TITLES: Record<string, string> = {
+    alert: "Alert",
+    advisory: "Advisory notice",
+    approval_request: "Action required",
+    signature_request: "Signature request",
+    system: "Notification",
+    risk_case: "Risk case",
+    report: "Report ready",
+  };
+  const subj = (row.subject ?? "").trim();
+  const looksLikePlaceholder = subj === "" || /\{\{?.*?\}?\}/.test(subj);
+  const title = !looksLikePlaceholder
+    ? subj
+    : (KIND_TITLES[row.notificationKind] ?? "Notification");
+  const rawBody = row.bodyRendered ?? undefined;
+  const body = rawBody && /\{\{?.*?\}?\}/.test(rawBody) ? undefined : rawBody;
   return {
     id: "live-" + row.id,
     severity: sev,

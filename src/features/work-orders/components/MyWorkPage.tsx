@@ -124,6 +124,21 @@ interface RowAction {
 function deriveAction(wo: WorkOrderRow, stage: Stage): RowAction | null {
   const isDraftRequest = wo.workOrderType === "contract_draft_request";
 
+  // Redline approver tag → open the contract's Redline tab directly (any stage).
+  if (wo.workOrderType === "redline_approver_tag" && wo.targetContractId) {
+    return {
+      labelKey: "myWork.actions.reviewRedline",
+      labelDefault: "Review redline",
+      icon: ArrowRight,
+      variant: "outline",
+      to: {
+        route: "contractDetail",
+        params: { id: String(wo.targetContractId) },
+        search: { tab: "redline" },
+      },
+    };
+  }
+
   if (stage === "not_started" && isDraftRequest) {
     // 2026-06-12 mig 631 — manual entries without a similar contract should
     // land in the regular Compose flow (template picker). Only seed the AI
@@ -446,6 +461,10 @@ function MyWorkInbox() {
     {
       value: "comment_response",
       label: t("myWork.types.comment_response", { defaultValue: "Comment" }),
+    },
+    {
+      value: "redline_approver_tag",
+      label: t("myWork.types.redline_approver_tag", { defaultValue: "Redline review" }),
     },
   ];
 

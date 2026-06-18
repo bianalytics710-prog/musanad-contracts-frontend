@@ -147,8 +147,18 @@ export function ContractDetail({ contractId, riskCaseIdFromUrl, initialTab }: Co
   // again; the Document tab is one click away.
   // 2026-06-14 — when ?riskCase=N or ?tab=notices is present, land on the
   // Notices tab so Layla immediately sees the draft-notice flow.
+  // Honor any valid ?tab= deep-link (e.g. tab=redline from My Work); else land
+  // on Notices when a risk case is in scope; otherwise Overview.
+  const KNOWN_TABS: Tab[] = [
+    'overview', 'document', 'attachments', 'comments', 'edit', 'payments',
+    'versions', 'activity', 'tree', 'signatures', 'clauses', 'risk', 'redline', 'notices',
+  ];
   const computedInitialTab: Tab =
-    initialTab === 'notices' || riskCaseIdFromUrl ? 'notices' : 'overview';
+    initialTab && (KNOWN_TABS as string[]).includes(initialTab)
+      ? (initialTab as Tab)
+      : riskCaseIdFromUrl
+        ? 'notices'
+        : 'overview';
   const [tab, setTab] = useState<Tab>(computedInitialTab);
   // v616 — when the drafter clicks "View this version" on the Versions
   // tab, store the chosen historical version and switch to Document.

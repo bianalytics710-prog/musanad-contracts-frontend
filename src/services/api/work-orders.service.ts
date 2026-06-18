@@ -12,7 +12,8 @@ const BASE = "/api/v1/work-orders";
 export type WorkOrderType =
   | "contract_draft_request"
   | "contract_returned"
-  | "comment_response";
+  | "comment_response"
+  | "redline_approver_tag";
 
 export type WorkOrderStatus = "open" | "in_progress" | "completed" | "cancelled";
 

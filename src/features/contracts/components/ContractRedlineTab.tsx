@@ -228,6 +228,8 @@ function RedlineReview({ contractId, importId }: { contractId: number; importId:
   }
 
   const acceptedCount = imp.changes.filter((c) => c.decision === "accepted").length;
+  const pendingCount = imp.changes.filter((c) => c.decision === "pending").length;
+  const allReviewed = imp.changes.length > 0 && pendingCount === 0;
   const applied = imp.status === "applied";
 
   return (
@@ -252,6 +254,15 @@ function RedlineReview({ contractId, importId }: { contractId: number; importId:
           <span className="rounded-full bg-sage/15 px-2.5 py-1 text-xs font-semibold text-sage">
             {t("contracts.redline.appliedBadge", { defaultValue: "Applied → v{{n}}", n: imp.appliedVersionNumber })}
           </span>
+        ) : !allReviewed ? (
+          // #7 — merge stays hidden until every change has a decision.
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1 text-[11px] text-ink-muted">
+            <Lock className="h-3 w-3" aria-hidden />
+            {t("contracts.redline.awaitingReviews", {
+              defaultValue: "{{n}} change(s) still awaiting review",
+              n: pendingCount,
+            })}
+          </span>
         ) : isDrafter ? (
           <Button
             onClick={() => applyMutation.mutate()}
@@ -262,16 +273,16 @@ function RedlineReview({ contractId, importId }: { contractId: number; importId:
             ) : (
               <GitCommitHorizontal className="me-1 h-4 w-4" />
             )}
-            {t("contracts.redline.applyN", {
-              defaultValue: "Apply {{n}} accepted → new version",
+            {t("contracts.redline.mergeN", {
+              defaultValue: "Merge {{n}} accepted → new version",
               n: acceptedCount,
             })}
           </Button>
         ) : (
           <span className="inline-flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1 text-[11px] text-ink-muted">
             <Lock className="h-3 w-3" aria-hidden />
-            {t("contracts.redline.drafterOnly", {
-              defaultValue: "{{n}} accepted · only a drafter can merge into a version",
+            {t("contracts.redline.drafterMerges", {
+              defaultValue: "All reviewed ({{n}} accepted) · only a drafter can merge",
               n: acceptedCount,
             })}
           </span>
@@ -330,16 +341,17 @@ function ChangeRow({
   }[change.changeType];
   const TypeIcon = typeMeta.Icon;
 
-  const lockedToOther =
-    change.assignedTo != null && change.assignedTo !== currentUserId;
-  const canDecide = !applied && !lockedToOther;
+  const assigned = change.assignedTo != null;
+  const isAssignee = assigned && change.assignedTo === currentUserId;
+  const decided = change.decision === "accepted" || change.decision === "rejected";
+  const canAct = !applied && isAssignee; // only the tagged approver decides
 
   return (
     <li
       className={cn(
         "px-4 py-3",
-        change.decision === "accepted" && "bg-sage/[0.04]",
-        change.decision === "rejected" && "bg-terracotta/[0.04]",
+        change.decision === "accepted" && "bg-sage/[0.05]",
+        change.decision === "rejected" && "bg-terracotta/[0.05]",
       )}
     >
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -352,44 +364,68 @@ function ChangeRow({
             {change.clauseHeading || t("contracts.redline.untitledClause", { defaultValue: "(untitled clause)" })}
           </span>
         </div>
-        {lockedToOther ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
-            <Lock className="h-3 w-3" aria-hidden />
-            {t("contracts.redline.awaiting", {
-              defaultValue: "Awaiting {{name}}",
-              name: change.assigneeName ?? t("contracts.redline.approver", { defaultValue: "approver" }),
-            })}
-          </span>
-        ) : (
-          <div className="flex items-center gap-1">
-            <Button
-              variant={change.decision === "accepted" ? "default" : "outline"}
-              size="sm"
-              disabled={!canDecide || busy}
-              onClick={() => onDecide(change.decision === "accepted" ? "pending" : "accepted", comment)}
+
+        <div className="flex items-center gap-2">
+          {/* Confirmed decision state — shown to everyone once decided. */}
+          {decided && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                change.decision === "accepted" ? "bg-sage/20 text-sage" : "bg-terracotta/20 text-terracotta",
+              )}
             >
-              <Check className="me-1 h-3.5 w-3.5" />
-              {t("contracts.redline.accept", { defaultValue: "Accept" })}
-            </Button>
-            <Button
-              variant={change.decision === "rejected" ? "default" : "outline"}
-              size="sm"
-              disabled={!canDecide || busy}
-              onClick={() => onDecide(change.decision === "rejected" ? "pending" : "rejected", comment)}
-            >
-              <X className="me-1 h-3.5 w-3.5" />
-              {t("contracts.redline.reject", { defaultValue: "Reject" })}
-            </Button>
-          </div>
-        )}
+              {change.decision === "accepted" ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+              {change.decision === "accepted"
+                ? t("contracts.redline.acceptedBy", { defaultValue: "Accepted" })
+                : t("contracts.redline.rejectedBy", { defaultValue: "Rejected" })}
+              {change.assigneeName ? ` · ${change.assigneeName}` : ""}
+            </span>
+          )}
+
+          {/* Accept/Reject — only the assignee acts (and only once assigned). */}
+          {canAct ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant={change.decision === "accepted" ? "default" : "outline"}
+                size="sm"
+                disabled={busy}
+                onClick={() => onDecide(change.decision === "accepted" ? "pending" : "accepted", comment)}
+              >
+                <Check className="me-1 h-3.5 w-3.5" />
+                {t("contracts.redline.accept", { defaultValue: "Accept" })}
+              </Button>
+              <Button
+                variant={change.decision === "rejected" ? "default" : "outline"}
+                size="sm"
+                disabled={busy}
+                onClick={() => onDecide(change.decision === "rejected" ? "pending" : "rejected", comment)}
+              >
+                <X className="me-1 h-3.5 w-3.5" />
+                {t("contracts.redline.reject", { defaultValue: "Reject" })}
+              </Button>
+            </div>
+          ) : !assigned && !applied ? (
+            <span className="text-[11px] text-ink-subtle">
+              {t("contracts.redline.assignPrompt", { defaultValue: "Assign a reviewer to decide ↓" })}
+            </span>
+          ) : assigned && !isAssignee && !decided && !applied ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
+              <Lock className="h-3 w-3" aria-hidden />
+              {t("contracts.redline.awaiting", {
+                defaultValue: "Awaiting {{name}}",
+                name: change.assigneeName ?? t("contracts.redline.approver", { defaultValue: "reviewer" }),
+              })}
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      {/* Tag-an-approver + reviewer comment (hidden once applied) */}
+      {/* Assign a reviewer + (assignee) review note. Hidden once applied. */}
       {!applied && (
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 text-[11px] text-ink-subtle">
             <UserPlus className="h-3 w-3" aria-hidden />
-            {t("contracts.redline.tagApprover", { defaultValue: "Approver:" })}
+            {t("contracts.redline.reviewer", { defaultValue: "Reviewer:" })}
           </span>
           <select
             value={change.assignedTo ?? ""}
@@ -397,14 +433,14 @@ function ChangeRow({
             onChange={(e) => onAssign(e.target.value ? Number(e.target.value) : null)}
             className="h-7 rounded-md border border-border bg-card px-2 text-xs text-ink"
           >
-            <option value="">{t("contracts.redline.noApprover", { defaultValue: "— LC reviews —" })}</option>
+            <option value="">{t("contracts.redline.selectApprover", { defaultValue: "— Select a reviewer —" })}</option>
             {approvers.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} · {a.role.replace(/_/g, " ")}
               </option>
             ))}
           </select>
-          {canDecide && (
+          {canAct && (
             <input
               type="text"
               value={comment}
@@ -469,54 +505,62 @@ function diffWords(oldText: string, newText: string): DiffSeg[] {
   return out;
 }
 
-function InlineDiff({ oldText, newText }: { oldText: string; newText: string }) {
-  const segs = diffWords(oldText, newText);
-  return (
-    <>
-      {segs.map((s, i) =>
-        s.t === "same" ? (
-          <span key={i}>{s.v}</span>
-        ) : s.t === "del" ? (
-          <span key={i} className="rounded bg-terracotta/15 text-terracotta line-through">
-            {s.v}
-          </span>
-        ) : (
-          <span key={i} className="rounded bg-sage/20 text-sage">
-            {s.v}
-          </span>
-        ),
-      )}
-    </>
-  );
-}
-
 function RowDiff({ change }: { change: RedlineChange }) {
   const { t } = useTranslation();
+  const segs =
+    change.changeType === "modified"
+      ? diffWords(change.ourText ?? "", change.theirText ?? "")
+      : null;
+
   return (
-    <div className="mt-2">
-      <div className="rounded-md border border-border bg-surface/40 p-2.5">
-        <div className="mb-1 flex items-center gap-3 font-mono text-[9px] uppercase tracking-wider text-ink-subtle">
-          <span>
-            {change.changeType === "modified"
-              ? t("contracts.redline.theirEdits", { defaultValue: "Their edits highlighted" })
-              : change.changeType === "added"
-                ? t("contracts.redline.theirs", { defaultValue: "Counterparty proposed" })
-                : t("contracts.redline.ours", { defaultValue: "Current clause (they removed)" })}
-          </span>
-          {change.changeType === "modified" && (
-            <span className="flex items-center gap-2 normal-case tracking-normal text-ink-subtle">
-              <span className="rounded bg-terracotta/15 px-1 text-terracotta line-through">{t("contracts.redline.removedWord", { defaultValue: "removed" })}</span>
-              <span className="rounded bg-sage/20 px-1 text-sage">{t("contracts.redline.addedWord", { defaultValue: "added" })}</span>
-            </span>
-          )}
+    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+      {/* LEFT — our current version (removed words struck) */}
+      <div className="rounded-md border border-border bg-surface/30 p-2.5">
+        <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-ink-subtle">
+          {t("contracts.redline.ourVersion", { defaultValue: "Our current version" })}
         </div>
         <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink">
-          {change.changeType === "modified" ? (
-            <InlineDiff oldText={change.ourText ?? ""} newText={change.theirText ?? ""} />
-          ) : change.changeType === "added" ? (
-            <span className="rounded bg-sage/15 text-ink">{change.theirText}</span>
+          {change.changeType === "added" ? (
+            <span className="italic text-ink-subtle">
+              {t("contracts.redline.notInOurs", { defaultValue: "— not in our version —" })}
+            </span>
+          ) : change.changeType === "removed" ? (
+            change.ourText
           ) : (
-            <span className="text-terracotta line-through">{change.ourText}</span>
+            segs!.map((s, i) =>
+              s.t === "add" ? null : (
+                <span
+                  key={i}
+                  className={cn(s.t === "del" && "rounded bg-terracotta/15 text-terracotta line-through")}
+                >
+                  {s.v}
+                </span>
+              ),
+            )
+          )}
+        </p>
+      </div>
+
+      {/* RIGHT — counterparty's version (their changes highlighted) */}
+      <div className="rounded-md border border-gold/30 bg-gold/[0.03] p-2.5">
+        <div className="mb-1 font-mono text-[9px] uppercase tracking-wider text-gold">
+          {t("contracts.redline.theirVersion", { defaultValue: "Counterparty's version" })}
+        </div>
+        <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink">
+          {change.changeType === "removed" ? (
+            <span className="italic text-ink-subtle">
+              {t("contracts.redline.removedByThem", { defaultValue: "— clause removed by counterparty —" })}
+            </span>
+          ) : change.changeType === "added" ? (
+            <span className="rounded bg-sage/20 font-medium text-sage">{change.theirText}</span>
+          ) : (
+            segs!.map((s, i) =>
+              s.t === "del" ? null : (
+                <span key={i} className={cn(s.t === "add" && "rounded bg-sage/25 font-medium text-sage")}>
+                  {s.v}
+                </span>
+              ),
+            )
           )}
         </p>
       </div>
