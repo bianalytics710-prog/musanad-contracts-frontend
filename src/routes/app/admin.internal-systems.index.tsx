@@ -26,6 +26,7 @@ import {
   Trash2,
   Pencil,
   RefreshCw,
+  ArrowLeftRight,
 } from "lucide-react";
 import { formatDateTime } from "@/utils/datetime";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -48,6 +49,7 @@ import {
   type InternalSystemStatus,
   type AuthMethod,
   type InternalSystemInput,
+  type ConnectorMappingView,
 } from "@/services/api/admin-internal-systems.service";
 import { cn } from "@/lib/utils";
 
@@ -112,6 +114,7 @@ function InternalSystemsList() {
   const [search, setSearch] = useState<string>("");
   const [showAdd, setShowAdd] = useState(false);
   const [editRow, setEditRow] = useState<InternalSystemRow | null>(null);
+  const [mappingRow, setMappingRow] = useState<InternalSystemRow | null>(null);
 
   const params = useMemo(
     () => ({
@@ -128,6 +131,19 @@ function InternalSystemsList() {
     enabled: canManage,
     staleTime: 30_000,
   });
+
+  // Declarative field mappings (their model → ours) for the wired connectors.
+  const { data: mappings = [] } = useQuery({
+    queryKey: ["admin-internal-systems-mappings"],
+    queryFn: () => adminInternalSystemsService.fieldMappings(),
+    enabled: canManage,
+    staleTime: 5 * 60_000,
+  });
+  const mappingByCode = useMemo(() => {
+    const m = new Map<string, ConnectorMappingView>();
+    mappings.forEach((cm) => m.set(cm.systemCode, cm));
+    return m;
+  }, [mappings]);
 
   // Status roll-up for the tile strip.
   const counts = useMemo(() => {
@@ -324,6 +340,8 @@ function InternalSystemsList() {
                   key={row.id}
                   row={row}
                   onEdit={() => setEditRow(row)}
+                  hasMapping={mappingByCode.has(row.systemCode)}
+                  onShowMapping={() => setMappingRow(row)}
                 />
               ))}
             </ul>
@@ -341,6 +359,12 @@ function InternalSystemsList() {
         open={!!editRow}
         onClose={() => setEditRow(null)}
         existing={editRow}
+      />
+      <MappingDialog
+        open={!!mappingRow}
+        onClose={() => setMappingRow(null)}
+        system={mappingRow}
+        mapping={mappingRow ? mappingByCode.get(mappingRow.systemCode) ?? null : null}
       />
     </motion.div>
   );
@@ -383,9 +407,13 @@ function StatusTile({
 function InternalSystemRowItem({
   row,
   onEdit,
+  hasMapping,
+  onShowMapping,
 }: {
   row: InternalSystemRow;
   onEdit: () => void;
+  hasMapping: boolean;
+  onShowMapping: () => void;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -505,6 +533,12 @@ function InternalSystemRowItem({
         )}
       </div>
       <div className="flex items-center gap-1">
+        {hasMapping && (
+          <Button variant="ghost" size="sm" onClick={onShowMapping}>
+            <ArrowLeftRight className="me-1 h-3.5 w-3.5" />
+            {t("admin.internalSystems.mapping.action", { defaultValue: "Mapping" })}
+          </Button>
+        )}
         {canSync && (
           <Button
             variant="default"
@@ -826,6 +860,135 @@ function SystemFormDialog({
                 : t("admin.internalSystems.dialog.create", {
                     defaultValue: "Create system",
                   })}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Field-mapping dialog ────────────────────────────────────────────────
+// Shows the declarative "their data model → our data model" contract for a
+// connector. This is the SAME mapping that drives ingestion (served from the BE
+// connector specs), so it can't drift from what actually lands.
+
+function MappingDialog({
+  open,
+  onClose,
+  system,
+  mapping,
+}: {
+  open: boolean;
+  onClose: () => void;
+  system: InternalSystemRow | null;
+  mapping: ConnectorMappingView | null;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[820px]">
+        <DialogHeader>
+          <DialogTitle>
+            {t("admin.internalSystems.mapping.title", {
+              defaultValue: "Field mapping — {{name}}",
+              name: system?.displayName ?? mapping?.systemName ?? "",
+            })}
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-sm text-ink-muted">
+          {t("admin.internalSystems.mapping.intro", {
+            defaultValue:
+              "How records from this system map onto the OqoodAI model. This is the same definition the connector uses to ingest — the view can't drift from what actually lands.",
+          })}
+        </p>
+
+        {!mapping ? (
+          <p className="py-6 text-center text-sm text-ink-muted">
+            {t("admin.internalSystems.mapping.none", {
+              defaultValue: "No field mapping is defined for this connector.",
+            })}
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {mapping.recordTypes.map((rt, i) => (
+              <div key={`${rt.recordType}-${i}`} className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-ink">{rt.recordType}</span>
+                  <ArrowLeftRight className="h-3.5 w-3.5 text-ink-subtle" />
+                  <span className="rounded-full bg-gold/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-gold">
+                    {rt.signalType}
+                  </span>
+                </div>
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-surface text-ink-subtle">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">
+                          {t("admin.internalSystems.mapping.col.source", {
+                            defaultValue: "Source field",
+                          })}
+                        </th>
+                        <th className="px-3 py-2 font-medium">
+                          {t("admin.internalSystems.mapping.col.sample", {
+                            defaultValue: "Sample value",
+                          })}
+                        </th>
+                        <th className="px-3 py-2 font-medium">
+                          {t("admin.internalSystems.mapping.col.target", {
+                            defaultValue: "OqoodAI field",
+                          })}
+                        </th>
+                        <th className="px-3 py-2 font-medium">
+                          {t("admin.internalSystems.mapping.col.transform", {
+                            defaultValue: "Transform",
+                          })}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {rt.fieldMappings.map((fm, j) => (
+                        <tr key={`fm-${j}`}>
+                          <td className="px-3 py-2">
+                            <div className="font-mono text-[11px] text-ink">{fm.sourceField}</div>
+                            <div className="text-ink-muted">{fm.sourceLabel}</div>
+                          </td>
+                          <td className="px-3 py-2 text-ink">{fm.sampleValue}</td>
+                          <td className="px-3 py-2 font-mono text-[11px] text-sage">
+                            {fm.targetField}
+                          </td>
+                          <td className="px-3 py-2 text-ink-muted">{fm.transform}</td>
+                        </tr>
+                      ))}
+                      {rt.derived.map((d, j) => (
+                        <tr key={`d-${j}`} className="bg-surface/40">
+                          <td className="px-3 py-2">
+                            <div className="text-ink-muted italic">{d.sourceLabel}</div>
+                            <div className="font-mono text-[10px] uppercase tracking-wider text-ink-subtle">
+                              {t("admin.internalSystems.mapping.derived", {
+                                defaultValue: "derived / routing",
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-ink">{d.sampleValue}</td>
+                          <td className="px-3 py-2 font-mono text-[11px] text-sage">
+                            {d.targetField}
+                          </td>
+                          <td className="px-3 py-2 text-ink-muted">{d.transform}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            {t("common.close", { defaultValue: "Close" })}
           </Button>
         </DialogFooter>
       </DialogContent>

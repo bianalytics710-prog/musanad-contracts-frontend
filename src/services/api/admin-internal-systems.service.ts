@@ -117,6 +117,36 @@ export const CONNECTABLE_SYSTEM_CODES = new Set([
   'primavera_p6',
 ]);
 
+export type FieldRole = "identity" | "snapshot" | "derived" | "routing";
+
+export interface ConnectorFieldMapping {
+  sourceField: string;
+  sourceLabel: string;
+  sampleValue: string;
+  targetField: string;
+  transform: string;
+  role: FieldRole;
+}
+
+export interface ConnectorMappingRecordType {
+  recordType: string;
+  signalType: string;
+  fieldMappings: ConnectorFieldMapping[];
+  derived: Array<{
+    sourceLabel: string;
+    sampleValue: string;
+    targetField: string;
+    transform: string;
+  }>;
+}
+
+export interface ConnectorMappingView {
+  systemCode: string;
+  systemName: string;
+  systemKind: string;
+  recordTypes: ConnectorMappingRecordType[];
+}
+
 export const adminInternalSystemsService = {
   list: async (params: {
     kind?: InternalSystemKind;
@@ -179,5 +209,12 @@ export const adminInternalSystemsService = {
       { timeout: 20_000 },
     );
     return r.data;
+  },
+
+  fieldMappings: async (): Promise<ConnectorMappingView[]> => {
+    const r = await apiClient.get<Envelope<ConnectorMappingView[] | null>>(
+      "/api/v1/admin/internal-systems/field-mappings",
+    );
+    return r.data.data ?? [];
   },
 };
