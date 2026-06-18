@@ -4267,16 +4267,18 @@
       }
     },
     "audit": {
-      "title": "Audit log",
-      "subtitle": "Every INSERT / UPDATE / DELETE on auditable tables. Filter by table, action, actor, or date range.",
-      "empty": "No events match the filters.",
+      "title": "Activity log",
+      "subtitle": "Every contract action across the workspace — who did what, and when. Newest first.",
+      "empty": "No activity matches the filters.",
+      "eventsLabel": "events",
       "actions": {
         "exportCsv": "Export CSV"
       },
       "filters": {
         "table": "Table",
         "action": "Action",
-        "actor": "Actor",
+        "actor": "Person",
+        "type": "Type",
         "dateFrom": "From",
         "dateTo": "To",
         "contract": "Contract",

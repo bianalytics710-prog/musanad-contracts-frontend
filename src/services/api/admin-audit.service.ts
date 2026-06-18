@@ -41,7 +41,45 @@ export interface AuditLogQuery {
   contractId?: number;
 }
 
+// ── Consolidated activity feed (the simplified "Audit log" view) ───────────
+export interface ActivityFeedRow {
+  id: number;
+  activityType: string;
+  contractId: number;
+  contractNumber: string;
+  contractTitle: string | null;
+  actor: { id: number; firstName: string; lastName: string } | null;
+  actorEmail: string | null;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface ActivityFeedResponse {
+  data: ActivityFeedRow[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export interface ActivityFeedQuery {
+  page?: number;
+  limit?: number;
+  contractId?: number;
+  actorId?: number;
+  activityType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 export const adminAuditService = {
+  activityFeed: async (query: ActivityFeedQuery = {}): Promise<ActivityFeedResponse> => {
+    const { data } = await apiClient.get<ActivityFeedResponse>(
+      "/api/v1/admin/audit/activity",
+      { params: query },
+    );
+    return data;
+  },
+
   list: async (query: AuditLogQuery = {}): Promise<AuditLogListResponse> => {
     const { data } = await apiClient.get<AuditLogListResponse>(
       "/api/v1/admin/audit",
