@@ -32,7 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/utils/datetime";
 
-type TileKey = "contracts" | "versions" | "sentBack" | "risk";
+type TileKey = "contracts" | "versions" | "sentBack" | "risk" | "redlines";
 
 export function CounterpartyIntelligenceCard({
   partyId,
@@ -168,9 +168,17 @@ function IntelBody({
         )}
       </AnimatePresence>
 
-      {/* Themes */}
+      {/* Themes — clickable → past redline comments */}
       {themes.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => metrics.redlineComments.length > 0 && toggle("redlines")}
+          aria-expanded={open === "redlines"}
+          className={cn(
+            "flex w-full flex-wrap items-center gap-1.5 rounded-md px-1 py-1 text-left",
+            metrics.redlineComments.length > 0 && "hover:bg-surface/60",
+          )}
+        >
           <span className="text-[11px] font-medium text-ink-muted">
             {t("contracts.counterpartyIntel.themes", { defaultValue: "Watch:" })}
           </span>
@@ -179,7 +187,19 @@ function IntelBody({
               {th}
             </span>
           ))}
-        </div>
+          {metrics.redlineComments.length > 0 && (
+            <span className="ms-auto inline-flex items-center gap-1 text-[10px] text-ink-subtle">
+              {t("contracts.counterpartyIntel.viewRedlines", {
+                defaultValue: "{{n}} past redlines",
+                n: metrics.redlineComments.length,
+              })}
+              <ChevronDown
+                className={cn("h-3 w-3 transition-transform", open === "redlines" && "rotate-180")}
+                aria-hidden
+              />
+            </span>
+          )}
+        </button>
       )}
 
       {/* AI synthesis */}
@@ -211,6 +231,7 @@ function DrillFrame({
     versions: t("contracts.counterpartyIntel.frame.versions", { defaultValue: "Negotiation rounds (versions)" }),
     sentBack: t("contracts.counterpartyIntel.frame.sentBack", { defaultValue: "Sent back in approval" }),
     risk: t("contracts.counterpartyIntel.frame.risk", { defaultValue: "Risk cases" }),
+    redlines: t("contracts.counterpartyIntel.frame.redlines", { defaultValue: "Past redlines from previous contracts" }),
   };
 
   return (
@@ -233,6 +254,7 @@ function DrillFrame({
         )}
         {tileKey === "sentBack" && <SentBackList rows={metrics.sentBack} />}
         {tileKey === "risk" && <RiskList rows={metrics.riskCaseList} />}
+        {tileKey === "redlines" && <RedlineList rows={metrics.redlineComments} />}
       </div>
     </div>
   );
@@ -384,6 +406,47 @@ function RiskList({ rows }: { rows: PartyIntelligenceMetrics["riskCaseList"] }) 
               ? t("contracts.counterpartyIntel.frame.open", { defaultValue: "Open" })
               : t("contracts.counterpartyIntel.frame.closed", { defaultValue: "Closed" })}
           </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RedlineList({ rows }: { rows: PartyIntelligenceMetrics["redlineComments"] }) {
+  const { t } = useTranslation();
+  if (rows.length === 0)
+    return (
+      <EmptyRow
+        text={t("contracts.counterpartyIntel.frame.noRedlines", {
+          defaultValue: "No redline comments on previous contracts.",
+        })}
+      />
+    );
+  return (
+    <ul className="divide-y divide-border/60">
+      {rows.map((rc, i) => (
+        <li key={`${rc.contractId}-${i}`} className="px-2 py-2">
+          <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
+            {rc.clauseHeading && (
+              <span className="rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-semibold text-gold">
+                {rc.clauseHeading}
+              </span>
+            )}
+            <Link
+              to="/app/contracts/$id"
+              params={{ id: String(rc.contractId) }}
+              className="font-mono text-[10px] text-ink-muted hover:text-gold hover:underline"
+            >
+              {rc.contractNumber}
+            </Link>
+          </div>
+          <p className="text-xs text-ink">{rc.body}</p>
+          {(rc.author || rc.createdAt) && (
+            <p className="mt-0.5 text-[10px] text-ink-subtle">
+              {rc.author ?? "—"}
+              {rc.createdAt ? ` · ${formatDateTime(rc.createdAt)}` : ""}
+            </p>
+          )}
         </li>
       ))}
     </ul>

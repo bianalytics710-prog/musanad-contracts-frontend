@@ -82,6 +82,14 @@ export interface PartyIntelligenceMetrics {
     contractNumber: string;
     createdAt: string;
   }>;
+  redlineComments: Array<{
+    contractId: number;
+    contractNumber: string;
+    clauseHeading: string | null;
+    body: string;
+    author: string | null;
+    createdAt: string;
+  }>;
 }
 
 export interface PartyIntelligenceResponse {
