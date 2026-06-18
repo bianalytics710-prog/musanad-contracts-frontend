@@ -338,11 +338,31 @@ function AdminActivityView() {
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-            {items.map((row) => (
-              <ActivityRow key={row.id} row={row} />
-            ))}
-          </ul>
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wider text-ink-subtle">
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    {t("admin.audit.columns.contract", { defaultValue: "Contract" })}
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    {t("admin.audit.columns.actor", { defaultValue: "Actor" })}
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    {t("admin.audit.columns.action", { defaultValue: "Action" })}
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    {t("admin.audit.columns.time", { defaultValue: "Time" })}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((row) => (
+                  <ActivityRow key={row.id} row={row} />
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-ink-subtle">
@@ -374,48 +394,60 @@ function ActivityRow({ row }: { row: ActivityFeedRow }) {
   const actorName = row.actor
     ? `${row.actor.firstName} ${row.actor.lastName}`.trim()
     : t("contracts.activity.systemActor", { defaultValue: "System" });
-  const meta = row.metadata ?? {};
-  const fromStatus = (meta as Record<string, unknown>).fromStatus;
-  const toStatus = (meta as Record<string, unknown>).toStatus;
+  const meta = (row.metadata ?? {}) as Record<string, unknown>;
+  const fromStatus = meta.fromStatus;
+  const toStatus = meta.toStatus;
+  const actionLabel = t(`contracts.activity.types.${row.activityType}`, {
+    defaultValue: humanizeType(row.activityType),
+  });
 
   return (
-    <li className="flex items-start gap-3 px-4 py-3">
-      <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ${tone}`}>
-        <Icon className="h-3.5 w-3.5" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-sm font-medium text-ink">
-            {t(`contracts.activity.types.${row.activityType}`, { defaultValue: humanizeType(row.activityType) })}
-          </span>
-          {fromStatus != null && toStatus != null && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
-              {prettyStatus(fromStatus)}
-              <ArrowRight className="h-3 w-3" aria-hidden />
-              {prettyStatus(toStatus)}
-            </span>
+    <tr className="border-t border-border/60 align-top transition-colors hover:bg-surface/40">
+      <td className="px-4 py-3">
+        <Link
+          to="/app/contracts/$id"
+          params={{ id: String(row.contractId) }}
+          className="font-mono text-xs text-gold hover:underline"
+        >
+          {row.contractNumber}
+        </Link>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex flex-col">
+          <span className="text-sm text-ink">{actorName}</span>
+          {row.actorEmail && (
+            <span className="font-mono text-[10px] text-ink-subtle">{row.actorEmail}</span>
           )}
         </div>
-        {row.descriptionEn && (
-          <p className="mt-0.5 truncate text-xs text-ink-muted" title={row.descriptionEn}>
-            {row.descriptionEn}
-          </p>
-        )}
-        <p className="mt-1 text-[11px] text-ink-subtle">
-          <Link
-            to="/app/contracts/$id"
-            params={{ id: String(row.contractId) }}
-            className="font-mono text-gold hover:underline"
-          >
-            {row.contractNumber}
-          </Link>
-          <span className="mx-1.5">·</span>
-          {t("contracts.activity.byActor", { defaultValue: "by {{actor}}", actor: actorName })}
-          <span className="mx-1.5">·</span>
-          {formatDateTime(row.createdAt)}
-        </p>
-      </div>
-    </li>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-start gap-2">
+          <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full ${tone}`}>
+            <Icon className="h-3 w-3" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-sm font-medium text-ink">{actionLabel}</span>
+              {fromStatus != null && toStatus != null && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-[11px] text-ink-muted">
+                  {prettyStatus(fromStatus)}
+                  <ArrowRight className="h-3 w-3" aria-hidden />
+                  {prettyStatus(toStatus)}
+                </span>
+              )}
+            </div>
+            {row.descriptionEn && (
+              <p className="mt-0.5 max-w-md truncate text-xs text-ink-muted" title={row.descriptionEn}>
+                {row.descriptionEn}
+              </p>
+            )}
+          </div>
+        </div>
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-ink-muted">
+        {formatDateTime(row.createdAt)}
+      </td>
+    </tr>
   );
 }
 

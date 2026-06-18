@@ -4286,6 +4286,9 @@
       },
       "columns": {
         "contract": "Contract",
+        "actor": "Actor",
+        "action": "Action",
+        "time": "Time",
         "whatChanged": "What changed"
       },
       "noFieldChanges": "No business fields changed (only system timestamps).",
