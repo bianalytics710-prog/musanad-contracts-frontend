@@ -12,6 +12,8 @@ export interface AuditLogRow {
   changedByName: string | null;
   changedByEmail: string | null;
   changedAt: string;
+  contractId: number | null;
+  contractNumber: string | null;
   oldValues: unknown;
   newValues: unknown;
 }
@@ -29,6 +31,7 @@ export interface AuditLogQuery {
   changedBy?: number;
   dateFrom?: string;
   dateTo?: string;
+  contractId?: number;
 }
 
 export const adminAuditService = {

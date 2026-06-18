@@ -4278,7 +4278,12 @@
         "action": "Action",
         "actor": "Actor",
         "dateFrom": "From",
-        "dateTo": "To"
+        "dateTo": "To",
+        "contract": "Contract",
+        "contractPlaceholder": "Type a contract no.…"
+      },
+      "columns": {
+        "contract": "Contract"
       },
       "retention": {
         "known": "Audit events are retained for {{months}} months. Older entries are pruned by the daily retention job.",

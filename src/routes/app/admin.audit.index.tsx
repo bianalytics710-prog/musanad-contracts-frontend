@@ -5,8 +5,8 @@
  * Retention disclosure: workspace setting `contractRetentionMonths` (defaults
  * to "see Configuration" when missing). Banner displayed at the top.
  */
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
@@ -20,6 +20,8 @@ import {
 } from "@/services/api/admin-audit.service";
 import { adminUsersService } from "@/services/api/admin-users.service";
 import { adminSettingsService } from "@/services/api/admin-settings.service";
+import { chatMentionsService } from "@/services/api/chat-mentions.service";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatDateTime } from "@/utils/datetime";
 
 export const Route = createFileRoute("/app/admin/audit/")({
@@ -45,6 +47,22 @@ function AdminAuditView() {
   const [draftChangedBy, setDraftChangedBy] = useState<number | "">("");
   const [draftFrom, setDraftFrom] = useState("");
   const [draftTo, setDraftTo] = useState("");
+  // Contract typeahead (filter by a single contract across all related tables).
+  const [contractPick, setContractPick] = useState<{ id: number; label: string } | null>(null);
+  const [contractQuery, setContractQuery] = useState("");
+  const [showSuggest, setShowSuggest] = useState(false);
+  const blurTimer = useRef<number | null>(null);
+  const debouncedContractQuery = useDebounce(contractQuery, 250);
+
+  const { data: contractResults } = useQuery({
+    queryKey: ["audit-contract-typeahead", debouncedContractQuery],
+    queryFn: () => chatMentionsService.searchContracts(debouncedContractQuery, 8),
+    enabled:
+      debouncedContractQuery.trim().length >= 2 &&
+      contractPick?.label !== contractQuery,
+    staleTime: 30_000,
+  });
+  const contractSuggestions = contractResults?.results ?? [];
 
   const usersQuery = useQuery({
     queryKey: ["admin-users", "all", "for-audit"],
@@ -88,6 +106,7 @@ function AdminAuditView() {
       changedBy: draftChangedBy === "" ? undefined : draftChangedBy,
       dateFrom: draftFrom ? new Date(draftFrom).toISOString() : undefined,
       dateTo: draftTo ? new Date(draftTo).toISOString() : undefined,
+      contractId: contractPick?.id ?? undefined,
     });
   };
 
@@ -97,6 +116,9 @@ function AdminAuditView() {
     setDraftChangedBy("");
     setDraftFrom("");
     setDraftTo("");
+    setContractPick(null);
+    setContractQuery("");
+    setShowSuggest(false);
     setFilters({});
     setPage(1);
   };
@@ -154,7 +176,56 @@ function AdminAuditView() {
         </p>
       </div>
 
-      <div className="grid gap-3 rounded-lg border border-border bg-card p-3 md:grid-cols-5">
+      <div className="grid gap-3 rounded-lg border border-border bg-card p-3 md:grid-cols-6">
+        <Field
+          id="audit-contract"
+          label={t("admin.audit.filters.contract", { defaultValue: "Contract" })}
+        >
+          <div className="relative">
+            <Input
+              id="audit-contract"
+              value={contractQuery}
+              autoComplete="off"
+              placeholder={t("admin.audit.filters.contractPlaceholder", {
+                defaultValue: "Type a contract no.…",
+              })}
+              onChange={(e) => {
+                setContractQuery(e.target.value);
+                setContractPick(null);
+                setShowSuggest(true);
+              }}
+              onFocus={() => setShowSuggest(true)}
+              onBlur={() => {
+                blurTimer.current = window.setTimeout(() => setShowSuggest(false), 150);
+              }}
+            />
+            {showSuggest && contractSuggestions.length > 0 && !contractPick && (
+              <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border bg-card shadow-lg">
+                {contractSuggestions.map((s) => (
+                  <li key={s.id ?? s.label}>
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2 text-start text-sm hover:bg-surface focus:bg-surface focus:outline-none"
+                      onMouseDown={(ev) => ev.preventDefault()}
+                      onClick={() => {
+                        if (s.id == null) return;
+                        setContractPick({ id: s.id, label: s.label });
+                        setContractQuery(s.label);
+                        setShowSuggest(false);
+                        if (blurTimer.current) window.clearTimeout(blurTimer.current);
+                      }}
+                    >
+                      <span className="font-medium text-ink">{s.label}</span>
+                      {s.subLabel && (
+                        <span className="ms-2 text-xs text-ink-muted">{s.subLabel}</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Field>
         <Field id="audit-table" label={t("admin.audit.filters.table", { defaultValue: "Table" })}>
           <Input
             id="audit-table"
@@ -211,7 +282,7 @@ function AdminAuditView() {
             onChange={(e) => setDraftTo(e.target.value)}
           />
         </Field>
-        <div className="flex items-end gap-2 md:col-span-5">
+        <div className="flex items-end gap-2 md:col-span-6">
           <Button onClick={apply}>
             <Search className="me-2 h-4 w-4" />
             {t("common.apply", { defaultValue: "Apply" })}
@@ -244,6 +315,9 @@ function AdminAuditView() {
               <thead>
                 <tr className="border-b border-border bg-surface text-left text-xs uppercase tracking-wider text-ink-subtle">
                   <th scope="col" className="px-4 py-3 font-medium">When</th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    {t("admin.audit.columns.contract", { defaultValue: "Contract" })}
+                  </th>
                   <th scope="col" className="px-4 py-3 font-medium">Table</th>
                   <th scope="col" className="px-4 py-3 font-medium">Record ID</th>
                   <th scope="col" className="px-4 py-3 font-medium">Action</th>
@@ -258,6 +332,19 @@ function AdminAuditView() {
                   >
                     <td className="px-4 py-3 font-mono text-xs text-ink-muted">
                       {formatDateTime(row.changedAt)}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {row.contractId && row.contractNumber ? (
+                        <Link
+                          to="/app/contracts/$id"
+                          params={{ id: String(row.contractId) }}
+                          className="font-mono text-gold hover:underline"
+                        >
+                          {row.contractNumber}
+                        </Link>
+                      ) : (
+                        <span className="text-ink-subtle">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-ink">
                       {row.tableName}

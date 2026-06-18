@@ -4278,7 +4278,12 @@
         "action": "الإجراء",
         "actor": "المستخدم",
         "dateFrom": "من",
-        "dateTo": "إلى"
+        "dateTo": "إلى",
+        "contract": "العقد",
+        "contractPlaceholder": "اكتب رقم العقد…"
+      },
+      "columns": {
+        "contract": "العقد"
       },
       "retention": {
         "known": "تُحفظ أحداث التدقيق لمدة {{months}} شهرًا. يتم تقليم الإدخالات الأقدم بواسطة مهمة الاحتفاظ اليومية.",
