@@ -25,7 +25,9 @@ import {
   Search,
   Trash2,
   Pencil,
+  RefreshCw,
 } from "lucide-react";
+import { formatDateTime } from "@/utils/datetime";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,7 @@ import {
 import { useAuthStore, selectHasPermission } from "@/store/auth.store";
 import {
   adminInternalSystemsService,
+  CONNECTABLE_SYSTEM_CODES,
   type InternalSystemRow,
   type InternalSystemKind,
   type InternalSystemStatus,
@@ -426,6 +429,43 @@ function InternalSystemRowItem({
     },
   });
 
+  const canSync = CONNECTABLE_SYSTEM_CODES.has(row.systemCode);
+
+  const syncMutation = useMutation({
+    mutationFn: () => adminInternalSystemsService.sync(row.id),
+    onSuccess: (res) => {
+      const created = res.riskCasesCreated;
+      const msg =
+        created > 0
+          ? t("admin.internalSystems.sync.created", {
+              defaultValue:
+                "{{name}}: pulled {{pulled}} record(s) — {{created}} new risk case(s), {{deduped}} already known.",
+              name: row.displayName,
+              pulled: res.recordsPulled,
+              created,
+              deduped: res.signalsDeduped,
+            })
+          : t("admin.internalSystems.sync.upToDate", {
+              defaultValue:
+                "{{name}}: pulled {{pulled}} record(s) — nothing new, all {{deduped}} already known.",
+              name: row.displayName,
+              pulled: res.recordsPulled,
+              deduped: res.signalsDeduped,
+            });
+      if (created > 0) toast.success(msg);
+      else toast.info(msg);
+      void qc.invalidateQueries({ queryKey: ["admin-internal-systems"] });
+    },
+    onError: (e: Error & { response?: { data?: { error?: { message?: string } } } }) => {
+      toast.error(
+        e.response?.data?.error?.message ??
+          t("admin.internalSystems.sync.failed", {
+            defaultValue: "Sync failed — could not pull from the system.",
+          }),
+      );
+    },
+  });
+
   return (
     <li className="flex items-center gap-3 p-4">
       <div className="rounded-md bg-gold/10 p-2">
@@ -449,6 +489,14 @@ function InternalSystemRowItem({
         {row.notes && (
           <p className="mt-1 line-clamp-2 text-xs text-ink-muted">{row.notes}</p>
         )}
+        {canSync && row.lastPullAt && (
+          <p className="mt-1 text-[11px] text-ink-subtle">
+            {t("admin.internalSystems.sync.lastSynced", {
+              defaultValue: "Last synced",
+            })}
+            : {formatDateTime(row.lastPullAt)}
+          </p>
+        )}
         {row.lastError && row.lastStatus !== "healthy" && (
           <p className="mt-1 text-[11px] text-terracotta">
             {t("admin.internalSystems.lastError", { defaultValue: "Last error" })}:{" "}
@@ -457,6 +505,24 @@ function InternalSystemRowItem({
         )}
       </div>
       <div className="flex items-center gap-1">
+        {canSync && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+          >
+            <RefreshCw
+              className={cn(
+                "me-1 h-3.5 w-3.5",
+                syncMutation.isPending && "animate-spin",
+              )}
+            />
+            {syncMutation.isPending
+              ? t("admin.internalSystems.sync.syncing", { defaultValue: "Syncing…" })
+              : t("admin.internalSystems.sync.action", { defaultValue: "Sync now" })}
+          </Button>
+        )}
         <Button
           variant="outline"
           size="sm"

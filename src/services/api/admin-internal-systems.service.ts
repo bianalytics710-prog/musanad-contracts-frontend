@@ -91,6 +91,32 @@ export interface TestConnectionResult {
   };
 }
 
+export interface SyncRunResult {
+  runId: number;
+  systemId: number;
+  systemCode: string;
+  systemName: string;
+  recordsPulled: number;
+  signalsCreated: number;
+  signalsDeduped: number;
+  riskCasesCreated: number;
+  records: Array<{
+    recordRef: string | null;
+    signalType: string;
+    contractId?: number;
+    signalId?: number;
+    outcome: string;
+  }>;
+  lastPullAt: string;
+}
+
+/** system_codes that have an end-to-end pull adapter wired (mirrors BE). */
+export const CONNECTABLE_SYSTEM_CODES = new Set([
+  'sap_s4_finance',
+  'servicenow_itsm',
+  'primavera_p6',
+]);
+
 export const adminInternalSystemsService = {
   list: async (params: {
     kind?: InternalSystemKind;
@@ -142,6 +168,15 @@ export const adminInternalSystemsService = {
       `/api/v1/admin/internal-systems/${id}/test-connection`,
       {},
       { timeout: 15_000 },
+    );
+    return r.data;
+  },
+
+  sync: async (id: number): Promise<SyncRunResult> => {
+    const r = await apiClient.post<SyncRunResult>(
+      `/api/v1/admin/internal-systems/${id}/sync`,
+      {},
+      { timeout: 20_000 },
     );
     return r.data;
   },
