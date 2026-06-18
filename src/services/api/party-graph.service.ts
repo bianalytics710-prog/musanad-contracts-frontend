@@ -52,12 +52,34 @@ export interface PartyIntelligenceMetrics {
     byType: Array<{ type: string; n: number }>;
   };
   topRedlineClauses: Array<{ heading: string; n: number }>;
-  recentContracts: Array<{
+  // Drill-down lists (mig 708) — the rows behind each tile.
+  contracts: Array<{
     id: number;
     contractNumber: string;
     title: string;
     status: string;
+    valueAed: number | null;
     versions: number;
+    signedAt: string | null;
+    createdAt: string;
+  }>;
+  sentBack: Array<{
+    contractId: number;
+    contractNumber: string;
+    title: string;
+    action: "rejected" | "resubmission_requested";
+    role: string | null;
+    decidedAt: string | null;
+  }>;
+  riskCaseList: Array<{
+    id: number;
+    title: string;
+    caseType: string;
+    priority: string;
+    status: string;
+    open: boolean;
+    contractId: number;
+    contractNumber: string;
     createdAt: string;
   }>;
 }

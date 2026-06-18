@@ -100,7 +100,9 @@ export function Step1Type({ value, onChange, disabled = false }: Step1TypeProps)
 
   const partiesQuery = useQuery({
     queryKey: ["compose-step1-parties"],
-    queryFn: () => partiesService.list({ limit: 500 }),
+    // High limit so every counterparty is selectable + resolvable for the
+    // intelligence card (there are >500 parties; 500 silently cut some).
+    queryFn: () => partiesService.list({ limit: 2000 }),
     staleTime: 5 * 60_000,
   });
   const partyOptions = useMemo(() => {
