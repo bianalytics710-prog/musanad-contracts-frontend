@@ -3,6 +3,12 @@
  */
 import { apiClient } from "@/lib/api-client";
 
+export interface AuditChange {
+  field: string;
+  from: string | null;
+  to: string | null;
+}
+
 export interface AuditLogRow {
   id: number;
   tableName: string;
@@ -14,6 +20,7 @@ export interface AuditLogRow {
   changedAt: string;
   contractId: number | null;
   contractNumber: string | null;
+  changes: AuditChange[];
   oldValues: unknown;
   newValues: unknown;
 }

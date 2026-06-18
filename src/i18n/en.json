@@ -4283,8 +4283,10 @@
         "contractPlaceholder": "Type a contract no.…"
       },
       "columns": {
-        "contract": "Contract"
+        "contract": "Contract",
+        "whatChanged": "What changed"
       },
+      "noFieldChanges": "No business fields changed (only system timestamps).",
       "retention": {
         "known": "Audit events are retained for {{months}} months. Older entries are pruned by the daily retention job.",
         "unknown": "Audit events follow the workspace retention policy. See Configuration → General → Contract retention."

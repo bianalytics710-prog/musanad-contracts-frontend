@@ -6,17 +6,19 @@
  * to "see Configuration" when missing). Banner displayed at the top.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Download, Search, Info } from "lucide-react";
+import { Download, Search, Info, ChevronRight, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import {
   adminAuditService,
   type AuditLogQuery,
+  type AuditLogRow,
+  type AuditChange,
 } from "@/services/api/admin-audit.service";
 import { adminUsersService } from "@/services/api/admin-users.service";
 import { adminSettingsService } from "@/services/api/admin-settings.service";
@@ -38,6 +40,41 @@ const ACTION_TONE: Record<string, string> = {
   DELETE: "bg-terracotta/15 text-terracotta",
 };
 
+// snake_case / id field → readable label. "value_aed" → "Value aed", "status" → "Status".
+function humanizeField(field: string): string {
+  const f = field.replace(/_/g, " ").trim();
+  return f.charAt(0).toUpperCase() + f.slice(1);
+}
+
+// Render a stored value for display; enum-ish snake_case values are spaced out.
+function prettyValue(v: string | null): string {
+  if (v === null || v === "") return "∅";
+  if (/^[a-z0-9]+(_[a-z0-9]+)+$/.test(v)) return v.replace(/_/g, " ");
+  return v;
+}
+
+// One-line plain-English summary of what an audit row did.
+function summarizeRow(row: AuditLogRow): string {
+  const ch = row.changes ?? [];
+  if (row.action === "INSERT") {
+    const headline = ch.find((c) =>
+      ["contract_number", "title_en", "title", "name", "decision", "event_type", "activity_type"].includes(
+        c.field,
+      ),
+    );
+    return headline?.to ? `Created — ${prettyValue(headline.to)}` : "Created";
+  }
+  if (row.action === "DELETE") return "Deleted";
+  // UPDATE
+  const active = ch.find((c) => c.field === "is_active");
+  if (active && active.from === "true" && active.to === "false") return "Soft-deleted";
+  if (active && active.from === "false" && active.to === "true") return "Restored";
+  if (ch.length === 0) return "Updated (system fields only)";
+  const first = ch[0];
+  const lead = `${humanizeField(first.field)}: ${prettyValue(first.from)} → ${prettyValue(first.to)}`;
+  return ch.length > 1 ? `${lead}  (+${ch.length - 1} more)` : lead;
+}
+
 function AdminAuditView() {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
@@ -47,6 +84,7 @@ function AdminAuditView() {
   const [draftChangedBy, setDraftChangedBy] = useState<number | "">("");
   const [draftFrom, setDraftFrom] = useState("");
   const [draftTo, setDraftTo] = useState("");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   // Contract typeahead (filter by a single contract across all related tables).
   const [contractPick, setContractPick] = useState<{ id: number; label: string } | null>(null);
   const [contractQuery, setContractQuery] = useState("");
@@ -322,65 +360,106 @@ function AdminAuditView() {
                   <th scope="col" className="px-4 py-3 font-medium">Record ID</th>
                   <th scope="col" className="px-4 py-3 font-medium">Action</th>
                   <th scope="col" className="px-4 py-3 font-medium">Actor</th>
+                  <th scope="col" className="px-4 py-3 font-medium">
+                    {t("admin.audit.columns.whatChanged", { defaultValue: "What changed" })}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-t border-border/60 transition-colors hover:bg-surface/40"
-                  >
-                    <td className="px-4 py-3 font-mono text-xs text-ink-muted">
-                      {formatDateTime(row.changedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      {row.contractId && row.contractNumber ? (
-                        <Link
-                          to="/app/contracts/$id"
-                          params={{ id: String(row.contractId) }}
-                          className="font-mono text-gold hover:underline"
-                        >
-                          {row.contractNumber}
-                        </Link>
-                      ) : (
-                        <span className="text-ink-subtle">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink">
-                      {row.tableName}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-muted">
-                      {row.recordId ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-                          ACTION_TONE[row.action] ?? "bg-surface text-ink-muted"
+                {items.map((row) => {
+                  const expandable = (row.changes?.length ?? 0) > 0;
+                  const isOpen = expandedId === row.id;
+                  return (
+                    <Fragment key={row.id}>
+                      <tr
+                        className={`border-t border-border/60 transition-colors hover:bg-surface/40 ${
+                          expandable ? "cursor-pointer" : ""
                         }`}
+                        onClick={() =>
+                          expandable && setExpandedId(isOpen ? null : row.id)
+                        }
                       >
-                        {row.action}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {row.changedByName ? (
-                        <div className="flex flex-col">
-                          <span className="text-sm text-ink">
-                            {row.changedByName}
+                        <td className="px-4 py-3 font-mono text-xs text-ink-muted">
+                          {formatDateTime(row.changedAt)}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          {row.contractId && row.contractNumber ? (
+                            <Link
+                              to="/app/contracts/$id"
+                              params={{ id: String(row.contractId) }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-mono text-gold hover:underline"
+                            >
+                              {row.contractNumber}
+                            </Link>
+                          ) : (
+                            <span className="text-ink-subtle">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-ink">
+                          {row.tableName}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs text-ink-muted">
+                          {row.recordId ?? "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
+                              ACTION_TONE[row.action] ?? "bg-surface text-ink-muted"
+                            }`}
+                          >
+                            {row.action}
                           </span>
-                          {row.changedByEmail && (
-                            <span className="font-mono text-[10px] text-ink-subtle">
-                              {row.changedByEmail}
+                        </td>
+                        <td className="px-4 py-3">
+                          {row.changedByName ? (
+                            <div className="flex flex-col">
+                              <span className="text-sm text-ink">
+                                {row.changedByName}
+                              </span>
+                              {row.changedByEmail && (
+                                <span className="font-mono text-[10px] text-ink-subtle">
+                                  {row.changedByEmail}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="font-mono text-xs text-ink-subtle">
+                              system
                             </span>
                           )}
-                        </div>
-                      ) : (
-                        <span className="font-mono text-xs text-ink-subtle">
-                          system
-                        </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-start gap-1.5">
+                            {expandable ? (
+                              isOpen ? (
+                                <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-subtle" aria-hidden />
+                              ) : (
+                                <ChevronRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-subtle" aria-hidden />
+                              )
+                            ) : (
+                              <span className="w-3.5 shrink-0" aria-hidden />
+                            )}
+                            <span
+                              className={`text-xs ${
+                                row.changes?.length ? "text-ink" : "text-ink-subtle italic"
+                              }`}
+                            >
+                              {summarizeRow(row)}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="border-t border-border/40 bg-surface/30">
+                          <td colSpan={7} className="px-4 py-3">
+                            <ChangeDetail changes={row.changes} />
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -415,6 +494,40 @@ function AdminAuditView() {
         </>
       )}
     </motion.div>
+  );
+}
+
+// Expanded full field-by-field diff for one audit row.
+function ChangeDetail({ changes }: { changes: AuditChange[] }) {
+  const { t } = useTranslation();
+  if (!changes || changes.length === 0) {
+    return (
+      <p className="text-xs text-ink-subtle italic">
+        {t("admin.audit.noFieldChanges", {
+          defaultValue: "No business fields changed (only system timestamps).",
+        })}
+      </p>
+    );
+  }
+  return (
+    <dl className="space-y-1.5">
+      {changes.map((c) => (
+        <div key={c.field} className="grid grid-cols-[180px_1fr] gap-2 text-xs">
+          <dt className="font-medium text-ink-muted">{humanizeField(c.field)}</dt>
+          <dd className="flex flex-wrap items-center gap-1.5 font-mono">
+            <span className="rounded bg-terracotta/10 px-1.5 py-0.5 text-terracotta line-through decoration-terracotta/40">
+              {prettyValue(c.from)}
+            </span>
+            <span className="text-ink-subtle" aria-hidden>
+              →
+            </span>
+            <span className="rounded bg-sage/10 px-1.5 py-0.5 text-sage">
+              {prettyValue(c.to)}
+            </span>
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
