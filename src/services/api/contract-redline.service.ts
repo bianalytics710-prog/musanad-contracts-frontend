@@ -22,6 +22,16 @@ export interface RedlineChange {
   theirText: string | null;
   decision: RedlineDecision;
   decidedAt: string | null;
+  assignedTo: number | null;
+  assigneeName: string | null;
+  reviewerComment: string | null;
+}
+
+export interface RedlineApprover {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
 }
 
 export interface RedlineImportCounts {
@@ -87,10 +97,31 @@ export const contractRedlineService = {
     importId: number,
     changeId: number,
     decision: RedlineDecision,
+    comment?: string,
   ): Promise<{ id: number; decision: RedlineDecision }> => {
     const { data } = await apiClient.patch(
       `/api/v1/contracts/${contractId}/redline-imports/${importId}/changes/${changeId}`,
-      { decision },
+      { decision, comment },
+    );
+    return data;
+  },
+
+  approvers: async (contractId: number): Promise<RedlineApprover[]> => {
+    const { data } = await apiClient.get<{ data: RedlineApprover[] | null }>(
+      `/api/v1/contracts/${contractId}/redline-imports/approvers`,
+    );
+    return data.data ?? [];
+  },
+
+  assign: async (
+    contractId: number,
+    importId: number,
+    changeId: number,
+    assigneeId: number | null,
+  ): Promise<{ changeId: number; assignedTo: number | null }> => {
+    const { data } = await apiClient.patch(
+      `/api/v1/contracts/${contractId}/redline-imports/${importId}/changes/${changeId}/assign`,
+      { assigneeId },
     );
     return data;
   },
