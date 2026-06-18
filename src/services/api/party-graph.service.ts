@@ -37,6 +37,36 @@ export interface ChainSummaryQueryParams {
   maxDepth?: number;
 }
 
+// ─── Counterparty drafting/review intelligence (mig 707) ──────────────────
+export interface PartyIntelligenceMetrics {
+  party: { id: number; nameEn: string | null; nameAr: string | null };
+  priorContracts: number;
+  activeContracts: number;
+  avgVersions: number | null;
+  portfolioAvgVersions: number | null;
+  approvalFriction: { rejected: number; resubmitted: number };
+  avgNegotiationDays: number | null;
+  riskCases: {
+    total: number;
+    open: number;
+    byType: Array<{ type: string; n: number }>;
+  };
+  topRedlineClauses: Array<{ heading: string; n: number }>;
+  recentContracts: Array<{
+    id: number;
+    contractNumber: string;
+    title: string;
+    status: string;
+    versions: number;
+    createdAt: string;
+  }>;
+}
+
+export interface PartyIntelligenceResponse {
+  metrics: PartyIntelligenceMetrics;
+  summary: string | null;
+}
+
 export const partyGraphService = {
   // ─── Relationships CRUD ─────────────────────────────────────────────────
 
@@ -114,6 +144,19 @@ export const partyGraphService = {
     const { data } = await apiClient.post<PartySanctionsMatchResponse>(
       "/api/v1/admin/parties/sanctions-match",
       payload,
+    );
+    return data;
+  },
+
+  // ─── Drafting/review intelligence ───────────────────────────────────────
+
+  getIntelligence: async (
+    partyId: number,
+    opts: { excludeContractId?: number; lang?: string } = {},
+  ): Promise<PartyIntelligenceResponse> => {
+    const { data } = await apiClient.get<PartyIntelligenceResponse>(
+      `/api/v1/parties/${partyId}/intelligence`,
+      { params: opts },
     );
     return data;
   },

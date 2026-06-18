@@ -70,6 +70,7 @@ import { formatDate, formatDateTime } from "@/utils/datetime";
 import { cn } from "@/lib/utils";
 import { translateApiError } from "@/lib/translate-api-error";
 import { useAuthStore, selectHasPermission, selectUser } from "@/store/auth.store";
+import { CounterpartyIntelligenceCard } from "./CounterpartyIntelligenceCard";
 import { ContractStatusBadge } from "./ContractStatusBadge";
 import { ContractStatusDialog } from "./ContractStatusDialog";
 import { ContractDeleteDialog } from "./ContractDeleteDialog";
@@ -1466,6 +1467,14 @@ function OverviewPanel({ contract, canManageTags }: OverviewPanelProps) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-4">
+        {/* Counterparty history intelligence — review aid; not for external
+            recipients. Hidden when there's no counterparty on the contract. */}
+        {!isRecipientOnly && contract.counterpartyId ? (
+          <CounterpartyIntelligenceCard
+            partyId={contract.counterpartyId}
+            excludeContractId={contract.id}
+          />
+        ) : null}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("contracts.detail.summaryTitle")}</CardTitle>

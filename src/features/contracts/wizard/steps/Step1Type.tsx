@@ -40,6 +40,7 @@ import {
   type TemplateListItem,
 } from "@/services/api/m_parity.service";
 import { humanizeLabel } from "@/features/dashboards/components/dashboard-primitives";
+import { CounterpartyIntelligenceCard } from "@/features/contracts/components/CounterpartyIntelligenceCard";
 import { composeStep1Schema, type ComposeStep1FormData } from "../compose-wizard-schemas";
 import type { ComposeWizardStep1Type } from "@/types/entities/payment-schedule.types";
 
@@ -457,6 +458,15 @@ export function Step1Type({ value, onChange, disabled = false }: Step1TypeProps)
           </div>
         </CardContent>
       </Card>
+
+      {/* Counterparty intelligence — shown once the counterparty resolves to a
+          known party. New/unknown names resolve to null → card hidden. */}
+      {(() => {
+        const cpId = resolvePartyId(watched.counterpartyName);
+        return cpId ? (
+          <CounterpartyIntelligenceCard partyId={cpId} className="mt-4" />
+        ) : null;
+      })()}
 
       {/* Browse-all modal */}
       <Dialog open={browseOpen} onOpenChange={setBrowseOpen}>
