@@ -456,14 +456,18 @@ function mapFeedRow(row: NotificationFeedRow): AppNotification {
     typeof ctx["obligationId"] === "number" ? ctx["obligationId"] : null;
   const contractId =
     typeof ctx["contractId"] === "number" ? ctx["contractId"] : null;
+  const source = typeof ctx["source"] === "string" ? ctx["source"] : "";
+  const contractLink = contractId
+    ? "/app/contracts/" +
+      contractId +
+      (source === "redline.approver_assigned" ? "?tab=redline" : "")
+    : undefined;
   const linkUrl =
     typeof ctx["linkUrl"] === "string"
       ? ctx["linkUrl"]
       : obligationId
         ? "/app/obligations"
-        : contractId
-          ? "/app/contracts/" + contractId
-          : undefined;
+        : contractLink;
   // Title: use the rendered subject, but fall back to a readable kind-based
   // label when it's missing or still contains unrendered template tokens
   // (e.g. "{notification}" / "{{contractNumber}}") — never show raw tokens.
@@ -481,8 +485,20 @@ function mapFeedRow(row: NotificationFeedRow): AppNotification {
   const title = !looksLikePlaceholder
     ? subj
     : (KIND_TITLES[row.notificationKind] ?? "Notification");
-  const rawBody = row.bodyRendered ?? undefined;
-  const body = rawBody && /\{\{?.*?\}?\}/.test(rawBody) ? undefined : rawBody;
+  const rawBody = (row.bodyRendered ?? "").trim();
+  const bodyOk = rawBody !== "" && !/\{\{?.*?\}?\}/.test(rawBody);
+  // When the rendered body is missing or still holds unrendered tokens, build a
+  // readable one-line description from the context payload so the bell shows
+  // something more useful than just the kind label ("Action required").
+  const ctxDesc = (): string | undefined => {
+    const parts = [
+      typeof ctx["contractNumber"] === "string" ? ctx["contractNumber"] : "",
+      typeof ctx["clauseHeading"] === "string" ? ctx["clauseHeading"] : "",
+      typeof ctx["actorName"] === "string" ? ctx["actorName"] : "",
+    ].filter((p) => p && !/\{\{?.*?\}?\}/.test(p));
+    return parts.length > 0 ? parts.join(" · ") : undefined;
+  };
+  const body = bodyOk ? rawBody : ctxDesc();
   return {
     id: "live-" + row.id,
     severity: sev,

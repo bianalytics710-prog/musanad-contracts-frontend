@@ -38,6 +38,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { StageCheckboxFilter } from "./StageCheckboxFilter";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -126,6 +127,7 @@ function actionLabelKey(workOrderType: MyWorkType): { key: string; def: string }
     case "contract_draft_request":  return { key: "myWork.actions.composeDraft",   def: "Compose draft" };
     case "contract_returned":       return { key: "myWork.actions.editDraft",      def: "Edit draft" };
     case "comment_response":        return { key: "myWork.actions.open",           def: "Open" };
+    case "redline_approver_tag":    return { key: "myWork.actions.reviewRedline",  def: "Review redline" };
     default:                        return { key: "myWork.actions.open",           def: "Open" };
   }
 }
@@ -176,7 +178,12 @@ export function MyWorkUnifiedInbox() {
   const [fromFilter, setFromFilter] = useState<string>("all");
   // mig 684 — the Status filter now filters on the user's PERSONAL status
   // (To do / In progress / Done / Blocked), matching the new Status column.
-  const [statusFilter, setStatusFilter] = useState<"all" | PersonalWorkStatus>("all");
+  // Multi-select status filter. Defaults to everything still on the task list —
+  // all personal statuses except the terminal "done" — so the inbox opens on
+  // outstanding work.
+  const [statusFilter, setStatusFilter] = useState<Set<PersonalWorkStatus>>(
+    () => new Set<PersonalWorkStatus>(["to_do", "in_progress", "blocked"]),
+  );
   const [sort, setSort] = useState<"createdDesc" | "createdAsc">("createdDesc");
   const [addOpen, setAddOpen] = useState(false);
   const [addManualOpen, setAddManualOpen] = useState(false);
@@ -247,7 +254,7 @@ export function MyWorkUnifiedInbox() {
   const filteredRows = useMemo(() => {
     const filtered = rows.filter((r) => {
       if (fromFilter !== "all" && r.assignedByName !== fromFilter) return false;
-      if (statusFilter !== "all" && (statusMap.get(r.id) ?? "to_do") !== statusFilter) return false;
+      if (!statusFilter.has(statusMap.get(r.id) ?? "to_do")) return false;
       return true;
     });
     const sorted = [...filtered].sort((a, b) => {
@@ -261,8 +268,29 @@ export function MyWorkUnifiedInbox() {
   const handleAction = (row: MyWorkRow) => {
     // TanStack Router's typed navigate is strict, so route the wildcard via window history.
     // Within the same SPA both behave identically; this avoids a dozen route-type-imports.
-    if (row.actionUrl) {
-      void navigate({ to: row.actionUrl as never });
+    //
+    // The BE my-work UNION (fn_my_work_list_v2) gives several work-order types a
+    // generic list-page action_url rather than a contract link:
+    //   • redline_approver_tag → "/app/work"      (a self-link → no-op)
+    //   • comment_response     → "/app/work"      (a self-link → no-op)
+    //   • approval_awaiting    → "/app/approvals" (the queue, not the contract)
+    // When the row carries a contract id, route straight to that contract's
+    // detail page (the relevant tab) instead. Other types (advisory_draft,
+    // risk_case_assigned, signature_required, …) already carry good URLs.
+    const contractId = row.targetContractId ?? row.sourceContractId;
+    let target = row.actionUrl;
+    if (contractId) {
+      if (row.workOrderType === "redline_approver_tag") {
+        target = `/app/contracts/${contractId}?tab=redline`;
+      } else if (row.workOrderType === "comment_response") {
+        target = `/app/contracts/${contractId}?tab=comments`;
+      } else if (row.workOrderType === "approval_awaiting") {
+        // Contract Overview shows the approval stages (A28), so land there.
+        target = `/app/contracts/${contractId}`;
+      }
+    }
+    if (target) {
+      void navigate({ to: target as never });
     }
   };
 
@@ -376,21 +404,18 @@ export function MyWorkUnifiedInbox() {
               </option>
             ))}
           </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "all" | PersonalWorkStatus)}
-            aria-label={t("myWork.filters.statusLabel", { defaultValue: "Filter by status" })}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="all">
-              {t("myWork.filters.allStatuses", { defaultValue: "All statuses" })}
-            </option>
-            {PERSONAL_WORK_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {t(`myWork.personalStatus.${s}`, { defaultValue: PERSONAL_STATUS_DEFAULT_LABEL[s] })}
-              </option>
-            ))}
-          </select>
+          <StageCheckboxFilter
+            options={PERSONAL_WORK_STATUSES.map((s) => ({
+              value: s,
+              label: t(`myWork.personalStatus.${s}`, {
+                defaultValue: PERSONAL_STATUS_DEFAULT_LABEL[s],
+              }),
+            }))}
+            selected={statusFilter}
+            onChange={setStatusFilter}
+            label={t("myWork.filters.statusesLabel", { defaultValue: "Status" })}
+            ariaLabel={t("myWork.filters.statusLabel", { defaultValue: "Filter by status" })}
+          />
           <select
             value={fromFilter}
             onChange={(e) => setFromFilter(e.target.value)}

@@ -24,6 +24,8 @@ export const MY_WORK_TYPES = [
   // mig 657 — gaps 4 + 5
   "comment_mention",
   "signature_required",
+  // mig 711 — redline approver tag
+  "redline_approver_tag",
 ] as const;
 
 export type MyWorkType = (typeof MY_WORK_TYPES)[number];

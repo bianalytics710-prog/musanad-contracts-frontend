@@ -33,6 +33,7 @@ import { AddManualWorkOrderDialog } from "./AddManualWorkOrderDialog";
 import { AssignedByMeView } from "./AssignedByMeView";
 // Phase A (mig 640) — Legal Counsel + Approver get the unified inbox.
 import { MyWorkUnifiedInbox } from "./MyWorkUnifiedInbox";
+import { StageCheckboxFilter } from "./StageCheckboxFilter";
 import { useAuthStore, selectUser } from "@/store/auth.store";
 import {
   useMyWorkOrders,
@@ -322,7 +323,12 @@ function MyWorkInbox() {
   // Toolbar state.
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | WorkOrderType>("all");
-  const [stageFilter, setStageFilter] = useState<"all" | Stage>("all");
+  // Multi-select stage filter. Defaults to everything still on the task list —
+  // i.e. all stages except the terminal "completed" — so the inbox opens on
+  // outstanding work. (mig 684 parity with the unified inbox.)
+  const [stageFilter, setStageFilter] = useState<Set<Stage>>(
+    () => new Set<Stage>(["not_started", "draft_in_progress", "awaiting_approval", "returned"]),
+  );
   const [fromFilter, setFromFilter] = useState<string>("all");
   const [sort, setSort] = useState<"createdDesc" | "createdAsc">("createdDesc");
   const [addManualOpen, setAddManualOpen] = useState(false);
@@ -389,7 +395,7 @@ function MyWorkInbox() {
     const needle = search.trim().toLowerCase();
     return enriched.filter(({ wo, stage }) => {
       if (typeFilter !== "all" && wo.workOrderType !== typeFilter) return false;
-      if (stageFilter !== "all" && stage !== stageFilter) return false;
+      if (!stageFilter.has(stage)) return false;
       if (fromFilter !== "all" && wo.assignedByName !== fromFilter) return false;
       if (!needle) return true;
       const hay = [
@@ -433,8 +439,7 @@ function MyWorkInbox() {
     void wo;
   };
 
-  const stageOptions: Array<{ value: "all" | Stage; label: string }> = [
-    { value: "all", label: t("myWork.filters.allStages", { defaultValue: "All stages" }) },
+  const stageFilterOptions: Array<{ value: Stage; label: string }> = [
     { value: "not_started", label: t("myWork.stages.notStarted", { defaultValue: "Not started" }) },
     {
       value: "draft_in_progress",
@@ -518,10 +523,11 @@ function MyWorkInbox() {
             options={typeOptions}
             ariaLabel={t("myWork.filters.typeLabel", { defaultValue: "Filter by type" })}
           />
-          <FilterSelect
-            value={stageFilter}
+          <StageCheckboxFilter
+            options={stageFilterOptions}
+            selected={stageFilter}
             onChange={setStageFilter}
-            options={stageOptions}
+            label={t("myWork.filters.stagesLabel", { defaultValue: "Stages" })}
             ariaLabel={t("myWork.filters.stageLabel", { defaultValue: "Filter by stage" })}
           />
           <FilterSelect
