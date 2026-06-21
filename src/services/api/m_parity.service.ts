@@ -235,10 +235,14 @@ export interface ExtractTemplateFromContractInput {
 
 export interface ExtractTemplateFromContractResult {
   nameEn: string;
+  nameAr: string | null;
   descriptionEn: string;
+  descriptionAr: string | null;
   contractType: string;
   language: "en" | "ar" | "bilingual";
   bodyEnRedacted: string;
+  /** Arabic redacted body (same {{tokens}} as bodyEnRedacted); null for English-only sources. */
+  bodyArRedacted: string | null;
   placeholders: TemplatePlaceholder[];
   regulatoryReference: string | null;
   warnings: string[];

@@ -980,8 +980,20 @@ function ClauseRow({
               </span>
             )}
           </div>
-          <p className="text-sm font-medium text-ink">{row.titleEn}</p>
-          <p className="line-clamp-2 text-xs text-ink-muted">{row.bodyEn}</p>
+          {row.titleAr ? (
+            <>
+              <p className="text-sm font-medium text-ink" dir="rtl">{row.titleAr}</p>
+              <p className="text-[11px] text-ink-subtle">{row.titleEn}</p>
+              <p className="line-clamp-2 text-xs text-ink-muted" dir="rtl">
+                {row.bodyAr ?? row.bodyEn}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-ink">{row.titleEn}</p>
+              <p className="line-clamp-2 text-xs text-ink-muted">{row.bodyEn}</p>
+            </>
+          )}
         </div>
       </div>
     </li>
@@ -1013,11 +1025,14 @@ function EditorStep({ analysis, onCancel, onSubmit }: EditorStepProps) {
       <TemplateEditorForm
         initial={{
           nameEn: e.nameEn,
+          nameAr: e.nameAr,
           descriptionEn: e.descriptionEn,
+          descriptionAr: e.descriptionAr,
           contractType: e.contractType,
           language: e.language,
           regulatoryReference: e.regulatoryReference,
           bodyEn: e.bodyEnRedacted,
+          bodyAr: e.bodyArRedacted,
           placeholders: e.placeholders,
         }}
         submitLabel={t("templates.actions.save", { defaultValue: "Save template" })}
